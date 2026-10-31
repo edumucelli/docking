@@ -1,0 +1,256 @@
+# UCRT64 remains AMD64 under Windows 11 ARM emulation; this does not add a
+# native ARM64 Docking runtime or helper.
+name: Windows client input
+
+on:
+  workflow_call:
+    inputs:
+      candidate-artifact:
+        description: Exact AMD64 candidate wheel from the Server build
+        required: true
+        type: string
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-client-input-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  client-input:
+    name: Windows 11 client (emulated AMD64 and x86)
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      GDK_BACKEND: win32
+      GSETTINGS_BACKEND: memory
+      GTK_THEME: Adwaita
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install the emulated AMD64 UCRT64 runtime
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            gettext
+            mingw-w64-ucrt-x86_64-gtk3
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-python-gobject
+            mingw-w64-ucrt-x86_64-python-cairo
+            mingw-w64-ucrt-x86_64-python-pip
+            mingw-w64-ucrt-x86_64-python-setuptools
+            mingw-w64-ucrt-x86_64-python-wheel
+            mingw-w64-ucrt-x86_64-python-build
+            mingw-w64-ucrt-x86_64-python-pytest
+            mingw-w64-ucrt-x86_64-python-pillow
+            mingw-w64-ucrt-x86_64-python-psutil
+            mingw-w64-ucrt-x86_64-python-numpy
+            mingw-w64-ucrt-x86_64-gstreamer
+            mingw-w64-ucrt-x86_64-gst-plugins-base
+            mingw-w64-ucrt-x86_64-gst-plugins-good
+            mingw-w64-ucrt-x86_64-gst-plugins-bad
+      - name: Verify client OS and controller architecture
+        run: |
+          python - <<'PY'
+          import ctypes
+          import json
+          import os
+          import sys
+          import winreg
+          from pathlib import Path
+          from tools.windows.visual.input_environment import process_architecture
+
+          def token_snapshot():
+              # GetTokenInformation returns only this process's mandatory label
+              # and elevation metadata. Never query or serialize the user SID.
+              # https://learn.microsoft.com/windows/win32/api/securitybaseapi/nf-securitybaseapi-gettokeninformation
+              class SidAndAttributes(ctypes.Structure):
+                  _fields_ = [("sid", ctypes.c_void_p), ("attributes", ctypes.c_uint32)]
+
+              class MandatoryLabel(ctypes.Structure):
+                  _fields_ = [("label", SidAndAttributes)]
+
+              kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+              security = ctypes.WinDLL("advapi32", use_last_error=True)
+              current = kernel.GetCurrentProcess
+              current.argtypes = ()
+              current.restype = ctypes.c_void_p
+              close = kernel.CloseHandle
+              close.argtypes = (ctypes.c_void_p,)
+              close.restype = ctypes.c_int32
+              open_token = security.OpenProcessToken
+              open_token.argtypes = (
+                  ctypes.c_void_p, ctypes.c_uint32, ctypes.POINTER(ctypes.c_void_p)
+              )
+              open_token.restype = ctypes.c_int32
+              information = security.GetTokenInformation
+              information.argtypes = (
+                  ctypes.c_void_p, ctypes.c_int32, ctypes.c_void_p,
+                  ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32),
+              )
+              information.restype = ctypes.c_int32
+              valid_sid = security.IsValidSid
+              valid_sid.argtypes = (ctypes.c_void_p,)
+              valid_sid.restype = ctypes.c_int32
+              subauthority_count = security.GetSidSubAuthorityCount
+              subauthority_count.argtypes = (ctypes.c_void_p,)
+              subauthority_count.restype = ctypes.POINTER(ctypes.c_ubyte)
+              subauthority = security.GetSidSubAuthority
+              subauthority.argtypes = (ctypes.c_void_p, ctypes.c_uint32)
+              subauthority.restype = ctypes.POINTER(ctypes.c_uint32)
+              token = ctypes.c_void_p()
+              if not open_token(current(), 0x0008, ctypes.byref(token)):  # TOKEN_QUERY
+                  raise ctypes.WinError(ctypes.get_last_error())
+              try:
+                  def query(kind):
+                      length = ctypes.c_uint32()
+                      if information(token, kind, None, 0, ctypes.byref(length)):
+                          raise ValueError("Unexpected empty token information")
+                      error = ctypes.get_last_error()
+                      if error != 122:  # ERROR_INSUFFICIENT_BUFFER
+                          raise ctypes.WinError(error)
+                      if not 0 < length.value <= 65536:
+                          raise ValueError("Token information exceeds diagnostic bound")
+                      buffer = ctypes.create_string_buffer(length.value)
+                      if not information(token, kind, buffer, len(buffer), ctypes.byref(length)):
+                          raise ctypes.WinError(ctypes.get_last_error())
+                      if length.value != len(buffer):
+                          raise ValueError("Token information changed size")
+                      return buffer
+
+                  integrity = query(25)  # TokenIntegrityLevel -> TOKEN_MANDATORY_LABEL
+                  if len(integrity) < ctypes.sizeof(MandatoryLabel):
+                      raise ValueError("Incomplete token integrity label")
+                  sid = MandatoryLabel.from_buffer(integrity).label.sid
+                  if not valid_sid(sid):
+                      raise ValueError("Invalid mandatory integrity label")
+                  count = subauthority_count(sid).contents.value
+                  if not 0 < count <= 15:  # SID_MAX_SUB_AUTHORITIES
+                      raise ValueError("Invalid mandatory integrity subauthority count")
+                  rid = subauthority(sid, count - 1).contents.value
+                  elevation, elevation_type = ctypes.c_uint32(), ctypes.c_uint32()
+                  # Fixed-size classes reject a NULL sizing query on some
+                  # Windows versions (ERROR_BAD_LENGTH). Supply their DWORDs.
+                  for kind, value in ((20, elevation), (18, elevation_type)):
+                      length = ctypes.c_uint32()
+                      if not information(
+                          token, kind, ctypes.byref(value), ctypes.sizeof(value),
+                          ctypes.byref(length),
+                      ):
+                          raise ctypes.WinError(ctypes.get_last_error())
+                      if length.value != ctypes.sizeof(value):
+                          raise ValueError("Incomplete token elevation information")
+                  return {
+                      "integrity_rid": rid,
+                      "elevated": bool(elevation.value),
+                      "elevation_type": elevation_type.value,
+                  }
+              finally:
+                  if not close(token):
+                      raise ctypes.WinError(ctypes.get_last_error())
+
+          def uac_snapshot():
+              try:
+                  with winreg.OpenKey(
+                      winreg.HKEY_LOCAL_MACHINE,
+                      r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",
+                      0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY,
+                  ) as key:
+                      value, kind = winreg.QueryValueEx(key, "EnableLUA")
+                  if kind != winreg.REG_DWORD or type(value) is not int:
+                      return {"error": "unexpected-registry-type", "registry_type": kind}
+                  return {"enable_lua": value}
+              except OSError as error:
+                  return {"error": type(error).__name__, "winerror": error.winerror}
+
+          kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+          current = kernel.GetCurrentProcess
+          current.argtypes = ()
+          current.restype = ctypes.c_void_p
+          architecture = process_architecture(kernel, current(), details=True)
+          windows = sys.getwindowsversion()
+          facts = {
+              "process_machine": architecture["wow64"].get("process_machine"),
+              "native_machine": architecture["wow64"].get("native_machine"),
+              "actual_process_machine": architecture["machine"],
+              "process_architecture": architecture,
+              "pointer_bits": ctypes.sizeof(ctypes.c_void_p) * 8,
+              "windows_build": windows.build,
+              "windows_product_type": windows.product_type,
+              "msystem": os.environ["MSYSTEM"],
+          }
+          output = Path("artifacts/windows/client-environment.json")
+          output.parent.mkdir(parents=True, exist_ok=True)
+          # Retain exact ABI API/result/error before any later assertion or
+          # independent token query can fail. x64 on Arm is not a WOW64 process.
+          output.write_text(json.dumps(facts, indent=2) + "\n", encoding="utf-8")
+          facts["token"] = token_snapshot()
+          facts["uac"] = uac_snapshot()
+          output.write_text(json.dumps(facts, indent=2) + "\n", encoding="utf-8")
+          assert facts["pointer_bits"] == 64
+          assert architecture["wow64"]["success"]
+          assert architecture["process_type"]["success"]
+          assert facts["actual_process_machine"] == 0x8664
+          assert facts["native_machine"] == 0xAA64
+          assert windows.product_type == 1 and windows.build >= 22000
+          assert facts["msystem"] == "UCRT64"
+          PY
+      - name: Install Python dependencies and compile translations
+        run: |
+          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
+          python -m pip install --break-system-packages 'openmeteo-requests>=1.2,<1.5' requests-cache retry-requests
+          bash tools/i18n.sh --compile
+          echo "PYGI_DLL_PATH=$(cygpath -w /ucrt64/bin)" >> "$GITHUB_ENV"
+      - name: Download the exact Server candidate wheel
+        if: ${{ inputs.candidate-artifact != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.candidate-artifact }}
+          path: artifacts/windows/input-candidate
+      - name: Build a standalone candidate for manual workflow_dispatch
+        if: ${{ inputs.candidate-artifact == '' }}
+        run: |
+          python -m build --wheel --no-isolation
+          python -m tools.windows.input_acceptance --wheel dist/*.whl --source-sha "$GITHUB_SHA" --output artifacts/windows/input-candidate.json
+      - name: Verify and install the exact AMD64 candidate wheel
+        id: wheel
+        run: |
+          if [[ "${{ inputs.candidate-artifact }}" != "" ]]; then
+            mkdir -p dist
+            cp artifacts/windows/input-candidate/dist/*.whl dist/
+            cp artifacts/windows/input-candidate/artifacts/windows/input-candidate.json artifacts/windows/input-candidate.json
+          fi
+          python -m tools.windows.input_acceptance --verify --wheel dist/*.whl --source-sha "$GITHUB_SHA" --output artifacts/windows/input-candidate.json
+          python -m pip install --no-deps --target artifacts/windows/runtime dist/*.whl
+      - name: Verify GTK and native input dependencies
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
+        run: python -m tools.windows.ci --stage preflight
+      - name: Prepare the hosted desktop and verify the complete input domain
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
+        run: python -m tools.windows.visual.hosted_desktop --minimize-runner-terminals --installed-root artifacts/windows/runtime --wheel dist/*.whl --source-sha "$GITHUB_SHA" --output artifacts/windows
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: windows-client-input-ucrt64-x64
+          path: |
+            artifacts/windows/client-environment.json
+            artifacts/windows/environment.json
+            artifacts/windows/desktop-preparation.json
+            artifacts/windows/desktop-*.png
+            artifacts/windows/input-candidate.json
+            artifacts/windows/input-domain.json
+            artifacts/windows/search-layouts/
+            artifacts/windows/input-profiles/
+            dist/*.whl
+          if-no-files-found: error
+          retention-days: 14

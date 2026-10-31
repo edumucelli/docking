@@ -137,7 +137,7 @@ class NiriWindowPickService(WindowPickService):
         return pid if pid is not None and pid > 1 and pid != os.getpid() else None
 
     def kill(self, window_id: WindowId) -> ActionResult:
-        from docking.applets.windowkiller.state import kill_pid
+        from docking.platform.backends.unix.processes import kill_pid
 
         selected_pid = self._selected_pids.pop(window_id, None)
         pid = self.pid_for(window_id)

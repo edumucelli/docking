@@ -5657,3 +5657,27 @@ msgstr "Игнорировать"
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
 msgstr ""
+
+msgid "Microphone state unavailable"
+msgstr ""
+
+msgid "Microphone mute state unknown"
+msgstr ""
+
+msgid "Microphone activity unknown"
+msgstr ""
+
+msgid "Microphone Settings"
+msgstr ""
+
+msgid "Camera state unavailable"
+msgstr ""
+
+msgid "Camera activity unknown"
+msgstr ""
+
+msgid "Camera locking unavailable"
+msgstr ""
+
+msgid "Camera Settings"
+msgstr ""

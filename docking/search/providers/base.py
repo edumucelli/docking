@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Protocol, runtime_checkable
 
+from docking.core.paths import is_explicit_path
 from docking.search.coordinator import SearchProvider, SearchRequest
 from docking.search.matcher import best_match
 from docking.search.types import SearchAction, SearchIdentity, SearchResult
@@ -86,7 +87,7 @@ def score_fields(
 def is_special_query(text: str) -> bool:
     """Return whether text is reserved for a recognizer-routed utility."""
     stripped = text.strip()
-    return stripped.startswith(("=", "/", "~/", "./", "../", "file://"))
+    return stripped.startswith("=") or is_explicit_path(stripped)
 
 
 __all__ = [

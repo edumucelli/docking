@@ -187,6 +187,6 @@ class WebAppApplet(Applet):
             buttons=Gtk.ButtonsType.OK,
             text=self.disconnect_error,
         )
-        dialog.format_secondary_text(error or _("Unknown WebKit error"))
+        dialog.format_secondary_text(error or _("Unknown browser error"))
         dialog.run()
         dialog.destroy()

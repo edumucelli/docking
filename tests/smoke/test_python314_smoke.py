@@ -11,7 +11,13 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock
 
+import pytest
+
 from docking.core.config import Config
+from docking.platform.applications.associations import (
+    AssociationResolution,
+    AssociationStatus,
+)
 
 
 def _install_fake_gi(monkeypatch):
@@ -114,7 +120,21 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             "RecentApplicationsPersistence": _RecentApplicationsPersistence,
         },
         "docking.platform.icons": {
-            "IconLoader": type("IconLoader", (), {}),
+            "IconLoader": type(
+                "IconLoader",
+                (),
+                {
+                    "stop": lambda self: None,
+                    "subscribe": lambda self, _callback: lambda: None,
+                },
+            ),
+        },
+        "docking.platform.application_icons": {
+            "ApplicationIcons": type(
+                "ApplicationIcons",
+                (),
+                {"__init__": lambda self, **_kwargs: None},
+            ),
         },
         "docking.platform.targets": {
             "TargetService": type(
@@ -132,14 +152,16 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         "docking.platform.unity": {
             "UnityLauncherListener": type("UnityLauncherListener", (), {}),
         },
-        "docking.platform.status_notifier": {
-            "StatusNotifierNotificationBridge": type(
-                "StatusNotifierNotificationBridge",
+        "docking.platform.tray.notifications": {
+            "TrayNotificationBridge": type(
+                "TrayNotificationBridge",
                 (),
                 {},
             ),
-            "StatusNotifierService": type(
-                "StatusNotifierService",
+        },
+        "docking.platform.tray.service": {
+            "TrayService": type(
+                "TrayService",
                 (),
                 {"start": lambda self: None, "stop": lambda self: None},
             ),
@@ -308,7 +330,16 @@ def test_about_dialog_controller_smoke(monkeypatch):
     assert first.show_count == 2
 
 
-def test_app_main_smoke(monkeypatch):
+@pytest.mark.parametrize(
+    ("catalog_pending", "association_status"),
+    (
+        (False, AssociationStatus.READY),
+        (False, AssociationStatus.PENDING),
+        (False, AssociationStatus.UNAVAILABLE),
+        (True, AssociationStatus.READY),
+    ),
+)
+def test_app_main_smoke(monkeypatch, catalog_pending, association_status):
     app_mod, fake_glib, fake_gtk = _load_app_module(monkeypatch)
 
     config = SimpleNamespace(
@@ -320,10 +351,59 @@ def test_app_main_smoke(monkeypatch):
         recent_apps_max=7,
         recent_apps_retention_days=30,
         recent_apps=[],
+        pinned=[],
+        save=MagicMock(),
     )
     theme = MagicMock()
     theme.with_opacity.return_value = object()
-    registry = MagicMock()
+    registry = SimpleNamespace(
+        generation=0,
+        initial_discovery_pending=catalog_pending,
+        refresh=MagicMock(),
+        get=MagicMock(),
+        default_for_content_type=MagicMock(),
+        subscribe=MagicMock(),
+        start=MagicMock(),
+        stop=MagicMock(),
+    )
+    defaults = {
+        "x-scheme-handler/http": "browser-default.desktop",
+        "inode/directory": "files-default.desktop",
+        "text/plain": "editor-default.desktop",
+        "x-scheme-handler/mailto": "mail-default.desktop",
+    }
+    applications = {
+        identifier: SimpleNamespace(desktop_id=identifier)
+        for identifier in defaults.values()
+    }
+    registry.get.side_effect = applications.get
+    status = [association_status]
+
+    def default_for_content_type(content_type):
+        return AssociationResolution(
+            status[0],
+            applications[defaults[content_type]]
+            if status[0] is AssociationStatus.READY
+            else None,
+        )
+
+    registry.default_for_content_type.side_effect = default_for_content_type
+    listeners = []
+    unsubscribe = MagicMock(side_effect=lambda: listeners.pop())
+
+    def subscribe(callback):
+        listeners.append(callback)
+        return unsubscribe
+
+    def start_registry():
+        registry.initial_discovery_pending = False
+        if status[0] is AssociationStatus.PENDING:
+            status[0] = AssociationStatus.READY
+        assert len(listeners) == 1
+        listeners[0]()
+
+    registry.subscribe.side_effect = subscribe
+    registry.start.side_effect = start_registry
     model = MagicMock()
     renderer = MagicMock()
     tracker = MagicMock()
@@ -343,10 +423,20 @@ def test_app_main_smoke(monkeypatch):
         stop=MagicMock(),
     )
     items_service = MagicMock()
-    registry.generation = 0
-
     config_cls = MagicMock()
-    config_cls.load.return_value = config
+    initial_application_pins = []
+
+    def load_config(*, initial_pinned_factory):
+        config.pinned = initial_pinned_factory()
+        initial_application_pins.extend(
+            entry.target for entry in config.pinned if entry.kind == "app"
+        )
+        if catalog_pending:
+            registry.get.assert_not_called()
+            registry.default_for_content_type.assert_not_called()
+        return config
+
+    config_cls.load.side_effect = load_config
     monkeypatch.setattr(app_mod, "Config", config_cls)
 
     theme_cls = MagicMock()
@@ -365,7 +455,7 @@ def test_app_main_smoke(monkeypatch):
     monkeypatch.setattr(app_mod, "UnityLauncherListener", MagicMock(return_value=unity))
     monkeypatch.setattr(
         app_mod,
-        "StatusNotifierNotificationBridge",
+        "TrayNotificationBridge",
         MagicMock(return_value=status_notifications),
     )
     monkeypatch.setattr(app_mod, "build_dock_window", MagicMock(return_value=ui))
@@ -391,11 +481,38 @@ def test_app_main_smoke(monkeypatch):
     registry.refresh.assert_called_once_with()
     registry.start.assert_called_once_with()
     registry.stop.assert_called_once_with()
+    unsubscribe.assert_called_once_with()
+    assert not listeners
+    if catalog_pending or association_status is AssociationStatus.PENDING:
+        assert initial_application_pins == []
+        config.save.assert_called_once_with()
+    else:
+        config.save.assert_not_called()
+        assert initial_application_pins == (
+            list(defaults.values())
+            if association_status is AssociationStatus.READY
+            else []
+        )
+    assert [entry.target for entry in config.pinned if entry.kind == "app"] == (
+        []
+        if association_status is AssociationStatus.UNAVAILABLE
+        else list(defaults.values())
+    )
+    assert registry.default_for_content_type.call_count == (
+        8 if association_status is AssociationStatus.PENDING else 4
+    )
+    model.refresh_applications.assert_called_once_with()
+    backend.start.assert_called_once_with()
+    backend.stop.assert_called_once_with()
+    items_service.start.assert_called_once_with()
+    items_service.stop.assert_called_once_with()
+    model.start_applets.assert_called_once_with()
+    model.stop_applets.assert_called_once_with()
     app_mod.UnityLauncherListener.assert_called_once_with(
         model=model,
         application_registry=registry,
     )
-    app_mod.StatusNotifierNotificationBridge.assert_called_once_with(
+    app_mod.TrayNotificationBridge.assert_called_once_with(
         model=model,
         application_registry=registry,
         service=ANY,

@@ -5,6 +5,12 @@ from __future__ import annotations
 
 def prepare_display() -> bool:
     """Let a backend prepare GTK before the application module loads."""
+    from docking.platform.environment import is_windows
+
+    if is_windows():
+        from docking.platform.backends.windows.startup import prepare_windows_runtime
+
+        return prepare_windows_runtime()
     from docking.platform.backends.cinnamon.startup import prepare_cinnamon_display
 
     return prepare_cinnamon_display()

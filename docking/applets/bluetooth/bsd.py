@@ -13,6 +13,7 @@ import tempfile
 import threading
 from pathlib import Path
 
+from docking.applets.bluetooth import unix_desktop
 from docking.applets.bluetooth.backend import BluetoothBackend, BluetoothCapabilities
 from docking.applets.bluetooth.state import (
     BluetoothAdapterState,
@@ -78,6 +79,12 @@ class BsdBluetoothBackend(BluetoothBackend):
     # coordinating hcsecd's live key cache and configuration, not just deleting
     # a controller key. Those operations remain with the system administrator.
     capabilities = BluetoothCapabilities(trust=False, remove_pairing=False)
+
+    def desktop_actions(self):
+        return unix_desktop.desktop_actions()
+
+    def open_desktop_action(self, action):
+        return unix_desktop.open_desktop_action(action)
 
     def __init__(self) -> None:
         self._lock = threading.RLock()

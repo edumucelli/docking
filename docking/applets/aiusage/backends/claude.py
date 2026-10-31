@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from docking.applets.aiusage.backends.base import ProviderSessions
+from docking.applets.aiusage.hook_command import hook_argv
 from docking.applets.aiusage.state import ModelUsage, Provider, _has_usage
 from docking.applets.aiusage.store import replace_session
 from docking.core.paths import ensure_parent_dir
@@ -66,6 +67,18 @@ def register_hooks() -> None:
         return
 
     hooks = settings.setdefault("hooks", {})
+    if sys.platform == "win32":
+        if _register_windows_hooks(hooks):
+            try:
+                ensure_parent_dir(_CLAUDE_SETTINGS)
+                _CLAUDE_SETTINGS.write_text(
+                    json.dumps(settings, indent=2) + "\n", encoding="utf-8"
+                )
+            except OSError:
+                log.bind(action="register_hooks").warning(
+                    "Could not write %s", _CLAUDE_SETTINGS
+                )
+        return
     changed = False
     prefix = _hook_command_prefix()
 
@@ -118,6 +131,51 @@ def register_hooks() -> None:
             log.bind(action="register_hooks").warning(
                 "Could not write %s", _CLAUDE_SETTINGS
             )
+
+
+def _register_windows_hooks(hooks: dict[str, Any]) -> bool:
+    """Use Claude's exec form so paths never pass through Bash or PowerShell."""
+    changed = False
+    for event in ("Stop", "SessionStart"):
+        command, *arguments = hook_argv("claude", event)
+        spec = {"type": "command", "command": command, "args": arguments}
+        entries = hooks.setdefault(event, [])
+        if any(
+            hook.get("command") == command and hook.get("args") == arguments
+            for entry in entries
+            for hook in entry.get("hooks", [])
+        ):
+            continue
+        # Keep unrelated hooks, even when an old Docking hook shares their entry.
+        retained = []
+        for entry in entries:
+            members = [
+                hook for hook in entry.get("hooks", []) if not _is_owned_hook(hook)
+            ]
+            if members:
+                retained.append({**entry, "hooks": members})
+        retained.append(
+            {"matcher": "*", "hooks": [spec]} if event == "Stop" else {"hooks": [spec]}
+        )
+        hooks[event] = retained
+        changed = True
+    return changed
+
+
+def _is_owned_hook(hook: dict[str, Any]) -> bool:
+    if any(
+        name in hook.get("command", "")
+        for name in ("docking.applets.aiusage.hook", "docking.applets.claude.hook")
+    ):
+        return True
+    arguments = hook.get("args", [])
+    return isinstance(arguments, list) and any(
+        isinstance(argument, str)
+        and argument.replace("\\", "/")
+        .casefold()
+        .endswith("/docking/applets/aiusage/hook_runner.py")
+        for argument in arguments
+    )
 
 
 def query_today() -> ProviderSessions:

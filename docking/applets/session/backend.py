@@ -7,12 +7,22 @@ from docking.platform import environment
 
 class SessionBackend(ABC):
     @abstractmethod
-    def command_for(self, action: str) -> list[str] | None: ...
+    def available_actions(self) -> frozenset[str]: ...
+
     @abstractmethod
-    def lock_commands(self) -> tuple[tuple[str, ...], ...]: ...
+    def perform(self, action: str) -> bool:
+        """Request an action; success means accepted, not a completed transition."""
+
+    def stop(self) -> None:
+        """Release applet-owned resources without undoing an accepted OS action."""
+        return
 
 
 def create_backend() -> SessionBackend:
+    if environment.is_windows():
+        from docking.applets.session.windows import WindowsSessionBackend
+
+        return WindowsSessionBackend()
     if environment.is_bsd():
         from docking.applets.session.bsd import BsdSessionBackend
 

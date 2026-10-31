@@ -62,6 +62,16 @@ def test_anchor_monitor_uses_external_area_in_logical_coordinates():
     assert snapshot.primary is False
 
 
+def test_explicit_workarea_provider_keeps_owned_reservations():
+    popup, surface = _popup(external=Rect(-1280, 0, 1280, 800))
+    provider = MagicMock(return_value=Rect(-1280, 28, 1280, 650))
+    assert popup_workarea(popup, -1240, 760, workarea_provider=provider) == Rect(
+        -1280, 28, 1280, 650
+    )
+    assert provider.call_args.args[0].index == 1
+    surface.external_workarea.assert_not_called()
+
+
 @pytest.mark.parametrize("relative", [False, True])
 def test_missing_external_reservations_fall_back_to_gdk_workarea(relative):
     popup, _ = _popup(relative=relative)

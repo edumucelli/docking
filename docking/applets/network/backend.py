@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import NamedTuple
 
 from docking.applets.network.state import (
@@ -16,10 +17,38 @@ class VpnConnection(NamedTuple):
     uuid: str
     label: str
     is_active: bool
+    is_pending: bool = False
+    description: str = ""
+    can_toggle: bool = True
+
+
+class NetworkSettings(NamedTuple):
+    """Platform settings availability and actions used by the shared menu."""
+
+    connection_info_available: Callable[[], bool]
+    edit_connections_available: Callable[[], bool]
+    open_connection_info: Callable[[], bool]
+    open_edit_connections: Callable[[], bool]
+    open_hidden_wifi_settings: Callable[[], bool]
+    open_new_wifi_settings: Callable[[], bool]
+
+
+@dataclass(frozen=True)
+class NetworkCapabilities:
+    networking_toggle: bool = True
+    wireless_toggle: bool = True
 
 
 class ConnectionManager(ABC):
     """Optional connection-management capability, independent of rendering."""
+
+    @property
+    def capabilities(self) -> NetworkCapabilities:
+        return NetworkCapabilities()
+
+    @property
+    def networks_unavailable_reason(self) -> str:
+        return ""
 
     @property
     @abstractmethod
@@ -51,6 +80,10 @@ class NetworkBackend(ABC):
 
     @property
     @abstractmethod
+    def settings(self) -> NetworkSettings: ...
+
+    @property
+    @abstractmethod
     def connection_manager(self) -> ConnectionManager | None: ...
     @abstractmethod
     def start(self, changed: Callable[[], None]) -> None: ...
@@ -65,6 +98,10 @@ class NetworkBackend(ABC):
 
 
 def create_backend(interface: str = "") -> NetworkBackend:
+    if environment.is_windows():
+        from docking.applets.network.windows import WindowsNetworkBackend
+
+        return WindowsNetworkBackend(interface)
     if environment.is_bsd():
         from docking.applets.network.bsd import BsdNetworkBackend
 

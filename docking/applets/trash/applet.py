@@ -30,6 +30,7 @@ from docking.applets.base import Applet
 from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.trash import meta
 from docking.core.icons import IconSource
+from docking.core.paths import local_path_from_uri_or_path
 from docking.i18n import _
 from docking.log import get_logger, with_context
 from docking.platform.environment import detect_desktop
@@ -56,6 +57,7 @@ class TrashApplet(Applet):
         self._backend: TrashBackend = select_trash_backend(desktop=self._desktop)
         self._item_count = self._backend.count_items()
         self._monitors: list[Gio.FileMonitor] = []
+        self._native_monitor_stop: Callable[[], None] | None = None
         self._volume_monitor: Gio.VolumeMonitor | None = None
         self._volume_monitor_handlers: list[int] = []
         self._action_error = ""
@@ -101,11 +103,11 @@ class TrashApplet(Applet):
                 failed = True
                 continue
             try:
-                if file.trash(None):
+                if self._backend.trash_file(file):
                     moved = True
                 else:
                     failed = True
-            except GLib.Error as exc:
+            except (GLib.Error, OSError) as exc:
                 failed = True
                 log.bind(action="drop_to_trash").warning(
                     "Failed to move dropped item to trash: %s",
@@ -144,6 +146,7 @@ class TrashApplet(Applet):
     def start(self, notify: Callable[[], None]) -> None:
         """Start trash monitoring for real-time icon updates."""
         super().start(notify)
+        self._native_monitor_stop = self._backend.watch_changes(self._on_trash_changed)
         self._start_trash_monitors()
         self._volume_monitor = Gio.VolumeMonitor.get()
         self._volume_monitor_handlers = [
@@ -153,6 +156,9 @@ class TrashApplet(Applet):
 
     def stop(self) -> None:
         """Cancel the trash file monitor."""
+        if self._native_monitor_stop is not None:
+            self._native_monitor_stop()
+            self._native_monitor_stop = None
         self._cancel_trash_monitors()
         if self._volume_monitor is not None:
             for handler_id in self._volume_monitor_handlers:
@@ -240,15 +246,10 @@ class TrashApplet(Applet):
         text = uri.strip()
         if not text:
             return None
-        if text.startswith("file://"):
-            file = Gio.File.new_for_uri(text)
-        elif text.startswith("/"):
-            file = Gio.File.new_for_path(text)
-        else:
+        path = local_path_from_uri_or_path(text)
+        if path is None or not path.is_absolute():
             return None
-        if file.get_path() is None:
-            return None
-        return file
+        return Gio.File.new_for_path(str(path))
 
     def _confirm_empty_trash(self) -> bool:
         dialog = Gtk.MessageDialog(

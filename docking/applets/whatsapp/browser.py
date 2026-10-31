@@ -1,4 +1,4 @@
-"""WhatsApp profile for the shared persistent WebKit host."""
+"""WhatsApp profile for the shared persistent browser host."""
 
 from docking.applets.webapp.browser import (
     BrowserProfile,

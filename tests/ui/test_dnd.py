@@ -99,18 +99,19 @@ class TestAppletUriRejection:
 
 
 class TestUriToDesktopId:
-    def test_file_uri(self):
+    def test_file_uri(self, tmp_path):
         # Given
-        uri = "file:///usr/share/applications/firefox.desktop"
+        uri = (tmp_path / "firefox.desktop").as_uri()
         # When / Then
         assert desktop_id_from_uri_or_path(uri) == "firefox.desktop"
 
-    def test_file_uri_with_spaces(self):
+    def test_file_uri_with_spaces(self, tmp_path):
         # Given
-        uri = "file:///usr/share/applications/my%20app.desktop"
+        uri = (tmp_path / "my app.desktop").as_uri()
         # When / Then
         assert desktop_id_from_uri_or_path(uri) == "my app.desktop"
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Snap uses POSIX file URIs")
     def test_file_uri_snap(self):
         # Given
         uri = "file:///var/lib/snapd/desktop/applications/firefox_firefox.desktop"
@@ -185,10 +186,12 @@ class _ReorderDock:
             distance_from_edge=0,
             urgent_glow_time_ms=500,
         )
+        registry = MagicMock()
+        registry.initial_discovery_pending = False
         self.model = DockModel(
             config=self.config,
             applet_services=MagicMock(),
-            application_registry=MagicMock(),
+            application_registry=registry,
             application_launcher=MagicMock(),
             icon_loader=MagicMock(),
             target_service=MagicMock(),

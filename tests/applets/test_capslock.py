@@ -5,14 +5,14 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import docking.applets.capslock.applet as capslock_applet_mod
+import docking.applets.capslock.linux as capslock_linux_mod
 import docking.applets.capslock.state as capslock_state_mod
 from docking.applets.capslock.applet import CapslockApplet
+from docking.applets.capslock.linux import X11LockKeyBackend, parse_xset_query
 from docking.applets.capslock.render import render_icon
 from docking.applets.capslock.state import (
     LockKeyState,
     menu_label,
-    parse_xset_query,
-    query_lock_state,
     tooltip_text,
 )
 from docking.core.config import Config
@@ -22,6 +22,12 @@ XSET_OUTPUT = """Keyboard Control:
   XKB indicators:
     00: Caps Lock:   on     01: Num Lock:    off    02: Scroll Lock: off
 """
+
+
+def use_backend(monkeypatch, read):
+    backend = SimpleNamespace(get_state=read)
+    monkeypatch.setattr(capslock_applet_mod, "create_backend", lambda: backend)
+    return backend
 
 
 class TestState:
@@ -36,14 +42,14 @@ class TestState:
         assert state == LockKeyState(available=False)
 
     def test_query_lock_state_without_xset(self, monkeypatch):
-        monkeypatch.setattr(capslock_state_mod.shutil, "which", lambda _cmd: None)
+        monkeypatch.setattr(capslock_linux_mod.shutil, "which", lambda _cmd: None)
 
-        assert query_lock_state() == LockKeyState(available=False)
+        assert X11LockKeyBackend().get_state() == LockKeyState(available=False)
 
     def test_query_lock_state_from_xset(self, monkeypatch):
-        monkeypatch.setattr(capslock_state_mod.shutil, "which", lambda _cmd: "/bin/x")
+        monkeypatch.setattr(capslock_linux_mod.shutil, "which", lambda _cmd: "/bin/x")
         monkeypatch.setattr(
-            capslock_state_mod.subprocess,
+            capslock_linux_mod.subprocess,
             "run",
             lambda *_args, **_kwargs: SimpleNamespace(
                 returncode=0,
@@ -51,27 +57,27 @@ class TestState:
             ),
         )
 
-        assert query_lock_state() == LockKeyState(
+        assert X11LockKeyBackend().get_state() == LockKeyState(
             available=True,
             caps_lock=True,
             num_lock=False,
         )
 
     def test_query_lock_state_handles_failures(self, monkeypatch):
-        monkeypatch.setattr(capslock_state_mod.shutil, "which", lambda _cmd: "/bin/x")
+        monkeypatch.setattr(capslock_linux_mod.shutil, "which", lambda _cmd: "/bin/x")
         monkeypatch.setattr(
-            capslock_state_mod.subprocess,
+            capslock_linux_mod.subprocess,
             "run",
             lambda *_args, **_kwargs: SimpleNamespace(returncode=1, stdout=""),
         )
-        assert query_lock_state() == LockKeyState(available=False)
+        assert X11LockKeyBackend().get_state() == LockKeyState(available=False)
 
         monkeypatch.setattr(
-            capslock_state_mod.subprocess,
+            capslock_linux_mod.subprocess,
             "run",
             lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("boom")),
         )
-        assert query_lock_state() == LockKeyState(available=False)
+        assert X11LockKeyBackend().get_state() == LockKeyState(available=False)
 
     def test_state_labels_cover_all_combinations(self):
         assert capslock_state_mod.state_label(LockKeyState(False)) == "??"
@@ -108,7 +114,7 @@ class TestRender:
 class TestApplet:
     def test_applet_presents_state(self, monkeypatch):
         state = LockKeyState(available=True, caps_lock=True, num_lock=True)
-        monkeypatch.setattr(capslock_applet_mod, "query_lock_state", lambda: state)
+        use_backend(monkeypatch, lambda: state)
 
         applet = CapslockApplet(icon_size=48, config=Config())
 
@@ -119,7 +125,7 @@ class TestApplet:
 
     def test_menu_contains_refresh(self, monkeypatch):
         state = LockKeyState(available=True, caps_lock=False, num_lock=True)
-        monkeypatch.setattr(capslock_applet_mod, "query_lock_state", lambda: state)
+        use_backend(monkeypatch, lambda: state)
         applet = CapslockApplet(icon_size=48, config=Config())
 
         labels = [item.get_label() for item in applet.get_menu_items()]
@@ -135,11 +141,7 @@ class TestApplet:
                 LockKeyState(True, True, False),
             ]
         )
-        monkeypatch.setattr(
-            capslock_applet_mod,
-            "query_lock_state",
-            lambda: next(states),
-        )
+        use_backend(monkeypatch, lambda: next(states))
         applet = CapslockApplet(icon_size=48, config=Config())
         labels = [item.get_label() for item in applet.get_menu_items()]
         assert "Keyboard lock state unavailable" in labels
@@ -150,7 +152,7 @@ class TestApplet:
 
     def test_start_stop_manage_timer(self, monkeypatch):
         state = LockKeyState(available=True)
-        monkeypatch.setattr(capslock_applet_mod, "query_lock_state", lambda: state)
+        use_backend(monkeypatch, lambda: state)
         monkeypatch.setattr(
             capslock_applet_mod.GLib,
             "timeout_add_seconds",
@@ -177,9 +179,7 @@ class TestApplet:
                 LockKeyState(available=True, caps_lock=True, num_lock=False),
             ]
         )
-        monkeypatch.setattr(
-            capslock_applet_mod, "query_lock_state", lambda: next(states)
-        )
+        use_backend(monkeypatch, lambda: next(states))
         applet = CapslockApplet(icon_size=48, config=Config())
         calls = 0
 
@@ -194,7 +194,7 @@ class TestApplet:
 
     def test_tick_does_not_present_when_state_is_same(self, monkeypatch):
         state = LockKeyState(available=True, caps_lock=False, num_lock=False)
-        monkeypatch.setattr(capslock_applet_mod, "query_lock_state", lambda: state)
+        use_backend(monkeypatch, lambda: state)
         applet = CapslockApplet(icon_size=48, config=Config())
         applet.present = lambda: (_ for _ in ()).throw(AssertionError("no present"))
 

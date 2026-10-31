@@ -1,0 +1,391 @@
+"""Windows AppBar reservation and physical/logical monitor coordinates.
+
+A transparent, non-interactive native window reserves the resting shelf strip.
+The GTK window remains larger to accommodate icon magnification and animation.
+The proxy owns its callback and is removed from the shell before destruction.
+"""
+
+from __future__ import annotations
+
+import ctypes
+import os
+from collections.abc import Callable
+from ctypes import wintypes
+from typing import TYPE_CHECKING
+
+from docking.core.position import Position
+from docking.log import get_logger
+from docking.platform.backends.base import MonitorSnapshot, Rect
+
+from .ffi import bind as _bind
+from .ffi import explorer_tray, window_handle
+from .geometry import ScreenMapping, WindowsMonitorGeometry
+
+if TYPE_CHECKING:
+    from gi.repository import Gdk
+
+log = get_logger("windows.appbar")
+
+
+def edge_strip(bounds: Rect, position: Position, thickness: int) -> Rect:
+    """Size a shell-approved rectangle along its requested screen edge."""
+    if position in (Position.TOP, Position.BOTTOM):
+        height = min(bounds.height, max(0, thickness))
+        y = bounds.bottom - height if position is Position.BOTTOM else bounds.y
+        return Rect(bounds.x, y, bounds.width, height)
+    width = min(bounds.width, max(0, thickness))
+    x = bounds.right - width if position is Position.RIGHT else bounds.x
+    return Rect(x, bounds.y, width, bounds.height)
+
+
+class _AppBarData(ctypes.Structure):
+    _fields_ = [
+        ("size", wintypes.DWORD),
+        ("hwnd", wintypes.HWND),
+        ("message", wintypes.UINT),
+        ("edge", wintypes.UINT),
+        ("rect", wintypes.RECT),
+        ("parameter", wintypes.LPARAM),
+    ]
+
+
+def _rectangle(rect: wintypes.RECT) -> Rect:
+    return Rect(
+        int(rect.left),
+        int(rect.top),
+        int(rect.right - rect.left),
+        int(rect.bottom - rect.top),
+    )
+
+
+class WindowsAppBar:
+    def __init__(
+        self, on_change: Callable[[], None], on_fullscreen: Callable[[bool], None]
+    ) -> None:
+        self._on_change = on_change
+        self._on_fullscreen = on_fullscreen
+        self._registered = False
+        self._registered_shell: tuple[int, int] | None = None
+        self._reserved: Rect | None = None
+        self._edge: int | None = None
+        self._closed = False
+        self._user = user = ctypes.WinDLL("user32", use_last_error=True)
+        shell = ctypes.WinDLL("shell32", use_last_error=True)
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        self._appbar = _bind(
+            shell,
+            "SHAppBarMessage",
+            ctypes.c_size_t,
+            wintypes.DWORD,
+            ctypes.POINTER(_AppBarData),
+        )
+        self._cursor = _bind(
+            user, "GetCursorPos", wintypes.BOOL, ctypes.POINTER(wintypes.POINT)
+        )
+        self._coordinates = WindowsMonitorGeometry(user)
+        register_message = _bind(
+            user, "RegisterWindowMessageW", wintypes.UINT, wintypes.LPCWSTR
+        )
+        self._message = register_message("Docking.AppBar.Notify")
+        self._taskbar_created = register_message("TaskbarCreated")
+        self._default = _bind(
+            user,
+            "DefWindowProcW",
+            ctypes.c_ssize_t,
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        )
+        self._set_position = _bind(
+            user,
+            "SetWindowPos",
+            wintypes.BOOL,
+            wintypes.HWND,
+            wintypes.HWND,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            wintypes.UINT,
+        )
+        callback_type = ctypes.WINFUNCTYPE(
+            ctypes.c_ssize_t,
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        )
+
+        class WindowClass(ctypes.Structure):
+            _fields_ = [
+                ("size", wintypes.UINT),
+                ("style", wintypes.UINT),
+                ("callback", callback_type),
+                ("class_extra", ctypes.c_int),
+                ("window_extra", ctypes.c_int),
+                ("instance", wintypes.HINSTANCE),
+                ("icon", wintypes.HICON),
+                ("cursor", wintypes.HANDLE),
+                ("background", wintypes.HBRUSH),
+                ("menu", wintypes.LPCWSTR),
+                ("name", wintypes.LPCWSTR),
+                ("small_icon", wintypes.HICON),
+            ]
+
+        self._callback = callback_type(self._window_proc)
+        self._instance = _bind(
+            kernel, "GetModuleHandleW", wintypes.HMODULE, wintypes.LPCWSTR
+        )(None)
+        self._class_name = f"Docking.AppBar.{os.getpid()}.{id(self)}"
+        window_class = WindowClass(
+            size=ctypes.sizeof(WindowClass),
+            callback=self._callback,
+            instance=self._instance,
+            name=self._class_name,
+        )
+        register = _bind(
+            user, "RegisterClassExW", wintypes.ATOM, ctypes.POINTER(WindowClass)
+        )
+        if not register(ctypes.byref(window_class)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        create = _bind(
+            user,
+            "CreateWindowExW",
+            wintypes.HWND,
+            wintypes.DWORD,
+            wintypes.LPCWSTR,
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            wintypes.HWND,
+            wintypes.HMENU,
+            wintypes.HINSTANCE,
+            ctypes.c_void_p,
+        )
+        # LAYERED | TRANSPARENT | NOACTIVATE | TOOLWINDOW, with no decorations.
+        self._hwnd = create(
+            0x080800A0,
+            self._class_name,
+            "Docking reservation",
+            0x80000000,
+            0,
+            0,
+            0,
+            0,
+            None,
+            None,
+            self._instance,
+            None,
+        )
+        if not self._hwnd:
+            self._unregister_class()
+            raise ctypes.WinError(ctypes.get_last_error())
+        opacity = _bind(
+            user,
+            "SetLayeredWindowAttributes",
+            wintypes.BOOL,
+            wintypes.HWND,
+            wintypes.DWORD,
+            wintypes.BYTE,
+            wintypes.DWORD,
+        )
+        opacity(self._hwnd, 0, 0, 2)
+
+    def _data(self, edge: int = 0, rect: Rect | None = None) -> _AppBarData:
+        data = _AppBarData(
+            size=ctypes.sizeof(_AppBarData),
+            hwnd=self._hwnd,
+            message=self._message,
+            edge=edge,
+        )
+        if rect is not None:
+            data.rect = wintypes.RECT(rect.x, rect.y, rect.right, rect.bottom)
+        return data
+
+    def cursor_position(self) -> tuple[int, int] | None:
+        point = wintypes.POINT()
+        return (point.x, point.y) if self._cursor(ctypes.byref(point)) else None
+
+    def mapping(self, monitor: MonitorSnapshot, display: Gdk.Display) -> ScreenMapping:
+        return self._coordinates.mapping(monitor, display)
+
+    def ensure_keep_above(self, window: Gdk.Window) -> bool:
+        """Confirm native stacking, repairing stale GTK hints without activation.
+
+        A repair needs a subsequent observation: the closing fullscreen window
+        may still be changing native z-order while the shell callback runs.
+        """
+        if self._closed or not (hwnd := window_handle(window)):
+            return False
+        style = _bind(
+            self._user,
+            "GetWindowLongPtrW",
+            ctypes.c_ssize_t,
+            wintypes.HWND,
+            ctypes.c_int,
+        )(hwnd, -20)
+        if style & 8:  # WS_EX_TOPMOST.
+            return True
+        # After fullscreen, HWND_TOPMOST can succeed without restoring its
+        # native flag. Explicitly demote before promoting to reset that state.
+        # HWND_NOTOPMOST / HWND_TOPMOST; NOSIZE | NOMOVE | NOACTIVATE.
+        self._set_position(hwnd, -2, 0, 0, 0, 0, 0x13)
+        if not self._closed:
+            self._set_position(hwnd, -1, 0, 0, 0, 0, 0x13)
+        return False
+
+    def fullscreen_active(self, mapping: ScreenMapping) -> bool | None:
+        """Read the active monitor cover without changing stacking on unknown data."""
+        if self._closed:
+            return None
+        foreground = _bind(self._user, "GetForegroundWindow", wintypes.HWND)()
+        if not foreground:
+            return None
+        owner = wintypes.DWORD()
+        if (
+            not _bind(
+                self._user,
+                "GetWindowThreadProcessId",
+                wintypes.DWORD,
+                wintypes.HWND,
+                ctypes.POINTER(wintypes.DWORD),
+            )(foreground, ctypes.byref(owner))
+            or not owner.value
+        ):
+            return None
+        name = ctypes.create_unicode_buffer(256)
+        if not _bind(
+            self._user,
+            "GetClassNameW",
+            ctypes.c_int,
+            wintypes.HWND,
+            wintypes.LPWSTR,
+            ctypes.c_int,
+        )(foreground, name, len(name)):
+            return None
+        if (
+            owner.value == os.getpid()
+            or name.value
+            in {"Progman", "WorkerW", "Shell_TrayWnd", "Shell_SecondaryTrayWnd"}
+            or not _bind(self._user, "IsWindowVisible", wintypes.BOOL, wintypes.HWND)(
+                foreground
+            )
+            or _bind(self._user, "IsIconic", wintypes.BOOL, wintypes.HWND)(foreground)
+        ):
+            return False
+        bounds = wintypes.RECT()
+        if not _bind(
+            self._user,
+            "GetWindowRect",
+            wintypes.BOOL,
+            wintypes.HWND,
+            ctypes.POINTER(wintypes.RECT),
+        )(foreground, ctypes.byref(bounds)):
+            return None
+        monitor = mapping.physical
+        return (
+            bounds.left <= monitor.x
+            and bounds.top <= monitor.y
+            and bounds.right >= monitor.right
+            and bounds.bottom >= monitor.bottom
+        )
+
+    @staticmethod
+    def _edge_for(position: Position) -> int:
+        return {
+            Position.LEFT: 0,
+            Position.TOP: 1,
+            Position.RIGHT: 2,
+            Position.BOTTOM: 3,
+        }[position]
+
+    def external(self, mapping: ScreenMapping, position: Position) -> Rect:
+        if not self._registered:
+            return mapping.workarea
+        data = self._data(self._edge_for(position), mapping.physical)
+        self._appbar(2, ctypes.byref(data))  # QUERYPOS excludes our own AppBar.
+        return _rectangle(data.rect)
+
+    def reserve(
+        self, mapping: ScreenMapping, position: Position, thickness: int
+    ) -> None:
+        if not self._registered:
+            data = self._data()
+            if not self._appbar(0, ctypes.byref(data)):
+                raise OSError("Windows shell rejected AppBar registration")
+            self._registered = True
+            self._registered_shell = explorer_tray(self._user, exclude_pid=os.getpid())
+        edge = self._edge_for(position)
+        bounds = self.external(mapping, position)
+        rect = edge_strip(bounds, position, thickness * mapping.scale)
+        if rect == self._reserved and edge == self._edge:
+            return
+        data = self._data(edge, rect)
+        self._appbar(3, ctypes.byref(data))
+        rect = _rectangle(data.rect)
+        self._reserved, self._edge = rect, edge
+        # NOACTIVATE | SHOWWINDOW. The transparent proxy is never interactive.
+        self._set_position(
+            self._hwnd, None, rect.x, rect.y, rect.width, rect.height, 0x50
+        )
+
+    def clear(self) -> None:
+        if self._registered:
+            self._registered = False
+            self._registered_shell = None
+            self._reserved = None
+            self._edge = None
+            self._appbar(1, ctypes.byref(self._data()))
+            _bind(self._user, "ShowWindow", wintypes.BOOL, wintypes.HWND, ctypes.c_int)(
+                self._hwnd, 0
+            )
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        self.clear()
+        _bind(self._user, "DestroyWindow", wintypes.BOOL, wintypes.HWND)(self._hwnd)
+        self._unregister_class()
+
+    def _unregister_class(self) -> None:
+        _bind(
+            self._user,
+            "UnregisterClassW",
+            wintypes.BOOL,
+            wintypes.LPCWSTR,
+            wintypes.HINSTANCE,
+        )(self._class_name, self._instance)
+
+    def _window_proc(self, hwnd: int, message: int, wparam: int, lparam: int) -> int:
+        try:
+            if not self._closed:
+                if message == self._message and wparam == 1:  # ABN_POSCHANGED
+                    self._on_change()
+                    return 0
+                if message == self._message and wparam == 2:  # ABN_FULLSCREENAPP
+                    self._on_fullscreen(bool(lparam))
+                    return 0
+                if message == self._taskbar_created:
+                    # Other notification hosts also send this broadcast.
+                    # Keep a live registration in the same Explorer lifetime;
+                    # duplicate ABM_NEW is rejected and must not orphan it.
+                    if self._registered_shell != explorer_tray(
+                        self._user, exclude_pid=os.getpid()
+                    ):
+                        self._registered = False
+                    self._reserved = None
+                    self._on_change()
+                elif self._registered and message in (6, 0x47):
+                    data = self._data()
+                    data.parameter = bool(wparam & 0xFFFF) if message == 6 else 0
+                    self._appbar(6 if message == 6 else 9, ctypes.byref(data))
+                elif message in (0x1A, 0x7E):
+                    self._on_change()
+        except Exception:
+            log.exception("Windows AppBar callback failed")
+        return int(self._default(hwnd, message, wparam, lparam))

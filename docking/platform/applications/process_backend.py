@@ -18,6 +18,10 @@ class ProcessBackend(ABC):
 
 
 def create_backend(proc_root: Path = Path("/proc")) -> ProcessBackend:
+    if environment.is_windows():
+        from docking.platform.applications.windows.process import WindowsProcessBackend
+
+        return WindowsProcessBackend()
     if environment.is_bsd() and proc_root == Path("/proc"):
         from docking.platform.applications.bsd import BsdProcessBackend
 

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from types import SimpleNamespace
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -126,6 +128,23 @@ def _application(**changes) -> ApplicationInfo:
     return ApplicationInfo(**values)
 
 
+def test_canonical_application_file_uri_artwork_keeps_unicode_and_literal_uri_characters(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "résumé # 100% + icon.png"
+    source = icons_mod.GdkPixbuf.Pixbuf.new(
+        icons_mod.GdkPixbuf.Colorspace.RGB, True, 8, 48, 48
+    )
+    source.fill(0x32A864FF)
+    source.savev(str(path), "png", [], [])
+    loader = IconLoader()
+    monkeypatch.setattr(loader, "_source_application_icon", lambda *_args: None)
+    actual = loader.load_desktop_icon(_application(declared_icon=path.as_uri()), 32)
+    assert actual is not None
+    assert (actual.get_width(), actual.get_height()) == (32, 32)
+    assert bytes(actual.get_pixels())[:4] == bytes(source.get_pixels())[:4]
+
+
 def test_missing_steam_cache_art_uses_game_theme_icon(monkeypatch):
     loader = IconLoader()
     pixbuf = object()
@@ -142,6 +161,24 @@ def test_missing_steam_cache_art_uses_game_theme_icon(monkeypatch):
         call(icon_name="/missing/440_icon.jpg", size=48),
         call(icon_name="steam_icon_440", size=48),
     ]
+
+
+def test_distinct_byte_icons_without_serialized_names_keep_distinct_pixels():
+    loader = IconLoader()
+    actual = []
+    for color in (0xCC4422FF, 0x2288CCFF):
+        image = icons_mod.GdkPixbuf.Pixbuf.new(
+            icons_mod.GdkPixbuf.Colorspace.RGB, True, 8, 16, 16
+        )
+        image.fill(color)
+        ok, data = image.save_to_bufferv("png", [], [])
+        assert ok
+        icon = icons_mod.Gio.BytesIcon.new(icons_mod.GLib.Bytes.new(data))
+        assert icon.to_string() is None
+        loaded = loader.load_gicon(icon, 16)
+        assert loaded is not None
+        actual.append(bytes(loaded.get_pixels())[:4])
+    assert actual == [b"\xcc\x44\x22\xff", b"\x22\x88\xcc\xff"]
 
 
 def test_default_file_normalizer_handles_only_local_targets(tmp_path):
@@ -194,16 +231,57 @@ def test_host_icon_candidates_and_theme_search_paths(tmp_path, monkeypatch):
         (str(existing), str(pixmaps), str(tmp_path / "missing")),
     )
 
-    assert icons_mod._host_icon_file_candidates("/opt/example/icon.png") == [
-        Path("/opt/example/icon.png"),
-        Path("/run/host/opt/example/icon.png"),
-    ]
-    assert icons_mod._host_icon_file_candidates("/run/host/opt/example/icon.png") == [
-        Path("/run/host/opt/example/icon.png")
-    ]
+    if os.name == "nt":
+        assert icons_mod._host_icon_file_candidates("/opt/example/icon.png") == []
+        native_icon = tmp_path / "icon.png"
+        assert icons_mod._host_icon_file_candidates(str(native_icon)) == [native_icon]
+    else:
+        assert icons_mod._host_icon_file_candidates("/opt/example/icon.png") == [
+            Path("/opt/example/icon.png"),
+            Path("/run/host/opt/example/icon.png"),
+        ]
+        assert icons_mod._host_icon_file_candidates(
+            "/run/host/opt/example/icon.png"
+        ) == [Path("/run/host/opt/example/icon.png")]
     assert icons_mod._host_icon_file_candidates("example") == []
     assert icons_mod._create_icon_theme() is theme
     theme.append_search_path.assert_called_once_with(str(pixmaps))
+
+
+@pytest.mark.parametrize(
+    "flavour,separator,target,expected",
+    [
+        (PurePosixPath, "/", "relative/icon.png", []),
+        (
+            PurePosixPath,
+            "/",
+            "/opt/icon.png",
+            ["/opt/icon.png", "/run/host/opt/icon.png"],
+        ),
+        (PurePosixPath, "/", "/run/host/opt/icon.png", ["/run/host/opt/icon.png"]),
+        (PureWindowsPath, "\\", r"C:\Icons\résumé.png", [r"C:\Icons\résumé.png"]),
+        (
+            PureWindowsPath,
+            "\\",
+            r"\\server\share\icon.png",
+            [r"\\server\share\icon.png"],
+        ),
+        (PureWindowsPath, "\\", r"relative\icon.png", []),
+        (PureWindowsPath, "\\", r"C:Icons\icon.png", []),
+        (PureWindowsPath, "\\", r"\Icons\icon.png", []),
+    ],
+)
+def test_file_candidates_preserve_posix_drive_unc_and_relative_semantics(
+    monkeypatch, flavour, separator, target, expected
+):
+    # Pure path flavours let each host verify both filesystem grammars without
+    # changing the process OS or touching the filesystem.
+    monkeypatch.setattr(icons_mod, "Path", flavour)
+    monkeypatch.setattr(icons_mod, "os", SimpleNamespace(sep=separator))
+    monkeypatch.setattr(icons_mod, "HOST_FILESYSTEM_ROOT", flavour("/run/host"))
+    assert icons_mod._host_icon_file_candidates(target) == [
+        flavour(name) for name in expected
+    ]
 
 
 def test_gicon_lookup_is_cached_by_string_identity(monkeypatch):

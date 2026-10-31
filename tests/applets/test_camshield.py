@@ -10,14 +10,15 @@ import pytest
 
 import docking.applets.camshield.applet as camshield_applet_mod
 import docking.applets.camshield.linux as camshield_linux_mod
+from docking.applets.camshield import unix_client as camshield_client
 from docking.applets.camshield.applet import CamshieldApplet
+from docking.applets.camshield.linux import _probe_camera_state as probe_camera_state
 from docking.applets.camshield.render import render_icon
 from docking.applets.camshield.state import (
     CameraHolder,
     CamshieldState,
     build_tooltip,
     holder_label,
-    probe_camera_state,
 )
 from docking.core.config import Config
 
@@ -224,6 +225,15 @@ class TestApplet:
         from tests.applets.test_bluetooth import _ImmediateWorker
 
         monkeypatch.setattr(camshield_applet_mod, "BackgroundWorker", _ImmediateWorker)
+        self.backend = MagicMock()
+        self.backend.get_state.return_value = CamshieldState(False, False)
+        self.backend.controls_available.return_value = False
+        self.backend.lock_available.return_value = False
+        self.backend.unlock_available.return_value = False
+        self.backend.settings_available.return_value = False
+        monkeypatch.setattr(
+            camshield_applet_mod, "create_backend", lambda: self.backend
+        )
 
     def test_applet_presents_state(self, monkeypatch):
         state = CamshieldState(
@@ -232,7 +242,7 @@ class TestApplet:
             devices=("video0",),
             holders=(CameraHolder(pid=7, command="camera-app", devices=("video0",)),),
         )
-        monkeypatch.setattr(camshield_applet_mod, "probe_camera_state", lambda: state)
+        self.backend.get_state.side_effect = lambda: state
 
         applet = CamshieldApplet(icon_size=48, config=Config())
 
@@ -242,7 +252,7 @@ class TestApplet:
 
     def test_menu_contains_refresh(self, monkeypatch):
         state = CamshieldState(available=True, active=False, devices=("video0",))
-        monkeypatch.setattr(camshield_applet_mod, "probe_camera_state", lambda: state)
+        self.backend.get_state.side_effect = lambda: state
         applet = CamshieldApplet(icon_size=48, config=Config())
 
         labels = [item.get_label() for item in applet.get_menu_items()]
@@ -252,26 +262,41 @@ class TestApplet:
 
     def test_menu_unavailable_disables_helper_actions(self, monkeypatch):
         state = CamshieldState(available=False, active=False)
-        monkeypatch.setattr(camshield_applet_mod, "probe_camera_state", lambda: state)
-        monkeypatch.setattr(
-            camshield_applet_mod.CamshieldApplet,
-            "_helper_available",
-            lambda _self: False,
-        )
+        self.backend.get_state.side_effect = lambda: state
+
         applet = CamshieldApplet(icon_size=48, config=Config())
 
         items = applet.get_menu_items()
         labels = [item.get_label() for item in items]
 
         assert "No camera devices found" in labels
-        assert "Camera lock helper unavailable" in labels
+        assert "Camera locking unavailable" in labels
         assert not next(
             item for item in items if item.get_label() == "Lock Camera"
         ).get_sensitive()
 
+    def test_menu_uses_separate_lock_unlock_capabilities(self):
+        self.backend.get_state.return_value = CamshieldState(True, False)
+        self.backend.lock_available.return_value = False
+        self.backend.unlock_available.return_value = True
+        applet = CamshieldApplet(icon_size=48, config=Config())
+        items = {item.get_label(): item for item in applet.get_menu_items()}
+        assert not items["Lock Camera"].get_sensitive()
+        assert items["Unlock Camera"].get_sensitive()
+
+    def test_policy_recovery_remains_available_after_all_cameras_disconnect(self):
+        self.backend.get_state.return_value = CamshieldState(False, False, locked=True)
+        self.backend.unlock_available.return_value = True
+        applet = CamshieldApplet(icon_size=48, config=Config())
+        items = {item.get_label(): item for item in applet.get_menu_items()}
+        assert "Camera locked" in items and "Camera locked" in applet.item.name
+        assert "No camera devices found" in items
+        assert not items["Lock Camera"].get_sensitive()
+        assert items["Unlock Camera"].get_sensitive()
+
     def test_start_stop_refresh_and_tick(self, monkeypatch):
         state = CamshieldState(available=True, active=False, devices=("video0",))
-        monkeypatch.setattr(camshield_applet_mod, "probe_camera_state", lambda: state)
+        self.backend.get_state.side_effect = lambda: state
         idle = MagicMock()
         add_seconds = MagicMock(return_value=11)
         removed: list[int] = []
@@ -309,7 +334,7 @@ class TestApplet:
             devices=("video0",),
             holders=(CameraHolder(pid=7, command="camera-app", devices=("video0",)),),
         )
-        monkeypatch.setattr(camshield_applet_mod, "probe_camera_state", lambda: state)
+        self.backend.get_state.side_effect = lambda: state
         applet = CamshieldApplet(icon_size=48, config=Config())
         notifications = 0
 
@@ -332,9 +357,7 @@ class TestApplet:
                 CamshieldState(True, False, ("video0",)),
             ]
         )
-        monkeypatch.setattr(
-            camshield_applet_mod, "probe_camera_state", lambda: next(states)
-        )
+        self.backend.get_state.side_effect = lambda: next(states)
         removed: list[int] = []
         monkeypatch.setattr(
             camshield_applet_mod.GLib,
@@ -353,74 +376,66 @@ class TestApplet:
 
     def test_helper_available_requires_pkexec_and_helper(self, monkeypatch, tmp_path):
         helper_path = tmp_path / "helper.py"
-        monkeypatch.setattr(camshield_applet_mod, "_SOURCE_HELPER", helper_path)
+        monkeypatch.setattr(camshield_client, "_SOURCE_HELPER", helper_path)
         monkeypatch.setattr(
-            camshield_applet_mod.shutil,
+            camshield_client.shutil,
             "which",
             lambda command: "/usr/bin/pkexec" if command == "pkexec" else None,
         )
-        applet = CamshieldApplet(icon_size=48, config=Config())
-
-        assert applet._helper_available() is False
-
+        backend = camshield_linux_mod.LinuxCamshieldBackend()
+        assert backend.controls_available() is False
         helper_path.touch()
-        assert applet._helper_available() is True
+        assert backend.controls_available() is True
 
-    def test_run_helper_action_and_command_paths(self, monkeypatch):
+    def test_run_action_delegates_and_reads_actual_state(self, monkeypatch):
+        self.backend.lock_available.return_value = True
+        state = CamshieldState(True, False, ("video0",))
+        self.backend.get_state.return_value = state
         applet = CamshieldApplet(icon_size=48, config=Config())
-        applet._run_helper_command = MagicMock()
+        applet._run_action("lock")
+        self.backend.lock.assert_called_once()
+        assert applet._state == state and not applet._action_in_progress
 
-        class _Thread:
-            def __init__(self, *, target, args, daemon):
-                self.target = target
-                self.args = args
-                self.daemon = daemon
+    def test_unix_client_handles_helper_failure_and_timeout(self, monkeypatch):
+        import subprocess
 
-            def start(self):
-                self.target(*self.args)
-
+        backend = camshield_linux_mod.LinuxCamshieldBackend()
         monkeypatch.setattr(
-            camshield_applet_mod, "_helper_command", lambda **_: ["cmd"]
-        )
-        monkeypatch.setattr(camshield_applet_mod.threading, "Thread", _Thread)
-
-        applet._run_helper_action("lock")
-        applet._run_helper_command.assert_called_once_with(["cmd"])
-
-        monkeypatch.setattr(camshield_applet_mod, "_helper_command", lambda **_: None)
-        applet._run_helper_action("lock")
-
-    def test_run_helper_command_refreshes_and_logs_failures(self, monkeypatch):
-        applet = CamshieldApplet(icon_size=48, config=Config())
-        idle: list[object] = []
-        monkeypatch.setattr(
-            camshield_applet_mod.GLib, "idle_add", lambda cb: idle.append(cb)
+            camshield_client, "_helper_command", lambda **_: ["owned-helper", "lock"]
         )
         monkeypatch.setattr(
-            camshield_applet_mod.subprocess,
+            camshield_client.subprocess,
             "run",
-            lambda *_args, **_kwargs: SimpleNamespace(returncode=1),
+            lambda *a, **kw: SimpleNamespace(returncode=1),
         )
-
-        applet._run_helper_command(["cmd"])
-
-        assert idle == [applet._refresh_once]
-
+        assert not backend.lock()
         monkeypatch.setattr(
-            camshield_applet_mod.subprocess,
+            camshield_client.subprocess,
             "run",
-            lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("boom")),
+            lambda *a, **kw: SimpleNamespace(returncode=0),
         )
-        applet._run_helper_command(["cmd"])
+        assert backend.unlock()
+        for error in (
+            OSError("failed"),
+            subprocess.TimeoutExpired("owned-helper", 120),
+        ):
+
+            def fail(*a, error=error, **kw):
+                raise error
+
+            monkeypatch.setattr(camshield_client.subprocess, "run", fail)
+            assert not backend.lock()
+        backend.stop()
+        assert not backend.lock()
 
     def test_helper_command_prefers_installed_helper(self, monkeypatch):
         paths = {
             "pkexec": "/usr/bin/pkexec",
             "docking-camshield-helper": "/usr/bin/docking-camshield-helper",
         }
-        monkeypatch.setattr(camshield_applet_mod.shutil, "which", paths.get)
+        monkeypatch.setattr(camshield_client.shutil, "which", paths.get)
 
-        assert camshield_applet_mod._helper_command(action="lock") == [
+        assert camshield_client._helper_command(action="lock") == [
             "/usr/bin/pkexec",
             "/usr/bin/docking-camshield-helper",
             "lock",
@@ -430,15 +445,15 @@ class TestApplet:
         helper_path = tmp_path / "helper.py"
         helper_path.touch()
         monkeypatch.setattr(
-            camshield_applet_mod.shutil,
+            camshield_client.shutil,
             "which",
             lambda command: "/usr/bin/pkexec" if command == "pkexec" else None,
         )
-        monkeypatch.setattr(camshield_applet_mod, "_SOURCE_HELPER", helper_path)
+        monkeypatch.setattr(camshield_client, "_SOURCE_HELPER", helper_path)
 
-        assert camshield_applet_mod._helper_command(action="unlock") == [
+        assert camshield_client._helper_command(action="unlock") == [
             "/usr/bin/pkexec",
-            camshield_applet_mod.sys.executable,
+            camshield_client.sys.executable,
             str(helper_path),
             "unlock",
         ]
@@ -446,9 +461,7 @@ class TestApplet:
     def test_helper_command_returns_none_without_pkexec_or_helper(
         self, monkeypatch, tmp_path
     ):
-        monkeypatch.setattr(camshield_applet_mod.shutil, "which", lambda _command: None)
-        monkeypatch.setattr(
-            camshield_applet_mod, "_SOURCE_HELPER", tmp_path / "missing"
-        )
+        monkeypatch.setattr(camshield_client.shutil, "which", lambda _command: None)
+        monkeypatch.setattr(camshield_client, "_SOURCE_HELPER", tmp_path / "missing")
 
-        assert camshield_applet_mod._helper_command(action="lock") is None
+        assert camshield_client._helper_command(action="lock") is None

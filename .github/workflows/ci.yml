@@ -119,10 +119,10 @@ jobs:
         run: python3 tools/check_translation_packaging.py
 
       - name: Lint (ruff check)
-        run: .venv/bin/python -m ruff check docking/ tests/ tools/bsd/visual/ packaging/bsd/
+        run: .venv/bin/python -m ruff check docking/ tests/ tools/bsd/visual/ tools/windows/ packaging/bsd/ setup.py
 
       - name: Format (ruff format)
-        run: .venv/bin/python -m ruff format --check docking/ tests/ tools/bsd/visual/ packaging/bsd/
+        run: .venv/bin/python -m ruff format --check docking/ tests/ tools/bsd/visual/ tools/windows/ packaging/bsd/ setup.py
 
       - name: Type check (ty)
         run: .venv/bin/python -m ty check --error-on-warning docking/
@@ -1197,6 +1197,54 @@ jobs:
     permissions:
       contents: read
 
+  windows-desktop:
+    name: Windows backend and desktop
+    needs: [changes, quality]
+    if: needs.changes.outputs.run_ci == 'true'
+    uses: ./.github/workflows/windows.yml
+    permissions:
+      contents: read
+
+  windows-client-input:
+    name: Windows 11 input
+    needs: [changes, quality, windows-desktop]
+    if: ${{ !cancelled() && needs.changes.outputs.run_ci == 'true' }}
+    uses: ./.github/workflows/windows-input.yml
+    with:
+      candidate-artifact: windows-input-candidate-ucrt64-x64
+    permissions:
+      contents: read
+
+  windows-release-evidence:
+    name: Windows candidate and client evidence
+    runs-on: ubuntu-22.04
+    needs: [changes, windows-desktop, windows-client-input]
+    if: needs.changes.outputs.run_ci == 'true'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows-ucrt64-x64
+          path: artifacts/windows-release
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows-client-input-ucrt64-x64
+          path: artifacts/windows-release/client-input
+      - name: Verify complete acceptance before staging candidate assets
+        run: |
+          python3 -m pip install --disable-pip-version-check packaging
+          version=$(awk -F ' *= *' '
+            $0 == "[project]" { in_project = 1; next }
+            /^\[/ { in_project = 0 }
+            in_project && $1 == "version" { gsub(/"/, "", $2); print $2; exit }
+          ' pyproject.toml)
+          python3 -m tools.windows.release --version "$version" --source-sha "$GITHUB_SHA" \
+            --directory artifacts/windows-release --output artifacts/windows-release-verified
+
   release:
     name: Release
     runs-on: ubuntu-22.04
@@ -1226,6 +1274,9 @@ jobs:
       - build-nix
       - build-nix-arm64
       - bsd-desktops
+      - windows-desktop
+      - windows-client-input
+      - windows-release-evidence
     if: github.ref == 'refs/heads/master'
     permissions:
       contents: write
@@ -1417,6 +1468,18 @@ jobs:
           name: docking-bsd-openbsd
           path: artifacts/bsd-openbsd
 
+      - name: Download Windows packages and acceptance reports
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-ucrt64-x64
+          path: artifacts/windows-release
+
+      - name: Download mandatory Windows 11 candidate input proof
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-client-input-ucrt64-x64
+          path: artifacts/windows-release/client-input
+
       - name: Normalize release asset names
         if: steps.release_check.outputs.should_release == 'true'
         run: |
@@ -1594,6 +1657,13 @@ jobs:
           python3 packaging/bsd/release.py --version "${{ steps.version.outputs.version }}" \
             --directory artifacts/bsd-freebsd --directory artifacts/bsd-openbsd \
             --output artifacts/release
+
+      - name: Stage verified Windows release assets
+        if: steps.release_check.outputs.should_release == 'true'
+        run: |
+          python3 -m pip install --disable-pip-version-check packaging
+          python3 -m tools.windows.release --source-sha "$GITHUB_SHA" --version "${{ steps.version.outputs.version }}" \
+            --directory artifacts/windows-release --output artifacts/release
 
       - name: Create GitHub Release
         if: steps.release_check.outputs.should_release == 'true'

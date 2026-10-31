@@ -26,7 +26,7 @@ import secrets
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeAlias
+from typing import Protocol, TypeAlias
 
 PORTAL_BUS_NAME = "org.freedesktop.portal.Desktop"
 PORTAL_OBJECT_PATH = "/org/freedesktop/portal/desktop"
@@ -63,7 +63,7 @@ class GlobalShortcutsState(str, Enum):
 
 @dataclass(frozen=True)
 class GlobalShortcutBinding:
-    """The portal's current presentation of the Docking shortcut."""
+    """A shortcut backend's current presentation of the Docking shortcut."""
 
     shortcut_id: str
     description: str
@@ -72,7 +72,7 @@ class GlobalShortcutBinding:
 
 @dataclass(frozen=True)
 class GlobalShortcutActivation:
-    """An activation forwarded by the portal."""
+    """An activation forwarded by a shortcut backend."""
 
     shortcut_id: str
     timestamp: int
@@ -93,6 +93,31 @@ class GlobalShortcutsStatus:
 SignalCallback: TypeAlias = Callable[[tuple[object, ...]], None]
 ActivationCallback: TypeAlias = Callable[[GlobalShortcutActivation], None]
 StatusCallback: TypeAlias = Callable[[GlobalShortcutsStatus], None]
+
+
+class SearchShortcutService(Protocol):
+    """Shared controller contract for portal and native shortcut backends."""
+
+    @property
+    def status(self) -> GlobalShortcutsStatus: ...
+
+    def start(self) -> None: ...
+
+    def stop(self) -> None: ...
+
+
+class ShortcutFallback(Protocol):
+    """Optional fallback transport used when the primary service is unavailable."""
+
+    @property
+    def active(self) -> bool: ...
+
+    @property
+    def error(self) -> str | None: ...
+
+    def start(self) -> bool: ...
+
+    def stop(self) -> None: ...
 
 
 class GioConnectionAdapter:

@@ -10,6 +10,8 @@ import gi
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio
 
+from docking.platform.files import file_for_uri
+
 from .registry import ApplicationRegistry
 from .types import ApplicationInfo, ApplicationListing
 
@@ -61,15 +63,17 @@ def gicon_from_icon_name(icon_name: str) -> Gio.Icon | None:
     if not value:
         return None
     if value.startswith("file:"):
-        return Gio.FileIcon.new(Gio.File.new_for_uri(value))
+        return Gio.FileIcon.new(file_for_uri(value))
     if Path(value).is_absolute():
         return Gio.FileIcon.new(Gio.File.new_for_path(value))
     return Gio.ThemedIcon.new(value)
 
 
-def listing_desktop_file_uri(listing: ApplicationListing) -> str | None:
-    """Return the exact recorded desktop-file path as a file URI."""
+def listing_drag_file_uri(listing: ApplicationListing) -> str | None:
+    """Return a recorded desktop file or prepared native launcher for COPY."""
     desktop_file = listing.desktop_file
+    if isinstance(listing, ApplicationInfo) and listing.export_file is not None:
+        desktop_file = listing.export_file
     if desktop_file is None:
         return None
     try:
@@ -93,7 +97,7 @@ __all__ = [
     "ApplicationListingLauncher",
     "activate_listing",
     "gicon_from_icon_name",
-    "listing_desktop_file_uri",
+    "listing_drag_file_uri",
     "listing_gicon",
     "visible_listings",
 ]

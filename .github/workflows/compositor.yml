@@ -47,7 +47,7 @@ jobs:
           tags: docking-ci:${{ matrix.compositor }}
           load: true
           cache-from: type=gha,scope=compositor-${{ matrix.compositor }}
-          cache-to: type=gha,mode=max,scope=compositor-${{ matrix.compositor }}
+          cache-to: type=gha,mode=max,scope=compositor-${{ matrix.compositor }},ignore-error=true
       - name: Check real compositor geometry and lifecycle
         env:
           DOCKING_LAB_IMAGE: docking-ci:${{ matrix.compositor }}

@@ -61,7 +61,7 @@ _PULSE_PERIOD_MS = 1800  # one full ripple cycle
 
 
 class DeskpresenceApplet(Applet):
-    """Tracks at-desk vs away time from X11 idle signals."""
+    """Tracks at-desk vs away time from the selected desktop idle service."""
 
     id = meta.id
     name = _("Desk Presence")

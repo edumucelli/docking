@@ -23,6 +23,7 @@ import sys
 from pathlib import Path
 
 from docking.applets.aiusage.backends.base import ProviderSessions
+from docking.applets.aiusage.hook_command import hook_argv
 from docking.applets.aiusage.state import ModelUsage, Provider
 from docking.applets.aiusage.store import replace_session
 from docking.log import get_logger, with_context
@@ -63,11 +64,21 @@ def register_hook() -> None:
         f'notify = ["env", "PYTHONPATH={root}",'
         f' "{sys.executable}", "-m", "docking.applets.aiusage.hook", "codex"]'
     )
+    if sys.platform == "win32":
+        our_toml = "notify = " + json.dumps(hook_argv("codex"), ensure_ascii=False)
 
-    notify_match = re.search(r"^notify\s*=\s*\[.*?\]", content, re.MULTILINE)
+    notify_match = re.search(
+        r"""^notify\s*=\s*\[(?:"(?:\\.|[^"\\])*"|'[^']*'|[^\]"'])*\]""",
+        content,
+        re.MULTILINE,
+    )
     if notify_match:
         existing = notify_match.group(0)
-        if "PYTHONPATH" in existing and "docking.applets.aiusage.hook" in existing:
+        if (
+            sys.platform != "win32"
+            and "PYTHONPATH" in existing
+            and "docking.applets.aiusage.hook" in existing
+        ) or existing == our_toml:
             return
         if "codex-sync" in existing:
             log.bind(action="register_codex_hook").info(

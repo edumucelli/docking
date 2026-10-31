@@ -36,13 +36,7 @@ from docking.applets.network.state import (
     TrafficCounters,
     build_tooltip,
     compute_speeds,
-    connection_info_command,
-    edit_connections_command,
     format_speed,
-    open_connection_info,
-    open_edit_connections,
-    open_hidden_wifi_settings,
-    open_new_wifi_settings,
 )
 from docking.i18n import _
 
@@ -90,7 +84,7 @@ class NetworkApplet(Applet):
         """Show connection info and common network actions."""
         state = self._state
         status: list[Gtk.MenuItem] = []
-        if state.ssid:
+        if state.ssid and state.signal_strength is not None:
             status.append(
                 disabled_menu_item(
                     _("WiFi: {ssid} ({pct}%)").format(
@@ -99,10 +93,14 @@ class NetworkApplet(Applet):
                     gtk=Gtk,
                 )
             )
+        elif state.ssid:
+            status.append(disabled_menu_item(f"{_('Network')}: {state.ssid}", gtk=Gtk))
         elif state.is_connected:
             status.append(
                 disabled_menu_item(
-                    _("Ethernet: {iface}").format(iface=state.iface),
+                    f"{_('Network')}: {state.iface}"
+                    if state.is_wifi
+                    else _("Ethernet: {iface}").format(iface=state.iface),
                     gtk=Gtk,
                 )
             )
@@ -120,23 +118,32 @@ class NetworkApplet(Applet):
             status.append(disabled_menu_item(f"\u2193 {down}  \u2191 {up}", gtk=Gtk))
 
         settings: list[Gtk.MenuItem] = []
-        info_cmd = connection_info_command()
-        if info_cmd is not None:
+        platform_settings = self._backend.settings
+        if platform_settings.connection_info_available():
             info_item = Gtk.MenuItem(label=_("Connection Information"))
-            info_item.connect("activate", lambda _widget: open_connection_info())
+            info_item.connect(
+                "activate", lambda _widget: platform_settings.open_connection_info()
+            )
             settings.append(info_item)
 
-        edit_cmd = edit_connections_command()
-        if edit_cmd is not None:
+        if platform_settings.edit_connections_available():
             edit_item = Gtk.MenuItem(label=_("Edit Connections..."))
-            edit_item.connect("activate", lambda _widget: open_edit_connections())
+            edit_item.connect(
+                "activate", lambda _widget: platform_settings.open_edit_connections()
+            )
             settings.append(edit_item)
 
         manage: list[Gtk.MenuItem] = []
+        choices = self._backend.interface_choices()
+        active_interface = self._backend.interface
+        if active_interface and state.interface_id:
+            active_interface = state.interface_id
+        elif not active_interface and not any(key == "" for _label, key in choices):
+            active_interface = state.iface
         manage.extend(
             radio_menu_items(
-                choices=self._backend.interface_choices(),
-                active_value=state.iface,
+                choices=choices,
+                active_value=active_interface,
                 on_selected=lambda _widget, value: self._set_interface(value),
                 gtk=Gtk,
             )
@@ -149,23 +156,28 @@ class NetworkApplet(Applet):
                     label=_("Connect to Hidden Wi-Fi Network...")
                 )
                 hidden_item.connect(
-                    "activate", lambda _widget: open_hidden_wifi_settings()
+                    "activate",
+                    lambda _widget: platform_settings.open_hidden_wifi_settings(),
                 )
                 manage.append(hidden_item)
                 new_item = Gtk.MenuItem(label=_("Create New Wi-Fi Network..."))
-                new_item.connect("activate", lambda _widget: open_new_wifi_settings())
+                new_item.connect(
+                    "activate",
+                    lambda _widget: platform_settings.open_new_wifi_settings(),
+                )
                 manage.append(new_item)
 
-            networking_item = Gtk.CheckMenuItem(label=_("Enable Networking"))
-            networking_item.set_active(manager.networking_enabled)
-            networking_item.connect(
-                "toggled",
-                lambda widget: manager.set_networking_enabled(
-                    enabled=widget.get_active()
-                ),
-            )
-            manage.append(networking_item)
-            if manager.has_wifi_device():
+            if manager.capabilities.networking_toggle:
+                networking_item = Gtk.CheckMenuItem(label=_("Enable Networking"))
+                networking_item.set_active(manager.networking_enabled)
+                networking_item.connect(
+                    "toggled",
+                    lambda widget: manager.set_networking_enabled(
+                        enabled=widget.get_active()
+                    ),
+                )
+                manage.append(networking_item)
+            if manager.has_wifi_device() and manager.capabilities.wireless_toggle:
                 wifi_item = Gtk.CheckMenuItem(label=_("Enable Wi-Fi"))
                 wifi_item.set_active(manager.wireless_enabled)
                 wifi_item.set_sensitive(manager.wireless_hardware_enabled)
@@ -228,6 +240,7 @@ class NetworkApplet(Applet):
             if network.is_active:
                 label = _("Connected: {label}").format(label=label)
             child = Gtk.MenuItem(label=label)
+            child.set_sensitive(network.is_connectable)
             child.connect(
                 "activate",
                 lambda _widget, n=network: manager.connect_network(network=n),
@@ -235,7 +248,9 @@ class NetworkApplet(Applet):
             submenu.append(child)
 
         if not submenu.get_children():
-            empty = Gtk.MenuItem(label=_("No networks found"))
+            empty = Gtk.MenuItem(
+                label=manager.networks_unavailable_reason or _("No networks found")
+            )
             empty.set_sensitive(False)
             submenu.append(empty)
 
@@ -251,7 +266,11 @@ class NetworkApplet(Applet):
         item = Gtk.MenuItem(label=_("VPN Connections"))
         submenu = Gtk.Menu()
         for connection in connections:
-            child = Gtk.MenuItem(label=connection.label or _("Unnamed VPN"))
+            child = Gtk.CheckMenuItem(label=connection.label or _("Unnamed VPN"))
+            child.set_active(connection.is_active)
+            child.set_sensitive(not connection.is_pending and connection.can_toggle)
+            if connection.description:
+                child.set_tooltip_text(connection.description)
             child.connect(
                 "activate",
                 lambda _widget, uuid=connection.uuid: manager.toggle_vpn(uuid),
@@ -275,7 +294,9 @@ class NetworkApplet(Applet):
 
     def _refresh_state(self) -> None:
         state = self._backend.state()
-        if state.iface == self._state.iface:
+        if (state.interface_id or state.iface) == (
+            self._state.interface_id or self._state.iface
+        ):
             state = replace(
                 state, rx_speed=self._state.rx_speed, tx_speed=self._state.tx_speed
             )
@@ -302,13 +323,13 @@ class NetworkApplet(Applet):
         if (
             current is not None
             and self._prev_counters is not None
-            and self._prev_iface == state.iface
+            and self._prev_iface == (state.interface_id or state.iface)
         ):
             rx_speed, tx_speed = compute_speeds(
                 self._prev_counters, current, now - self._prev_time
             )
         self._prev_counters = current
-        self._prev_iface = state.iface
+        self._prev_iface = state.interface_id or state.iface
         self._prev_time = now
         return replace(state, rx_speed=rx_speed, tx_speed=tx_speed)
 
@@ -321,4 +342,5 @@ class NetworkApplet(Applet):
             ip_address=self._state.ip_address,
             rx_speed=self._state.rx_speed,
             tx_speed=self._state.tx_speed,
+            is_wifi=self._state.is_wifi,
         )

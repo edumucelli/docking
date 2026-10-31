@@ -1,0 +1,198 @@
+name: Windows desktop
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: UCRT64 (x64)
+    runs-on: windows-2025
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      GDK_BACKEND: win32
+      GSETTINGS_BACKEND: memory
+      GTK_THEME: Adwaita
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install the native Windows runtime
+        id: msys2
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            gettext
+            mingw-w64-ucrt-x86_64-gtk3
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-nsis
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-python-gobject
+            mingw-w64-ucrt-x86_64-python-cairo
+            mingw-w64-ucrt-x86_64-python-pip
+            mingw-w64-ucrt-x86_64-python-setuptools
+            mingw-w64-ucrt-x86_64-python-wheel
+            mingw-w64-ucrt-x86_64-python-build
+            mingw-w64-ucrt-x86_64-python-pytest
+            mingw-w64-ucrt-x86_64-python-pillow
+            mingw-w64-ucrt-x86_64-python-psutil
+            mingw-w64-ucrt-x86_64-python-numpy
+            mingw-w64-ucrt-x86_64-gstreamer
+            mingw-w64-ucrt-x86_64-gst-plugins-base
+            mingw-w64-ucrt-x86_64-gst-plugins-good
+            mingw-w64-ucrt-x86_64-gst-plugins-bad
+      - name: Install Python dependencies and compile translations
+        run: |
+          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
+          python -m pip install --break-system-packages 'openmeteo-requests>=1.2,<1.5' requests-cache retry-requests
+          bash tools/i18n.sh --compile
+          python -m pip install --break-system-packages --no-deps --no-build-isolation -e .
+          echo "PYGI_DLL_PATH=$(cygpath -w /ucrt64/bin)" >> "$GITHUB_ENV"
+      - name: Verify native Windows GTK and GStreamer
+        run: python -m tools.windows.ci --stage preflight
+      - name: Windows backend and shared core tests
+        run: python -m tools.windows.ci --stage tests
+      - name: Native GTK allocation and preview checks
+        run: python -m tools.windows.ci --stage gtk
+      - name: Build and install the wheel in an isolated directory
+        id: wheel
+        run: |
+          python -m build --wheel --no-isolation
+          python -m pip install --no-deps --target artifacts/windows/runtime dist/*.whl
+      - name: Bind the candidate wheel to this source commit
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
+        run: python -m tools.windows.input_acceptance --wheel dist/*.whl --source-sha "$GITHUB_SHA" --output artifacts/windows/input-candidate.json
+      - name: Upload the exact wheel for Windows 11 input acceptance
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-input-candidate-ucrt64-x64
+          path: |
+            dist/*.whl
+            artifacts/windows/input-candidate.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Exercise the installed application on the Windows desktop
+        run: python -m tools.windows.visual.smoke --output artifacts/windows/smoke --installed-root artifacts/windows/runtime
+      - name: Verify native multiwindow grouping, cycling and restored pins
+        run: python -m tools.windows.visual.runtime_pin_smoke --multiple-windows --uncataloged --output artifacts/windows/multiple-windows
+      - name: Verify fullscreen stacking and startup recovery
+        run: python -m tools.windows.visual.fullscreen_smoke --output artifacts/windows/fullscreen
+      - name: Verify Windows Server input API, layouts and shortcuts
+        run: python -m tools.windows.ci --stage input --input-coverage server-api --installed-root artifacts/windows/runtime --wheel dist/*.whl --source-sha "$GITHUB_SHA"
+      - name: Verify the complete Windows notification icon domain
+        id: tray
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
+        run: python -m tools.windows.ci --stage tray --installed-root artifacts/windows/runtime --wheel dist/*.whl
+      - name: Verify application documents, inventory and Explorer recovery
+        id: applications
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
+        run: python -m tools.windows.ci --stage applications --installed-root artifacts/windows/runtime --wheel dist/*.whl
+      - name: Upload native domain evidence before package builds
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-native-domains-ucrt64-x64
+          path: |
+            artifacts/windows/environment.json
+            artifacts/windows/input-candidate.json
+            artifacts/windows/input-domain.json
+            artifacts/windows/tray-domain.json
+            artifacts/windows/applications-domain.json
+            artifacts/windows/search-layouts/
+            artifacts/windows/input-profiles/
+            artifacts/windows/tray/
+            artifacts/windows/applications-explorer/
+            dist/*.whl
+          if-no-files-found: error
+          retention-days: 14
+      - name: Verify Bluetooth menus, ownership and pairing ceremonies
+        run: |
+          python -m tools.windows.visual.bluetooth_smoke --fixtures-only --output artifacts/windows/bluetooth
+          python -m tools.windows.visual.pairing_smoke --output artifacts/windows/pairing
+      - name: Build the standalone Windows application
+        id: bundle
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
+        run: |
+          python -m tools.windows.bundle --wheel dist/*.whl --output artifacts/windows/Docking --archive dist/docking-windows-x86_64.zip
+      - name: Exercise the standalone runtime and native launcher
+        id: bundle_smoke
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
+        run: |
+          python -m tools.windows.visual.bundle_smoke --archive dist/docking-windows-x86_64.zip --output artifacts/windows/bundle-preflight
+          python -m tools.windows.visual.smoke --bundle artifacts/windows/bundle-preflight/extracted/Docking --output artifacts/windows/bundle-desktop
+      - name: Build the per-user Windows installer
+        id: installer
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
+        run: python -m tools.windows.installer --archive dist/docking-windows-x86_64.zip --output dist/docking-windows-x86_64-setup.exe
+      - name: Build the older-version upgrade fixture
+        id: upgrade_fixture
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
+        run: python -m tools.windows.installer --fixture-source . --output artifacts/windows/upgrade-fixture
+      - name: Exercise installation, upgrades, startup and uninstall
+        id: installer_smoke
+        if: ${{ !cancelled() && steps.installer.outcome == 'success' && steps.upgrade_fixture.outcome == 'success' }}
+        run: >-
+          python -m tools.windows.visual.installer_smoke
+          --installer dist/docking-windows-x86_64-setup.exe
+          --archive dist/docking-windows-x86_64.zip
+          --previous-installer artifacts/windows/upgrade-fixture/previous-setup.exe
+          --previous-archive artifacts/windows/upgrade-fixture/previous.zip
+          --output artifacts/windows/installer
+      - name: Measure installed startup and bounded session stability
+        id: release_readiness
+        if: ${{ !cancelled() && steps.bundle.outcome == 'success' && steps.bundle_smoke.outcome == 'success' }}
+        run: >-
+          python -m tools.windows.visual.release_smoke
+          --archive dist/docking-windows-x86_64.zip
+          --bundle artifacts/windows/bundle-preflight/extracted/Docking
+          --output artifacts/windows/release-readiness
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: windows-ucrt64-x64
+          path: |
+            artifacts/windows/environment.json
+            artifacts/windows/input-candidate.json
+            artifacts/windows/input-domain.json
+            artifacts/windows/tray-domain.json
+            artifacts/windows/applications-domain.json
+            artifacts/windows/*-junit.xml
+            artifacts/windows/smoke/
+            artifacts/windows/multiple-windows/
+            artifacts/windows/fullscreen/
+            artifacts/windows/search-layouts/
+            artifacts/windows/input-profiles/
+            artifacts/windows/tray/
+            artifacts/windows/applications-explorer/
+            artifacts/windows/pairing/
+            artifacts/windows/bluetooth/
+            artifacts/windows/bundle-preflight/*.json
+            artifacts/windows/bundle-preflight/*.log
+            artifacts/windows/bundle-desktop/
+            artifacts/windows/installer/
+            artifacts/windows/upgrade-fixture/*.json
+            artifacts/windows/upgrade-fixture/*.log
+            artifacts/windows/release-readiness/
+            dist/*.whl
+            dist/*.zip
+            dist/*.zip.sha256
+            dist/*-setup.exe
+            dist/*.exe.sha256
+          if-no-files-found: error
+          retention-days: 14

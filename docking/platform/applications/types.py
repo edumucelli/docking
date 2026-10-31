@@ -67,6 +67,14 @@ class ApplicationInfo:
     working_directory: str = ""
     steam_app_id: str = ""
     steam_manifest: Path | None = None
+    # A source-owned native target; activation must preserve its shell semantics.
+    launch_target: str = ""
+    # Optional source-owned target for selected-document activation. The shell's
+    # ordinary application target need not forward file parameters.
+    document_target: str = ""
+    # An already-prepared native launch file for external COPY drags.
+    export_file: Path | None = None
+    export_data: tuple[tuple[str, bytes], ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -172,6 +180,7 @@ class MatchMethod(Enum):
     DESKTOP_ID = "desktop-id"
     WM_CLASS = "wm-class"
     RUNTIME_PATH_SPLIT = "runtime-path-split"
+    RUNTIME_EXECUTABLE = "runtime-executable"
     APPLICATION_ID = "application-id"
     SANDBOX_ID = "sandbox-id"
     SCRIPT_NAME = "script-name"

@@ -229,6 +229,7 @@ class TestBuildDockWindow:
             application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,
+            monitor_workarea=surface_service.monitor_workarea,
         )
         factory_mod.FolderStackController.assert_called_once_with(
             config=config,
@@ -497,3 +498,37 @@ class TestBuildDockWindow:
 
         get_dock_rect = cast(Callable[[], object], captured["get_dock_rect"])
         assert get_dock_rect() is None
+
+
+@pytest.mark.parametrize("pointer_inside", [False, True])
+def test_start_initializes_autohide_without_a_pointer_crossing_event(pointer_inside):
+    from types import MethodType
+
+    from docking.core.config import Config
+    from docking.ui.autohide import AutoHideController
+    from docking.ui.dock_window import DockWindow
+
+    window = SimpleNamespace(
+        config=Config(hide_mode="autohide", hide_delay_ms=100),
+        is_pointer_inside_dock=lambda: pointer_inside,
+        placement=MagicMock(),
+        update_input_region=MagicMock(),
+        queue_redraw=MagicMock(),
+        dodge_monitor=None,
+    )
+    window.autohide = AutoHideController(window, window.config)
+    window.on_hide_mode_changed = MethodType(DockWindow.on_hide_mode_changed, window)
+    ui = factory_mod.DockUi(
+        window=window,
+        startup_popups=MagicMock(),
+        input_controller=MagicMock(),
+        search=MagicMock(),
+        settings=MagicMock(),
+    )
+    try:
+        ui.start()
+        assert window.autohide._hovered is pointer_inside
+        assert bool(window.autohide._hide_timer_id) is not pointer_inside
+    finally:
+        window.autohide.reset()
+        ui.stop()

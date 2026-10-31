@@ -224,6 +224,9 @@ def _make_popup():
     popup._preview_refresh_timer_id = 0
     popup._thumbnail_images = {}
     popup._current_desktop_id = ""
+    popup._application_icons = None
+    popup._unsubscribe_icons = None
+    popup._fallback_icons = {}
     popup._thumbnail_outline_enabled = lambda: False
     popup._thumbnail_width = lambda: preview_mod.THUMB_W
     popup._outline = None

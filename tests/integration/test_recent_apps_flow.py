@@ -39,6 +39,7 @@ class _ModelDependencies:
 
 def _make_dependencies(*desktop_ids: str) -> _ModelDependencies:
     registry = MagicMock(spec=ApplicationRegistry)
+    registry.initial_discovery_pending = False
     infos = {}
     for did in desktop_ids:
         stem = did.removesuffix(".desktop")

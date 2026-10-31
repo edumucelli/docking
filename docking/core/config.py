@@ -1367,6 +1367,10 @@ def _is_valid_config_file(*, path: Path) -> bool:
 
 
 def _fsync_directory(path: Path) -> None:
+    # The Windows CRT cannot open directories as file descriptors. File contents
+    # are still flushed before replacement, as in theme migration persistence.
+    if os.name == "nt":
+        return
     flags = os.O_RDONLY
     if hasattr(os, "O_DIRECTORY"):
         flags |= os.O_DIRECTORY

@@ -13,6 +13,11 @@ from docking.core.config import Config
 from docking.platform import environment
 
 
+@pytest.fixture(autouse=True)
+def bsd_platform(monkeypatch):
+    monkeypatch.setattr(environment, "is_windows", lambda: False)
+
+
 def test_native_interface_change_resets_traffic_baseline(monkeypatch):
     monkeypatch.setattr(environment, "is_bsd", lambda: True)
     readings = [bsd.NetworkInterface("vio0", "192.0.2.1", True, 1000, 2000)]

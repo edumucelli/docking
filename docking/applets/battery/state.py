@@ -15,17 +15,9 @@
 
 from __future__ import annotations
 
-import re
-import shutil
-import subprocess
-from pathlib import Path
 from typing import NamedTuple
 
 from docking.i18n import _
-from docking.log import get_logger, with_context
-
-BAT_BASE = Path("/sys/class/power_supply")
-log = with_context(get_logger("battery.state"))
 
 # Bottom-center overlay modes (mutually exclusive, mirroring the network applet).
 OVERLAY_NONE = "none"
@@ -35,10 +27,10 @@ OVERLAY_MODES = (OVERLAY_NONE, OVERLAY_PERCENT, OVERLAY_POWER)
 
 
 class BatteryState(NamedTuple):
-    """Resolved battery info from sysfs."""
+    """Resolved battery status; an unknown percentage is distinct from zero."""
 
     icon_name: str  # FDO icon name (e.g. "battery-good-charging")
-    capacity: int  # 0-100 percent
+    capacity: int | None  # 0-100 percent, or unknown
     status: str  # Kernel battery status (e.g. Charging / Discharging / Full)
     seconds_remaining: int | None  # Time estimate until empty/full when known
     power_watts: float | None = None  # Instantaneous battery power draw/input
@@ -53,14 +45,6 @@ _LEVEL_TO_ICON = {
     "critical": "battery-caution",
     "unknown": "battery-empty",
 }
-
-_POWER_SETTINGS_COMMANDS: tuple[tuple[str, ...], ...] = (
-    ("gnome-control-center", "power"),
-    ("mate-power-preferences",),
-    ("xfce4-power-manager-settings",),
-    ("kcmshell6", "powerdevilprofilesconfig"),
-    ("kcmshell5", "powerdevilprofilesconfig"),
-)
 
 
 def resolve_battery_icon(capacity_level: str, status: str) -> str:
@@ -85,32 +69,15 @@ def format_power(watts: float, *, compact: bool = False) -> str:
     return f"{digits}W" if compact else f"{digits} W"
 
 
-def power_settings_command() -> list[str] | None:
-    """Return the first available desktop power-settings command."""
-    for cmd in _POWER_SETTINGS_COMMANDS:
-        if shutil.which(cmd[0]):
-            return list(cmd)
-    return None
-
-
-def open_power_settings() -> bool:
-    """Launch the desktop power-settings tool when one is available."""
-    cmd = power_settings_command()
-    if cmd is None:
-        return False
-    try:
-        subprocess.Popen(cmd, start_new_session=True)
-    except OSError as exc:
-        log.bind(action="open_power_settings").warning("Failed to run %s: %s", cmd, exc)
-        return False
-    return True
-
-
 def tooltip_text(state: BatteryState | None) -> str:
     """Build tooltip string from current state."""
     if state is None:
         return _("No battery")
-    parts = [_("Battery: {pct}%").format(pct=state.capacity)]
+    parts = [
+        _("Battery: {pct}%").format(pct=state.capacity)
+        if state.capacity is not None
+        else f"{_('Battery')}: {_('Unknown')}"
+    ]
     estimate = _estimate_suffix(state=state)
     if estimate is not None:
         parts.append(estimate)
@@ -146,62 +113,3 @@ def _format_duration(seconds: int | None) -> str | None:
     if hours > 0:
         return _("{hours}h {minutes:02d}m").format(hours=hours, minutes=minutes)
     return _("{minutes}m").format(minutes=minutes)
-
-
-def _parse_upower_duration_seconds(*, text: str, key: str) -> int | None:
-    pattern = rf"^\s*{re.escape(key)}:\s*(.+?)\s*$"
-    for line in text.splitlines():
-        match = re.match(pattern, line, re.IGNORECASE)
-        if not match:
-            continue
-        return _parse_duration_seconds(raw=match.group(1))
-    return None
-
-
-def _parse_duration_seconds(*, raw: str) -> int | None:
-    lowered = raw.strip().lower()
-    if not lowered or lowered in {"n/a", "unknown", "0"}:
-        return None
-
-    total = 0.0
-    matched = False
-    pattern = r"([0-9]+(?:\.[0-9]+)?)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)"
-    for value, unit in re.findall(pattern, lowered):
-        matched = True
-        amount = float(value)
-        if unit.startswith(("hour", "hr")):
-            total += amount * 3600
-        elif unit.startswith(("minute", "min")):
-            total += amount * 60
-        else:
-            total += amount
-    if not matched or total <= 0:
-        return None
-    return max(1, int(total))
-
-
-def _seconds_from_rate(*, remaining: int | None, rate: int | None) -> int | None:
-    if remaining is None or rate is None or remaining <= 0 or rate <= 0:
-        return None
-    return max(1, int((remaining / rate) * 3600))
-
-
-def _positive_delta(full: int | None, now: int | None) -> int | None:
-    if full is None or now is None:
-        return None
-    delta = full - now
-    if delta <= 0:
-        return None
-    return delta
-
-
-def read_battery(bat_name: str = "BAT0", base: Path = BAT_BASE) -> BatteryState | None:
-    from docking.applets.battery.backend import create_backend
-
-    return create_backend(base=base).read_battery(bat_name, base)
-
-
-def read_power_watts(bat_name: str = "BAT0", base: Path = BAT_BASE) -> float | None:
-    from docking.applets.battery.backend import create_backend
-
-    return create_backend(base=base).read_power_watts(bat_name, base)

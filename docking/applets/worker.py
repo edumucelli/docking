@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Callable
+from queue import Queue
 from typing import Any, TypeVar
 
 from gi.repository import GLib
@@ -114,21 +115,82 @@ class BackgroundWorker:
                 on_error(exc)
             return False
 
-        def task() -> None:
-            try:
-                result = fn()
-            except Exception as exc:
-                self.log.bind(action=name).debug("Background task failed: %s", exc)
-                self._idle_add(guarded_error, exc)
-                return
-            if on_result is None:
-                self._idle_add(finish)
-                return
-            self._idle_add(guarded_result, result)
-
         try:
-            self._thread_factory(target=task, daemon=True).start()
+            self.run(
+                name=name,
+                fn=fn,
+                on_result=guarded_result,
+                on_error=guarded_error,
+            )
         except Exception:
             finish()
             raise
         return True
+
+
+class SerialWorker(BackgroundWorker):
+    """Keep related IO on one owned thread until stop, without blocking GTK.
+
+    The finalizer runs on that thread after its last task, independently of GTK
+    result delivery. Construction starts no thread. Call stop() to release an
+    idle worker; its pending callbacks remain the caller's lifecycle to guard.
+    """
+
+    def __init__(self, *, on_close: Callable[[], None], **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._on_close = on_close
+        self._requests: Queue[Callable[[], None] | None] = Queue()
+        self._queue_lock = threading.Lock()
+        self._thread = None
+        self._closed = False
+
+    def run(
+        self,
+        *,
+        name: str,
+        fn: Callable[[], T],
+        on_result: Callable[[T], Any] | None = None,
+        on_error: Callable[[Exception], Any] | None = None,
+    ) -> None:
+        def request() -> None:
+            try:
+                result = fn()
+            except Exception as exc:
+                self.log.bind(action=name).debug("Background task failed: %s", exc)
+                if on_error is not None:
+                    self._idle_add(on_error, exc)
+            else:
+                if on_result is not None:
+                    self._idle_add(on_result, result)
+
+        with self._queue_lock:
+            if self._closed:
+                raise RuntimeError("Worker is stopped")
+            self._requests.put(request)
+            if self._thread is None:
+                try:
+                    self._thread = self._thread_factory(
+                        target=self._serve, daemon=False
+                    )
+                    self._thread.start()
+                except Exception:
+                    self._thread = None
+                    self._requests.get_nowait()
+                    raise
+
+    def _serve(self) -> None:
+        try:
+            while (request := self._requests.get()) is not None:
+                request()
+        finally:
+            try:
+                self._on_close()
+            except Exception:
+                self.log.exception("Worker cleanup failed")
+
+    def stop(self) -> None:
+        with self._queue_lock:
+            if self._closed:
+                return
+            self._closed = True
+            self._requests.put(None)

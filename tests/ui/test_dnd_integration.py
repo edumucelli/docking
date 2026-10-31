@@ -6,7 +6,7 @@ import stat
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import ANY, MagicMock, call
+from unittest.mock import ANY, MagicMock
 
 import pytest
 
@@ -18,20 +18,26 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.platform.applications.launcher as launcher_mod
+import docking.platform.applications.desktop_launch as desktop_launch_mod
 import docking.ui.dnd as dnd_mod
-from docking.core.config import PinnedEntry
+from docking.core.config import Config, PinnedEntry
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
+from docking.core.theme import Theme
+from docking.platform.applications.drag import (
+    APPLICATION_DRAG_INFO,
+    APPLICATION_DRAG_MIME,
+)
 from docking.platform.applications.identity import LaunchProvenanceStore
 from docking.platform.applications.launcher import ApplicationLauncher
+from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.applications.types import (
     ApplicationInfo,
     ApplicationLocation,
     ApplicationOrigin,
 )
 from docking.platform.model import DockItem
-from docking.ui.geometry import Rect
+from docking.ui.geometry import Rect, build_geometry_frame
 from tests.platform.application_fakes import ApplicationRegistryStub
 
 
@@ -76,6 +82,90 @@ def _application(
         visible=True,
         has_gio_source=True,
     )
+
+
+@pytest.mark.parametrize(
+    "identifier", ["Microsoft.WindowsNotepad_8wekyb3d8bbwe!App", "windows:résumé"]
+)
+@pytest.mark.parametrize("delivery", ["id", "file"])
+def test_application_id_drop_pins_registry_identity_and_never_opens_or_generates_files(
+    monkeypatch, tmp_path, identifier, delivery
+):
+    handler = _make_handler(monkeypatch)
+    application = _application(identifier)
+    handler._application_registry.get.return_value = application
+    handler._try_drop_on_applet = MagicMock()
+    handler._try_open_with_launcher = MagicMock()
+    handler.drop_insert_index = 2
+    selection = MagicMock()
+    selection.get_data.return_value = identifier.encode("utf-8")
+    info = APPLICATION_DRAG_INFO
+    if delivery == "file":
+        path = tmp_path / "Export résumé 日本語.lnk"
+        selection.get_uris.return_value = [path.as_uri()]
+        handler._application_registry.resolve_by_export_file.return_value = application
+        info = 1
+    finish = MagicMock()
+    monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
+    handler._on_drag_data_received(
+        handler._drawing_area, MagicMock(), 20, 8, selection, info, 1
+    )
+    handler._model.insert_pinned_application.assert_called_once_with(
+        desktop_id=identifier, index=2
+    )
+    handler._try_drop_on_applet.assert_not_called()
+    handler._try_open_with_launcher.assert_not_called()
+    if delivery == "id":
+        selection.get_uris.assert_not_called()
+    else:
+        handler._application_registry.resolve_by_export_file.assert_called_once_with(
+            path
+        )
+        selection.get_data.assert_not_called()
+    handler._application_registry.register_executable.assert_not_called()
+    assert handler.drop_insert_index == -1 and not handler._drop_committed
+    assert finish.call_args.args[1] is True
+
+
+@pytest.mark.parametrize("state", ["missing", "hidden", "invalid"])
+def test_unavailable_or_invalid_application_id_drop_is_rejected(monkeypatch, state):
+    handler = _make_handler(monkeypatch)
+    application = _application("app")
+    if state == "hidden":
+        from dataclasses import replace
+
+        application = replace(application, visible=False)
+    handler._application_registry.get.return_value = (
+        None if state == "missing" else application
+    )
+    selection = MagicMock()
+    selection.get_data.return_value = b"\xff" if state == "invalid" else b"app"
+    finish = MagicMock()
+    monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
+    handler._on_drag_data_received(
+        handler._drawing_area, MagicMock(), 20, 8, selection, APPLICATION_DRAG_INFO, 1
+    )
+    handler._model.insert_pinned_application.assert_not_called()
+    assert finish.call_args.args[1] is False
+
+
+def test_application_id_motion_does_not_offer_file_open_or_trash_target(monkeypatch):
+    handler = _make_handler(monkeypatch)
+    handler._model.get_applet.return_value = SimpleNamespace(
+        accepts_drop_uris=lambda: True
+    )
+    applet = DockItem("applet://trash", kind=APPLET_KIND)
+    frame = _frame()
+    frame.item_geometries[0].item = applet
+    frame.insertion_index_for_main.return_value = -1
+    handler._geometry_builder = SimpleNamespace(build_frame=lambda **_kwargs: frame)
+    context = MagicMock()
+    context.list_targets.return_value = [
+        SimpleNamespace(name=lambda: APPLICATION_DRAG_MIME)
+    ]
+    monkeypatch.setattr(dnd_mod.Gdk, "drag_status", lambda *_args: None)
+    handler._on_drag_motion(handler._drawing_area, context, 20, 8, 1)
+    assert handler.drop_target_id == ""
 
 
 def _make_handler(
@@ -131,7 +221,9 @@ def _make_handler(
     if application_registry is None:
         application_registry = MagicMock()
         application_registry.get.return_value = None
+        application_registry.register_executable.return_value = None
         application_registry.resolve_by_desktop_file.return_value = None
+        application_registry.resolve_by_export_file.return_value = None
     application_launcher = application_launcher or MagicMock()
     icon_loader = icon_loader or MagicMock()
     if target_service is None:
@@ -206,6 +298,7 @@ def test_selected_app_uri_drop_uses_shared_application_launcher(monkeypatch):
 
 
 @pytest.mark.parametrize("launch_fails", [False, True], ids=["success", "failure"])
+@pytest.mark.skipif(sys.platform == "win32", reason="Flatpak uses POSIX host paths")
 def test_host_uri_drop_flows_through_real_launcher_without_pinning(
     monkeypatch, tmp_path, launch_fails
 ):
@@ -223,9 +316,9 @@ def test_host_uri_drop_flows_through_real_launcher_without_pinning(
         LaunchProvenanceStore(),
         popen=popen,
     )
-    monkeypatch.setattr(launcher_mod, "is_flatpak", lambda: True)
+    monkeypatch.setattr(desktop_launch_mod, "is_flatpak", lambda: True)
     monkeypatch.setattr(
-        launcher_mod.flatpak,
+        desktop_launch_mod.flatpak,
         "host_command",
         lambda argv: ["flatpak-spawn", "--host", *argv],
     )
@@ -328,6 +421,88 @@ class TestSetupAndToggle:
 
 
 class TestDragBeginMotion:
+    def test_drag_off_after_external_applet_drop_does_not_inherit_its_commit(
+        self, monkeypatch
+    ):
+        handler = _make_handler(monkeypatch)
+        context = MagicMock()
+        monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", MagicMock())
+        handler._try_drop_on_applet = MagicMock(return_value=True)
+        handler._on_drag_drop(handler._drawing_area, context, 20, 8, 1)
+        selection = MagicMock()
+        selection.get_uris.return_value = ["file:///tmp/owned.txt"]
+        handler._on_drag_data_received(
+            handler._drawing_area, context, 20, 8, selection, 0, 1
+        )
+        item = DockItem("applet://clock", kind=APPLET_KIND, is_pinned=True)
+        handler._model.visible_items.return_value = [item]
+        handler._geometry_builder = SimpleNamespace(
+            build_frame=lambda **_kwargs: _frame(item_index=0, count=1)
+        )
+        handler._window.get_position.return_value = (0, 500)
+        pointer = handler._window.get_display().get_default_seat().get_pointer()
+        pointer.get_position.return_value = (None, 20, 100)
+        handler._on_drag_begin(handler._drawing_area, context)
+        handler._on_drag_leave(handler._drawing_area, context, 2)
+        handler._on_drag_end(handler._drawing_area, context)
+        handler._model.unpin_item.assert_called_once_with("applet://clock")
+
+    @pytest.mark.parametrize("position", list(Position))
+    @pytest.mark.parametrize("kind", [APP_KIND, APPLET_KIND])
+    def test_external_drop_stays_on_first_compatible_icon_with_real_geometry(
+        self, monkeypatch, position, kind
+    ):
+        handler = _make_handler(monkeypatch)
+        config = Config(position=position.value, icon_size=48)
+        handler._application_launcher.launch_app_uris.return_value = True
+        theme = Theme.load("default", 48)
+        target = DockItem(
+            "applet://trash" if kind == APPLET_KIND else "editor.desktop", kind=kind
+        )
+        items = [target, DockItem("applet://clock", kind=APPLET_KIND)]
+        handler._config, handler._theme = config, theme
+        handler._model.visible_items.return_value = items
+        applet = SimpleNamespace(
+            accepts_drop_uris=lambda: True, on_drop_uris=MagicMock(return_value=True)
+        )
+        handler._model.get_applet.return_value = applet
+
+        def frame(*, main_cursor=-1.0, drop_insert_index=-1):
+            horizontal = position in (Position.TOP, Position.BOTTOM)
+            return build_geometry_frame(
+                items=items,
+                config=config,
+                theme=theme,
+                window_w=1280 if horizontal else 187,
+                window_h=187 if horizontal else 800,
+                cursor_main=main_cursor,
+                autohide_state=None,
+                drop_insert_index=drop_insert_index,
+            )
+
+        handler._geometry_builder = SimpleNamespace(build_frame=frame)
+        rect = frame().item_geometries[0].draw_rect
+        x, y = int(rect.x + rect.w / 2), int(rect.y + rect.h / 2)
+        monkeypatch.setattr(dnd_mod.Gdk, "drag_status", lambda *_args: None)
+        finish = MagicMock()
+        monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
+        for _ in range(3):
+            handler._on_drag_motion(handler._drawing_area, MagicMock(), x, y, 1)
+            assert handler.drop_target_id == target.desktop_id
+        selection = MagicMock()
+        selection.get_uris.return_value = ["file:///tmp/owned.txt"]
+        handler._on_drag_data_received(
+            handler._drawing_area, MagicMock(), x, y, selection, 0, 1
+        )
+        handler._model.insert_pinned_item.assert_not_called()
+        if kind == APPLET_KIND:
+            applet.on_drop_uris.assert_called_once_with(["file:///tmp/owned.txt"])
+        else:
+            handler._application_launcher.launch_app_uris.assert_called_once_with(
+                "editor.desktop", ["file:///tmp/owned.txt"]
+            )
+        assert finish.call_args.args[1] is True
+
     def test_drag_begin_sets_drag_index_and_icon(self, monkeypatch):
         # Given
         handler = _make_handler(monkeypatch)
@@ -483,6 +658,22 @@ class TestDragBeginMotion:
 
 
 class TestDropAndReceive:
+    def test_unresolved_generated_launcher_does_not_fall_back_to_a_file_pin(
+        self, monkeypatch, tmp_path
+    ):
+        handler = _make_handler(monkeypatch)
+        handler._application_registry.register_executable.side_effect = OSError(
+            "Catalog unavailable"
+        )
+
+        assert not handler._insert_pinned_uri(
+            uri=(tmp_path / "app.exe").as_uri(), index=0
+        )
+
+        handler._target_service.resolve_file.assert_not_called()
+        handler._model.insert_pinned_item.assert_not_called()
+        handler._model.insert_pinned_application.assert_not_called()
+
     def test_drag_drop_requests_target_data(self, monkeypatch):
         # Given
         handler = _make_handler(monkeypatch)
@@ -824,45 +1015,32 @@ class TestDropAndReceive:
     ):
         handler = _make_handler(monkeypatch)
         binary = tmp_path / "tool"
-        generated = dnd_mod.desktop_entries.GeneratedDesktopEntry(
-            desktop_id="docking-generated-tool-123.desktop",
-            path=tmp_path / "docking-generated-tool-123.desktop",
-            name="tool",
-            icon_name="application-x-executable",
-        )
+        identifier = "docking-generated-tool-123.desktop"
         resolved = _application(
-            generated.desktop_id,
+            identifier,
             name="tool",
             icon_name="application-x-executable",
             wm_class="tool",
         )
-        monkeypatch.setattr(
-            dnd_mod.desktop_entries,
-            "create_desktop_entry_for_executable",
-            MagicMock(return_value=generated),
-        )
-        handler._application_registry.get.side_effect = lambda target: (
-            resolved if target == generated.desktop_id else None
-        )
+        handler._application_registry.register_executable.return_value = resolved
         inserted = handler._insert_pinned_uri(uri=binary.as_uri(), index=2)
 
         assert inserted is True
         handler._model.insert_pinned_application.assert_called_once_with(
-            desktop_id=generated.desktop_id,
+            desktop_id=identifier,
             index=2,
         )
-        handler._application_registry.refresh.assert_called_once_with()
-        assert handler._application_registry.method_calls.index(
-            call.refresh()
-        ) < handler._application_registry.method_calls.index(
-            call.get(generated.desktop_id)
+        handler._application_registry.register_executable.assert_called_once_with(
+            binary.as_uri()
         )
         handler._icon_loader.load_desktop_icon.assert_not_called()
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="AppImage requires POSIX mode bits"
+    )
     def test_insert_pinned_uri_confirms_chmod_for_non_executable_appimage(
         self, monkeypatch, tmp_path
     ):
-        handler = _make_handler(monkeypatch)
         appimage = tmp_path / "GIMP-3.2.4-x86_64.AppImage"
         appimage.write_text("#!/bin/sh\n", encoding="utf-8")
         appimage.chmod(0o644)
@@ -876,16 +1054,13 @@ class TestDropAndReceive:
             "MessageDialog",
             lambda **_kwargs: dialog,
         )
-        handler._application_registry.get.side_effect = lambda target: (
-            _application(
-                target,
-                name="GIMP 3.2.4 x86 64",
-                icon_name="application-x-appimage",
-                wm_class="GIMP-3.2.4-x86_64",
-            )
-            if target.startswith("docking-generated-")
-            else None
+        registry = ApplicationRegistry(
+            application_source=lambda: (),
+            desktop_directories_source=lambda: (
+                dnd_mod.desktop_entries.user_applications_dir(),
+            ),
         )
+        handler = _make_handler(monkeypatch, application_registry=registry)
 
         inserted = handler._insert_pinned_uri(uri=appimage.as_uri(), index=0)
 
@@ -896,8 +1071,11 @@ class TestDropAndReceive:
         assert desktop_id.startswith("docking-generated-gimp-3-2-4-x86-64-")
         assert appimage.stat().st_mode & stat.S_IXUSR
         assert dialog.destroyed
-        handler._application_registry.refresh.assert_called_once_with()
+        assert registry.get(desktop_id) is not None
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="AppImage requires POSIX mode bits"
+    )
     def test_insert_pinned_uri_cancelled_appimage_permission_does_not_pin_file(
         self, monkeypatch, tmp_path
     ):
@@ -928,26 +1106,14 @@ class TestDropAndReceive:
         handler.drop_insert_index = 0
         handler._model.pinned_items = []
         handler._model.find_by_desktop_id.return_value = None
-        generated = dnd_mod.desktop_entries.GeneratedDesktopEntry(
-            desktop_id="docking-generated-tool-123.desktop",
-            path=tmp_path / "docking-generated-tool-123.desktop",
-            name="tool",
-            icon_name="application-x-executable",
-        )
+        identifier = "docking-generated-tool-123.desktop"
         resolved = _application(
-            generated.desktop_id,
+            identifier,
             name="tool",
             icon_name="application-x-executable",
             wm_class="tool",
         )
-        monkeypatch.setattr(
-            dnd_mod.desktop_entries,
-            "create_desktop_entry_for_executable",
-            MagicMock(return_value=generated),
-        )
-        handler._application_registry.get.side_effect = lambda target: (
-            resolved if target == generated.desktop_id else None
-        )
+        handler._application_registry.register_executable.return_value = resolved
         selection = MagicMock()
         selection.get_uris.return_value = [(tmp_path / "tool").as_uri()]
         finish = MagicMock()
@@ -964,16 +1130,12 @@ class TestDropAndReceive:
         )
 
         assert [entry.kind for entry in handler._config.pinned] == [APP_KIND]
-        assert [entry.target for entry in handler._config.pinned] == [
-            generated.desktop_id
-        ]
+        assert [entry.target for entry in handler._config.pinned] == [identifier]
         assert [item.kind for item in handler._model.pinned_items] == [APP_KIND]
-        assert [item.desktop_id for item in handler._model.pinned_items] == [
-            generated.desktop_id
-        ]
+        assert [item.desktop_id for item in handler._model.pinned_items] == [identifier]
         handler._config.save.assert_called_once()
         handler._model.insert_pinned_application.assert_called_once_with(
-            desktop_id=generated.desktop_id,
+            desktop_id=identifier,
             index=0,
         )
         handler._model.notify.assert_called_once()
@@ -987,27 +1149,15 @@ class TestDropAndReceive:
         handler._drop_committed = True
         handler.drop_insert_index = 0
         handler._model.pinned_items = []
-        generated = dnd_mod.desktop_entries.GeneratedDesktopEntry(
-            desktop_id="docking-generated-tool-123.desktop",
-            path=tmp_path / "docking-generated-tool-123.desktop",
-            name="tool",
-            icon_name="application-x-executable",
-        )
+        identifier = "docking-generated-tool-123.desktop"
         resolved = _application(
-            generated.desktop_id,
+            identifier,
             name="tool",
             icon_name="application-x-executable",
             wm_class="tool",
         )
-        monkeypatch.setattr(
-            dnd_mod.desktop_entries,
-            "create_desktop_entry_for_executable",
-            MagicMock(return_value=generated),
-        )
-        handler._application_registry.get.side_effect = lambda target: (
-            resolved if target == generated.desktop_id else None
-        )
-        handler._model.find_by_desktop_id.return_value = DockItem(generated.desktop_id)
+        handler._application_registry.register_executable.return_value = resolved
+        handler._model.find_by_desktop_id.return_value = DockItem(identifier)
         selection = MagicMock()
         selection.get_uris.return_value = [(tmp_path / "tool").as_uri()]
         finish = MagicMock()

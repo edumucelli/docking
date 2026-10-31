@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from docking.applets.micshield import state as mic
+from docking.applets.micshield import linux as mic
 from docking.applets.volume import pulseaudio as volume
 from docking.applets.volume.state import VolumeState
 

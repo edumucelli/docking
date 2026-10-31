@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import importlib
 import sys
-from pathlib import Path
 from typing import Any, NamedTuple
 
 from docking.applets.battery.backend import BatteryBackend
+from docking.applets.battery.desktop_settings import (
+    open_power_settings,
+    power_settings_command,
+)
+from docking.applets.battery.peripherals import PeripheralBattery
 from docking.applets.battery.state import BatteryState, resolve_battery_icon
+from docking.applets.battery.upower import read_peripheral_batteries
 from docking.log import get_logger
 from docking.platform.commands import read_command as command
 
@@ -67,7 +72,7 @@ def battery() -> Battery | None:
 
 
 class BsdBatteryBackend(BatteryBackend):
-    def read_battery(self, bat_name: str, base: Path) -> BatteryState | None:
+    def read_battery(self) -> BatteryState | None:
         reading = battery()
         if reading is None:
             return None
@@ -87,5 +92,14 @@ class BsdBatteryBackend(BatteryBackend):
             resolve_battery_icon(level, status), capacity, status, remaining
         )
 
-    def read_power_watts(self, bat_name: str, base: Path) -> float | None:
+    def read_power_watts(self) -> float | None:
         return None
+
+    def read_peripherals(self) -> list[PeripheralBattery]:
+        return read_peripheral_batteries()
+
+    def settings_available(self) -> bool:
+        return power_settings_command() is not None
+
+    def open_settings(self) -> bool:
+        return open_power_settings()

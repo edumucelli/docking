@@ -2,6 +2,7 @@
 
 import threading
 from queue import Queue
+from unittest.mock import Mock
 
 import pytest
 from gi.repository import Gdk, GLib, Gtk
@@ -86,20 +87,30 @@ def test_stopped_upload_cannot_replace_the_users_clipboard(
 def test_camera_refresh_queued_before_stop_cannot_restart_pulse_timer(
     monkeypatch, posted_results
 ):
+    from docking.applets.camshield.backend import CamshieldBackend
+    from docking.applets.worker import BackgroundWorker
+
+    backend = Mock(spec=CamshieldBackend)
+    backend.get_state.return_value = CamshieldState(True, True)
+    monkeypatch.setattr(camera_mod, "create_backend", lambda: backend)
     monkeypatch.setattr(
-        camera_mod, "probe_camera_state", lambda: CamshieldState(True, False)
+        camera_mod,
+        "BackgroundWorker",
+        lambda **kwargs: BackgroundWorker(
+            **kwargs, idle_add=GLib.idle_add, thread_factory=threading.Thread
+        ),
     )
     applet = camera_mod.CamshieldApplet(48, Config())
+    queued_result = posted_results.get(timeout=2)
     applet.start(lambda: None)
     queued_refresh = posted_results.get(timeout=2)
     applet.stop()
-    monkeypatch.setattr(
-        camera_mod, "probe_camera_state", lambda: CamshieldState(True, True)
-    )
 
     try:
+        _deliver(queued_result)
         _deliver(queued_refresh)
         assert applet._pulse_timer_id == 0
+        backend.get_state.assert_called_once()
     finally:
         applet.stop()
 

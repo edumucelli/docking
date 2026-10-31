@@ -39,7 +39,9 @@ def navigation_target(uri: str | None) -> NavigationTarget:
 
 def tooltip_text(state: WebAppState) -> str:
     if state.phase is BrowserPhase.UNAVAILABLE:
-        return _("Telegram: WebKitGTK is not installed")
+        if state.error:
+            return _("Telegram: {error}").format(error=state.error)
+        return _("Telegram: browser is unavailable")
     if state.phase is BrowserPhase.STARTING:
         return _("Telegram: loading...")
     if state.phase is BrowserPhase.LOGIN_REQUIRED:

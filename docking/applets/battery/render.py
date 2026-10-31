@@ -138,6 +138,8 @@ def _draw_battery(
 
 def _overlay_label(*, state: BatteryState, overlay: str) -> str | None:
     """Bottom-center overlay text for the selected mode, or None."""
+    if state.capacity is None:
+        return "?"
     if overlay == OVERLAY_PERCENT:
         return f"{state.capacity}%"
     if overlay == OVERLAY_POWER and state.power_watts is not None:
@@ -162,7 +164,7 @@ def render_icon(
         _draw_battery(
             cr=cr,
             size=size,
-            capacity=state.capacity,
+            capacity=state.capacity if state.capacity is not None else 0,
             charging=state.icon_name.endswith("-charging"),
         )
         label = _overlay_label(state=state, overlay=overlay)

@@ -1,2 +1,7 @@
 recursive-include docking/assets *.svg *.png *.json *.csv.gz *.ogg *.md
 recursive-include docking/locale *.pot *.po *.mo
+include requirements-windows-browser.txt
+
+include tools/windows/__init__.py tools/windows/input_runtime.py
+include docking/platform/backends/windows/input_hook.cpp
+global-exclude input-thread-*.dll
