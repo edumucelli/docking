@@ -27,6 +27,8 @@ class UnixDesktopServices(DesktopServices):
     def create_icon_source(
         self, on_ready: Callable[[str], None]
     ) -> ApplicationIconSource | None:
+        # Unix uses theme/Gio artwork and retains no native readiness subscription.
+        del on_ready
         return None
 
     def icon_locations(self) -> IconLocations:

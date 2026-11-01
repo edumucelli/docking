@@ -71,6 +71,10 @@ pytest tests/ -v --cov=docking --cov-report=term-missing
 Run the smoke command separately: imports cached during full-suite collection
 can hide incomplete smoke fixtures.
 
+CI also checks pull requests targeting prerequisite branches, so stacked changes
+receive the same checks before their base reaches master. Release jobs remain
+restricted to master.
+
 For the GUI/integration-oriented slice under a headless X11 session:
 
 ```bash
