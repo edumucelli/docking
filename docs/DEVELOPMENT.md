@@ -186,7 +186,8 @@ npm --prefix website run dev
 Open `http://127.0.0.1:8000`. The development command builds all language pages
 and serves them using Python 3. Restart it after editing website sources to
 rebuild. From the `website` directory, use `npm run dev` directly. Run
-`npm --prefix website test` to check the generated pages.
+`npm --prefix website test` to check the generated pages. Both `npm test` and
+`npm run test:browser` rebuild the site automatically before running checks.
 
 Netlify uses the root `netlify.toml` to build and publish `website/dist`.
 Publish the built directory, not the source `website` directory. Build output
