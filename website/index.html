@@ -3,53 +3,106 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Docking - Dock for Linux, FreeBSD &amp; OpenBSD</title>
-  <meta name="description" content="Open source dock for Linux, FreeBSD, and OpenBSD. Includes built-in applets, customizable themes, X11 support, and desktop-specific Wayland support on Linux.">
-  <link rel="icon" type="image/png" href="https://raw.githubusercontent.com/edumucelli/docking/master/packaging/deb/icons/hicolor/32x32/apps/org.docking.Docking.png">
+  <title>Docking - Free Desktop Dock for Linux &amp; BSD</title>
+  <meta name="description" content="A free, open source desktop dock for Linux, FreeBSD and OpenBSD. Launch apps, add applets and customize themes. Supports X11 and Linux Wayland.">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#101827">
+  <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png">
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
   <link rel="canonical" href="https://docking.cc/">
-  <meta property="og:title" content="Docking - Dock for Linux, FreeBSD &amp; OpenBSD">
-  <meta property="og:description" content="Open source dock for Linux, FreeBSD, and OpenBSD. Includes built-in applets, customizable themes, X11 support, and desktop-specific Wayland support on Linux.">
+  <meta property="og:title" content="Docking - Free Desktop Dock for Linux &amp; BSD">
+  <meta property="og:description" content="A free, open source desktop dock for Linux, FreeBSD and OpenBSD. Launch apps, add applets and customize themes. Supports X11 and Linux Wayland.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://docking.cc/">
   <meta property="og:site_name" content="Docking">
   <meta property="og:locale" content="en_US">
-  <meta property="og:image" content="https://docking.cc/social-preview.png">
+  <meta property="og:image" content="https://docking.cc/social-preview.jpg">
+  <meta property="og:image:type" content="image/jpeg">
   <meta property="og:image:width" content="1731">
   <meta property="og:image:height" content="909">
   <meta property="og:image:alt" content="Docking desktop dock preview with applets">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Docking - Dock for Linux, FreeBSD &amp; OpenBSD">
-  <meta name="twitter:description" content="Open source dock for Linux, FreeBSD, and OpenBSD. Includes built-in applets, customizable themes, X11 support, and desktop-specific Wayland support on Linux.">
-  <meta name="twitter:image" content="https://docking.cc/social-preview.png">
+  <meta name="twitter:title" content="Docking - Free Desktop Dock for Linux &amp; BSD">
+  <meta name="twitter:description" content="A free, open source desktop dock for Linux, FreeBSD and OpenBSD. Launch apps, add applets and customize themes. Supports X11 and Linux Wayland.">
+  <meta name="twitter:image" content="https://docking.cc/social-preview.jpg">
   <meta name="twitter:image:alt" content="Docking desktop dock preview with applets">
   <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "Docking",
-    "description": "Open source dock for Linux, FreeBSD, and OpenBSD, with built-in applets, customizable themes, X11 support, and desktop-specific Wayland support on Linux.",
-    "applicationCategory": "DesktopEnhancement",
-    "operatingSystem": ["Linux", "FreeBSD", "OpenBSD"],
-    "url": "https://docking.cc/",
-    "downloadUrl": "https://github.com/edumucelli/docking/releases",
-    "license": "https://www.gnu.org/licenses/gpl-3.0.html",
-    "programmingLanguage": "Python",
-    "image": "https://docking.cc/social-preview.png",
-    "screenshot": "https://docking.cc/hero.gif",
-    "sameAs": [
-      "https://github.com/edumucelli/docking"
-    ],
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://docking.cc/#website",
+      "url": "https://docking.cc/",
+      "name": "Docking",
+      "inLanguage": [
+        "en",
+        "pt",
+        "fr",
+        "es"
+      ]
     },
-    "author": {
-      "@type": "Person",
-      "name": "Eduardo Mucelli",
-      "url": "https://github.com/edumucelli"
+    {
+      "@type": "WebPage",
+      "@id": "https://docking.cc/#webpage",
+      "url": "https://docking.cc/",
+      "name": "Docking - Free Desktop Dock for Linux & BSD",
+      "inLanguage": "en",
+      "isPartOf": {
+        "@id": "https://docking.cc/#website"
+      },
+      "about": {
+        "@id": "https://docking.cc/#software"
+      }
+    },
+    {
+      "@type": [
+        "SoftwareApplication",
+        "SoftwareSourceCode"
+      ],
+      "name": "Docking",
+      "description": "A free, open source desktop dock for Linux, FreeBSD and OpenBSD. Launch apps, add applets and customize themes. Supports X11 and Linux Wayland.",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": [
+        "Linux",
+        "FreeBSD",
+        "OpenBSD"
+      ],
+      "url": "https://docking.cc/",
+      "downloadUrl": "https://github.com/edumucelli/docking/releases",
+      "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+      "programmingLanguage": "Python",
+      "image": "https://docking.cc/social-preview.jpg",
+      "screenshot": "https://docking.cc/hero-still.webp",
+      "sameAs": [
+        "https://github.com/edumucelli/docking"
+      ],
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Eduardo Mucelli",
+        "url": "https://github.com/edumucelli"
+      },
+      "@id": "https://docking.cc/#software",
+      "codeRepository": "https://github.com/edumucelli/docking",
+      "isAccessibleForFree": true,
+      "featureList": [
+        "Built-in applets",
+        "Customizable themes",
+        "Multi-monitor and auto-hide",
+        "X11 and Linux Wayland support"
+      ],
+      "softwareHelp": {
+        "@type": "CreativeWork",
+        "url": "https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md"
+      }
     }
-  }
+  ]
+}
   </script>
   <script type="application/ld+json">
   {
@@ -102,112 +155,16 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-  <script>
-    tailwind = {
-      config: {
-        theme: {
-          extend: {
-            colors: {
-              midnight: "#101827",
-              accent: "#ef4444",
-              skyline: "#3b82f6",
-              ember: "#f59e0b"
-            },
-            boxShadow: {
-              glow: "0 0 0 1px rgba(255,255,255,0.07), 0 30px 90px rgba(15,23,42,0.22), 0 16px 52px rgba(245,158,11,0.16)",
-              soft: "0 24px 70px rgba(15,23,42,0.2)"
-            },
-            keyframes: {
-              drift: {
-                "0%, 100%": { transform: "translate3d(0, 0, 0)" },
-                "50%": { transform: "translate3d(0, -14px, 0)" }
-              },
-              pulseGlow: {
-                "0%, 100%": { opacity: "0.34", transform: "scale(1)" },
-                "50%": { opacity: "0.62", transform: "scale(1.05)" }
-              },
-              marquee: {
-                "0%": { transform: "translateX(0)" },
-                "100%": { transform: "translateX(-50%)" }
-              }
-            },
-            animation: {
-              drift: "drift 8s ease-in-out infinite",
-              pulseGlow: "pulseGlow 7s ease-in-out infinite",
-              marquee: "marquee 24s linear infinite"
-            }
-          }
-        }
-      }
-    };
-  </script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    :root { color-scheme: dark; }
 
-    body {
-      font-family: "Instrument Sans", sans-serif;
-      background:
-        radial-gradient(circle at 16% 14%, rgba(239, 68, 68, 0.18), transparent 22%),
-        radial-gradient(circle at 80% 14%, rgba(59, 130, 246, 0.19), transparent 24%),
-        radial-gradient(circle at 52% 74%, rgba(245, 158, 11, 0.16), transparent 26%),
-        linear-gradient(180deg, #111a2c 0%, #152035 52%, #121b2e 100%);
-    }
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+  <noscript><style>#mobile-dock-menu { display: block; } #mobile-dock-toggle { display: none; }</style></noscript>
 
-    h1,
-    h2,
-    h3,
-    .font-display {
-      font-family: "Space Grotesk", sans-serif;
-    }
-
-    .grid-fade {
-      background-image:
-        linear-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
-      background-size: 72px 72px;
-      mask-image: radial-gradient(circle at center, black 35%, transparent 78%);
-    }
-
-    .reveal {
-      opacity: 0;
-      transform: translateY(20px);
-      transition: opacity 0.8s ease, transform 0.8s ease;
-    }
-
-    .reveal.is-visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    .glow-ring {
-      box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.08),
-        0 0 30px rgba(239, 68, 68, 0.12),
-        0 0 60px rgba(245, 158, 11, 0.14),
-        0 0 52px rgba(59, 130, 246, 0.08);
-    }
-
-    .code-scroll::-webkit-scrollbar {
-      height: 8px;
-    }
-
-    .code-scroll::-webkit-scrollbar-thumb {
-      background: rgba(148, 163, 184, 0.28);
-      border-radius: 999px;
-    }
-
-    .marquee-mask {
-      mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
-    }
-  </style>
 </head>
 <body class="min-h-screen overflow-x-hidden bg-midnight text-slate-100 antialiased selection:bg-accent/25 selection:text-white">
-  <div class="pointer-events-none fixed inset-0 overflow-hidden">
+  <a href="#top" class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-xl focus:bg-midnight focus:p-4">Skip to content</a>
+  <div aria-hidden="true" class="pointer-events-none fixed inset-0 overflow-hidden">
     <div class="absolute inset-0 grid-fade opacity-30"></div>
-    <div class="absolute left-[-8rem] top-20 h-80 w-80 rounded-full bg-accent/20 blur-3xl animate-pulseGlow"></div>
-    <div class="absolute right-[-7rem] top-14 h-96 w-96 rounded-full bg-skyline/20 blur-3xl animate-pulseGlow"></div>
-    <div class="absolute bottom-[-9rem] left-1/2 h-80 w-[36rem] -translate-x-1/2 rounded-full bg-ember/20 blur-3xl"></div>
   </div>
 
   <div class="relative isolate">
@@ -216,9 +173,9 @@
         <div class="relative hidden md:block">
           <div class="relative rounded-2xl border border-white/[0.08] bg-white/[0.05] px-4 py-1.5 shadow-[0_4px_20px_rgba(0,0,0,0.18)] backdrop-blur-lg">
             <div class="pointer-events-none absolute inset-x-6 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/[0.1] to-transparent"></div>
-            <nav class="relative flex items-center justify-center gap-3 lg:gap-4">
+            <nav aria-label="Main navigation" class="relative flex items-center justify-center gap-3 lg:gap-4">
               <a href="#top" title="Docking" aria-label="Docking home" class="group relative flex h-11 w-11 items-center justify-center transition duration-200 hover:-translate-y-px hover:scale-[1.08]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/packaging/deb/icons/hicolor/256x256/apps/org.docking.Docking.png" alt="Docking logo" class="h-8 w-8 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]">
+                <img src="/logo.png" alt="Docking logo" width="256" height="256" class="h-8 w-8 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]">
                 <span class="pointer-events-none absolute -bottom-7 rounded bg-slate-950/85 px-2 py-0.5 text-[10px] font-medium text-slate-200 opacity-0 transition duration-150 group-hover:opacity-100">Docking</span>
               </a>
 
@@ -263,14 +220,14 @@
           <div class="flex items-center justify-between gap-3">
             <a href="#top" title="Docking" aria-label="Docking home" class="flex items-center gap-3">
               <div class="flex h-11 w-11 items-center justify-center rounded-[1.2rem] border border-white/25 bg-[linear-gradient(180deg,rgba(255,255,255,0.34),rgba(255,255,255,0.16))] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.42)]">
-                <img src="https://raw.githubusercontent.com/edumucelli/docking/master/packaging/deb/icons/hicolor/256x256/apps/org.docking.Docking.png" alt="Docking logo" class="h-full w-full object-contain">
+                <img src="/logo.png" alt="Docking logo" width="256" height="256" class="h-full w-full object-contain">
               </div>
               <div>
                 <div class="font-display text-sm font-semibold tracking-[0.28em] text-white uppercase">Docking</div>
               </div>
             </a>
             <div class="flex items-center gap-2">
-              <button id="mobile-dock-toggle" type="button" title="Open navigation" aria-label="Open navigation" class="flex h-11 w-11 items-center justify-center rounded-[1.2rem] border border-white/25 bg-skyline/10 text-white">
+              <button id="mobile-dock-toggle" aria-expanded="false" aria-controls="mobile-dock-menu" type="button" title="Open navigation" aria-label="Open navigation" class="flex h-11 w-11 items-center justify-center rounded-[1.2rem] border border-white/25 bg-skyline/10 text-white">
                 <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path></svg>
               </button>
             </div>
@@ -288,13 +245,23 @@
       </div>
     </header>
 
-    <main id="top">
+    <nav aria-label="Language" class="mx-auto flex max-w-6xl flex-wrap justify-center gap-4 px-6 pt-6 text-sm text-slate-300" data-language-nav>
+      <a href="/" lang="en" hreflang="en">English</a>
+      <a href="/pt/" lang="pt" hreflang="pt">Português</a>
+      <a href="/fr/" lang="fr" hreflang="fr">Français</a>
+      <a href="/es/" lang="es" hreflang="es">Español</a>
+    </nav>
+    <div id="language-suggestion" hidden class="mx-auto mt-4 max-w-xl rounded-xl border border-white/15 bg-midnight px-5 py-3 text-center text-sm" role="region" aria-label="Language suggestion">
+      <a id="language-suggestion-link" class="underline underline-offset-4"></a>
+      <button id="language-suggestion-dismiss" type="button" class="ml-4 px-2 py-1" aria-label="Dismiss language suggestion">×</button>
+    </div>
+    <main id="top" tabindex="-1">
       <section class="relative">
         <!-- Hero text -->
         <div class="mx-auto max-w-6xl px-6 pb-10 pt-16 text-center lg:px-8 lg:pt-20">
           <div class="reveal flex flex-col items-center">
-            <h1 class="max-w-3xl text-5xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">Docking</h1>
-            <p class="mt-5 max-w-2xl text-2xl font-medium tracking-tight text-slate-100 sm:text-3xl">A dock that adapts to your workflow.</p>
+            <h1 class="max-w-3xl text-5xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">Docking <span class="mt-5 block text-2xl font-medium tracking-tight text-slate-100 sm:text-3xl">A free desktop dock for Linux and BSD</span></h1>
+
             <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">A fast, customizable dock for Linux, FreeBSD, and OpenBSD, written in Python with built-in applets. Supports X11 on all three systems and Wayland on Linux.</p>
             <div class="mt-10 flex flex-col gap-4 sm:flex-row">
               <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_18px_48px_rgba(239,68,68,0.28)] transition hover:scale-[1.02]">Download</a>
@@ -312,8 +279,8 @@
             <div class="absolute right-0 top-1/2 h-36 w-36 sm:-right-12 -translate-y-1/2 rounded-full bg-skyline/10 blur-[70px]"></div>
             <div class="relative w-full max-w-[960px] transition duration-500 hover:scale-[1.008]">
               <picture>
-                <source srcset="hero.png" media="(prefers-reduced-motion: reduce)">
-                <img src="hero.gif" alt="Docking dock demonstration with applets and menus" width="960" height="315" class="w-full rounded-[1.4rem] border border-white/[0.06] shadow-[0_24px_68px_rgba(15,23,42,0.28),0_12px_36px_rgba(245,158,11,0.10)]">
+                <source srcset="/hero-still.webp" media="(prefers-reduced-motion: reduce)">
+                <img src="/hero.gif" fetchpriority="high" alt="Docking dock demonstration with applets and menus" width="960" height="315" class="w-full rounded-[1.4rem] border border-white/[0.06] shadow-[0_24px_68px_rgba(15,23,42,0.28),0_12px_36px_rgba(245,158,11,0.10)]">
               </picture>
             </div>
           </div>
@@ -567,95 +534,805 @@
             <p class="mt-4 text-lg leading-8 text-slate-300">Filter the catalog by workflow and find the applets that make Docking more than a launcher: system controls, command launchers, media, notes, weather, privacy indicators, and folder-friendly utilities.</p>
           </div>
           <div class="flex items-center gap-3 self-start lg:self-auto">
-            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl"><span id="applet-total-count">Dozens of</span> built-in applets plus folder stacks and a separator item</div>
+            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl"><span id="applet-total-count">65</span> built-in applets plus folder stacks and a separator item</div>
           </div>
         </div>
 
-        <div class="reveal mt-10 rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/10 via-white/[0.04] to-accent/8 p-5 shadow-soft backdrop-blur-2xl">
+        <div id="applet-controls" hidden class="reveal mt-10 rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/10 via-white/[0.04] to-accent/8 p-5 shadow-soft backdrop-blur-2xl">
           <div class="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
             <label class="block" for="applet-search">
               <span class="sr-only">Search applets</span>
               <input id="applet-search" type="search" placeholder="Search applets, categories, or features" class="w-full rounded-[1.1rem] border border-white/15 bg-white/[0.08] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-400 focus:border-skyline/50 focus:bg-white/[0.11]">
             </label>
-            <p id="applet-result-count" class="text-sm text-slate-300">Browse the applet catalog</p>
+            <p id="applet-result-count" role="status" aria-live="polite" data-count-template="Showing {visible} of {total} applets" class="text-sm text-slate-300">Browse the applet catalog</p>
           </div>
-          <div id="applet-category-filters" class="mt-4 flex flex-wrap gap-2" aria-label="Applet category filters"></div>
+          <div id="applet-category-filters" class="mt-4 flex flex-wrap gap-2" aria-label="Applet category filters"><button type="button" data-applet-category="All" class="rounded-full border px-4 py-2 text-sm font-semibold transition border-amber-200/30 bg-ember/14 text-white" aria-pressed="true">All</button><button type="button" data-applet-category="Time &amp; Productivity" class="rounded-full border px-4 py-2 text-sm font-semibold transition border-white/12 bg-white/[0.06] text-slate-300 hover:border-white/24 hover:text-white" aria-pressed="false">Time &amp; Productivity</button><button type="button" data-applet-category="Wellness &amp; Ambient" class="rounded-full border px-4 py-2 text-sm font-semibold transition border-white/12 bg-white/[0.06] text-slate-300 hover:border-white/24 hover:text-white" aria-pressed="false">Wellness &amp; Ambient</button><button type="button" data-applet-category="Launcher &amp; Navigation" class="rounded-full border px-4 py-2 text-sm font-semibold transition border-white/12 bg-white/[0.06] text-slate-300 hover:border-white/24 hover:text-white" aria-pressed="false">Launcher &amp; Navigation</button><button type="button" data-applet-category="Information and Environment" class="rounded-full border px-4 py-2 text-sm font-semibold transition border-white/12 bg-white/[0.06] text-slate-300 hover:border-white/24 hover:text-white" aria-pressed="false">Information and Environment</button><button type="button" data-applet-category="System &amp; Power" class="rounded-full border px-4 py-2 text-sm font-semibold transition border-white/12 bg-white/[0.06] text-slate-300 hover:border-white/24 hover:text-white" aria-pressed="false">System &amp; Power</button></div>
         </div>
 
-        <div id="applet-grid" class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"></div>
+        <div id="applet-grid" class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/aiusage.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">AI Usage</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Time &amp; Productivity</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Track sessions, token usage, and estimated spend across Claude, Codex, and OpenCode.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/alarm.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Alarm</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Time &amp; Productivity</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Multiple local-time alarm presets with weekday repeats, snooze, and dismiss controls.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-skyline/6 text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/ambient.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Ambient</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Wellness &amp; Ambient</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Calming ambient controls for focus, atmosphere, and quieter desktop sessions.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/applications.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Applications</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Launcher &amp; Navigation</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Browse and launch installed desktop applications from a compact app menu.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/apod.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Astronomy Picture of the Day</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Information and Environment</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">NASA APOD thumbnails with title, credit, and explanation in the tooltip.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/battery.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Battery</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Battery level, charging state, and power context at a glance.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/bluetooth.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Bluetooth</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Bluetooth adapter and device awareness with quick access from the dock.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/bookmarks.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Bookmarks</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Time &amp; Productivity</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Pinned shortcuts for places, links, and resources you revisit often.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/brightness.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Brightness</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Screen brightness control without leaving the dock.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/caffeine.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Caffeine</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Keep the session awake with optional timers for focus blocks or long tasks.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/calculator.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Calculator</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Time &amp; Productivity</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Quick calculations without opening a larger application.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/calendar.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Calendar</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Time &amp; Productivity</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Compact date browsing and schedule context.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/camshield.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Cam Shield</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Camera privacy indicator that shows when a process holds a video device.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/capslock.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Caps Lock</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Caps and Num Lock LED states for keyboards without physical indicators.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/certwatch.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Cert Watch</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">TLS certificate expiry monitor with a color-coded shield and days-remaining badge.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/clippy.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Clippy</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Time &amp; Productivity</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Clipboard history for recent snippets and repeated text.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/clock.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Clock</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Time &amp; Productivity</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Analog or digital clock display with optional seconds and alarm reminder support.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/colorpicker.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Color Picker</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Time &amp; Productivity</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Pick and inspect colors directly from the desktop.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/crypto.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Crypto</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Information and Environment</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Track selected coins and NFT collections with live prices and compact sparklines.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/currencyfx.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Currency FX</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Information and Environment</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Live exchange-rate pairs with a sparkline right on the dock icon.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-skyline/6 text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/deskpresence.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Desk Presence</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Wellness &amp; Ambient</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Track time at desk versus away, with today&#x27;s total in the badge.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/desktop.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Desktop</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Launcher &amp; Navigation</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Desktop actions and surface shortcuts in one place.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/devices.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Devices</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Launcher &amp; Navigation</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Browse every mounted device in a live stack that updates as mounts change.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/docker.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Docker</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">See running containers and stop or restart them from the dock menu.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/dragshare.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Drag Share</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Time &amp; Productivity</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Drop a file to upload it to tmpfiles.org and copy the temporary share URL.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/hackernews.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Hacker News</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Information and Environment</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Top headlines with manual navigation and next batches loaded up to 100 items.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-skyline/6 text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/hydration.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Hydration</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Wellness &amp; Ambient</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">A lightweight reminder to keep healthy breaks in view.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/keyboardlayout.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Keyboard Layout</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">See and switch your current keyboard layout.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/lastfm.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Last.fm</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Information and Environment</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Recent Last.fm and Libre.fm scrobbles with album art and profile shortcuts.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/micshield.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Mic Shield</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Microphone mute toggle with a privacy dot while an app captures input.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/moon.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Moon</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Information and Environment</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Current lunar phase with a rendered moon disc and illumination shading.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/music.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Music</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Media playback status, album-art rendering, and transport controls.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/network.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Network</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Connection state and quick network awareness.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/news.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">News</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Information and Environment</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Follow country-based RSS publications and browse their latest headlines from the dock.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/notifications.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Notifications</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Notification status, Do Not Disturb toggle, and pending badge when available.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-skyline/6 text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/pet.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Pet</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Wellness &amp; Ambient</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">A playful dock companion that reacts to system activity.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-skyline/6 text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/plantcare.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Plant Care</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Wellness &amp; Ambient</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Offline recurring care reminders for multiple plants, with due and overdue status.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/pomodoro.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Pomodoro</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Time &amp; Productivity</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Focused work sessions with a built-in timer rhythm.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/powerprofiles.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Power Profiles</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Switch laptop and handheld performance modes based on how you work.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/quicknote.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Quick Note</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Time &amp; Productivity</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Capture short notes without opening a larger app.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/quote.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Quote</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Information and Environment</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Rotating quote and joke applet with local fallback content and online refresh.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/trivia.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Random Trivia</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Information and Environment</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Quick trivia questions with answer choices and result feedback.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/recentfiles.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Recent Files</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Time &amp; Productivity</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Jump back into documents you touched most recently.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/reddit.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Reddit</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Information and Environment</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Browse posts from your favorite subreddits and open them in your browser.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/runcommand.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Run Application</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Launcher &amp; Navigation</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Alt+F2-style command launcher with terminal mode and searchable app matching.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/screenshot.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Screenshot</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Launch screenshot and portal capture actions directly from the dock.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/search.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Search</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Launcher &amp; Navigation</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Find applications, dock items, open windows, recent files, calculations, and paths.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/session.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Session</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Lock, logout, shutdown, and session actions close at hand.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/speedtest.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Speedtest</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">One-click internet speed test with a speedometer dial and Mbps badge.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-skyline/6 text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/stretchcoach.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Stretch Coach</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Wellness &amp; Ambient</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Healthy movement reminders during long sessions.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/sunrise.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Sunrise</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Information and Environment</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Sunrise, sunset, twilight phases, and a solar dial for selected cities.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/systemmonitor.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">System Monitor</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Live CPU, memory, and system activity in one widget.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/systemtray.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">System Tray</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Legacy X11 tray area for status icons, with takeover and release controls.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/telegram.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Telegram</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Launcher &amp; Navigation</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Keep Telegram signed in, see unread unmuted chat counts, and receive desktop notifications.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/thermals.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Thermals</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Hottest sensor temperature, fan RPM tooltip, and Celsius/Fahrenheit toggle.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/todayinhistory.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Today in History</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Information and Environment</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">One notable event at a time with online refresh and offline fallback data.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/trash.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Trash</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Trash state and cleanup access without opening a file manager.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/unitconverter.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Unit Converter</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Time &amp; Productivity</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Convert between units directly from the dock.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/urlshortener.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">URL Shortener</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Time &amp; Productivity</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Shorten URLs via is.gd and copy the result to the clipboard.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/usbwatch.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">USB Watch</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Safe-remove access for mounted removable USB storage devices.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/volume.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Volume</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Playback and audio control integrated into the same dock surface.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/weather.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Weather</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Information and Environment</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Forecast, conditions, air quality, and Celsius/Fahrenheit display at a glance.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/whatsapp.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">WhatsApp</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Launcher &amp; Navigation</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Persistent WhatsApp Web with desktop notifications and an unread-message badge.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/windowkiller.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Window Killer</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">System &amp; Power</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Click the applet, then click any window to force-close it.</p>
+          </article>
+          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+            <div class="flex items-start gap-3">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <img src="/icons/workspaces.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-base font-semibold leading-6 text-white">Workspaces</h3>
+                <p class="mt-1 text-xs font-medium text-slate-300">Launcher &amp; Navigation</p>
+              </div>
+            </div>
+            <p class="mt-4 text-sm leading-7 text-slate-300">Switch and track workspaces from the dock.</p>
+          </article>
+        </div>
         <p id="applet-empty-state" class="hidden mt-8 rounded-[1.4rem] border border-white/12 bg-white/[0.06] px-5 py-4 text-sm text-slate-300">No applets match that search.</p>
-        <noscript>
-          <div class="mt-8 rounded-[1.4rem] border border-white/12 bg-white/[0.06] px-5 py-4 text-sm text-slate-300">
-            <p>Enable JavaScript to search and filter the applet catalog. The release includes built-in applets across launcher, productivity, system, wellness, and information workflows.</p>
-            <ul class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              <li><strong>AI Usage:</strong> Track sessions, token usage, and estimated spend.</li>
-              <li><strong>Alarm:</strong> Local-time alarms with repeats and snooze controls.</li>
-              <li><strong>Ambient:</strong> Calming ambient controls for quieter sessions.</li>
-              <li><strong>Applications:</strong> Browse and launch installed desktop applications.</li>
-              <li><strong>Astronomy Picture of the Day:</strong> NASA APOD thumbnails and context.</li>
-              <li><strong>Battery:</strong> Battery level, charging state, and power context.</li>
-              <li><strong>Bluetooth:</strong> Bluetooth adapter and device awareness.</li>
-              <li><strong>Bookmarks:</strong> Pinned shortcuts for frequent places and links.</li>
-              <li><strong>Brightness:</strong> Screen brightness control from the dock.</li>
-              <li><strong>Caffeine:</strong> Keep the session awake with optional timers.</li>
-              <li><strong>Calculator:</strong> Quick calculations without opening a larger app.</li>
-              <li><strong>Calendar:</strong> Compact date browsing and schedule context.</li>
-              <li><strong>Cam Shield:</strong> Camera privacy indicator for video-device access.</li>
-              <li><strong>Caps Lock:</strong> Caps and Num Lock LED states.</li>
-              <li><strong>Cert Watch:</strong> TLS certificate expiry monitor.</li>
-              <li><strong>Clippy:</strong> Clipboard history for recent snippets.</li>
-              <li><strong>Clock:</strong> Analog or digital clock display.</li>
-              <li><strong>Color Picker:</strong> Pick and inspect desktop colors.</li>
-              <li><strong>Crypto:</strong> Track selected coins and NFT collections.</li>
-              <li><strong>Currency FX:</strong> Live exchange-rate pairs and sparklines.</li>
-              <li><strong>Desk Presence:</strong> Track time at desk versus away.</li>
-              <li><strong>Desktop:</strong> Desktop actions and surface shortcuts.</li>
-              <li><strong>Devices:</strong> Browse mounted devices in a live stack.</li>
-              <li><strong>Docker:</strong> See, stop, and restart running containers.</li>
-              <li><strong>Drag Share:</strong> Drop files to create temporary share URLs.</li>
-              <li><strong>Hacker News:</strong> Browse top headlines from the dock.</li>
-              <li><strong>Hydration:</strong> Lightweight healthy-break reminders.</li>
-              <li><strong>Keyboard Layout:</strong> See and switch keyboard layout.</li>
-              <li><strong>Last.fm:</strong> Recent scrobbles with album art.</li>
-              <li><strong>Mic Shield:</strong> Microphone mute and privacy indicator.</li>
-              <li><strong>Moon:</strong> Current lunar phase and illumination.</li>
-              <li><strong>Music:</strong> Media playback status and controls.</li>
-              <li><strong>Network:</strong> Connection state and quick network awareness.</li>
-              <li><strong>News:</strong> Follow country-based RSS publications from the dock.</li>
-              <li><strong>Notifications:</strong> Notification status and Do Not Disturb.</li>
-              <li><strong>Pet:</strong> A playful companion reacting to system activity.</li>
-              <li><strong>Plant Care:</strong> Offline recurring care reminders for multiple plants.</li>
-              <li><strong>Pomodoro:</strong> Focused work sessions with timer rhythm.</li>
-              <li><strong>Power Profiles:</strong> Switch performance modes.</li>
-              <li><strong>Quick Note:</strong> Capture short notes quickly.</li>
-              <li><strong>Quote:</strong> Rotating quote and joke content.</li>
-              <li><strong>Random Trivia:</strong> Quick trivia questions and answers.</li>
-              <li><strong>Recent Files:</strong> Jump back into recent documents.</li>
-              <li><strong>Reddit:</strong> Browse posts from your favorite subreddits.</li>
-              <li><strong>Run Application:</strong> Alt+F2-style command launcher.</li>
-              <li><strong>Screenshot:</strong> Screenshot and portal capture actions.</li>
-              <li><strong>Search:</strong> Find applications, dock items, windows, recent files, calculations, and paths.</li>
-              <li><strong>Session:</strong> Lock, logout, shutdown, and session actions.</li>
-              <li><strong>Speedtest:</strong> One-click internet speed test.</li>
-              <li><strong>Stretch Coach:</strong> Movement reminders during long sessions.</li>
-              <li><strong>Sunrise:</strong> Sunrise, sunset, twilight, and solar dial.</li>
-              <li><strong>System Monitor:</strong> Live CPU, memory, and activity.</li>
-              <li><strong>System Tray:</strong> Legacy tray area for status icons.</li>
-              <li><strong>Telegram:</strong> Keep Telegram signed in, see unread unmuted chat counts, and receive desktop notifications.</li>
-              <li><strong>Thermals:</strong> Sensor temperatures and fan context.</li>
-              <li><strong>Today in History:</strong> Notable events with offline fallback.</li>
-              <li><strong>Trash:</strong> Trash state, open, empty, and drop-to-trash access.</li>
-              <li><strong>Unit Converter:</strong> Convert units from the dock.</li>
-              <li><strong>URL Shortener:</strong> Shorten URLs and copy results.</li>
-              <li><strong>USB Watch:</strong> Safe-remove access for removable USB storage.</li>
-              <li><strong>Volume:</strong> Playback and audio control.</li>
-              <li><strong>Weather:</strong> Forecast, conditions, and air quality.</li>
-              <li><strong>WhatsApp:</strong> Persistent WhatsApp Web with notifications and an unread badge.</li>
-              <li><strong>Window Killer:</strong> Click a window to force-close it.</li>
-              <li><strong>Workspaces:</strong> Switch and track workspaces.</li>
-            </ul>
-          </div>
-        </noscript>
+
 
       </section>
 
@@ -926,7 +1603,10 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
     <footer class="border-t border-white/10">
       <div class="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-8 text-sm text-slate-300 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <div>Docking is an open source dock for Linux, FreeBSD, and OpenBSD, written in Python with GTK and Cairo. Supports X11 on all three systems and Wayland on Linux.</div>
-        <div class="flex items-center gap-6">
+        <div class="flex flex-wrap items-center gap-6">
+          <a href="#faq">FAQ</a>
+          <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md">Installation guide</a>
+          <a href="/sitemap.xml">Sitemap</a>
           <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="transition hover:text-white">GitHub</a>
           <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="transition hover:text-white">Releases</a>
         </div>
@@ -934,331 +1614,6 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
     </footer>
   </div>
 
-  <script>
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("is-visible");
-          observer.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.18 });
 
-    document.querySelectorAll(".reveal").forEach((element) => observer.observe(element));
-
-    const APPLET_ICON_BASE = "https://raw.githubusercontent.com/edumucelli/docking/master/docking/assets/icons/applets/";
-    const APPLETS = [
-      { id: "aiusage", name: "AI Usage", category: "Time & Productivity", summary: "Track sessions, token usage, and estimated spend across Claude, Codex, and OpenCode." },
-      { id: "alarm", name: "Alarm", category: "Time & Productivity", summary: "Multiple local-time alarm presets with weekday repeats, snooze, and dismiss controls." },
-      { id: "ambient", name: "Ambient", category: "Wellness & Ambient", summary: "Calming ambient controls for focus, atmosphere, and quieter desktop sessions." },
-      { id: "applications", name: "Applications", category: "Launcher & Navigation", summary: "Browse and launch installed desktop applications from a compact app menu." },
-      { id: "apod", name: "Astronomy Picture of the Day", category: "Information and Environment", summary: "NASA APOD thumbnails with title, credit, and explanation in the tooltip." },
-      { id: "battery", name: "Battery", category: "System & Power", summary: "Battery level, charging state, and power context at a glance." },
-      { id: "bluetooth", name: "Bluetooth", category: "System & Power", summary: "Bluetooth adapter and device awareness with quick access from the dock." },
-      { id: "bookmarks", name: "Bookmarks", category: "Time & Productivity", summary: "Pinned shortcuts for places, links, and resources you revisit often." },
-      { id: "brightness", name: "Brightness", category: "System & Power", summary: "Screen brightness control without leaving the dock." },
-      { id: "caffeine", name: "Caffeine", category: "System & Power", summary: "Keep the session awake with optional timers for focus blocks or long tasks." },
-      { id: "calculator", name: "Calculator", category: "Time & Productivity", summary: "Quick calculations without opening a larger application." },
-      { id: "calendar", name: "Calendar", category: "Time & Productivity", summary: "Compact date browsing and schedule context." },
-      { id: "camshield", name: "Cam Shield", category: "System & Power", summary: "Camera privacy indicator that shows when a process holds a video device." },
-      { id: "capslock", name: "Caps Lock", category: "System & Power", summary: "Caps and Num Lock LED states for keyboards without physical indicators." },
-      { id: "certwatch", name: "Cert Watch", category: "System & Power", summary: "TLS certificate expiry monitor with a color-coded shield and days-remaining badge." },
-      { id: "clippy", name: "Clippy", category: "Time & Productivity", summary: "Clipboard history for recent snippets and repeated text." },
-      { id: "clock", name: "Clock", category: "Time & Productivity", summary: "Analog or digital clock display with optional seconds and alarm reminder support." },
-      { id: "colorpicker", name: "Color Picker", category: "Time & Productivity", summary: "Pick and inspect colors directly from the desktop." },
-      { id: "crypto", name: "Crypto", category: "Information and Environment", summary: "Track selected coins and NFT collections with live prices and compact sparklines." },
-      { id: "currencyfx", name: "Currency FX", category: "Information and Environment", summary: "Live exchange-rate pairs with a sparkline right on the dock icon." },
-      { id: "deskpresence", name: "Desk Presence", category: "Wellness & Ambient", summary: "Track time at desk versus away, with today's total in the badge." },
-      { id: "desktop", name: "Desktop", category: "Launcher & Navigation", summary: "Desktop actions and surface shortcuts in one place." },
-      { id: "devices", name: "Devices", category: "Launcher & Navigation", summary: "Browse every mounted device in a live stack that updates as mounts change." },
-      { id: "docker", name: "Docker", category: "System & Power", summary: "See running containers and stop or restart them from the dock menu." },
-      { id: "dragshare", name: "Drag Share", category: "Time & Productivity", summary: "Drop a file to upload it to tmpfiles.org and copy the temporary share URL." },
-      { id: "hackernews", name: "Hacker News", category: "Information and Environment", summary: "Top headlines with manual navigation and next batches loaded up to 100 items." },
-      { id: "hydration", name: "Hydration", category: "Wellness & Ambient", summary: "A lightweight reminder to keep healthy breaks in view." },
-      { id: "keyboardlayout", name: "Keyboard Layout", category: "System & Power", summary: "See and switch your current keyboard layout." },
-      { id: "lastfm", name: "Last.fm", category: "Information and Environment", summary: "Recent Last.fm and Libre.fm scrobbles with album art and profile shortcuts." },
-      { id: "micshield", name: "Mic Shield", category: "System & Power", summary: "Microphone mute toggle with a privacy dot while an app captures input." },
-      { id: "moon", name: "Moon", category: "Information and Environment", summary: "Current lunar phase with a rendered moon disc and illumination shading." },
-      { id: "music", name: "Music", category: "System & Power", summary: "Media playback status, album-art rendering, and transport controls." },
-      { id: "network", name: "Network", category: "System & Power", summary: "Connection state and quick network awareness." },
-      { id: "news", name: "News", category: "Information and Environment", summary: "Follow country-based RSS publications and browse their latest headlines from the dock." },
-      { id: "notifications", name: "Notifications", category: "System & Power", summary: "Notification status, Do Not Disturb toggle, and pending badge when available." },
-      { id: "pet", name: "Pet", category: "Wellness & Ambient", summary: "A playful dock companion that reacts to system activity." },
-      { id: "plantcare", name: "Plant Care", category: "Wellness & Ambient", summary: "Offline recurring care reminders for multiple plants, with due and overdue status." },
-      { id: "pomodoro", name: "Pomodoro", category: "Time & Productivity", summary: "Focused work sessions with a built-in timer rhythm." },
-      { id: "powerprofiles", name: "Power Profiles", category: "System & Power", summary: "Switch laptop and handheld performance modes based on how you work." },
-      { id: "quicknote", name: "Quick Note", category: "Time & Productivity", summary: "Capture short notes without opening a larger app." },
-      { id: "quote", name: "Quote", category: "Information and Environment", summary: "Rotating quote and joke applet with local fallback content and online refresh." },
-      { id: "trivia", name: "Random Trivia", category: "Information and Environment", summary: "Quick trivia questions with answer choices and result feedback." },
-      { id: "recentfiles", name: "Recent Files", category: "Time & Productivity", summary: "Jump back into documents you touched most recently." },
-      { id: "reddit", name: "Reddit", category: "Information and Environment", summary: "Browse posts from your favorite subreddits and open them in your browser." },
-      { id: "runcommand", name: "Run Application", category: "Launcher & Navigation", summary: "Alt+F2-style command launcher with terminal mode and searchable app matching." },
-      { id: "screenshot", name: "Screenshot", category: "System & Power", summary: "Launch screenshot and portal capture actions directly from the dock." },
-      { id: "search", name: "Search", category: "Launcher & Navigation", summary: "Find applications, dock items, open windows, recent files, calculations, and paths." },
-      { id: "session", name: "Session", category: "System & Power", summary: "Lock, logout, shutdown, and session actions close at hand." },
-      { id: "speedtest", name: "Speedtest", category: "System & Power", summary: "One-click internet speed test with a speedometer dial and Mbps badge." },
-      { id: "stretchcoach", name: "Stretch Coach", category: "Wellness & Ambient", summary: "Healthy movement reminders during long sessions." },
-      { id: "sunrise", name: "Sunrise", category: "Information and Environment", summary: "Sunrise, sunset, twilight phases, and a solar dial for selected cities." },
-      { id: "systemmonitor", name: "System Monitor", category: "System & Power", summary: "Live CPU, memory, and system activity in one widget." },
-      { id: "systemtray", name: "System Tray", category: "System & Power", summary: "Legacy X11 tray area for status icons, with takeover and release controls." },
-      { id: "telegram", name: "Telegram", category: "Launcher & Navigation", summary: "Keep Telegram signed in, see unread unmuted chat counts, and receive desktop notifications." },
-      { id: "thermals", name: "Thermals", category: "System & Power", summary: "Hottest sensor temperature, fan RPM tooltip, and Celsius/Fahrenheit toggle." },
-      { id: "todayinhistory", name: "Today in History", category: "Information and Environment", summary: "One notable event at a time with online refresh and offline fallback data." },
-      { id: "trash", name: "Trash", category: "System & Power", summary: "Trash state and cleanup access without opening a file manager." },
-      { id: "unitconverter", name: "Unit Converter", category: "Time & Productivity", summary: "Convert between units directly from the dock." },
-      { id: "urlshortener", name: "URL Shortener", category: "Time & Productivity", summary: "Shorten URLs via is.gd and copy the result to the clipboard." },
-      { id: "usbwatch", name: "USB Watch", category: "System & Power", summary: "Safe-remove access for mounted removable USB storage devices." },
-      { id: "volume", name: "Volume", category: "System & Power", summary: "Playback and audio control integrated into the same dock surface." },
-      { id: "weather", name: "Weather", category: "Information and Environment", summary: "Forecast, conditions, air quality, and Celsius/Fahrenheit display at a glance." },
-      { id: "whatsapp", name: "WhatsApp", category: "Launcher & Navigation", summary: "Persistent WhatsApp Web with desktop notifications and an unread-message badge." },
-      { id: "windowkiller", name: "Window Killer", category: "System & Power", summary: "Click the applet, then click any window to force-close it." },
-      { id: "workspaces", name: "Workspaces", category: "Launcher & Navigation", summary: "Switch and track workspaces from the dock." }
-    ];
-
-    function escapeHtml(value) {
-      return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;");
-    }
-
-    function categoryClasses(category) {
-      if (category === "System & Power") return "from-accent/12 to-ember/6 text-rose-100";
-      if (category === "Launcher & Navigation") return "from-skyline/12 to-emerald-400/6 text-blue-100";
-      if (category === "Time & Productivity") return "from-ember/12 to-skyline/6 text-amber-100";
-      if (category === "Wellness & Ambient") return "from-emerald-400/12 to-skyline/6 text-emerald-100";
-      return "from-skyline/12 to-accent/6 text-slate-100";
-    }
-
-    function installAppletIconFallback(root = document) {
-      root.querySelectorAll('img[src*="/docking/assets/icons/applets/"]').forEach((image) => {
-        if (image.dataset.fallbackBound === "true") return;
-        image.dataset.fallbackBound = "true";
-        const fallback = () => {
-          const label = (image.alt || "Applet").replace(" applet icon", "");
-          const initials = label
-            .split(/\s+/)
-            .filter(Boolean)
-            .slice(0, 2)
-            .map((part) => part[0])
-            .join("")
-            .toUpperCase();
-          const badge = document.createElement("span");
-          badge.className = "flex h-full w-full items-center justify-center rounded-xl bg-white/10 text-xs font-bold tracking-wide text-white";
-          badge.textContent = initials || "A";
-          image.replaceWith(badge);
-        };
-        image.addEventListener("error", fallback, { once: true });
-        if (image.complete && image.naturalWidth === 0) fallback();
-      });
-    }
-
-    (function () {
-      const grid = document.getElementById("applet-grid");
-      const search = document.getElementById("applet-search");
-      const filters = document.getElementById("applet-category-filters");
-      const resultCount = document.getElementById("applet-result-count");
-      const totalCount = document.getElementById("applet-total-count");
-      const emptyState = document.getElementById("applet-empty-state");
-      if (!grid || !search || !filters || !resultCount || !emptyState) {
-        installAppletIconFallback(document);
-        return;
-      }
-
-      const categories = [
-        "All",
-        "Launcher & Navigation",
-        "Time & Productivity",
-        "System & Power",
-        "Wellness & Ambient",
-        "Information and Environment"
-      ];
-      let activeCategory = "All";
-
-      if (totalCount) totalCount.textContent = String(APPLETS.length);
-
-      filters.innerHTML = categories.map((category) => {
-        const isActive = category === activeCategory;
-        return `<button type="button" data-applet-category="${escapeHtml(category)}" class="rounded-full border px-4 py-2 text-sm font-semibold transition ${isActive ? "border-amber-200/30 bg-ember/14 text-white" : "border-white/12 bg-white/[0.06] text-slate-300 hover:border-white/24 hover:text-white"}" aria-pressed="${isActive ? "true" : "false"}">${escapeHtml(category)}</button>`;
-      }).join("");
-
-      function searchableText(applet) {
-        return `${applet.name} ${applet.category} ${applet.summary}`.toLowerCase();
-      }
-
-      function filteredApplets() {
-        const query = search.value.trim().toLowerCase();
-        return APPLETS.filter((applet) => {
-          const categoryMatches = activeCategory === "All" || applet.category === activeCategory;
-          const queryMatches = !query || searchableText(applet).includes(query);
-          return categoryMatches && queryMatches;
-        });
-      }
-
-      function renderGrid() {
-        const applets = filteredApplets();
-        resultCount.textContent = `Showing ${applets.length} of ${APPLETS.length} applets`;
-        emptyState.classList.toggle("hidden", applets.length > 0);
-        grid.innerHTML = applets.map((applet) => {
-          const classes = categoryClasses(applet.category);
-          return `<article class="reveal is-visible rounded-[1.4rem] border border-white/12 bg-gradient-to-br ${classes} p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="${escapeHtml(applet.category)}">
-            <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
-                <img src="${APPLET_ICON_BASE}${escapeHtml(applet.id)}.png" alt="${escapeHtml(applet.name)} applet icon" class="h-full w-full object-contain" loading="lazy">
-              </div>
-              <div class="min-w-0">
-                <h3 class="text-base font-semibold leading-6 text-white">${escapeHtml(applet.name)}</h3>
-                <p class="mt-1 text-xs font-medium text-slate-300">${escapeHtml(applet.category)}</p>
-              </div>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">${escapeHtml(applet.summary)}</p>
-          </article>`;
-        }).join("");
-        installAppletIconFallback(grid);
-      }
-
-      filters.addEventListener("click", (event) => {
-        const target = event.target instanceof Element ? event.target : null;
-        const button = target ? target.closest("[data-applet-category]") : null;
-        if (!button) return;
-        activeCategory = button.dataset.appletCategory || "All";
-        filters.querySelectorAll("[data-applet-category]").forEach((candidate) => {
-          const isActive = candidate === button;
-          candidate.setAttribute("aria-pressed", isActive ? "true" : "false");
-          candidate.className = `rounded-full border px-4 py-2 text-sm font-semibold transition ${isActive ? "border-amber-200/30 bg-ember/14 text-white" : "border-white/12 bg-white/[0.06] text-slate-300 hover:border-white/24 hover:text-white"}`;
-        });
-        renderGrid();
-      });
-
-      search.addEventListener("input", renderGrid);
-      renderGrid();
-      installAppletIconFallback(document);
-    })();
-
-    const mobileDockToggle = document.getElementById("mobile-dock-toggle");
-    const mobileDockMenu = document.getElementById("mobile-dock-menu");
-
-    if (mobileDockToggle && mobileDockMenu) {
-      mobileDockToggle.addEventListener("click", () => {
-        mobileDockMenu.classList.toggle("hidden");
-      });
-    }
-
-    (function () {
-      const toggle = document.querySelector("[data-install-arch-toggle]");
-      if (!toggle) return;
-
-      const buttons = toggle.querySelectorAll("[data-install-arch-option]");
-      const links = document.querySelectorAll("[data-install-link]");
-      const storePath = document.querySelector("[data-install-store-path]");
-      const inactiveClasses = ["text-slate-300", "hover:text-white"];
-      const paletteByArch = {
-        x64: {
-          buttonBg: "rgba(253, 186, 116, 0.12)",
-          buttonBorder: "rgba(254, 215, 170, 0.18)",
-          linkBorder: "rgba(253, 186, 116, 0.20)",
-          linkBg: "rgba(253, 186, 116, 0.04)",
-          linkHoverBorder: "rgba(253, 186, 116, 0.30)",
-          linkHoverBg: "rgba(253, 186, 116, 0.08)",
-        },
-        arm64: {
-          buttonBg: "rgba(254, 240, 138, 0.12)",
-          buttonBorder: "rgba(254, 249, 195, 0.18)",
-          linkBorder: "rgba(254, 240, 138, 0.22)",
-          linkBg: "rgba(254, 240, 138, 0.05)",
-          linkHoverBorder: "rgba(254, 240, 138, 0.32)",
-          linkHoverBg: "rgba(254, 240, 138, 0.09)",
-        },
-      };
-
-      links.forEach((link) => {
-        if (link.dataset.installHoverBound === "true") return;
-        link.dataset.installHoverBound = "true";
-        link.addEventListener("mouseenter", () => {
-          const palette = paletteByArch[toggle.dataset.selectedArch || "x64"];
-          link.style.borderColor = palette.linkHoverBorder;
-          link.style.backgroundColor = palette.linkHoverBg;
-        });
-        link.addEventListener("mouseleave", () => {
-          const palette = paletteByArch[toggle.dataset.selectedArch || "x64"];
-          link.style.borderColor = palette.linkBorder;
-          link.style.backgroundColor = palette.linkBg;
-        });
-      });
-
-      function setArch(arch) {
-        const palette = paletteByArch[arch];
-        toggle.dataset.selectedArch = arch;
-
-        buttons.forEach((button) => {
-          const isActive = button.dataset.installArchOption === arch;
-          button.setAttribute("aria-pressed", isActive ? "true" : "false");
-          inactiveClasses.forEach((className) => button.classList.toggle(className, !isActive));
-          if (isActive) {
-            button.classList.add("text-white");
-            button.style.backgroundColor = palette.buttonBg;
-            button.style.border = `1px solid ${palette.buttonBorder}`;
-            button.style.boxShadow = "0 8px 24px rgba(15, 23, 42, 0.22)";
-          } else {
-            button.classList.remove("text-white");
-            button.style.backgroundColor = "transparent";
-            button.style.border = "1px solid transparent";
-            button.style.boxShadow = "none";
-          }
-        });
-
-        links.forEach((link) => {
-          link.href = arch === "arm64" ? link.dataset.hrefArm64 : link.dataset.hrefX64;
-          link.style.borderColor = palette.linkBorder;
-          link.style.backgroundImage = "none";
-          link.style.backgroundColor = palette.linkBg;
-        });
-
-        if (storePath) {
-          storePath.href = arch === "arm64" ? storePath.dataset.hrefArm64 : storePath.dataset.hrefX64;
-        }
-      }
-
-      buttons.forEach((button) => {
-        button.addEventListener("click", () => {
-          setArch(button.dataset.installArchOption || "x64");
-        });
-      });
-
-      setArch("x64");
-    })();
-
-    (function () {
-      const section = document.getElementById("bsd-install");
-      let requested = false;
-
-      section.addEventListener("toggle", async () => {
-        if (!section.open || requested) return;
-        requested = true;
-        try {
-          const response = await fetch("https://api.github.com/repos/edumucelli/docking/releases/latest");
-          if (!response.ok) return;
-          const release = await response.json();
-          if (!Array.isArray(release.assets) || typeof release.tag_name !== "string") return;
-          const assets = new Set(release.assets.filter((asset) => asset.state === "uploaded").map((asset) => asset.name));
-          if (!assets.has("SHA256SUMS-bsd")) return;
-          section.querySelectorAll("[data-bsd-asset]").forEach((link) => {
-            const filename = link.dataset.bsdAsset;
-            if (!assets.has(filename) || !assets.has(`${filename}.json`)) return;
-            link.href = `https://github.com/edumucelli/docking/releases/download/${encodeURIComponent(release.tag_name)}/${encodeURIComponent(filename)}`;
-            link.hidden = false;
-            link.classList.add("inline-flex");
-          });
-        } catch {
-          // The installation guide and release listing also work without the API.
-        } finally {
-          requested = [...section.querySelectorAll("[data-bsd-asset]")]
-            .every((link) => !link.hidden);
-        }
-      });
-    })();
-
-  </script>
 </body>
 </html>

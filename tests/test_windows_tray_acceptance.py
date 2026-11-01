@@ -15,6 +15,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from tools.windows.visual.desktop_driver import physical_dock_click
 from tools.windows.visual.tray_acceptance import (
     TrayRuntime,
     runtime_origins,
@@ -39,7 +40,6 @@ from tools.windows.visual.tray_provider import (
     validate_protocol,
 )
 from tools.windows.visual.tray_provider_smoke import OwnedWireTrace
-from tools.windows.visual.tray_smoke import physical_dock_click
 
 
 @pytest.mark.parametrize(
@@ -1177,12 +1177,12 @@ def test_unavailable_control_point_fails_without_fabricating_foreground(bounds):
         visible_control_point(123, bounds, lambda _x, _y: 999)
 
 
-@pytest.fixture
-def dock_click():
+@pytest.fixture(params=("applet://systemtray", "docking-executable-fixture"))
+def dock_click(request):
     ready = {
         "point": [500, 700],
         "cursor": [500, 700],
-        "selected": "applet://systemtray",
+        "selected": request.param,
         "native_window": 123,
         "dock_window": 123,
         "rect": [450, 20, 100, 100],
@@ -1218,6 +1218,7 @@ def dock_click():
             raise AssertionError(message)
 
         physical_dock_click(
+            identifier=request.param,
             observe=observe,
             move=move,
             press=press,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import json
 import os
 import subprocess
@@ -10,6 +11,7 @@ import sys
 import threading
 import time
 from contextlib import suppress
+from ctypes import wintypes
 from pathlib import Path
 
 
@@ -135,9 +137,6 @@ def document_icon_rectangle(frame, identifier: str, insert: int, gap, horizontal
 
 def document_target_snapshot(native, ui, identifier, expected_item, dock_window):
     """Observe the current painted and native drop target in physical pixels."""
-    import ctypes
-    from ctypes import wintypes
-
     from docking.core.items import APP_KIND
     from docking.core.position import is_horizontal
     from docking.platform.native.windows.ffi import bind
@@ -229,7 +228,15 @@ def _phase(output: Path, phase: str, runtime) -> None:
         executable_id,
     )
     from docking.platform.applications.types import ApplicationOrigin
-    from tools.windows.visual.desktop_driver import WindowsDesktop, read_shared_json
+    from docking.platform.native.windows.ffi import bind
+    from tools.windows.visual.desktop_driver import (
+        WindowsDesktop,
+        _Data,
+        _Input,
+        _Mouse,
+        physical_dock_click,
+        read_shared_json,
+    )
     from tools.windows.visual.explorer import ExplorerFolder
     from tools.windows.visual.smoke import dock_window
     from tools.windows.visual.tray_acceptance import runtime_origins
@@ -338,30 +345,54 @@ def _phase(output: Path, phase: str, runtime) -> None:
 
             def point():
                 window = shared["ui"].window
+                frame = window._current_or_build_geometry_frame()
                 rect = next(
                     g.draw_rect
-                    for g in window.geometry.build_frame().item_geometries
+                    for g in frame.item_geometries
                     if g.item.desktop_id == identifier
                 )
-                bounds = next(
-                    w["rect"]
-                    for w in native.windows(os.getpid())
-                    if w["hwnd"] == dock["hwnd"]
-                )
+                bounds, cursor = wintypes.RECT(), wintypes.POINT()
+                assert native.user.GetWindowRect(dock["hwnd"], ctypes.byref(bounds))
+                assert bind(
+                    native.user,
+                    "GetCursorPos",
+                    ctypes.c_int32,
+                    ctypes.POINTER(wintypes.POINT),
+                )(ctypes.byref(cursor))
                 scale = window.get_scale_factor()
-                return bounds[0] + (rect.x + rect.w / 2) * scale, bounds[1] + (
-                    rect.y + rect.h / 2
-                ) * scale
+                selected = frame.item_at_point(
+                    (cursor.x - bounds.left) / scale,
+                    (cursor.y - bounds.top) / scale,
+                )
+                return {
+                    "point": [
+                        int(bounds.left + (rect.x + rect.w / 2) * scale),
+                        int(bounds.top + (rect.y + rect.h / 2) * scale),
+                    ],
+                    "cursor": [cursor.x, cursor.y],
+                    "rect": [round(v, 2) for v in (rect.x, rect.y, rect.w, rect.h)],
+                    "item_count": len(frame.item_geometries),
+                    "selected": selected.desktop_id if selected is not None else None,
+                    "native_window": native.window_at(cursor.x, cursor.y),
+                    "dock_window": dock["hwnd"],
+                }
 
-            def target():
-                native.user.SetCursorPos(1100, 100)
-                time.sleep(0.3)
-                for _ in range(3):
-                    position = call(point)
-                    native.user.SetCursorPos(int(position[0]), int(position[1]))
-                    time.sleep(0.3)
-                assert native.window_at(*position) == dock["hwnd"]
-                return position
+            def click_target(*, right=False):
+                record = {"right": right}
+                report.setdefault("dock_clicks", []).append(record)
+                physical_dock_click(
+                    identifier=identifier,
+                    observe=lambda: call(point),
+                    move=native.user.SetCursorPos,
+                    press=lambda: native._send(
+                        [
+                            _Input(type=0, data=_Data(mouse=_Mouse(flags=flag)))
+                            for flag in ((8, 16) if right else (2, 4))
+                        ]
+                    ),
+                    wait_for=native.wait_for,
+                    record=record,
+                )
 
             if phase == "pin":
                 program = subprocess.Popen(
@@ -389,8 +420,7 @@ def _phase(output: Path, phase: str, runtime) -> None:
                     )
                     assert not candidates, "Uncataloged fixture gained a catalog alias"
                     report["catalog_aliases"] = 0
-                position = target()
-                native.click(*position, right=True)
+                click_target(right=True)
 
                 def menu_point():
                     menu = shared.get("menu")
@@ -651,7 +681,7 @@ def _phase(output: Path, phase: str, runtime) -> None:
                     assert not source.exists()
                     assert Path(item.application_info.launch_target).is_file()
                     report["original_shortcut_removed"] = True
-                native.click(*target())
+                click_target()
                 facts_file = (
                     Path(manifest["facts"])
                     if shortcut
@@ -722,7 +752,7 @@ def _phase(output: Path, phase: str, runtime) -> None:
                 initial = native.wait_for(active_handle, "Fixture did not activate")
                 foregrounds = [initial]
                 for _ in range(4):
-                    native.click(*target())
+                    click_target()
                     expected = next(h for h in handles if h != foregrounds[-1])
                     native.wait_for(
                         lambda expected=expected: active_handle() == expected,
@@ -743,7 +773,7 @@ def _phase(output: Path, phase: str, runtime) -> None:
                 )
                 assert remaining[0].id.value != closing
                 assert item.is_running and item.is_pinned and item.instance_count == 1
-                native.click(*target())
+                click_target()
                 native.wait_for(
                     lambda: active_handle() == remaining[0].id.value,
                     "Surviving window did not activate from the pin",

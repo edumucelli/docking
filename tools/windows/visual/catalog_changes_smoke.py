@@ -370,7 +370,7 @@ def main() -> None:
                 )
 
             native_catalog.read_application_metadata = metadata_read
-            factory = registry._change_monitor_factory
+            factory = registry._catalog.create_change_monitor
 
             def watch(changed):
                 def notify():
@@ -379,7 +379,7 @@ def main() -> None:
 
                 return factory(notify)
 
-            registry._change_monitor_factory = watch
+            registry._catalog.create_change_monitor = watch
             registry.start()
             shared, failures = {}, []
             loop = GLib.MainLoop()

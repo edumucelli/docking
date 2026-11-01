@@ -12,6 +12,40 @@ from pathlib import Path
 from typing import ClassVar
 
 
+def physical_dock_click(
+    *, identifier, observe, move, press, wait_for, record, clock=time.monotonic
+):
+    """Follow live hover geometry before one verified physical button press."""
+    stable, since = None, None
+
+    def ready():
+        nonlocal stable, since
+        current = observe()
+        record["observed"] = current
+        if current["cursor"] != current["point"]:
+            assert move(*current["point"])
+            stable, since = None, None
+            return False
+        if (
+            current["selected"] != identifier
+            or current["native_window"] != current["dock_window"]
+        ):
+            stable, since = None, None
+            return False
+        now = clock()
+        if current != stable:
+            stable, since = current, now
+            return False
+        return current if now - since >= 0.4 else False
+
+    settled = wait_for(ready, "Dock target did not settle under the cursor")
+    final = record["before_press"] = observe()
+    assert final == settled, "Dock target changed before the physical press"
+    # The ordinary desktop click moves then sleeps, invalidating a checked hover
+    # frame. Send the same real button events at the already verified cursor.
+    press()
+
+
 def read_shared_json(path: Path):
     """Retry transient Windows/SMB sharing failures during atomic replacement."""
     for _ in range(19):

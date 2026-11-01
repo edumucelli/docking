@@ -179,6 +179,54 @@ reference, examples, and expected responses.
 Build dependencies, commands, output paths, and local installation steps for
 every package format live in the [packaging guide](../packaging/README.md).
 
+## Website
+
+The website uses Node.js 22 or later to generate static English, Portuguese,
+French and Spanish pages. Run from the repository root:
+
+```bash
+npm --prefix website ci
+npm --prefix website run dev
+```
+
+Open `http://127.0.0.1:8000`. The development command builds all language pages
+and serves them using Python 3. Restart it after editing website sources to
+rebuild. From the `website` directory, use `npm run dev` directly. Run
+`npm --prefix website test` to check the generated pages. Both `npm test` and
+`npm run test:browser` rebuild the site automatically before running checks.
+
+Netlify uses the root `netlify.toml` to build and publish `website/dist`.
+Publish the built directory, not the source `website` directory. Build output
+and `node_modules` are ignored by Git. Tailwind runs at build time; visitors
+do not download a CSS compiler. Applet icons come from the repository, and the
+original `website/hero.gif` is copied without recompression.
+
+Edit the English template in `website/index.html` and the corresponding strings
+in `website/translations.json`. Translation keys are the exact English text;
+builds fail on missing translations. Keep shell commands and technical names
+unchanged. The build generates `/`, `/pt/`, `/fr/` and `/es/`, with reciprocal
+`hreflang` links and a self-canonical URL for each language. All content remains
+readable without JavaScript. Browser-language detection suggests a version;
+explicit language links and remembered choices take precedence over detection.
+
+Keep `website/sitemap.xml` synchronized with published pages. Update each
+`lastmod` only when that page's content changes, not on every build. The public
+sitemap to submit in Google Search Console is `https://docking.cc/sitemap.xml`.
+Submit new language URLs for inspection after deploying the generated pages.
+
+Browser checks cover all languages on desktop and mobile, JavaScript disabled,
+accent-insensitive applet search, language preferences and reduced motion:
+
+```bash
+cd website
+npx playwright install chromium
+npm run test:browser
+```
+
+To use an existing Chrome installation, set `CHROME_PATH` to its executable
+instead of installing Chromium. The website workflow runs both the static SEO
+checks and browser checks on relevant changes.
+
 ## Contributing
 
 1. Fork the repository

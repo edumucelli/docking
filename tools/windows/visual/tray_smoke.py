@@ -18,45 +18,10 @@ import subprocess
 import sys
 import tempfile
 import threading
-import time
 import zlib
 from contextlib import suppress
 from ctypes import wintypes
 from pathlib import Path
-
-
-def physical_dock_click(
-    *, observe, move, press, wait_for, record, clock=time.monotonic
-):
-    """Follow live hover geometry before one verified physical button press."""
-    stable, since = None, None
-
-    def ready():
-        nonlocal stable, since
-        current = observe()
-        record["observed"] = current
-        if current["cursor"] != current["point"]:
-            assert move(*current["point"])
-            stable, since = None, None
-            return False
-        if (
-            current["selected"] != "applet://systemtray"
-            or current["native_window"] != current["dock_window"]
-        ):
-            stable, since = None, None
-            return False
-        now = clock()
-        if current != stable:
-            stable, since = current, now
-            return False
-        return current if now - since >= 0.4 else False
-
-    settled = wait_for(ready, "System Tray dock target did not settle under the cursor")
-    final = record["before_press"] = observe()
-    assert final == settled, "System Tray dock target changed before the physical press"
-    # The ordinary desktop click moves then sleeps, invalidating a checked hover
-    # frame. Send the same real button events at the already verified cursor.
-    press()
 
 
 def main():
@@ -153,6 +118,7 @@ def main():
         _Data,
         _Input,
         _Mouse,
+        physical_dock_click,
         write_shared_json,
     )
 
@@ -516,6 +482,7 @@ def main():
                 record = {}
                 report.setdefault("dock_clicks", []).append(record)
                 physical_dock_click(
+                    identifier="applet://systemtray",
                     observe=lambda: call(dock_target),
                     move=native.user.SetCursorPos,
                     press=lambda: native._send(
@@ -1101,7 +1068,14 @@ def main():
         backend = shared.get("backend")
         if backend is not None:
             thread = backend._api._thread
-            report["host_thread_stopped"] = thread is not None and not thread.is_alive()
+            assert thread is not None
+            # The shared service closes its backend on its owned worker, which
+            # may still be finishing after app.main() returns.
+            native.wait_for(
+                lambda: not thread.is_alive(),
+                "Notification host did not finish worker cleanup",
+            )
+            report["host_thread_stopped"] = not thread.is_alive()
             assert report["host_thread_stopped"]
         report["normal_shutdown"] = True
         if errors:

@@ -214,7 +214,10 @@ def main():
             applet = call(lambda: shared["model"].get_applet("applet://caffeine"))
             shared["applet"] = applet
             assert isinstance(applet._inhibitor, WindowsInhibitor)
-            assert "docking.applets.caffeine.linux" not in sys.modules
+            assert (
+                "docking.applets.caffeine.implementations.unix.backend"
+                not in sys.modules
+            )
             assert applet._inhibitor._api is None and not report["native_calls"]
             expect_requests(False)
             assert not call(lambda: applet._data.active)

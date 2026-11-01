@@ -1,0 +1,21 @@
+{
+  "name": "docking-website",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm run build && python3 -m http.server 8000 --bind 127.0.0.1 --directory dist",
+    "build": "node build.mjs && tailwindcss -i styles.css -o dist/styles.css --minify",
+    "pretest": "npm run build",
+    "test": "node --test test/*.test.mjs",
+    "pretest:browser": "npm run build",
+    "test:browser": "node --test test/browser.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "parse5": "7.2.1",
+    "playwright": "1.56.1",
+    "tailwindcss": "3.4.17"
+  }
+}
