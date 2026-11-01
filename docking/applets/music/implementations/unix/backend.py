@@ -1,45 +1,173 @@
-"""Unix native operations extracted without changing fallback policy."""
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+
+"""MPRIS, playerctl and Rhythmbox implementations of media controls."""
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
+import threading
 from typing import Any
 
 import gi
-
-from docking.applets.music.backend import MusicBackend
 
 gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 from gi.repository import Gio, GLib
 
-from ...state import (
-    _MPRIS_OBJECT_PATH,
-    _MPRIS_PLAYER_IFACE,
-    _MPRIS_PREFIX,
-    _MPRIS_ROOT_IFACE,
-    _PROPERTIES_IFACE,
-    _RB_MPRIS_SERVICE,
-    _RB_SERVICE,
-    _RB_VOLUME_RE,
+from docking.applets.music.backend import MusicBackend
+from docking.applets.music.state import (
     MusicState,
-    _as_bool,
-    _as_float,
-    _as_str,
-    _icon_name_from_bus_name,
-    _is_internal_webkit_player,
-    _metadata_artist,
-    _metadata_str,
-    _normalize_desktop_entry,
-    _normalize_playback_status,
-    _normalize_volume_percent,
-    _unpack,
     clamp_percent,
     has_active_media,
-    log,
     unavailable_state,
 )
+from docking.log import get_logger, with_context
+
+log = with_context(get_logger("music.linux"), applet_id="music")
+
+VOLUME_STEP = 5
+
+_MPRIS_PREFIX = "org.mpris.MediaPlayer2."
+_MPRIS_OBJECT_PATH = "/org/mpris/MediaPlayer2"
+_MPRIS_PLAYER_IFACE = "org.mpris.MediaPlayer2.Player"
+_MPRIS_ROOT_IFACE = "org.mpris.MediaPlayer2"
+_PROPERTIES_IFACE = "org.freedesktop.DBus.Properties"
+_RB_SERVICE = "org.gnome.Rhythmbox3"
+_RB_MPRIS_SERVICE = f"{_MPRIS_PREFIX}rhythmbox"
+_RB_VOLUME_RE = re.compile(r"([0-9]+(?:\.[0-9]+)?)")
+_WEBKIT_MPRIS_MARKER = "org.webkit.app-"
+
+
+def _is_internal_webkit_player(state: MusicState) -> bool:
+    """Return whether an embedded Docking WebKit view exported this player."""
+    return (
+        state.player_name.casefold() == "docking"
+        and _WEBKIT_MPRIS_MARKER in state.player_id.casefold()
+    )
+
+
+def _normalize_playback_status(raw: str) -> str:
+    """Return the canonical playback token for a backend status string.
+
+    The token stays untranslated: it is a state value that several callers
+    compare against these literals, which translating it broke.
+    """
+    value = raw.strip().lower()
+    if value == "playing":
+        return "Playing"
+    if value == "paused":
+        return "Paused"
+    if value == "stopped":
+        return "Stopped"
+    if value == "unknown":
+        return "Unknown"
+    return raw.strip() or "Unknown"
+
+
+def _normalize_desktop_entry(raw: str) -> str:
+    """Normalize desktop-entry-like identifiers to GTK icon names."""
+    value = raw.strip()
+    if not value:
+        return ""
+
+    value = value.replace("\\", "/").rsplit("/", 1)[-1]
+    if value.lower().endswith(".desktop"):
+        value = value[: -len(".desktop")]
+    if value.startswith(_MPRIS_PREFIX):
+        value = value[len(_MPRIS_PREFIX) :]
+
+    lowered = value.lower()
+    if lowered in {"org.gnome.rhythmbox3", "rhythmbox3"}:
+        return "rhythmbox"
+
+    if "." in value:
+        if lowered.startswith(("org.", "com.", "net.", "io.")):
+            value = value.rsplit(".", 1)[-1]
+        else:
+            value = value.split(".", 1)[0]
+
+    value = value.strip().lower()
+    if value == "rhythmbox3":
+        return "rhythmbox"
+    return value
+
+
+def _icon_name_from_bus_name(bus_name: str) -> str:
+    if not bus_name:
+        return ""
+    tail = (
+        bus_name[len(_MPRIS_PREFIX) :]
+        if bus_name.startswith(_MPRIS_PREFIX)
+        else bus_name
+    )
+    return _normalize_desktop_entry(tail)
+
+
+def _unpack(value: Any) -> Any:
+    if hasattr(value, "unpack"):
+        try:
+            return value.unpack()
+        except Exception as exc:
+            log.debug("Failed to unpack GLib value %r: %s", value, exc)
+            return value
+    return value
+
+
+def _as_str(value: Any) -> str:
+    value = _unpack(value)
+    if value is None:
+        return ""
+    return str(value)
+
+
+def _as_bool(value: Any, default: bool = False) -> bool:
+    value = _unpack(value)
+    if isinstance(value, bool):
+        return value
+    return default
+
+
+def _as_float(value: Any, default: float = 0.0) -> float:
+    value = _unpack(value)
+    try:
+        return float(value)
+    except (TypeError, ValueError) as exc:
+        log.debug("Failed to coerce music value %r to float: %s", value, exc)
+        return default
+
+
+def _normalize_volume_percent(value: float) -> int:
+    """Normalize volume reported as ratio (0..1) or percent (0..100)."""
+    # PulseAudio/MPRIS reports 0.0-1.0, ALSA reports 0-100; 1.5 threshold
+    # distinguishes the two (no sane volume is between 1.5% and 150%).
+    if value <= 1.5:
+        return clamp_percent(round(value * 100))
+    return clamp_percent(round(value))
+
+
+def _metadata_str(metadata: dict[str, Any], key: str) -> str:
+    return _as_str(metadata.get(key, ""))
+
+
+def _metadata_artist(metadata: dict[str, Any]) -> str:
+    value = _unpack(metadata.get("xesam:artist", []))
+    if isinstance(value, list | tuple):
+        return str(value[0]) if value else ""
+    return _as_str(value)
 
 
 class MprisBackend:
@@ -78,7 +206,7 @@ class MprisBackend:
         if not states:
             return unavailable_state()
         selected = self._select_player(states=states)
-        self._last_active_bus_name = selected.player_bus_name
+        self._last_active_bus_name = selected.player_id
         return selected
 
     def get_state_for_bus_name(self, bus_name: str) -> MusicState:
@@ -88,7 +216,7 @@ class MprisBackend:
         state = self._read_state(bus_name=bus_name)
         if state is None or _is_internal_webkit_player(state):
             return unavailable_state()
-        self._last_active_bus_name = state.player_bus_name
+        self._last_active_bus_name = state.player_id
         return state
 
     def has_owner(self, bus_name: str) -> bool:
@@ -131,22 +259,20 @@ class MprisBackend:
             log.debug("DBus ListNames failed while listing MPRIS players: %s", exc)
             return []
 
-    def play_pause(self, player_bus_name: str) -> bool:
+    def play_pause(self, player_id: str) -> bool:
         return self._call_player_method(
-            player_bus_name=player_bus_name,
+            player_id=player_id,
             method="PlayPause",
         )
 
-    def next_track(self, player_bus_name: str) -> bool:
-        return self._call_player_method(player_bus_name=player_bus_name, method="Next")
+    def next_track(self, player_id: str) -> bool:
+        return self._call_player_method(player_id=player_id, method="Next")
 
-    def previous_track(self, player_bus_name: str) -> bool:
-        return self._call_player_method(
-            player_bus_name=player_bus_name, method="Previous"
-        )
+    def previous_track(self, player_id: str) -> bool:
+        return self._call_player_method(player_id=player_id, method="Previous")
 
-    def set_volume(self, player_bus_name: str, volume_percent: int) -> bool:
-        props = self._get_props_proxy(bus_name=player_bus_name)
+    def set_volume(self, player_id: str, volume_percent: int) -> bool:
+        props = self._get_props_proxy(bus_name=player_id)
         if props is None:
             return False
         value = clamp_percent(volume_percent) / 100.0
@@ -163,7 +289,7 @@ class MprisBackend:
             )
             return True
         except GLib.Error as exc:
-            log.debug("Failed to set MPRIS volume for %s: %s", player_bus_name, exc)
+            log.debug("Failed to set MPRIS volume for %s: %s", player_id, exc)
             return False
 
     def _select_player(self, states: list[MusicState]) -> MusicState:
@@ -175,7 +301,7 @@ class MprisBackend:
                 (
                     state
                     for state in playing
-                    if state.player_bus_name == self._last_active_bus_name
+                    if state.player_id == self._last_active_bus_name
                 ),
                 playing[0],
             )
@@ -184,7 +310,7 @@ class MprisBackend:
             (
                 state
                 for state in states
-                if state.player_bus_name == self._last_active_bus_name
+                if state.player_id == self._last_active_bus_name
             ),
             states[0],
         )
@@ -208,7 +334,7 @@ class MprisBackend:
         if self._get_props_proxy(bus_name=bus_name) is None:
             return None
 
-        player_desktop_entry = _as_str(
+        player_application_id = _as_str(
             self._get_property(
                 bus_name=bus_name,
                 interface_name=_MPRIS_ROOT_IFACE,
@@ -216,7 +342,7 @@ class MprisBackend:
             )
         )
         player_icon_name = _normalize_desktop_entry(
-            player_desktop_entry
+            player_application_id
         ) or _icon_name_from_bus_name(bus_name)
 
         metadata_raw = self._get_property(
@@ -279,12 +405,13 @@ class MprisBackend:
             available=True,
             player_name=self._player_display_name(bus_name=bus_name),
             player_icon_name=player_icon_name,
-            player_desktop_entry=player_desktop_entry,
-            player_bus_name=bus_name,
+            player_application_id=player_application_id,
+            player_id=bus_name,
             playback_status=playback_status,
             title=_metadata_str(metadata=metadata, key="xesam:title"),
             artist=_metadata_artist(metadata=metadata),
             album=_metadata_str(metadata=metadata, key="xesam:album"),
+            can_set_volume=True,
             volume_percent=_normalize_volume_percent(volume),
             can_play_pause=can_play and can_pause,
             can_go_next=can_go_next,
@@ -326,8 +453,8 @@ class MprisBackend:
             )
             return None
 
-    def _call_player_method(self, player_bus_name: str, method: str) -> bool:
-        player = self._get_player_proxy(bus_name=player_bus_name)
+    def _call_player_method(self, player_id: str, method: str) -> bool:
+        player = self._get_player_proxy(bus_name=player_id)
         if player is None:
             return False
         try:
@@ -337,7 +464,7 @@ class MprisBackend:
             log.debug(
                 "Failed to call MPRIS method %s on %s: %s",
                 method,
-                player_bus_name,
+                player_id,
                 exc,
             )
             return False
@@ -525,12 +652,13 @@ class PlayerctlBackend:
                 _normalize_desktop_entry(desktop_entry)
                 or _normalize_desktop_entry(player)
             ),
-            player_desktop_entry=desktop_entry or player,
-            player_bus_name=player,
+            player_application_id=desktop_entry or player,
+            player_id=player,
             playback_status=playback_status,
             title=title,
             artist=artist,
             album=album,
+            can_set_volume=True,
             volume_percent=volume_percent,
             can_play_pause=bool(title or artist or album or track_url)
             or playback_status in {"Playing", "Paused"},
@@ -691,12 +819,13 @@ class RhythmboxClientBackend:
             available=True,
             player_name="Rhythmbox",
             player_icon_name="rhythmbox",
-            player_desktop_entry="org.gnome.Rhythmbox3",
-            player_bus_name=_RB_SERVICE,
+            player_application_id="org.gnome.Rhythmbox3",
+            player_id=_RB_SERVICE,
             playback_status=playback_status,
             title=title,
             artist=artist,
             album=album,
+            can_set_volume=True,
             volume_percent=volume_percent,
             can_play_pause=True,
             can_go_next=True,
@@ -821,6 +950,10 @@ class RhythmboxClientBackend:
         return None
 
 
+def _active_media(state: MusicState) -> bool:
+    return has_active_media(state) and not _is_internal_webkit_player(state)
+
+
 class HybridBackend(MusicBackend):
     """MPRIS-first backend with playerctl fallback."""
 
@@ -830,23 +963,55 @@ class HybridBackend(MusicBackend):
         playerctl: PlayerctlBackend | None = None,
         rhythmbox: RhythmboxClientBackend | None = None,
     ) -> None:
-        self._mpris = mpris or MprisBackend()
-        self._playerctl = playerctl or PlayerctlBackend()
-        self._rhythmbox = rhythmbox or RhythmboxClientBackend()
+        self._stopped = threading.Event()
+        self._mpris_backend = mpris
+        self._playerctl_backend = playerctl
+        self._rhythmbox_backend = rhythmbox
         self._last_state = unavailable_state()
         self._last_source = ""
 
+    @property
+    def _mpris(self) -> MprisBackend:
+        if self._mpris_backend is None:
+            self._mpris_backend = MprisBackend()
+        return self._mpris_backend
+
+    @property
+    def _playerctl(self) -> PlayerctlBackend:
+        if self._playerctl_backend is None:
+            self._playerctl_backend = PlayerctlBackend()
+        return self._playerctl_backend
+
+    @property
+    def _rhythmbox(self) -> RhythmboxClientBackend:
+        if self._rhythmbox_backend is None:
+            self._rhythmbox_backend = RhythmboxClientBackend()
+        return self._rhythmbox_backend
+
+    def application_ids(self, state: MusicState) -> tuple[str, ...]:
+        return _desktop_entry_candidates(state.player_application_id)
+
+    def stop(self) -> None:
+        self._stopped.set()
+
+    def close(self) -> None:
+        self._mpris_backend = None
+        self._playerctl_backend = None
+        self._rhythmbox_backend = None
+
     def poll(self) -> MusicState:
         """Poll MPRIS/playerctl/rhythmbox and choose best active state."""
-        preferred = self._last_state.player_bus_name or self._last_state.player_name
+        if self._stopped.is_set():
+            return unavailable_state()
+        preferred = self._last_state.player_id or self._last_state.player_name
         candidates: list[tuple[str, MusicState]] = []
 
         rb_mpris_state = self._mpris.get_state_for_bus_name(_RB_MPRIS_SERVICE)
-        if has_active_media(rb_mpris_state):
+        if _active_media(rb_mpris_state):
             candidates.append(("mpris-rhythmbox", rb_mpris_state))
 
         mpris_state = self._mpris.get_state()
-        if has_active_media(mpris_state):
+        if _active_media(mpris_state):
             candidates.append(("mpris", mpris_state))
 
         rb_state = self._rhythmbox.get_state()
@@ -863,10 +1028,10 @@ class HybridBackend(MusicBackend):
             preferred=preferred_for_playerctl,
             strict_preferred=strict_playerctl,
         )
-        if has_active_media(playerctl_state):
+        if _active_media(playerctl_state):
             candidates.append(("playerctl", playerctl_state))
 
-        if has_active_media(rb_state):
+        if _active_media(rb_state):
             candidates.append(("rhythmbox", rb_state))
 
         if not candidates:
@@ -883,63 +1048,63 @@ class HybridBackend(MusicBackend):
         return selected
 
     def play_pause(self, state: MusicState) -> bool:
-        if not state.available:
+        if self._stopped.is_set() or not state.available:
             return False
         if self._is_rhythmbox_state(state) and self._rhythmbox.play_pause():
             return True
-        if state.player_bus_name.startswith(_MPRIS_PREFIX) and self._mpris.play_pause(
-            state.player_bus_name
+        if state.player_id.startswith(_MPRIS_PREFIX) and self._mpris.play_pause(
+            state.player_id
         ):
             return True
         if self._playerctl.play_pause(
-            preferred=state.player_bus_name or state.player_name,
+            preferred=state.player_id or state.player_name,
         ):
             return True
         return self._rhythmbox.play_pause()
 
     def next_track(self, state: MusicState) -> bool:
-        if not state.available:
+        if self._stopped.is_set() or not state.available:
             return False
         if self._is_rhythmbox_state(state) and self._rhythmbox.next_track():
             return True
-        if state.player_bus_name.startswith(_MPRIS_PREFIX) and self._mpris.next_track(
-            state.player_bus_name
+        if state.player_id.startswith(_MPRIS_PREFIX) and self._mpris.next_track(
+            state.player_id
         ):
             return True
         if self._playerctl.next_track(
-            preferred=state.player_bus_name or state.player_name,
+            preferred=state.player_id or state.player_name,
         ):
             return True
         return self._rhythmbox.next_track()
 
     def previous_track(self, state: MusicState) -> bool:
-        if not state.available:
+        if self._stopped.is_set() or not state.available:
             return False
         if self._is_rhythmbox_state(state) and self._rhythmbox.previous_track():
             return True
-        if state.player_bus_name.startswith(
-            _MPRIS_PREFIX
-        ) and self._mpris.previous_track(state.player_bus_name):
+        if state.player_id.startswith(_MPRIS_PREFIX) and self._mpris.previous_track(
+            state.player_id
+        ):
             return True
         if self._playerctl.previous_track(
-            preferred=state.player_bus_name or state.player_name,
+            preferred=state.player_id or state.player_name,
         ):
             return True
         return self._rhythmbox.previous_track()
 
     def set_volume(self, state: MusicState, volume_percent: int) -> bool:
-        if not state.available:
+        if self._stopped.is_set() or not state.available:
             return False
         if self._is_rhythmbox_state(state) and self._rhythmbox.set_volume(
             volume_percent=volume_percent
         ):
             return True
-        if state.player_bus_name.startswith(_MPRIS_PREFIX) and self._mpris.set_volume(
-            state.player_bus_name, volume_percent
+        if state.player_id.startswith(_MPRIS_PREFIX) and self._mpris.set_volume(
+            state.player_id, volume_percent
         ):
             return True
         if self._playerctl.set_volume(
-            preferred=state.player_bus_name or state.player_name,
+            preferred=state.player_id or state.player_name,
             volume_percent=volume_percent,
         ):
             return True
@@ -964,16 +1129,43 @@ class HybridBackend(MusicBackend):
             "rhythmbox": 2,
             "playerctl": 1,
         }.get(source, 0)
-        continuity_score = (
-            1 if state.player_bus_name == self._last_state.player_bus_name else 0
-        )
+        continuity_score = 1 if state.player_id == self._last_state.player_id else 0
         return (status_score, metadata_score, source_score, continuity_score)
 
     def _is_rhythmbox_state(self, state: MusicState) -> bool:
-        return state.player_bus_name == _RB_SERVICE
+        return state.player_id == _RB_SERVICE
 
     def _is_rhythmbox_hint(self, preferred: str) -> bool:
         if not preferred:
             return False
         value = preferred.lower()
         return "rhythmbox" in value or preferred == _RB_SERVICE
+
+
+def _desktop_entry_candidates(raw: str) -> tuple[str, ...]:
+    """Return registry desktop-ID candidates without consulting platform APIs."""
+    value = raw.strip()
+    if not value:
+        return ()
+
+    value = value.replace("\\", "/").rsplit("/", 1)[-1]
+    if value.lower().endswith(".desktop"):
+        value = value[: -len(".desktop")]
+    if value.startswith(_MPRIS_PREFIX):
+        value = value[len(_MPRIS_PREFIX) :]
+
+    candidates: list[str] = []
+
+    def add(desktop_id: str) -> None:
+        if desktop_id and desktop_id not in candidates:
+            candidates.append(desktop_id)
+
+    if value:
+        add(f"{value}.desktop")
+
+    normalized = _normalize_desktop_entry(raw)
+    if normalized:
+        add(f"{normalized}.desktop")
+    if normalized == "rhythmbox":
+        add("org.gnome.Rhythmbox3.desktop")
+    return tuple(candidates)

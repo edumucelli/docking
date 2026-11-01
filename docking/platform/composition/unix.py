@@ -2,33 +2,33 @@
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from docking.applets.platform import AppletBackendFactories
 from docking.platform.composition.base import PlatformProvider
+from docking.platform.host.selection import host_services
 
 if TYPE_CHECKING:
-    from docking.applets.bluetooth.operations import BluetoothOperations
+    from docking.applets.aiusage.hooks import UsageHooks
     from docking.applets.caffeine.inhibit import Inhibitor
-    from docking.applets.capslock.backend import CapslockOperations
-    from docking.applets.keyboardlayout.backend import KeyboardlayoutOperations
-    from docking.applets.micshield.backend import MicshieldOperations
+    from docking.applets.capslock.backend import LockKeyBackend
+    from docking.applets.keyboardlayout.backend import LayoutBackend
+    from docking.applets.micshield.backend import MicShieldBackend
     from docking.applets.music.backend import MusicBackend
-    from docking.applets.network.operations import NetworkOperations
-    from docking.applets.notifications.backend import NotificationsOperations
-    from docking.applets.powerprofiles.backend import PowerprofilesOperations
-    from docking.applets.screenshot.backend import ScreenshotOperations
+    from docking.applets.notifications.backend import NotificationsBackend
+    from docking.applets.popup import PopupAnchor
+    from docking.applets.powerprofiles.backend import PowerProfilesControlBackend
+    from docking.applets.screenshot.backend import ScreenshotBackend
     from docking.applets.systemtray.presentation import TrayPresentation
     from docking.applets.trash.backend import TrashBackend
-    from docking.applets.volume.operations import VolumeOperations
     from docking.applets.webapp.backend import BrowserFactory
     from docking.core.config import Config
     from docking.platform.applications.backend import (
-        ApplicationAssociationBackend,
-        ApplicationCatalogBackend,
         ApplicationLaunchBackend,
-        ExecutableRegistrationBackend,
+        ApplicationSources,
     )
     from docking.platform.applications.identity import ProcessIdentityService
     from docking.platform.applications.registry import ApplicationRegistry
@@ -36,72 +36,52 @@ if TYPE_CHECKING:
     from docking.platform.desktop.base import DesktopServices
     from docking.platform.model import DockModel
     from docking.platform.tray.backend import TrayBackend
+    from docking.platform.tray.state import TrayState
     from docking.search.services.platform import SearchIntegration
 
 
 class UnixAppletBackendFactories(AppletBackendFactories):
-    def capslock(self) -> CapslockOperations:
+    def capslock(self) -> LockKeyBackend:
         from docking.applets.capslock.implementations.unix.backend import (
-            CapslockOperations,
+            X11LockKeyBackend,
         )
 
-        return CapslockOperations()
+        return X11LockKeyBackend()
 
-    def keyboardlayout(self) -> KeyboardlayoutOperations:
+    def keyboardlayout(self) -> LayoutBackend:
         from docking.applets.keyboardlayout.implementations.unix.backend import (
-            KeyboardlayoutOperations,
+            LinuxKeyboardBackend,
         )
 
-        return KeyboardlayoutOperations()
+        return LinuxKeyboardBackend()
 
-    def notifications(self) -> NotificationsOperations:
+    def notifications(self) -> NotificationsBackend:
         from docking.applets.notifications.implementations.unix.backend import (
-            NotificationsOperations,
+            LinuxNotificationsBackend,
         )
 
-        return NotificationsOperations()
+        return LinuxNotificationsBackend()
 
-    def powerprofiles(self) -> PowerprofilesOperations:
+    def powerprofiles(self) -> PowerProfilesControlBackend:
         from docking.applets.powerprofiles.implementations.unix.backend import (
-            PowerprofilesOperations,
+            detect_backend,
         )
 
-        return PowerprofilesOperations()
+        return detect_backend()
 
-    def screenshot(self) -> ScreenshotOperations:
+    def screenshot(self) -> ScreenshotBackend:
         from docking.applets.screenshot.implementations.unix.backend import (
-            ScreenshotOperations,
+            UnixScreenshotBackend,
         )
 
-        return ScreenshotOperations()
+        return UnixScreenshotBackend()
 
-    def bluetooth_desktop(self) -> BluetoothOperations:
-        from docking.applets.bluetooth.implementations.unix.desktop import (
-            BluetoothOperations,
-        )
-
-        return BluetoothOperations()
-
-    def network_settings(self) -> NetworkOperations:
-        from docking.applets.network.implementations.unix.desktop_settings import (
-            NetworkOperations,
-        )
-
-        return NetworkOperations()
-
-    def volume_settings(self) -> VolumeOperations:
-        from docking.applets.volume.implementations.unix.desktop_settings import (
-            VolumeOperations,
-        )
-
-        return VolumeOperations()
-
-    def micshield(self) -> MicshieldOperations:
+    def micshield(self) -> MicShieldBackend:
         from docking.applets.micshield.implementations.unix.backend import (
-            MicshieldOperations,
+            LinuxMicShieldBackend,
         )
 
-        return MicshieldOperations()
+        return LinuxMicShieldBackend()
 
     def caffeine(self) -> Inhibitor:
         from docking.applets.caffeine.implementations.unix.backend import (
@@ -128,39 +108,57 @@ class UnixAppletBackendFactories(AppletBackendFactories):
         return WebAppBrowser
 
     def tray_presentation(
-        self, *, icon_size: int, on_changed: Callable[[], None]
+        self,
+        *,
+        icon_size: int,
+        changed: Callable[[], None],
+        state: Callable[[], TrayState],
+        anchor: Callable[[], PopupAnchor | None],
+        refresh: Callable[[], None],
     ) -> TrayPresentation:
         from docking.applets.systemtray.implementations.unix.presentation import (
             UnixTrayPresentation,
         )
 
-        return UnixTrayPresentation(icon_size=icon_size, on_changed=on_changed)
+        return UnixTrayPresentation(
+            icon_size=icon_size,
+            changed=changed,
+            state=state,
+            anchor=anchor,
+            refresh=refresh,
+        )
 
 
 class UnixPlatformProvider(PlatformProvider):
-    def catalog(self) -> ApplicationCatalogBackend:
+    def usage_hooks(self) -> UsageHooks:
+        from docking.applets.aiusage.implementations.unix.hooks import UnixUsageHooks
+
+        return UnixUsageHooks(
+            host_services(),
+            root=Path(__file__).resolve().parents[3],
+            executable=sys.executable,
+        )
+
+    def application_sources(self) -> ApplicationSources:
+        from docking.platform.applications.backend import ApplicationSources
+        from docking.platform.applications.implementations.unix.associations import (
+            UnixApplicationAssociationBackend,
+        )
         from docking.platform.applications.implementations.unix.catalog import (
             UnixApplicationCatalogBackend,
+        )
+        from docking.platform.applications.implementations.unix.registration import (
+            UnixExecutableRegistrationBackend,
         )
         from docking.platform.applications.implementations.unix.steam import (
             SteamDiscovery,
         )
 
-        return UnixApplicationCatalogBackend(steam_source=SteamDiscovery())
-
-    def associations(self) -> ApplicationAssociationBackend:
-        from docking.platform.applications.implementations.unix.associations import (
-            UnixApplicationAssociationBackend,
+        return ApplicationSources(
+            catalog=UnixApplicationCatalogBackend(steam_source=SteamDiscovery()),
+            associations=UnixApplicationAssociationBackend(),
+            registrations=UnixExecutableRegistrationBackend(),
         )
-
-        return UnixApplicationAssociationBackend()
-
-    def registrations(self) -> ExecutableRegistrationBackend:
-        from docking.platform.applications.implementations.unix.registration import (
-            UnixExecutableRegistrationBackend,
-        )
-
-        return UnixExecutableRegistrationBackend()
 
     def launches(self) -> ApplicationLaunchBackend:
         from docking.platform.applications.implementations.unix.launch import (

@@ -473,7 +473,6 @@ __all__ = [
     "MOD2_MASK",
     "MOD4_MASK",
     "SHIFT_MASK",
-    "ShortcutFallback",
     "ShortcutWorker",
     "X11GlobalShortcutService",
     "is_x11_session",

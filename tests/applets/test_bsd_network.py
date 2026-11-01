@@ -38,13 +38,19 @@ def test_native_interface_change_resets_traffic_baseline(monkeypatch):
 
 
 def test_bluetooth_available_on_freebsd_but_not_openbsd(monkeypatch):
+    from types import SimpleNamespace
+
     from docking.applets import identity
     from docking.applets.camshield import meta as camera_meta
 
-    monkeypatch.setattr(identity.sys, "platform", "freebsd15")
+    monkeypatch.setattr(
+        identity, "host_services", lambda: SimpleNamespace(platform_name="freebsd15")
+    )
     assert bluetooth_meta.available_on_host
     assert camera_meta.available_on_host
-    monkeypatch.setattr(identity.sys, "platform", "openbsd7")
+    monkeypatch.setattr(
+        identity, "host_services", lambda: SimpleNamespace(platform_name="openbsd7")
+    )
     assert not bluetooth_meta.available_on_host
     assert camera_meta.available_on_host
 

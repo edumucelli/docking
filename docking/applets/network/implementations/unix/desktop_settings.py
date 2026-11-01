@@ -1,16 +1,34 @@
-"""Unix native operations extracted without changing fallback policy."""
+"""Network settings integration for Unix desktops, shared by Linux and BSD."""
 
 from __future__ import annotations
 
 import shutil
 import subprocess
 
-from docking.applets.network.operations import (
-    NetworkOperations as NetworkOperationsBase,
-)
+from docking.applets.network.backend import NetworkSettings
+from docking.log import get_logger
 from docking.platform.environment import flatpak
 
-from ...state import _CONNECTION_INFO_COMMANDS, _EDIT_CONNECTIONS_COMMANDS, log
+log = get_logger("network.desktop_settings")
+
+_CONNECTION_INFO_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("gnome-control-center", "wifi"),
+    ("gnome-control-center", "network"),
+    ("mate-network-properties",),
+    ("kcmshell6", "kcm_networkmanagement"),
+    ("kcmshell5", "kcm_networkmanagement"),
+    ("systemsettings", "kcm_networkmanagement"),
+)
+
+
+_EDIT_CONNECTIONS_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("nm-connection-editor",),
+    ("gnome-control-center", "network"),
+    ("mate-network-properties",),
+    ("kcmshell6", "kcm_networkmanagement"),
+    ("kcmshell5", "kcm_networkmanagement"),
+    ("systemsettings", "kcm_networkmanagement"),
+)
 
 
 def connection_info_command() -> list[str] | None:
@@ -78,21 +96,12 @@ def _available_desktop_command(
     return None
 
 
-class NetworkOperations(NetworkOperationsBase):
-    def connection_info_command(self) -> list[str] | None:
-        return connection_info_command()
-
-    def edit_connections_command(self) -> list[str] | None:
-        return edit_connections_command()
-
-    def open_connection_info(self) -> bool:
-        return open_connection_info()
-
-    def open_edit_connections(self) -> bool:
-        return open_edit_connections()
-
-    def open_hidden_wifi_settings(self) -> bool:
-        return open_hidden_wifi_settings()
-
-    def open_new_wifi_settings(self) -> bool:
-        return open_new_wifi_settings()
+def create_settings() -> NetworkSettings:
+    return NetworkSettings(
+        lambda: connection_info_command() is not None,
+        lambda: edit_connections_command() is not None,
+        open_connection_info,
+        open_edit_connections,
+        open_hidden_wifi_settings,
+        open_new_wifi_settings,
+    )

@@ -5,7 +5,11 @@ import socket
 from collections.abc import Callable
 from typing import Any, NamedTuple
 
-from docking.applets.network.backend import ConnectionManager, NetworkBackend
+from docking.applets.network.backend import (
+    ConnectionManager,
+    NetworkBackend,
+    NetworkSettings,
+)
 from docking.applets.network.state import NetworkState, TrafficCounters
 from docking.log import get_logger
 
@@ -16,6 +20,14 @@ class BsdNetworkBackend(NetworkBackend):
     def __init__(self, interface: str = "") -> None:
         self.interface = interface
         self.interfaces: list[NetworkInterface] = []
+
+    @property
+    def settings(self) -> NetworkSettings:
+        from docking.applets.network.implementations.unix.desktop_settings import (
+            create_settings,
+        )
+
+        return create_settings()
 
     @property
     def connection_manager(self) -> ConnectionManager | None:

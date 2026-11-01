@@ -78,10 +78,11 @@ desktop_path.write_text(
 from docking.platform.composition.selection import platform_provider
 
 provider = platform_provider()
+sources = provider.application_sources()
 registry = ApplicationRegistry(
-    catalog_backend=provider.catalog(),
-    association_backend=provider.associations(),
-    registration_backend=provider.registrations(),
+    catalog_backend=sources.catalog,
+    association_backend=sources.associations,
+    registration_backend=sources.registrations,
 )
 assert registry.refresh()
 model = SimpleNamespace(

@@ -342,6 +342,34 @@ def _write_desktop(
     )
 
 
+def test_export_lookup_uses_current_metadata_without_reading_files(
+    tmp_path, monkeypatch
+):
+    from dataclasses import replace
+
+    from tests.platform.application_fakes import application
+
+    registry = _registry()
+    first, second = tmp_path / "old.lnk", tmp_path / "new.lnk"
+    app = replace(application("Native.App"), export_file=first)
+    registry._state = replace(registry._state, applications_by_id={app.desktop_id: app})
+
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("Export lookup must use prepared metadata without filesystem IO")
+
+    with monkeypatch.context() as isolated:
+        for name in ("stat", "resolve", "read_bytes"):
+            isolated.setattr(Path, name, forbidden)
+        assert registry.resolve_by_export_file(first) is app
+        assert registry.resolve_by_export_file(second) is None
+        updated = replace(app, export_file=second)
+        registry._state = replace(
+            registry._state, applications_by_id={updated.desktop_id: updated}
+        )
+        assert registry.resolve_by_export_file(first) is None
+        assert registry.resolve_by_export_file(second) is updated
+
+
 def test_successful_empty_initial_discovery_publishes_generation():
     registry = _registry()
 
@@ -1319,7 +1347,7 @@ def test_launchable_default_retains_unregistered_handler_metadata_and_handle(
         lambda _content_type, _must_support_uris: handler,
     )
 
-    listing = registry._default_listing_for_content_type("application/example")
+    listing = registry.default_for_content_type("application/example").listing
 
     assert isinstance(listing, TransientApplicationInfo)
     assert listing.name == "External Handler"
@@ -1391,7 +1419,7 @@ def test_default_listing_skips_unregistered_handler_when_gio_hides_it(monkeypatc
         lambda _content_type, _must_support_uris: hidden_handler,
     )
 
-    assert registry._default_listing_for_content_type("audio/mpeg") is None
+    assert registry._listing_for_content_type_result(hidden_handler) is None
     assert registry._content_gio_handles == {}
 
 
@@ -1429,7 +1457,9 @@ def test_launchable_recommended_handlers_include_registered_idless_and_unregiste
         ],
     )
 
-    listings = registry._recommended_listings_for_content_type("application/example")
+    listings = registry._association_listings(
+        [registered_handler, idless, unregistered, unregistered]
+    )
 
     assert listings[0] is registered
     assert [
@@ -1529,7 +1559,7 @@ def test_content_handler_tokens_are_bounded_and_expire_on_refresh(monkeypatch):
     )
 
     listings = [
-        registry._default_listing_for_content_type("application/example")
+        registry.preferred_listing_for_content_types(("application/example",)).listing
         for _handler in handlers
     ]
     assert all(isinstance(listing, TransientApplicationInfo) for listing in listings)
@@ -1546,7 +1576,7 @@ def test_content_handler_tokens_are_bounded_and_expire_on_refresh(monkeypatch):
     assert registry._gio_handle_for_unidentified(third.listing_key) is None
 
 
-def test_content_type_lookup_can_project_an_unlisted_gio_handler(monkeypatch):
+def test_content_type_lookup_retains_a_launchable_unlisted_gio_handler(monkeypatch):
     registry = _registry()
     registry.refresh()
     handler = _GioApplication(
@@ -1564,8 +1594,11 @@ def test_content_type_lookup_can_project_an_unlisted_gio_handler(monkeypatch):
     application = registry.default_for_content_type("application/example").listing
 
     assert application is not None
-    assert application.desktop_id == "unlisted.desktop"
+    assert isinstance(application, TransientApplicationInfo)
+    assert application.desktop_id is None
+    assert application.name == "Unlisted"
     assert application.has_gio_source is True
+    assert registry._gio_handle_for_unidentified(application.listing_key) is handler
     assert registry.get("unlisted.desktop") is None
 
 

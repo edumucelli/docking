@@ -39,9 +39,10 @@ that make that work.
 from __future__ import annotations
 
 import logging
-import sys
 from dataclasses import dataclass
 from enum import Enum
+
+from docking.platform.host.selection import host_services
 
 AppletId = str
 """Type alias for applet identifiers (e.g. ``"clock"``, ``"separator"``)."""
@@ -81,7 +82,7 @@ class AppletMeta:
 
     @property
     def available_on_host(self) -> bool:
-        return not sys.platform.startswith(self.unsupported_platforms)
+        return not host_services().platform_name.startswith(self.unsupported_platforms)
 
 
 def parse_applet_id(desktop_id: str) -> str | None:

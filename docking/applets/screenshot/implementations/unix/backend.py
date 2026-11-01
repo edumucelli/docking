@@ -1,4 +1,17 @@
-"""Unix native operations extracted without changing fallback policy."""
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+"""State and command helpers for screenshot applet."""
 
 from __future__ import annotations
 
@@ -7,22 +20,55 @@ import subprocess
 import threading
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
-from docking.applets.screenshot.backend import (
-    ScreenshotOperations as ScreenshotOperationsBase,
-)
+from docking.applets.screenshot.backend import ScreenshotBackend
+from docking.applets.screenshot.state import Mode, ScreenshotResult
+from docking.platform.backends.base import Rect
 from docking.platform.environment import flatpak, is_flatpak, is_wayland_session
 
-from ...state import (
-    _PORTAL_DEST,
-    _PORTAL_INTERFACE,
-    _PORTAL_METHOD,
-    _PORTAL_PATH,
-    _PORTAL_TOOL,
-    _TOOLS,
-    Mode,
-    Tool,
+
+class Tool(NamedTuple):
+    """A screenshot backend with per-mode command templates."""
+
+    command: str
+    full: list[str]
+    window: list[str]
+    region: list[str]
+    backend: str = "cli"
+
+
+_PORTAL_TOOL = Tool(
+    command="gdbus",
+    full=[],
+    window=[],
+    region=[],
+    backend="portal",
+)
+_PORTAL_DEST = "org.freedesktop.portal.Desktop"
+_PORTAL_PATH = "/org/freedesktop/portal/desktop"
+_PORTAL_INTERFACE = "org.freedesktop.portal.Screenshot"
+_PORTAL_METHOD = f"{_PORTAL_INTERFACE}.Screenshot"
+
+
+_TOOLS: tuple[Tool, ...] = (
+    Tool(
+        command="cosmic-screenshot",
+        full=["--interactive=false"],
+        window=["--interactive=true"],
+        region=["--interactive=true"],
+    ),
+    Tool(command="mate-screenshot", full=[], window=["-w"], region=["-a"]),
+    Tool(command="gnome-screenshot", full=[], window=["-w"], region=["-a"]),
+    Tool(command="xfce4-screenshooter", full=["-f"], window=["-w"], region=["-r"]),
+    Tool(
+        command="spectacle",
+        full=["--fullscreen"],
+        window=["--activewindow"],
+        region=["--region"],
+    ),
+    Tool(command="flameshot", full=["full"], window=["gui"], region=["gui"]),
+    Tool(command="scrot", full=[], window=["-u"], region=["-s"]),
 )
 
 
@@ -177,9 +223,22 @@ def _run(tool: Tool, mode: Mode, delay_seconds: int = 0) -> list[str]:
     return cmd
 
 
-class ScreenshotOperations(ScreenshotOperationsBase):
-    def _detect_tool(self) -> Tool | None:
-        return _detect_tool()
+class UnixScreenshotBackend(ScreenshotBackend):
+    def __init__(self) -> None:
+        self._tool: Tool | None = None
+        self._stopped = False
 
-    def _run(self, tool: Tool, mode: Mode, delay_seconds: int = 0) -> list[str]:
-        return _run(tool=tool, mode=mode, delay_seconds=delay_seconds)
+    def available(self) -> bool:
+        if self._stopped:
+            return False
+        self._tool = _detect_tool()
+        return self._tool is not None and not self._stopped
+
+    def capture(self, mode: Mode, *, region: Rect | None = None) -> ScreenshotResult:
+        if self._stopped or self._tool is None:
+            return ScreenshotResult(False)
+        _run(self._tool, mode)
+        return ScreenshotResult(True)
+
+    def stop(self) -> None:
+        self._stopped = True

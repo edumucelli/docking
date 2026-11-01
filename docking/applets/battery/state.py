@@ -16,14 +16,9 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
 from typing import NamedTuple
 
 from docking.i18n import _
-from docking.log import get_logger, with_context
-
-BAT_BASE = Path("/sys/class/power_supply")
-log = with_context(get_logger("battery.state"))
 
 # Bottom-center overlay modes (mutually exclusive, mirroring the network applet).
 OVERLAY_NONE = "none"
@@ -33,10 +28,10 @@ OVERLAY_MODES = (OVERLAY_NONE, OVERLAY_PERCENT, OVERLAY_POWER)
 
 
 class BatteryState(NamedTuple):
-    """Resolved battery info from sysfs."""
+    """Resolved battery status; an unknown percentage is distinct from zero."""
 
     icon_name: str  # FDO icon name (e.g. "battery-good-charging")
-    capacity: int  # 0-100 percent
+    capacity: int | None  # 0-100 percent, or unknown
     status: str  # Kernel battery status (e.g. Charging / Discharging / Full)
     seconds_remaining: int | None  # Time estimate until empty/full when known
     power_watts: float | None = None  # Instantaneous battery power draw/input
@@ -51,14 +46,6 @@ _LEVEL_TO_ICON = {
     "critical": "battery-caution",
     "unknown": "battery-empty",
 }
-
-_POWER_SETTINGS_COMMANDS: tuple[tuple[str, ...], ...] = (
-    ("gnome-control-center", "power"),
-    ("mate-power-preferences",),
-    ("xfce4-power-manager-settings",),
-    ("kcmshell6", "powerdevilprofilesconfig"),
-    ("kcmshell5", "powerdevilprofilesconfig"),
-)
 
 
 def resolve_battery_icon(capacity_level: str, status: str) -> str:
@@ -87,7 +74,11 @@ def tooltip_text(state: BatteryState | None) -> str:
     """Build tooltip string from current state."""
     if state is None:
         return _("No battery")
-    parts = [_("Battery: {pct}%").format(pct=state.capacity)]
+    parts = [
+        _("Battery: {pct}%").format(pct=state.capacity)
+        if state.capacity is not None
+        else f"{_('Battery')}: {_('Unknown')}"
+    ]
     estimate = _estimate_suffix(state=state)
     if estimate is not None:
         parts.append(estimate)

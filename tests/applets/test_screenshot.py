@@ -3,12 +3,18 @@
 import subprocess
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import docking.applets.screenshot.implementations.unix.backend as screenshot_state
 from docking.applets.screenshot.applet import ScreenshotApplet
-from docking.applets.screenshot.implementations.unix.backend import _detect_tool, _run
-from docking.applets.screenshot.state import _TOOLS, Tool
+from docking.applets.screenshot.implementations.unix.backend import (
+    _TOOLS,
+    Tool,
+    _detect_tool,
+    _run,
+)
 from docking.core.config import Config
-from tests.platform_factories import make_applet_platform
+from tests.platform_factories import TestAppletBackendFactories, make_applet_platform
 
 _MATE = Tool("mate-screenshot", [], ["-w"], ["-a"])
 _GNOME = Tool("gnome-screenshot", [], ["-w"], ["-a"])
@@ -431,40 +437,55 @@ class TestRun:
 
 
 class TestScreenshotApplet:
+    @pytest.fixture(autouse=True)
+    def setup(self, monkeypatch):
+        from types import SimpleNamespace
+
+        from docking.applets.screenshot import applet as module
+        from docking.applets.screenshot.state import ScreenshotResult
+        from tests.applets.test_brightness import _ImmediateWorker
+
+        self.backend = SimpleNamespace(
+            available=MagicMock(return_value=True),
+            capture=MagicMock(return_value=ScreenshotResult(True)),
+            stop=MagicMock(),
+            select_region=False,
+            prepare_capture=MagicMock(),
+        )
+        self.timers = []
+        monkeypatch.setattr(
+            TestAppletBackendFactories, "screenshot", staticmethod(lambda: self.backend)
+        )
+        monkeypatch.setattr(module, "BackgroundWorker", _ImmediateWorker)
+        monkeypatch.setattr(
+            module,
+            "GLib",
+            SimpleNamespace(
+                timeout_add=lambda delay, callback: (
+                    self.timers.append((delay, callback)) or 10
+                ),
+                source_remove=MagicMock(),
+            ),
+        )
+
     def test_creates_with_icon(self):
-        with patch(
-            "docking.applets.screenshot.implementations.unix.backend._detect_tool",
-            return_value=_MATE,
-        ):
-            applet = ScreenshotApplet(
-                48, config=Config(), platform_services=make_applet_platform()
-            )
-        assert applet.item.icon is not None
-        assert applet.item.name == "Screenshot"
+        applet = ScreenshotApplet(
+            48, Config(), platform_services=make_applet_platform()
+        )
+        assert applet.item.icon is not None and applet.item.name == "Screenshot"
 
     def test_icon_renders_at_various_sizes(self):
-        with patch(
-            "docking.applets.screenshot.implementations.unix.backend._detect_tool",
-            return_value=_MATE,
-        ):
-            for size in [32, 48, 64]:
-                applet = ScreenshotApplet(
-                    size, config=Config(), platform_services=make_applet_platform()
-                )
-                pixbuf = applet.create_icon(size)
-                assert pixbuf is not None
-                assert pixbuf.get_width() == size
+        for size in (32, 48, 64):
+            applet = ScreenshotApplet(
+                size, Config(), platform_services=make_applet_platform()
+            )
+            assert applet.create_icon(size).get_width() == size
 
     def test_menu_has_modes_and_timed_entries(self):
-        with patch(
-            "docking.applets.screenshot.implementations.unix.backend._detect_tool",
-            return_value=_MATE,
-        ):
-            applet = ScreenshotApplet(
-                48, config=Config(), platform_services=make_applet_platform()
-            )
-        labels = [mi.get_label() for mi in applet.get_menu_items() if mi.get_label()]
-        assert labels == [
+        applet = ScreenshotApplet(
+            48, Config(), platform_services=make_applet_platform()
+        )
+        assert [mi.get_label() for mi in applet.get_menu_items() if mi.get_label()] == [
             "Full Screen",
             "Window",
             "Region",
@@ -474,54 +495,33 @@ class TestScreenshotApplet:
             "Full Screen in 9s",
         ]
 
-    def test_menu_empty_when_no_tool(self):
-        with patch(
-            "docking.applets.screenshot.implementations.unix.backend._detect_tool",
-            return_value=None,
-        ):
-            applet = ScreenshotApplet(
-                48, config=Config(), platform_services=make_applet_platform()
-            )
-        assert applet.get_menu_items() == []
+    def test_unavailable_backend_does_not_capture(self):
+        self.backend.available.return_value = False
+        applet = ScreenshotApplet(
+            48, Config(), platform_services=make_applet_platform()
+        )
+        assert not applet.get_menu_items()
+        applet.on_clicked()
+        self.backend.capture.assert_not_called()
 
-    def test_on_clicked_calls_popen(self):
-        with patch(
-            "docking.applets.screenshot.implementations.unix.backend._detect_tool",
-            return_value=_MATE,
-        ):
-            applet = ScreenshotApplet(
-                48, config=Config(), platform_services=make_applet_platform()
-            )
-        with patch(
-            "docking.applets.screenshot.implementations.unix.backend.subprocess.Popen"
-        ) as mock_popen:
-            applet.on_clicked()
-        mock_popen.assert_called_once_with(["mate-screenshot"], start_new_session=True)
+    def test_click_waits_for_menu_close_then_captures(self):
+        applet = ScreenshotApplet(
+            48, Config(), platform_services=make_applet_platform()
+        )
+        applet.on_clicked()
+        self.backend.capture.assert_not_called()
+        assert self.timers[0][0] == 150
+        self.timers[0][1]()
+        self.backend.capture.assert_called_once_with("full", region=None)
+        assert not applet._pending
 
-    def test_on_clicked_noop_when_no_tool(self):
-        with patch(
-            "docking.applets.screenshot.implementations.unix.backend._detect_tool",
-            return_value=None,
-        ):
-            applet = ScreenshotApplet(
-                48, config=Config(), platform_services=make_applet_platform()
-            )
-        with patch(
-            "docking.applets.screenshot.implementations.unix.backend.subprocess.Popen"
-        ) as mock_popen:
-            applet.on_clicked()
-        mock_popen.assert_not_called()
-
-    def test_run_mode_forwards_delay(self):
-        with patch(
-            "docking.applets.screenshot.implementations.unix.backend._detect_tool",
-            return_value=_MATE,
-        ):
-            applet = ScreenshotApplet(
-                48, config=Config(), platform_services=make_applet_platform()
-            )
-        with patch(
-            "docking.applets.screenshot.implementations.unix.backend._run"
-        ) as mock_run:
-            applet._run_mode(mode="full", delay_seconds=9)
-        mock_run.assert_called_once_with(tool=_MATE, mode="full", delay_seconds=9)
+    def test_timed_capture_is_cancelled_by_stop(self):
+        applet = ScreenshotApplet(
+            48, Config(), platform_services=make_applet_platform()
+        )
+        applet._run_mode(mode="full", delay_seconds=9)
+        assert self.timers[0][0] == 9000
+        applet.stop()
+        self.timers[0][1]()
+        self.backend.capture.assert_not_called()
+        self.backend.stop.assert_called_once()

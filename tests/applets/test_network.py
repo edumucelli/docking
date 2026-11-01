@@ -9,7 +9,7 @@ import pytest
 
 import docking.applets.network.applet as network_applet_mod
 import docking.applets.network.implementations.linux.backend as networkmanager_mod
-import docking.applets.network.implementations.unix.desktop_settings as native_network_desktop_settings
+import docking.applets.network.implementations.unix.desktop_settings as desktop_settings_mod
 import docking.applets.network.render as network_render_mod
 from docking.applets.network.applet import NetworkApplet
 from docking.applets.network.implementations.linux.backend import LinuxNetworkBackend
@@ -318,12 +318,10 @@ class TestNetworkApplet:
     def test_menu_includes_tray_style_actions(self, monkeypatch):
         self._fake_gtk(monkeypatch)
         monkeypatch.setattr(
-            native_network_desktop_settings,
-            "connection_info_command",
-            lambda: ["a"],
+            desktop_settings_mod, "connection_info_command", lambda: ["a"]
         )
         monkeypatch.setattr(
-            native_network_desktop_settings,
+            desktop_settings_mod,
             "edit_connections_command",
             lambda: ["b"],
         )
@@ -358,14 +356,10 @@ class TestNetworkApplet:
     def test_available_networks_submenu_lists_visible_ssids(self, monkeypatch):
         self._fake_gtk(monkeypatch)
         monkeypatch.setattr(
-            native_network_desktop_settings,
-            "connection_info_command",
-            lambda: None,
+            desktop_settings_mod, "connection_info_command", lambda: None
         )
         monkeypatch.setattr(
-            native_network_desktop_settings,
-            "edit_connections_command",
-            lambda: None,
+            desktop_settings_mod, "edit_connections_command", lambda: None
         )
         monkeypatch.setattr(
             networkmanager_mod.NM,
@@ -490,14 +484,10 @@ class TestNetworkApplet:
     def test_menu_includes_vpn_connections_submenu(self, monkeypatch):
         self._fake_gtk(monkeypatch)
         monkeypatch.setattr(
-            native_network_desktop_settings,
-            "connection_info_command",
-            lambda: None,
+            desktop_settings_mod, "connection_info_command", lambda: None
         )
         monkeypatch.setattr(
-            native_network_desktop_settings,
-            "edit_connections_command",
-            lambda: None,
+            desktop_settings_mod, "edit_connections_command", lambda: None
         )
         monkeypatch.setattr(
             networkmanager_mod.NM,
@@ -540,12 +530,10 @@ class TestNetworkApplet:
     def test_menu_omits_wifi_toggle_without_wifi_device(self, monkeypatch):
         self._fake_gtk(monkeypatch)
         monkeypatch.setattr(
-            native_network_desktop_settings,
-            "connection_info_command",
-            lambda: None,
+            desktop_settings_mod, "connection_info_command", lambda: None
         )
         monkeypatch.setattr(
-            native_network_desktop_settings,
+            desktop_settings_mod,
             "edit_connections_command",
             lambda: None,
         )
@@ -1615,7 +1603,7 @@ class TestNetworkCommands:
 
     def test_connection_info_command_picks_first_available(self, monkeypatch):
         monkeypatch.setattr(
-            native_network_desktop_settings.shutil,
+            desktop_settings_mod.shutil,
             "which",
             lambda binary: (
                 "/usr/bin/gnome-control-center"
@@ -1627,7 +1615,7 @@ class TestNetworkCommands:
 
     def test_connection_info_command_uses_host_tool_in_flatpak(self, monkeypatch):
         monkeypatch.setattr(
-            native_network_desktop_settings.flatpak,
+            desktop_settings_mod.flatpak,
             "spawn_path",
             lambda **_: "/usr/bin/flatpak-spawn",
         )
@@ -1638,11 +1626,7 @@ class TestNetworkCommands:
             seen.append(list(cmd))
             return SimpleNamespace(returncode=0)
 
-        monkeypatch.setattr(
-            native_network_desktop_settings.flatpak.subprocess,
-            "run",
-            fake_run,
-        )
+        monkeypatch.setattr(desktop_settings_mod.flatpak.subprocess, "run", fake_run)
 
         assert connection_info_command() == [
             "/usr/bin/flatpak-spawn",
@@ -1671,7 +1655,7 @@ class TestNetworkCommands:
 
     def test_edit_connections_command_picks_nm_connection_editor(self, monkeypatch):
         monkeypatch.setattr(
-            native_network_desktop_settings.shutil,
+            desktop_settings_mod.shutil,
             "which",
             lambda binary: (
                 "/usr/bin/nm-connection-editor"
@@ -1685,7 +1669,7 @@ class TestNetworkCommands:
         self, monkeypatch
     ):
         monkeypatch.setattr(
-            native_network_desktop_settings.flatpak,
+            desktop_settings_mod.flatpak,
             "spawn_path",
             lambda **_: "/usr/bin/flatpak-spawn",
         )
@@ -1696,11 +1680,7 @@ class TestNetworkCommands:
                 returncode=0 if "nm-connection-editor" in cmd[-1] else 1
             )
 
-        monkeypatch.setattr(
-            native_network_desktop_settings.flatpak.subprocess,
-            "run",
-            fake_run,
-        )
+        monkeypatch.setattr(desktop_settings_mod.flatpak.subprocess, "run", fake_run)
 
         assert edit_connections_command() == [
             "/usr/bin/flatpak-spawn",
@@ -1720,12 +1700,12 @@ class TestNetworkCommands:
     def test_open_connection_info_runs_command(self, monkeypatch):
         launched: list[tuple[str, ...]] = []
         monkeypatch.setattr(
-            native_network_desktop_settings,
+            desktop_settings_mod,
             "connection_info_command",
             lambda: ["gnome-control-center", "wifi"],
         )
         monkeypatch.setattr(
-            native_network_desktop_settings.subprocess,
+            desktop_settings_mod.subprocess,
             "Popen",
             lambda cmd, **_kwargs: launched.append(tuple(cmd)),
         )
@@ -1735,12 +1715,12 @@ class TestNetworkCommands:
     def test_open_edit_connections_runs_command(self, monkeypatch):
         launched: list[tuple[str, ...]] = []
         monkeypatch.setattr(
-            native_network_desktop_settings,
+            desktop_settings_mod,
             "edit_connections_command",
             lambda: ["nm-connection-editor"],
         )
         monkeypatch.setattr(
-            native_network_desktop_settings.subprocess,
+            desktop_settings_mod.subprocess,
             "Popen",
             lambda cmd, **_kwargs: launched.append(tuple(cmd)),
         )
@@ -1750,17 +1730,17 @@ class TestNetworkCommands:
     def test_open_hidden_wifi_settings_uses_editor_or_info_command(self, monkeypatch):
         launched: list[tuple[str, ...]] = []
         monkeypatch.setattr(
-            native_network_desktop_settings,
+            desktop_settings_mod,
             "edit_connections_command",
             lambda: ["nm-connection-editor"],
         )
         monkeypatch.setattr(
-            native_network_desktop_settings,
+            desktop_settings_mod,
             "connection_info_command",
             lambda: ["gnome-control-center", "wifi"],
         )
         monkeypatch.setattr(
-            native_network_desktop_settings.subprocess,
+            desktop_settings_mod.subprocess,
             "Popen",
             lambda cmd, **_kwargs: launched.append(tuple(cmd)),
         )
@@ -1770,17 +1750,17 @@ class TestNetworkCommands:
     def test_open_new_wifi_settings_falls_back_to_info_command(self, monkeypatch):
         launched: list[tuple[str, ...]] = []
         monkeypatch.setattr(
-            native_network_desktop_settings,
+            desktop_settings_mod,
             "edit_connections_command",
             lambda: None,
         )
         monkeypatch.setattr(
-            native_network_desktop_settings,
+            desktop_settings_mod,
             "connection_info_command",
             lambda: ["gnome-control-center", "wifi"],
         )
         monkeypatch.setattr(
-            native_network_desktop_settings.subprocess,
+            desktop_settings_mod.subprocess,
             "Popen",
             lambda cmd, **_kwargs: launched.append(tuple(cmd)),
         )

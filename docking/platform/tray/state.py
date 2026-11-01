@@ -1,43 +1,50 @@
-"""Immutable tray state; no native toolkit or transport imports."""
+"""Immutable tray metadata; no transport handles or platform API operations."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
 class TrayIconPixmap:
-    """Raw StatusNotifier icon pixmap converted to RGBA bytes."""
-
     width: int
     height: int
     rgba: bytes
 
 
 @dataclass(frozen=True, slots=True)
-class TrayItem:
-    """Snapshot of one StatusNotifier item."""
+class TrayFocusRequest:
+    """A provider's one-use, revalidated request to return to its tray icon."""
 
     identifier: str
-    service: str
-    path: str
+    claim: Callable[[], bool]
+    validate: Callable[[], bool]
+
+
+@dataclass(frozen=True, slots=True)
+class TrayItem:
+    identifier: str
     title: str
-    status: str
-    category: str
-    icon_name: str
-    attention_icon_name: str
-    overlay_icon_name: str
-    icon_theme_path: str
-    icon_pixmap: TrayIconPixmap | None
-    menu_path: str
-    tooltip_title: str
-    tooltip_text: str
-    item_is_menu: bool
+    status: str = "Active"
+    category: str = ""
+    icon_name: str = ""
+    attention_icon_name: str = ""
+    overlay_icon_name: str = ""
+    icon_theme_path: str = ""
+    icon_pixmap: TrayIconPixmap | None = None
+    tooltip_title: str = ""
+    tooltip_text: str = ""
+    show_tooltip: bool = True
+    item_is_menu: bool = False
     item_id: str = ""
+    can_activate: bool = True
+    can_context_menu: bool = True
+    can_double_click: bool = False
 
     @property
     def display_title(self) -> str:
-        return self.title or self.tooltip_title or self.service
+        return self.title or self.tooltip_title or self.identifier
 
     @property
     def effective_icon_name(self) -> str:
@@ -47,21 +54,13 @@ class TrayItem:
 
 
 @dataclass(frozen=True, slots=True)
-class StatusTrayState:
-    """Current StatusNotifier state."""
-
+class TrayState:
     available: bool
-    watcher_mode: str
+    mode: str
     items: tuple[TrayItem, ...]
     error: str = ""
-    legacy_tray_owner: str = ""
+    legacy_owner: str = ""
 
 
-def unavailable_state(error: str = "") -> StatusTrayState:
-    return StatusTrayState(
-        available=False,
-        watcher_mode="unavailable",
-        items=(),
-        error=error,
-        legacy_tray_owner="",
-    )
+def unavailable_state(error: str = "") -> TrayState:
+    return TrayState(False, "unavailable", (), error)

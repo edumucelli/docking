@@ -8,24 +8,27 @@ import pytest
 
 import docking.applets.bluetooth.applet as bluetooth
 import docking.applets.micshield.applet as micshield
-import docking.applets.micshield.implementations.unix.backend as native_micshield
 import docking.applets.music.applet as music
-import docking.applets.music.implementations.unix.backend as native_music
 import tests.platform_factories as _native_tests_platform_factories
 from docking.applets.bluetooth.state import BluetoothAdapterState, BluetoothState
 from docking.applets.micshield.state import MicShieldState
 from docking.applets.music.state import VOLUME_STEP, MusicState
-from docking.applets.worker import BackgroundWorker
+from docking.applets.worker import BackgroundWorker, SerialWorker
 from docking.core.config import Config
-from tests.platform_factories import make_applet_platform
+from tests.applets.inline_worker import InlineSerialWorker
+from tests.platform_factories import TestAppletBackendFactories, make_applet_platform
 
 
 class _UIReplies:
     """Keep real worker threads, and control when their GTK replies are delivered."""
 
-    def __init__(self):
+    def __init__(self, *, serial=False):
         self.queue = Queue()
-        self.worker = BackgroundWorker(idle_add=self._enqueue)
+        self.worker = (
+            SerialWorker(idle_add=self._enqueue, on_close=lambda: None)
+            if serial
+            else BackgroundWorker(idle_add=self._enqueue)
+        )
 
     def _enqueue(self, callback, *args):
         self.queue.put((callback, args))
@@ -37,10 +40,12 @@ class _UIReplies:
 
 @pytest.mark.parametrize("action", ["next", "volume"])
 def test_music_old_poll_does_not_undo_action(monkeypatch, action):
+    monkeypatch.setattr(music, "SerialWorker", InlineSerialWorker)
     initial = MusicState(
         available=True,
         title="First song",
         volume_percent=50,
+        can_set_volume=True,
         can_go_next=True,
     )
     backend = MagicMock()
@@ -48,9 +53,7 @@ def test_music_old_poll_does_not_undo_action(monkeypatch, action):
     resolver = MagicMock()
     resolver.resolve.return_value = None
     monkeypatch.setattr(
-        native_music,
-        "HybridBackend",
-        lambda: backend,
+        TestAppletBackendFactories, "music", staticmethod(lambda: backend)
     )
     monkeypatch.setattr(music, "CoverArtResolver", lambda: resolver)
     applet = music.MusicApplet(
@@ -60,7 +63,7 @@ def test_music_old_poll_does_not_undo_action(monkeypatch, action):
         application_launcher=MagicMock(),
         platform_services=make_applet_platform(),
     )
-    replies = _UIReplies()
+    replies = _UIReplies(serial=True)
     applet._worker = replies.worker
     try:
         applet._tick()
@@ -69,6 +72,7 @@ def test_music_old_poll_does_not_undo_action(monkeypatch, action):
             expected = replace(initial, title="Second song")
             backend.poll.return_value = expected
             applet._action_next()
+            replies.next()()
         else:
             expected = replace(initial, volume_percent=50 + VOLUME_STEP)
             backend.poll.return_value = expected
@@ -88,19 +92,15 @@ def test_music_old_poll_does_not_undo_action(monkeypatch, action):
 def test_micshield_old_poll_does_not_undo_mute(monkeypatch):
     initial = MicShieldState(available=True, muted=False, active=False)
     probe = MagicMock(return_value=initial)
+    backend = MagicMock()
+    backend.get_state = probe
     monkeypatch.setattr(
-        native_micshield,
-        "probe_mic_state",
-        probe,
-    )
-    monkeypatch.setattr(
-        native_micshield,
-        "set_mic_muted",
-        lambda **_kwargs: True,
+        TestAppletBackendFactories, "micshield", staticmethod(lambda: backend)
     )
     applet = micshield.MicShieldApplet(
         48, Config(), platform_services=make_applet_platform()
     )
+    applet._on_probe_result(initial)
     replies = _UIReplies()
     applet._worker = replies.worker
     try:
@@ -109,8 +109,7 @@ def test_micshield_old_poll_does_not_undo_mute(monkeypatch):
         expected = replace(initial, muted=True)
         probe.return_value = expected
         applet._set_muted(True)
-        replies.next()()  # Mute completion schedules its fresh state read.
-        replies.next()()
+        replies.next()()  # Action reply contains actual state readback.
         assert applet._state == expected
 
         old_reply()
@@ -120,11 +119,11 @@ def test_micshield_old_poll_does_not_undo_mute(monkeypatch):
         probe.return_value = initial
         applet._tick()
         completed_reply = replies.next()
-        applet._tick()
-        pending_reply = replies.next()
+        applet._tick()  # Guarded duplicate does not starve the completed read.
         completed_reply()
         assert applet._state == initial
-        pending_reply()
+        applet._tick()
+        replies.next()()
     finally:
         applet.stop()
 
@@ -133,24 +132,15 @@ def test_micshield_old_poll_does_not_undo_mute(monkeypatch):
 def test_micshield_pre_action_poll_is_rejected_before_fresh_reply(monkeypatch, action):
     initial = MicShieldState(available=True, muted=False, active=False)
     probe = MagicMock(return_value=initial)
+    backend = MagicMock()
+    backend.get_state = probe
     monkeypatch.setattr(
-        native_micshield,
-        "probe_mic_state",
-        probe,
-    )
-    monkeypatch.setattr(
-        native_micshield,
-        "set_mic_muted",
-        lambda **_kwargs: True,
-    )
-    monkeypatch.setattr(
-        native_micshield,
-        "toggle_mic_mute",
-        lambda: True,
+        TestAppletBackendFactories, "micshield", staticmethod(lambda: backend)
     )
     applet = micshield.MicShieldApplet(
         48, Config(), platform_services=make_applet_platform()
     )
+    applet._on_probe_result(initial)
     replies = _UIReplies()
     applet._worker = replies.worker
     try:
@@ -163,27 +153,28 @@ def test_micshield_pre_action_poll_is_rejected_before_fresh_reply(monkeypatch, a
             applet._set_muted(True)
         else:
             applet.on_clicked()
-        replies.next()()  # Action completed; its fresh probe is still queued.
+        action_reply = replies.next()  # Hold the action and readback reply.
 
         old_reply()
 
         assert applet._state == initial
-        replies.next()()
+        action_reply()
         assert applet._state == expected
     finally:
         applet.stop()
 
 
 def test_music_scroll_sync_can_refresh_while_old_poll_is_pending(monkeypatch):
-    initial = MusicState(available=True, title="First song", volume_percent=50)
+    monkeypatch.setattr(music, "SerialWorker", InlineSerialWorker)
+    initial = MusicState(
+        available=True, title="First song", volume_percent=50, can_set_volume=True
+    )
     backend = MagicMock()
     backend.poll.return_value = initial
     resolver = MagicMock()
     resolver.resolve.return_value = None
     monkeypatch.setattr(
-        native_music,
-        "HybridBackend",
-        lambda: backend,
+        TestAppletBackendFactories, "music", staticmethod(lambda: backend)
     )
     monkeypatch.setattr(music, "CoverArtResolver", lambda: resolver)
     applet = music.MusicApplet(
@@ -193,7 +184,7 @@ def test_music_scroll_sync_can_refresh_while_old_poll_is_pending(monkeypatch):
         application_launcher=MagicMock(),
         platform_services=make_applet_platform(),
     )
-    replies = _UIReplies()
+    replies = _UIReplies(serial=True)
     applet._worker = replies.worker
     try:
         applet._tick()

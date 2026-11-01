@@ -4,11 +4,13 @@ import gi
 import pytest
 
 gi.require_version("Gtk", "3.0")
-gi.require_version("Wnck", "3.0")
-from gi.repository import (
-    Gtk,
-    Wnck,
-)
+from gi.repository import Gtk
+
+try:
+    gi.require_version("Wnck", "3.0")
+    from gi.repository import Wnck
+except (ValueError, ImportError):
+    Wnck = None
 
 
 class _FakeMenu:
@@ -18,6 +20,9 @@ class _FakeMenu:
 
     def append(self, item) -> None:
         self.children.append(item)
+
+    def get_children(self) -> list[object]:
+        return list(self.children)
 
     def destroy(self) -> None:
         self.destroyed = True
@@ -39,6 +44,9 @@ class _FakeMenuItem:
 
     def get_sensitive(self) -> bool:
         return self._sensitive
+
+    def set_tooltip_text(self, text: str) -> None:
+        self._tooltip_text = text
 
     def connect(self, signal: str, callback, *args) -> None:
         self._signals.setdefault(signal, []).append((callback, args))
@@ -87,5 +95,6 @@ def _fake_gtk_menu_widgets(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _default_no_wnck_screen(monkeypatch):
-    monkeypatch.setattr(Wnck.Screen, "get_default", lambda: None, raising=False)
+    if Wnck is not None:
+        monkeypatch.setattr(Wnck.Screen, "get_default", lambda: None, raising=False)
     yield

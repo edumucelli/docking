@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import docking.applets.keyboardlayout.implementations.unix.backend as native_keyboardlayout
-from tests.platform_factories import make_applet_platform
+from tests.platform_factories import TestAppletBackendFactories, make_applet_platform
 
 try:
     import gi  # noqa: F401
@@ -19,16 +19,22 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.applets.keyboardlayout.state as kbl_state
+import docking.applets.keyboardlayout.implementations.unix.backend as kbl_state
 from docking.applets.keyboardlayout.implementations.unix.backend import (
     Fcitx5Backend,
     GnomeBackend,
     IBusBackend,
     MateBackend,
     XkbBackend,
+    _fcitx5_layout_code,
     _first_available_command,
+    _ibus_layout_code,
     _open_command,
+    _parse_gsettings_string,
+    _parse_gsettings_string_list,
+    _parse_input_sources,
     _run,
+    _source_layout_code,
     current_layout_command,
     detect_backend,
     keyboard_settings_command,
@@ -36,12 +42,6 @@ from docking.applets.keyboardlayout.implementations.unix.backend import (
     show_current_layout,
 )
 from docking.applets.keyboardlayout.state import (
-    _fcitx5_layout_code,
-    _ibus_layout_code,
-    _parse_gsettings_string,
-    _parse_gsettings_string_list,
-    _parse_input_sources,
-    _source_layout_code,
     cycle_layout,
     layout_display_name,
     layout_label,
@@ -49,6 +49,7 @@ from docking.applets.keyboardlayout.state import (
 )
 from docking.core.config import Config
 from docking.platform.environment import Desktop
+from tests.applets.test_brightness import _ImmediateWorker
 
 
 def _set_desktop(monkeypatch: pytest.MonkeyPatch, desktop: Desktop) -> None:
@@ -1216,10 +1217,26 @@ class TestRender:
 
 
 class TestKeyboardLayoutApplet:
+    @pytest.fixture(autouse=True)
+    def _shared_applet_backends(self, monkeypatch):
+        monkeypatch.setattr(
+            "docking.applets.keyboardlayout.applet.BackgroundWorker", _ImmediateWorker
+        )
+        monkeypatch.setattr(
+            TestAppletBackendFactories,
+            "keyboardlayout",
+            staticmethod(kbl_state.LinuxKeyboardBackend),
+        )
+
     def _mock_ibus(self, monkeypatch):
+        engine = ["xkb:us::eng"]
+
         def mock_run(cmd):
             if cmd == ["ibus", "engine"]:
-                return "xkb:us::eng"
+                return engine[0]
+            if cmd[:2] == ["ibus", "engine"] and len(cmd) == 3:
+                engine[0] = cmd[2]
+                return ""
             if cmd[:2] == ["dconf", "read"]:
                 return IBUS_ENGINES_DCONF
             return None
@@ -1252,11 +1269,15 @@ class TestKeyboardLayoutApplet:
 
     def test_on_clicked_cycles(self, monkeypatch):
         commands = []
+        engine = ["xkb:us::eng"]
 
         def mock_run(cmd):
             commands.append(cmd)
             if cmd == ["ibus", "engine"]:
-                return "xkb:us::eng"
+                return engine[0]
+            if cmd[:2] == ["ibus", "engine"] and len(cmd) == 3:
+                engine[0] = cmd[2]
+                return ""
             if cmd[:2] == ["dconf", "read"]:
                 return IBUS_ENGINES_DCONF
             return None

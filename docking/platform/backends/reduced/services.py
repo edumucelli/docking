@@ -33,6 +33,7 @@ from docking.platform.backends.base import (
     WindowSnapshot,
 )
 from docking.platform.backends.diagnostics import WindowTrackingDiagnostic
+from docking.platform.backends.gtk_surface import apply_dock_hints, place_window
 
 
 class ReducedWindowService(WindowService):
@@ -105,6 +106,11 @@ class ReducedSurfaceService(SurfaceService):
     def __init__(self) -> None:
         self._window: object | None = None
 
+    def screen_rectangle(self, window: object, rect: Rect) -> Rect | None:
+        from docking.platform.backends.gtk_geometry import logical_screen_rectangle
+
+        return logical_screen_rectangle(window, rect)
+
     def start(self) -> None:
         """No runtime state is tracked."""
 
@@ -114,12 +120,12 @@ class ReducedSurfaceService(SurfaceService):
     def configure_before_realize(self, window: object) -> None:
         """Apply generic dock-window hints and remember the window."""
         self._window = window
-        _apply_dock_hints(window)
+        apply_dock_hints(window)
 
     def on_realize(self, window: object) -> None:
         """Reapply dock-window hints once the native window exists."""
         self._window = window
-        _apply_dock_hints(window)
+        apply_dock_hints(window)
 
     def set_workspace_scope(self, *, current_workspace_only: bool) -> None:
         """Workspace stickiness is unavailable in the reduced backend."""
@@ -129,14 +135,7 @@ class ReducedSurfaceService(SurfaceService):
         window = self._window
         if window is None:
             return
-        _call_if_available(
-            window,
-            "set_size_request",
-            request.size.width,
-            request.size.height,
-        )
-        _call_if_available(window, "resize", request.size.width, request.size.height)
-        _call_if_available(window, "move", request.x, request.y)
+        place_window(window, request)
 
     def set_reservation(self, request: ReservationRequest) -> None:
         """Screen reservation is unavailable."""
@@ -196,33 +195,3 @@ class ReducedPreviewService(PreviewService):
     ) -> PreviewImage | None:
         """Menu thumbnail capture is unavailable."""
         return None
-
-
-def _call_if_available(target: object, method_name: str, *args: object) -> None:
-    method = getattr(target, method_name, None)
-    if callable(method):
-        method(*args)
-
-
-def _apply_dock_hints(window: object) -> None:
-    _call_if_available(window, "set_skip_taskbar_hint", True)
-    _call_if_available(window, "set_skip_pager_hint", True)
-    _call_if_available(window, "set_accept_focus", False)
-    _call_if_available(window, "set_focus_on_map", False)
-    _call_if_available(window, "stick")
-    _call_if_available(window, "set_keep_above", True)
-    _set_dock_type_hint(window)
-
-
-def _set_dock_type_hint(window: object) -> None:
-    set_type_hint = getattr(window, "set_type_hint", None)
-    if not callable(set_type_hint):
-        return
-    try:
-        import gi
-
-        gi.require_version("Gdk", "3.0")
-        from gi.repository import Gdk
-    except (ImportError, ValueError):
-        return
-    set_type_hint(Gdk.WindowTypeHint.DOCK)

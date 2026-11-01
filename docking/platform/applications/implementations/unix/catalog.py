@@ -15,12 +15,20 @@ from gi.repository import Gio
 
 from ...backend import DiscoveryResult
 from ...steam import SteamDiscoveryResult, steam_app_id_from_exec
+from ..shared.monitor import GioCatalogMonitor
 from . import discovery, entries
-from .monitor import UnixCatalogMonitor
 from .steam import game_application
 
 
 class UnixApplicationCatalogBackend(ApplicationCatalogBackend):
+    @property
+    def initial_discovery_pending(self) -> bool:
+        return False
+
+    def invalidate(self) -> None:
+        # Unix discovery reads the source afresh for each registry generation.
+        pass
+
     game_application = staticmethod(game_application)
 
     def __init__(
@@ -58,8 +66,8 @@ class UnixApplicationCatalogBackend(ApplicationCatalogBackend):
             else SteamDiscoveryResult()
         )
 
-    def create_monitor(self, changed: Callable[[], None]) -> UnixCatalogMonitor:
-        return UnixCatalogMonitor(changed, self._desktop_directories_source)
+    def create_monitor(self, changed: Callable[[], None]) -> GioCatalogMonitor:
+        return GioCatalogMonitor(changed, self._desktop_directories_source)
 
     def hidden_steam_id(self, path: Path) -> str | None:
         facts = discovery.file_facts(path)

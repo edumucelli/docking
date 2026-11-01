@@ -8,6 +8,7 @@ from . import locking, paths, process, storage
 class UnixHostServices(HostServices):
     prepare_process = staticmethod(process.prepare_process)
     local_path = staticmethod(paths.local_path_from_uri_or_path)
+    is_explicit_path = staticmethod(paths.is_explicit_path)
     config_home = staticmethod(paths.xdg_config_home)
     cache_home = staticmethod(paths.xdg_cache_home)
     data_home = staticmethod(paths.xdg_data_home)

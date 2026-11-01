@@ -13,6 +13,7 @@ from gi.repository import GdkPixbuf, Gio, GLib
 
 from docking.core.paths import local_path_from_uri_or_path
 from docking.log import get_logger, with_context
+from docking.platform.applications.associations import AssociationStatus
 from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.desktop.selection import desktop_services
 from docking.platform.files import file_for_uri
@@ -66,8 +67,6 @@ def open_target(target: str) -> bool:
         return False
     if parsed.scheme in ALLOWED_URI_SCHEMES:
         uri = target
-    elif parsed.scheme and parsed.scheme != "file":
-        return False
     else:
         uri = normalize_file_target(target)
     if uri is None:
@@ -81,8 +80,8 @@ class TargetService:
     def __init__(
         self, *, icon_loader: IconLoader, application_registry: ApplicationRegistry
     ) -> None:
-        self._application_registry = application_registry
         self._icon_loader = icon_loader
+        self._application_registry = application_registry
 
     def normalize_file_target(self, target: str) -> str | None:
         """Delegate target normalization to the canonical module function."""
@@ -154,7 +153,8 @@ class TargetService:
 
     def default_directory_app_name(self) -> str | None:
         """Return the presentation name of the default folder handler."""
-        return self._application_registry.directory_application_name().name
+        result = self._application_registry.directory_application_name()
+        return result.name if result.status is AssociationStatus.READY else None
 
 
 __all__ = [

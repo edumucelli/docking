@@ -9,7 +9,7 @@ from .unix import UnixAppletBackendFactories, UnixPlatformProvider
 if TYPE_CHECKING:
     from docking.applets.battery.backend import BatteryBackend
     from docking.applets.bluetooth.backend import BluetoothBackend
-    from docking.applets.brightness.backend import BrightnessOperations
+    from docking.applets.brightness.backend import BrightnessBackend
     from docking.applets.camshield.backend import CamshieldBackend
     from docking.applets.network.backend import NetworkBackend
     from docking.applets.session.backend import SessionBackend
@@ -21,15 +21,15 @@ if TYPE_CHECKING:
 
 
 class LinuxAppletBackendFactories(UnixAppletBackendFactories):
-    def brightness(self) -> BrightnessOperations:
+    def brightness(self) -> BrightnessBackend:
         from docking.applets.brightness.implementations.linux.backlight import (
             LinuxBacklightSource,
         )
         from docking.applets.brightness.implementations.unix.backend import (
-            BrightnessOperations,
+            UnixBrightnessBackend,
         )
 
-        return BrightnessOperations(LinuxBacklightSource())
+        return UnixBrightnessBackend(LinuxBacklightSource())
 
     def battery(self) -> BatteryBackend:
         from docking.applets.battery.implementations.linux.backend import (

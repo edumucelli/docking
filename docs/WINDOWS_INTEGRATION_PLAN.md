@@ -6,7 +6,9 @@ Reorganize the existing Linux/BSD implementation into explicit platform interfac
 
 Use these inspected revisions as reference points:
 
-- **Master (current PR base):** `39a066846b8f719c343c2cccc645d7d504f0db52`.
+- **Merged Phase 1:** `094e50a4540d2432476a3691f7399407204b09a5` (PR #480).
+- **Unix prerequisite completion base:** `25649297791f40959c76af888fc2a808b106387a`.
+- **Pre-refactor master reference:** `39a066846b8f719c343c2cccc645d7d504f0db52`.
 - **Windows PR:** `2b0bbd9462987678a781905c5fde7d41103e5386`.
 
 The latest review covers the ten PR commits after `8f53eb5d`, through `2b0bbd94`. The previous master reference was `96605f07`; the new base additionally preserves zero-percent peripheral battery readings in `39a06684`. These are reference revisions, not instructions to reset the implementation checkout or discard a newer master.
@@ -105,8 +107,9 @@ docking/
 │   │   ├── {registry,launcher,identity,matcher,listing,recents}.py
 │   │   └── implementations/
 │   │       ├── unix/
-│   │       │   └── {catalog,associations,monitor,discovery,entries,
+│   │       │   └── {catalog,associations,discovery,entries,
 │   │       │        launch,desktop_launch,registration,flatpak,steam}.py
+│   │       ├── shared/monitor.py  # Gio catalog observer
 │   │       ├── linux/process.py
 │   │       ├── bsd/process.py
 │   │       └── windows/
@@ -142,8 +145,7 @@ docking/
 │   │   ├── {applet,state,render,presentation}.py
 │   │   └── implementations/unix/{presentation,xembed}.py
 │   ├── webapp/
-│   │   ├── {applet,backend,profile,storage,state,bridge,
-│   │   │    browser,notification_backend}.py
+│   │   ├── {applet,backend,profile,state,bridge}.py
 │   │   └── implementations/
 │   │       ├── unix/{backend,notifications}.py
 │   │       └── windows/{backend,notifications,companion/}
@@ -583,6 +585,46 @@ implementation makes these reviewed boundaries concrete:
   types, cross-OS operations, or required composition adapters. Patch shared
   browser behavior at its owning WebApp module rather than re-exporting GTK
   dependencies from the WhatsApp applet for tests.
+
+### Phase 1 completion extracted from the Phase 2 review
+
+The initial implementation notes above describe #480. Reviewing #481 identified
+additional shared contracts and Unix adapter migrations that must land as a
+standalone prerequisite before its Windows integration. This completion changes
+the earlier extraction details as follows; these are Phase 1 responsibilities.
+
+| Modules (relative to `docking/`) | Completion and behavior to preserve |
+|---|---|
+| `platform/composition/{base,unix,linux,bsd}.py`, `app.py`, `applets/{platform,services,base}.py` | Compose `ApplicationSources` as a fresh catalog/association/registration graph. Pass its narrow capabilities into the registry. Supply one backend per applet domain, retaining construction-time ownership and late delivery of session services. |
+| `platform/applications/{backend,types,registry,metadata,handle_adapters}.py` | Make discovery readiness, ordered association reads/revisions, lazy private launch handles, optional exports, and worker publication explicit. Unix discovery remains synchronous, reports no initial pending state, and preserves registered/default/ID-less handlers. A failed refresh preserves the published snapshot. |
+| `platform/applications/implementations/{unix,shared}/` | Move the Gio observer to `shared/monitor.py`; keep desktop-file discovery, associations, launch commands, and registration in Unix. Preserve lazy association ordering and direct Exec/Flatpak/Gio launch precedence. Each observer lifetime rejects stale callbacks. |
+| `platform/applications/{launcher,listing,identity,matcher,recents}.py`, `platform/{model,targets}.py` | Consume the new contracts without selecting implementations. Preserve persisted IDs, provenance, aliases, recent-app policy, and failed-launch results. Uncataloged executable matching is an explicit opt-in; Unix keeps it disabled. |
+| `core/paths.py`, `platform/host/{base,implementations/{unix,linux,bsd}/*}.py` | Put explicit-path syntax and platform facts behind the host API. Retain Unix URI expansion, XDG directories, POSIX `flock`, and directory flushing. The lock's new path argument does not change POSIX locking. |
+| `platform/desktop/{base,implementations/unix/{backend,diagnostics}}.py`, `platform/environment/environment.py` | Move X11 compositor diagnostics into the Unix desktop adapter. Optional native artwork returns `None`, and native text-modifier handling returns `False` on Unix. Keep headless imports free of GTK/native initialization. |
+| `platform/backends/{base,gtk_geometry,gtk_surface,window_projection}.py`, `platform/backends/{reduced/services,x11/services/surface}.py` | Define surface capabilities and logical rectangle projection. Reuse GTK dock hints/placement with their existing values. Preserve X11/Wayland/Cinnamon selection and mixed XWayland session behavior. |
+| `platform/{application_icons,icon_source,icons,keyboard}.py`, `applets/applications/{applet,icons,render}.py`, `search/icons.py` | Share artwork resolution and optional readiness subscriptions. Unix retains theme/Gio fallbacks. Canonical application drag data carries an ID that the destination must resolve; arbitrary bytes cannot manufacture catalog entries. |
+| `applets/{battery,bluetooth,network,volume}/` | Finish the domain backend ABCs and move peripheral parsing/settings/native commands into their existing Unix/Linux/BSD implementations. Remove separate Bluetooth/Network/Volume operation factories. Preserve command precedence, polling, traffic counters, mute policy, and zero-percent peripheral readings. |
+| `applets/brightness/{applet,backend,state,render}.py`, `applets/brightness/implementations/{unix/backend,linux/backlight}.py` | Query and write through a stateful backend off GTK. Preserve xrandr/backlight fallback, 2% steps, the last valid same-display reading, and sub-one-percent poll tolerance. Invalidate stale writes when the target changes and create a fresh backend after restart. |
+| `applets/{capslock,keyboardlayout,micshield,music,powerprofiles}/` | Put native acquisition, parsers, commands, settings actions, and resource cleanup in the implementation; keep common values/rendering at the root. Retain GNOME/IBus/Fcitx/MATE/XKB ordering, PulseAudio/MPRIS behavior, and power-profile fallbacks. Queue requests against their originating backend lifetime. |
+| `applets/{caffeine,camshield,notifications}/` | Expose semantic controls/state instead of native operation bundles. Keep privileged camera-helper semantics, inhibitor cleanup, and `dbus-monitor` ownership in Unix adapters. Merge notification activity into the backend, retaining bounded history and applet-owned badge/history timers. |
+| `applets/screenshot/{applet,backend,state,preview,selection}.py`, `implementations/unix/backend.py` | Route availability/capture/cancellation through the backend. Unix keeps its existing tool order, portal/Flatpak behavior, arguments, delays, and native tool UI. Shared selection/preview capabilities do not replace those Unix tools. |
+| `applets/{webapp,telegram,whatsapp}/` | Keep browser callbacks, collision handling, session values, and common errors at the WebApp root; keep WebKitGTK/storage/native notification work in Unix. Preserve profile directories, cookies, notification routing, and disconnect behavior; do not restore import-only wrappers. |
+| `applets/aiusage/{hooks,hook_runner,store,backends/*,implementations/unix/hooks}.py` | Separate headless registration policy from provider schemas and host locking/argv. Preserve Unix hook commands, legacy Codex recognition, Claude event registration, and data files without importing GTK. |
+| `applets/{session,trash,ambient,deskpresence,colorpicker,windowkiller}/` | Migrate consumers to the common session/state/backend capabilities while preserving existing native commands and unsupported results. Remove obsolete root-native helpers after callers move. |
+| `platform/tray/{backend,state,menu,service,notifications}.py`, `implementations/unix/{backend,status_notifier,dbusmenu}.py` | Translate SNI/DBusMenu records into neutral tray values. Preserve watcher/proxy/menu behavior, three-second polling, overlay notifications, and menu ordering. Serialize predecessor close and successor reads on workers; reject obsolete timers, commands, and focus deliveries. |
+| `applets/systemtray/{applet,state,presentation,implementations/unix/*}.py`, `applets/popup.py` | Move legacy XEmbed ownership, take-over/release UI, positioning, and errors into the Unix presentation. The applet borrows its construction-time shared tray service and does not replace or stop it when late services arrive. |
+| `search/{controller,intents,preview,providers/*,services/*,ui/*}.py` | Consume focus, shortcut, path, artwork, and presentation capabilities. Unix keeps portal plus X11 fallback, no native focus adapter, and `opaque_action_panel=False`; its existing transparent GTK styling remains. `providers/windows.py` means searched desktop windows and remains shared. |
+| `ui/{display,dnd,dock_window,factory,hover,input_controller,menu,preview,renderer,runtime,tooltip}.py` | Route geometry, drag, modifier, preview, placement, and focus policy through capabilities rather than OS probes. Keep default Unix behavior and subscription/timer teardown. |
+| `tests/`, `features/steps/folder_thumbnail_steps.py`, `tools/linux/visual/probes/wayfire_contract_probe.py` | Migrate callers and patch locations together. Keep generic/Unix assertions on the prerequisite branch and Windows-native cases on #481. Ensure the prerequisite suite collects with Windows implementations absent. Keep isolated no-GI smoke runs separate from normal collection. |
+| `.github/workflows/bsd.yml`, `docking/locale/` | Carry the BSD NumPy test dependency and shared camera/microphone translations with their Unix changes. Regenerate the prerequisite POT from its own source tree; Windows-only messages belong to Phase 2. |
+
+The standalone prerequisite must contain no Windows implementations, native
+helpers, package/build changes, OS-routing branches, or Windows acceptance tools.
+After it is committed, merge it into the integration branch without rewriting
+published history and base #481 on that prerequisite. The resulting Phase 2
+diff must contain no Unix/Linux/BSD runtime-adapter changes. Preserve the tested
+integration implementation while splitting mixed test files; the split must not
+drop Windows assertions from the final combined tree.
 
 ### Phase 1 import and test migration
 

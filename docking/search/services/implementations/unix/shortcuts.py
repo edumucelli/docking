@@ -30,6 +30,7 @@ from typing import TypeAlias
 from docking.search.services.global_shortcuts import GlobalShortcutService
 
 from ...global_shortcuts import (
+    TOGGLE_SEARCH_SHORTCUT_ID,
     GlobalShortcutActivation,
     GlobalShortcutBinding,
     GlobalShortcutsState,
@@ -48,7 +49,6 @@ DBUS_BUS_NAME = "org.freedesktop.DBus"
 DBUS_OBJECT_PATH = "/org/freedesktop/DBus"
 DBUS_INTERFACE = "org.freedesktop.DBus"
 
-TOGGLE_SEARCH_SHORTCUT_ID = "toggle-search"
 GLOBAL_SHORTCUTS_VERSION = 1
 
 log = logging.getLogger(__name__)

@@ -14,8 +14,7 @@
 """GTK lifecycle and menu wiring for Power Profiles applet.
 
 The applet is intentionally thin and delegates backend complexity to
-``state.py``. This keeps UI behavior stable regardless of which backend is
-active (PPD/tuned/TLP/null):
+the shared backend contract. This keeps UI behavior stable across platforms:
 
 - icon rendering is driven by a single canonical state snapshot
 - menu options are generated from canonical profile IDs
@@ -44,11 +43,11 @@ from gi.repository import GLib, Gtk
 from docking.applets.base import PlatformServicesApplet
 from docking.applets.menu import disabled_menu_item, menu_sections, radio_menu_items
 from docking.applets.powerprofiles import meta
+from docking.applets.powerprofiles.backend import PowerProfilesControlBackend
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
-from .backend import PowerProfilesControlBackend
 from .render import create_power_profiles_icon
 from .state import (
     PowerProfilesState,
@@ -66,7 +65,7 @@ log = with_context(get_logger(name="powerprofiles"), applet_id=meta.id)
 
 
 class PowerProfilesApplet(PlatformServicesApplet):
-    """Quick selector for power profile backends (PPD/tuned/TLP)."""
+    """Quick selector for power profiles through a platform backend."""
 
     id = meta.id
     name = _("Power Profiles")
@@ -80,10 +79,10 @@ class PowerProfilesApplet(PlatformServicesApplet):
         platform_services: AppletPlatformServices,
     ) -> None:
         self._platform = platform_services
-        self._native = platform_services.backends.powerprofiles()
-        # Backend is auto-detected once during applet initialization.
-        # Polling then queries the same backend instance repeatedly.
-        self._backend: PowerProfilesControlBackend = self._native.detect_backend()
+        self._backend: PowerProfilesControlBackend = (
+            self._platform.backends.powerprofiles()
+        )
+        self._stopped = False
         self._state: PowerProfilesState = unavailable_state()
         self._poll_id: int = 0
         self._set_in_progress = False
@@ -120,11 +119,13 @@ class PowerProfilesApplet(PlatformServicesApplet):
 
     def stop(self) -> None:
         """Stop periodic polling timer."""
+        self._stopped = True
         self._poll_generation += 1
         self._pending_profile = None
         if self._poll_id:
             GLib.source_remove(self._poll_id)
             self._poll_id = 0
+        self._backend.stop()
         super().stop()
 
     def on_clicked(self) -> None:
@@ -192,6 +193,8 @@ class PowerProfilesApplet(PlatformServicesApplet):
 
     def _tick(self) -> bool:
         """Periodic GLib timer callback; delegates backend call to a thread."""
+        if self._stopped:
+            return False
         if self._set_in_progress:
             return True
         generation = self._poll_generation
@@ -211,8 +214,10 @@ class PowerProfilesApplet(PlatformServicesApplet):
         self, state: PowerProfilesState, *, generation: int | None = None
     ) -> bool:
         """GTK-thread state update from periodic polling."""
-        if self._set_in_progress or (
-            generation is not None and generation != self._poll_generation
+        if (
+            self._stopped
+            or self._set_in_progress
+            or (generation is not None and generation != self._poll_generation)
         ):
             return False
         changed = state != self._state
@@ -233,6 +238,8 @@ class PowerProfilesApplet(PlatformServicesApplet):
 
     def _set_profile_async(self, *, profile: str) -> None:
         """Run backend profile switch on worker thread."""
+        if self._stopped:
+            return
         self._poll_generation += 1
         if self._set_in_progress:
             self._pending_profile = profile
@@ -260,6 +267,8 @@ class PowerProfilesApplet(PlatformServicesApplet):
         state: PowerProfilesState,
     ) -> bool:
         """GTK-thread handler for async profile-set completion."""
+        if self._stopped:
+            return False
         self._set_in_progress = False
         self._setting_profile = None
         self._state = state
@@ -272,6 +281,8 @@ class PowerProfilesApplet(PlatformServicesApplet):
         return False
 
     def _on_set_error(self, profile: str, _exc: Exception) -> bool:
+        if self._stopped:
+            return False
         self._set_in_progress = False
         self._setting_profile = None
         self._action_error = f"Failed to set {profile_label(profile)}"

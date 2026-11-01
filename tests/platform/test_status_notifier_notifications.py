@@ -12,17 +12,16 @@ from docking.platform.tray.backend import TrayBackend
 from docking.platform.tray.implementations.unix.status_notifier import (
     RegisteredItemAddress,
     tray_item_from_properties,
-    unavailable_state,
 )
 from docking.platform.tray.notifications import (
     SLACK_DESKTOP_ID,
-    StatusNotifierNotificationBridge,
+    TrayNotificationBridge,
     parse_slack_notification_count,
     status_notifier_desktop_id,
 )
 from docking.platform.tray.service import POLL_INTERVAL_S
 from docking.platform.tray.service import TrayService as StatusNotifierService
-from docking.platform.tray.state import StatusTrayState
+from docking.platform.tray.state import TrayState
 from tests.platform_factories import make_tray_service
 
 
@@ -47,21 +46,27 @@ def _tray_item(
     )
 
 
-def _available_state(*items) -> StatusTrayState:
-    return StatusTrayState(
+from docking.platform.tray.state import unavailable_state
+
+
+def _available_state(*items) -> TrayState:
+    return TrayState(
         available=True,
-        watcher_mode="watcher",
+        mode="watcher",
         items=tuple(items),
     )
 
 
 class _Backend(TrayBackend):
-    def __init__(self, state: StatusTrayState) -> None:
+    def __init__(self, state: TrayState) -> None:
         self.state = state
         self.close_calls = 0
         self.get_state_calls = 0
 
-    def get_state(self) -> StatusTrayState:
+    def set_focus_handler(self, handler) -> None:
+        self.focus_handler = handler
+
+    def get_state(self) -> TrayState:
         self.get_state_calls += 1
         return self.state
 
@@ -77,12 +82,21 @@ class _Backend(TrayBackend):
     def context_menu(self, identifier):
         raise AssertionError("Notification overlays must not open tray menus")
 
+    def set_geometry(self, bounds):
+        pass
+
+    def pointer(self, identifier, *, point=None, anchor=None):
+        raise AssertionError("Notification overlays must not move the pointer")
+
+    def double_click(self, identifier, *, anchor=None):
+        raise AssertionError("Notification overlays must not activate tray items")
+
     def menu_client(self, identifier):
         raise AssertionError("Notification overlays must not request tray menus")
 
 
 class _RaisingBackend(_Backend):
-    def get_state(self) -> StatusTrayState:
+    def get_state(self) -> TrayState:
         self.get_state_calls += 1
         raise RuntimeError("D-Bus unavailable")
 
@@ -151,11 +165,11 @@ def _bridge(
     application_registry=None,
     worker=None,
     service=None,
-) -> StatusNotifierNotificationBridge:
+) -> TrayNotificationBridge:
     registry = application_registry if application_registry is not None else _registry()
     if service is None:
         service = _service(backend=backend, worker=worker)
-    return StatusNotifierNotificationBridge(
+    return TrayNotificationBridge(
         model=model,
         application_registry=registry,
         service=service,
@@ -242,7 +256,7 @@ class TestSlackTrayParsing:
         )
 
 
-class TestStatusNotifierNotificationBridge:
+class TestTrayNotificationBridge:
     def test_start_applies_overlays_and_stop_clears_them(self, timers):
         model = MagicMock()
         backend = _Backend(_available_state(_tray_item()))
@@ -259,7 +273,8 @@ class TestStatusNotifierNotificationBridge:
             badge_count=2,
         )
         assert backend.get_state_calls == 1
-        assert timers.added == [(POLL_INTERVAL_S, service._tick)]
+        assert len(timers.added) == 1
+        assert timers.added[0][0] == POLL_INTERVAL_S and callable(timers.added[0][1])
 
         bridge.stop()
 
@@ -272,9 +287,7 @@ class TestStatusNotifierNotificationBridge:
 
     def test_bridge_requires_a_shared_service(self):
         with pytest.raises(TypeError, match="service"):
-            StatusNotifierNotificationBridge(
-                model=MagicMock(), application_registry=_registry()
-            )
+            TrayNotificationBridge(model=MagicMock(), application_registry=_registry())
 
     def test_exact_registry_match_uses_canonical_desktop_id(self):
         model = MagicMock()

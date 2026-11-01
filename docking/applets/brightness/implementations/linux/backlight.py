@@ -3,8 +3,9 @@
 from pathlib import Path
 
 from docking.applets.brightness.backend import BacklightSource
+from docking.log import get_logger
 
-from ...state import log
+log = get_logger("brightness")
 
 _BACKLIGHT_DIR = Path("/sys/class/backlight")
 

@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TypeAlias
 
+from docking.core.paths import is_explicit_path
 from docking.search.recognizers.calculation import (
     CalculationValue,
     recognize_calculation,
@@ -84,7 +85,7 @@ def parse_query_intent(text: str) -> QueryIntent:
             provider_ids=("calculator",),
             recognized=calculation,
         )
-    if stripped.startswith(("/", "~/", "./", "../", "file://")):
+    if is_explicit_path(stripped):
         return QueryIntent(
             raw_text,
             stripped,

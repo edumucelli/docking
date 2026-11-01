@@ -60,8 +60,8 @@ class CapslockApplet(PlatformServicesApplet):
         platform_services: AppletPlatformServices,
     ) -> None:
         self._platform = platform_services
-        self._native = platform_services.backends.capslock()
-        self._state: LockKeyState = self._native.query_lock_state()
+        self._backend = self._platform.backends.capslock()
+        self._state: LockKeyState = self._backend.get_state()
         self._timer_id: int = 0
         super().__init__(
             icon_size=icon_size, config=config, platform_services=platform_services
@@ -110,12 +110,12 @@ class CapslockApplet(PlatformServicesApplet):
         return menu_sections(status=status, refresh=[refresh], gtk=Gtk)
 
     def _refresh_now(self) -> None:
-        self._state = self._native.query_lock_state()
+        self._state = self._backend.get_state()
         self.present()
 
     def _tick(self) -> bool:
         old_state = self._state
-        self._state = self._native.query_lock_state()
+        self._state = self._backend.get_state()
         if self._state != old_state:
             self.present()
         return True

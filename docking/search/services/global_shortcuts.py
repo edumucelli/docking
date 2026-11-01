@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TypeAlias
 
+TOGGLE_SEARCH_SHORTCUT_ID = "toggle-search"
+
 
 class GlobalShortcutsState(str, Enum):
     """Observable lifecycle and outcome states."""
@@ -26,7 +28,7 @@ class GlobalShortcutsState(str, Enum):
 
 @dataclass(frozen=True)
 class GlobalShortcutBinding:
-    """The portal's current presentation of the Docking shortcut."""
+    """A shortcut backend's current presentation of the Docking shortcut."""
 
     shortcut_id: str
     description: str
@@ -35,7 +37,7 @@ class GlobalShortcutBinding:
 
 @dataclass(frozen=True)
 class GlobalShortcutActivation:
-    """An activation forwarded by the portal."""
+    """An activation forwarded by a shortcut backend."""
 
     shortcut_id: str
     timestamp: int

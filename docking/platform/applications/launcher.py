@@ -35,7 +35,12 @@ class ApplicationLauncher:
     def launch(self, desktop_id: str) -> bool:
         application = self._registry.get(desktop_id)
         return (
-            self._record(application, self._backend.launch(application))
+            self._record(
+                application,
+                self._backend.launch(
+                    application, lambda: self._registry._gio_handle_for(desktop_id)
+                ),
+            )
             if application is not None
             else False
         )
@@ -47,7 +52,9 @@ class ApplicationLauncher:
         return self._record(
             application,
             self._backend.launch_action(
-                application, action_id, self._registry._gio_handle_for(desktop_id)
+                application,
+                action_id,
+                lambda: self._registry._gio_handle_for(desktop_id),
             ),
         )
 
@@ -58,7 +65,7 @@ class ApplicationLauncher:
         return self._record(
             application,
             self._backend.launch_app_uris(
-                application, uris, self._registry._gio_handle_for(desktop_id)
+                application, uris, lambda: self._registry._gio_handle_for(desktop_id)
             ),
         )
 
