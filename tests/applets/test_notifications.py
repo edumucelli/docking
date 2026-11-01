@@ -9,6 +9,7 @@ from typing import ClassVar
 from unittest.mock import MagicMock
 
 import docking.applets.notifications.applet as notifications_applet_mod
+import docking.applets.notifications.implementations.unix.activity as activity_mod
 import docking.applets.notifications.implementations.unix.backend as notifications_state_mod
 import docking.applets.notifications.state as pure_state
 from docking.applets.notifications.applet import (
@@ -17,8 +18,10 @@ from docking.applets.notifications.applet import (
     NotificationsApplet,
 )
 from docking.applets.notifications.backend import NotificationsBackend
+from docking.applets.notifications.implementations.unix.activity import (
+    UnixNotificationActivityMonitor as ActivityMonitor,
+)
 from docking.applets.notifications.implementations.unix.backend import (
-    ActivityMonitor,
     DunstBackend,
     GnomeBackend,
     NullBackend,
@@ -604,16 +607,16 @@ class TestActivityMonitor:
     def test_activity_monitor_start_and_stop_paths(self, monkeypatch, caplog):
         applet = ActivityMonitor()
         applet._activity_monitor_proc = object()  # type: ignore[assignment]
-        applet._start_activity_monitor()
+        applet.start()
 
         applet._activity_monitor_proc = None
-        monkeypatch.setattr(notifications_state_mod.shutil, "which", lambda cmd: None)
+        monkeypatch.setattr(activity_mod.shutil, "which", lambda cmd: None)
         with caplog.at_level(logging.WARNING, logger="docking.notifications"):
-            applet._start_activity_monitor()
+            applet.start()
         assert "dbus-monitor not found" in caplog.text
 
         monkeypatch.setattr(
-            notifications_state_mod.shutil,
+            activity_mod.shutil,
             "which",
             lambda cmd: "/usr/bin/dbus-monitor",
         )
@@ -621,10 +624,10 @@ class TestActivityMonitor:
         def raise_popen(*args, **kwargs):
             raise OSError("missing")
 
-        monkeypatch.setattr(notifications_state_mod.subprocess, "Popen", raise_popen)
+        monkeypatch.setattr(activity_mod.subprocess, "Popen", raise_popen)
         caplog.clear()
         with caplog.at_level(logging.WARNING, logger="docking.notifications"):
-            applet._start_activity_monitor()
+            applet.start()
         assert applet._activity_monitor_proc is None
         assert "Failed to start dbus-monitor" in caplog.text
 
@@ -652,14 +655,12 @@ class TestActivityMonitor:
             def start(self):
                 self.started = True
 
-        monkeypatch.setattr(notifications_state_mod.threading, "Thread", _Thread)
+        monkeypatch.setattr(activity_mod.threading, "Thread", _Thread)
         proc = _Proc()
-        monkeypatch.setattr(
-            notifications_state_mod.subprocess, "Popen", lambda *a, **k: proc
-        )
-        applet._start_activity_monitor()
+        monkeypatch.setattr(activity_mod.subprocess, "Popen", lambda *a, **k: proc)
+        applet.start()
         assert applet._activity_monitor_proc is proc
-        applet._stop_activity_monitor()
+        applet.stop()
         assert proc.terminated is True
         assert proc.killed is True
 
@@ -671,13 +672,13 @@ class TestActivityMonitor:
                 return None
 
         applet._activity_monitor_proc = _ProcOSError()  # type: ignore[assignment]
-        applet._stop_activity_monitor()
+        applet.stop()
 
     def test_activity_monitor_uses_host_dbus_monitor_in_flatpak(self, monkeypatch):
         applet = ActivityMonitor()
-        monkeypatch.setattr(notifications_state_mod, "is_flatpak", lambda: True)
+        monkeypatch.setattr(activity_mod, "is_flatpak", lambda: True)
         monkeypatch.setattr(
-            notifications_state_mod.flatpak,
+            activity_mod.flatpak,
             "spawn_path",
             lambda **_: "/usr/bin/flatpak-spawn",
         )
@@ -687,7 +688,7 @@ class TestActivityMonitor:
         assert command is not None
         assert command[:3] == ["/usr/bin/flatpak-spawn", "--host", "env"]
         assert "dbus-monitor --session" in command[-1]
-        assert notifications_state_mod.HOST_MONITOR_PID_PREFIX in command[-1]
+        assert activity_mod.HOST_MONITOR_PID_PREFIX in command[-1]
 
     def test_stop_activity_monitor_kills_host_monitor_pid(self, monkeypatch):
         applet = ActivityMonitor()
@@ -707,17 +708,17 @@ class TestActivityMonitor:
         proc = _Proc()
         applet._activity_monitor_proc = proc  # type: ignore[assignment]
         monkeypatch.setattr(
-            notifications_state_mod.flatpak,
+            activity_mod.flatpak,
             "spawn_path",
             lambda **_: "/usr/bin/flatpak-spawn",
         )
         monkeypatch.setattr(
-            notifications_state_mod.subprocess,
+            activity_mod.subprocess,
             "run",
             lambda cmd, **kwargs: run_calls.append(cmd),
         )
 
-        applet._stop_activity_monitor()
+        applet.stop()
 
         assert run_calls == [["/usr/bin/flatpak-spawn", "--host", "kill", "12345"]]
         assert proc.terminated is True
@@ -728,7 +729,7 @@ class TestActivityMonitor:
 
         class _Proc:
             stdout: ClassVar = [
-                f"{notifications_state_mod.HOST_MONITOR_PID_PREFIX}321\n",
+                f"{activity_mod.HOST_MONITOR_PID_PREFIX}321\n",
                 "signal member=Notify\n",
                 '   string "Mail"\n',
                 '   string "Icon"\n',

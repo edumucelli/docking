@@ -94,17 +94,18 @@ docking/
 │   │       ├── {linux,bsd}/
 │   │       │   └── {backend,mounts}.py
 │   │       └── windows/             # Added in Phase 2
-│   │           └── {backend,paths,storage,locking,process}.py
+│   │           └── {backend,paths,locking,process}.py
 │   ├── desktop/
 │   │   ├── {base,selection}.py      # File, target, input, lifecycle adapters
 │   │   └── implementations/
 │   │       ├── unix/
 │   │       │   └── {backend,files,targets,lifecycle}.py
 │   │       └── windows/
-│   │           └── {files,targets,lifecycle,keyboard,icons,menus,geometry}.py
+│   │           └── {backend,files,targets,lifecycle,icons,menus,geometry}.py
 │   ├── applications/
 │   │   ├── {backend,types,associations,handle_adapters}.py
 │   │   ├── {registry,launcher,identity,matcher,listing,recents}.py
+│   │   ├── metadata.py             # Windows acquisition worker; Phase 2 only
 │   │   └── implementations/
 │   │       ├── unix/
 │   │       │   └── {catalog,associations,discovery,entries,
@@ -124,13 +125,13 @@ docking/
 │   ├── native/
 │   │   └── windows/                # Shared low-level primitives; Phase 2
 │   ├── backends/
-│   │   ├── {base,selection,window_projection,gtk_geometry,gtk_surface}.py
+│   │   ├── {base,selection,window_projection,gtk_surface}.py
 │   │   ├── unix/processes.py       # Shared POSIX window-action primitive
 │   │   ├── x11/
 │   │   ├── wayland/
 │   │   ├── {cinnamon,gnome,kwin,reduced}/
 │   │   └── windows/                # Session services only
-│   └── {files,targets,icons,keyboard,application_icons,icon_source}.py
+│   └── {files,targets,icons,application_icons}.py
 ├── applets/
 │   ├── {base,platform,services,worker,popup}.py
 │   ├── battery/                    # Representative applet organization
@@ -156,7 +157,7 @@ docking/
 │   ├── {controller,icons,intents,preview}.py
 │   ├── providers/                  # Search domains, not OS implementations
 │   ├── services/
-│   │   ├── {platform,global_shortcuts,window_focus}.py
+│   │   ├── {platform,global_shortcuts}.py
 │   │   └── implementations/
 │   │       ├── unix/{platform,shortcuts,x11_shortcuts}.py
 │   │       └── windows/{shortcuts,focus}.py
@@ -166,7 +167,22 @@ docking/
 
 The `desktop` package owns runtime adapters for file/target/input/lifecycle operations that may use Gio, GTK, or the main loop. The `host` package remains usable without GI. This separation prevents a path or writer-lock helper from importing the GUI through an OS provider.
 
-The existing public facades `platform/files.py`, `targets.py`, `keyboard.py`, and `icons.py` stay at their current paths. Classes receive narrow dependencies from composition. Existing module-level helper APIs may delegate to a narrow domain adapter obtained through the dedicated selector; they must not fetch a general runtime provider or depend on a mutable application-wide service container. Selectors reuse the resolved host facts and do not rediscover the OS on each call.
+The existing public facades `platform/files.py`, `targets.py`, and `icons.py` stay at their current paths. Shortcut capture calls the existing desktop API directly; do not add a keyboard forwarding facade. Classes receive narrow dependencies from composition. Existing module-level helper APIs may delegate to a narrow domain adapter obtained through the dedicated selector; they must not fetch a general runtime provider or depend on a mutable application-wide service container. Selectors reuse the resolved host facts and do not rediscover the OS on each call.
+
+### Organization review: retain only required boundaries
+
+| Choice | Final ownership and reason |
+|---|---|
+| GTK surface helpers | One `backends/gtk_surface.py`, reused by Reduced and Windows. Windows adds logical coordinate conversion here; X11 does not change. |
+| Small contracts and values | Artwork contracts live in `desktop/base.py`; Search `WindowFocus` lives in `search/services/platform.py`. No separate forwarding modules. |
+| Native notification observation | Preserve `notifications/implementations/unix/activity.py`; its backend owns start/drain/stop and the existing bounded queue. |
+| Async metadata acquisition | Add `applications/metadata.py` and its worker tests only in Phase 2, where the Windows catalog actually uses them. |
+| Windows operation wrappers | Put AltGr delegation and directory-flush policy in their existing desktop/host backends. Trash configures the existing shared shell observer directly. |
+| Stateful artwork/UI helpers | Keep application/menu/Search icon resolvers and screenshot selection/preview: Windows requires their asynchronous subscriptions, cache/cleanup ownership, or native capture UI. Unix retains its existing fallbacks and capture tools. |
+| AI hook policy and entry point | Keep the OS hook policy and headless runner: Windows needs different argv/registration and a stable subprocess bootstrap; Unix command and legacy-hook recognition remain unchanged. |
+| Shared native primitives | Keep reusable Windows ABI/input/shell/process primitives under `platform/native/windows/`; actual cross-domain consumers justify this boundary. |
+
+An implementation method may call a reusable native helper directly. Do not create another module solely to forward that call. Keep existing filenames and helpers when OS integration does not require a move. In both phases, compare commands, defaults, threading, resource lifetime, and unsupported results against their own accepted baseline.
 
 ### Dependency boundaries
 
@@ -496,7 +512,7 @@ For an applet named `name`, shared `__init__.py`, `applet.py`, `state.py`, `rend
 | `micshield` | Pactl operations and settings → `implementations/unix/backend.py`; PulseAudio protocol support is shared Unix behavior. |
 | `music` | MPRIS/playerctl/Rhythmbox implementation classes → `implementations/unix/backend.py`; retain shared artwork coordination and pure state at the root. |
 | `network` | `linux.py` → `implementations/linux/backend.py`; `bsd.py` → `implementations/bsd/backend.py`; desktop-tool helpers → `implementations/unix/desktop_settings.py`. The existing NetworkManager/procfs implementation remains one Linux backend during this move; do not rewrite its state policy. |
-| `notifications` | Dunst/GNOME/null native implementations → `implementations/unix/backend.py`; keep their selection policy in that concrete Unix implementation. Activity-monitor process/thread ownership and D-Bus stream parsing → `implementations/unix/activity.py`; the applet receives semantic callbacks through its activity-monitor contract. |
+| `notifications` | Dunst/GNOME/null native implementations → `implementations/unix/backend.py`; keep their selection policy in that concrete Unix implementation. Activity-monitor process/thread ownership and D-Bus stream parsing → `implementations/unix/activity.py`; the backend owns this existing monitor module and drains its bounded event queue; applet timers continue to own badge/history presentation. |
 | `powerprofiles` | Power-profiles-daemon/tuned/TLP/null implementations → `implementations/unix/backend.py`; preserve service/tool availability precedence. |
 | `screenshot` | Portal/tool/Flatpak capture implementation → `implementations/unix/backend.py`; pure mode and presentation values stay shared. |
 | `session` | `linux.py` → `implementations/linux/backend.py`; `bsd.py` → `implementations/bsd/backend.py`; planned `unix.py` command execution and lock helpers → `implementations/unix/actions.py`. Shared action IDs/labels remain at the root. |
@@ -596,22 +612,22 @@ the earlier extraction details as follows; these are Phase 1 responsibilities.
 | Modules (relative to `docking/`) | Completion and behavior to preserve |
 |---|---|
 | `platform/composition/{base,unix,linux,bsd}.py`, `app.py`, `applets/{platform,services,base}.py` | Compose `ApplicationSources` as a fresh catalog/association/registration graph. Pass its narrow capabilities into the registry. Supply one backend per applet domain, retaining construction-time ownership and late delivery of session services. |
-| `platform/applications/{backend,types,registry,metadata,handle_adapters}.py` | Make discovery readiness, ordered association reads/revisions, lazy private launch handles, optional exports, and worker publication explicit. Unix discovery remains synchronous, reports no initial pending state, and preserves registered/default/ID-less handlers. A failed refresh preserves the published snapshot. |
+| `platform/applications/{backend,types,registry,handle_adapters}.py` | Make discovery readiness, ordered association reads/revisions, lazy private launch handles, optional exports, and publication explicit. The concrete metadata worker and its tests are Phase 2 additions; Unix does not acquire through a worker. Unix discovery remains synchronous, reports no initial pending state, and preserves registered/default/ID-less handlers. A failed refresh preserves the published snapshot. |
 | `platform/applications/implementations/{unix,shared}/` | Move the Gio observer to `shared/monitor.py`; keep desktop-file discovery, associations, launch commands, and registration in Unix. Preserve lazy association ordering and direct Exec/Flatpak/Gio launch precedence. Each observer lifetime rejects stale callbacks. |
 | `platform/applications/{launcher,listing,identity,matcher,recents}.py`, `platform/{model,targets}.py` | Consume the new contracts without selecting implementations. Preserve persisted IDs, provenance, aliases, recent-app policy, and failed-launch results. Uncataloged executable matching is an explicit opt-in; Unix keeps it disabled. |
 | `core/paths.py`, `platform/host/{base,implementations/{unix,linux,bsd}/*}.py` | Put explicit-path syntax and platform facts behind the host API. Retain Unix URI expansion, XDG directories, POSIX `flock`, and directory flushing. The lock's new path argument does not change POSIX locking. |
-| `platform/desktop/{base,implementations/unix/{backend,diagnostics}}.py`, `platform/environment/environment.py` | Move X11 compositor diagnostics into the Unix desktop adapter. Optional native artwork returns `None`, and native text-modifier handling returns `False` on Unix. Keep headless imports free of GTK/native initialization. |
-| `platform/backends/{base,gtk_geometry,gtk_surface,window_projection}.py`, `platform/backends/{reduced/services,x11/services/surface}.py` | Define surface capabilities and logical rectangle projection. Reuse GTK dock hints/placement with their existing values. Preserve X11/Wayland/Cinnamon selection and mixed XWayland session behavior. |
-| `platform/{application_icons,icon_source,icons,keyboard}.py`, `applets/applications/{applet,icons,render}.py`, `search/icons.py` | Share artwork resolution and optional readiness subscriptions. Unix retains theme/Gio fallbacks. Canonical application drag data carries an ID that the destination must resolve; arbitrary bytes cannot manufacture catalog entries. |
+| `platform/desktop/{base,implementations/unix/backend}.py`, `platform/environment/environment.py` | Keep X11 compositor diagnostics in `UnixDesktopServices.compositor_active`; do not add a one-function diagnostics module. Optional native artwork returns `None`, and native text-modifier handling returns `False` on Unix. Keep headless imports free of GTK/native initialization. |
+| `platform/backends/{base,gtk_surface,window_projection}.py`, `platform/backends/{reduced/services,x11/services/surface}.py` | Define surface capabilities with unsupported native geometry returning `None`. Keep X11 surface implementation identical to master and omit a reduced-backend geometry override. Extract only GTK dock hints/placement actually reused by Reduced and Windows, retaining their existing values. Preserve X11/Wayland/Cinnamon selection and mixed XWayland session behavior. |
+| `platform/{application_icons,icons,desktop/base}.py`, `applets/applications/{applet,icons,render}.py`, `search/icons.py` | Keep artwork value types/source contracts in `desktop/base.py`; share artwork resolution and optional readiness subscriptions. Unix retains theme/Gio fallbacks. Canonical application drag data carries an ID that the destination must resolve; arbitrary bytes cannot manufacture catalog entries. |
 | `applets/{battery,bluetooth,network,volume}/` | Finish the domain backend ABCs and move peripheral parsing/settings/native commands into their existing Unix/Linux/BSD implementations. Remove separate Bluetooth/Network/Volume operation factories. Preserve command precedence, polling, traffic counters, mute policy, and zero-percent peripheral readings. |
 | `applets/brightness/{applet,backend,state,render}.py`, `applets/brightness/implementations/{unix/backend,linux/backlight}.py` | Query and write through a stateful backend off GTK. Preserve xrandr/backlight fallback, 2% steps, the last valid same-display reading, and sub-one-percent poll tolerance. Invalidate stale writes when the target changes and create a fresh backend after restart. |
 | `applets/{capslock,keyboardlayout,micshield,music,powerprofiles}/` | Put native acquisition, parsers, commands, settings actions, and resource cleanup in the implementation; keep common values/rendering at the root. Retain GNOME/IBus/Fcitx/MATE/XKB ordering, PulseAudio/MPRIS behavior, and power-profile fallbacks. Queue requests against their originating backend lifetime. |
-| `applets/{caffeine,camshield,notifications}/` | Expose semantic controls/state instead of native operation bundles. Keep privileged camera-helper semantics, inhibitor cleanup, and `dbus-monitor` ownership in Unix adapters. Merge notification activity into the backend, retaining bounded history and applet-owned badge/history timers. |
+| `applets/{caffeine,camshield,notifications}/` | Expose semantic controls/state instead of native operation bundles. Keep privileged camera-helper semantics, inhibitor cleanup, and `dbus-monitor` ownership in Unix adapters. Keep notification activity in its existing `implementations/unix/activity.py` module, owned by the backend, retaining the bounded event queue, history, and applet-owned badge/history timers. |
 | `applets/screenshot/{applet,backend,state,preview,selection}.py`, `implementations/unix/backend.py` | Route availability/capture/cancellation through the backend. Unix keeps its existing tool order, portal/Flatpak behavior, arguments, delays, and native tool UI. Shared selection/preview capabilities do not replace those Unix tools. |
 | `applets/{webapp,telegram,whatsapp}/` | Keep browser callbacks, collision handling, session values, and common errors at the WebApp root; keep WebKitGTK/storage/native notification work in Unix. Preserve profile directories, cookies, notification routing, and disconnect behavior; do not restore import-only wrappers. |
 | `applets/aiusage/{hooks,hook_runner,store,backends/*,implementations/unix/hooks}.py` | Separate headless registration policy from provider schemas and host locking/argv. Preserve Unix hook commands, legacy Codex recognition, Claude event registration, and data files without importing GTK. |
-| `applets/{session,trash,ambient,deskpresence,colorpicker,windowkiller}/` | Migrate consumers to the common session/state/backend capabilities while preserving existing native commands and unsupported results. Remove obsolete root-native helpers after callers move. |
-| `platform/tray/{backend,state,menu,service,notifications}.py`, `implementations/unix/{backend,status_notifier,dbusmenu}.py` | Translate SNI/DBusMenu records into neutral tray values. Preserve watcher/proxy/menu behavior, three-second polling, overlay notifications, and menu ordering. Serialize predecessor close and successor reads on workers; reject obsolete timers, commands, and focus deliveries. |
+| `applets/{session,trash,ambient,deskpresence,colorpicker,windowkiller}/` | Migrate consumers to the common session/state/backend capabilities while preserving existing native commands and unsupported results. Remove obsolete root-native helpers after callers move; leave the unrelated Window Killer `state.py` module unchanged. |
+| `platform/tray/{backend,state,menu,service,notifications}.py`, `implementations/unix/{backend,status_notifier,dbusmenu}.py` | Translate SNI/DBusMenu records into neutral tray values. Preserve watcher/proxy/menu behavior, three-second polling, overlay notifications, menu ordering, and master's `(0, 0)` SNI activation/context-menu coordinates; adding native anchor support must not change Unix call arguments. Serialize predecessor close and successor reads on workers; reject obsolete timers, commands, and focus deliveries. |
 | `applets/systemtray/{applet,state,presentation,implementations/unix/*}.py`, `applets/popup.py` | Move legacy XEmbed ownership, take-over/release UI, positioning, and errors into the Unix presentation. The applet borrows its construction-time shared tray service and does not replace or stop it when late services arrive. |
 | `search/{controller,intents,preview,providers/*,services/*,ui/*}.py` | Consume focus, shortcut, path, artwork, and presentation capabilities. Unix keeps portal plus X11 fallback, no native focus adapter, and `opaque_action_panel=False`; its existing transparent GTK styling remains. `providers/windows.py` means searched desktop windows and remains shared. |
 | `ui/{display,dnd,dock_window,factory,hover,input_controller,menu,preview,renderer,runtime,tooltip}.py` | Route geometry, drag, modifier, preview, placement, and focus policy through capabilities rather than OS probes. Keep default Unix behavior and subscription/timer teardown. |
@@ -742,8 +758,8 @@ The following inventories cover the runtime module groups changed in the inspect
 | `platform/model.py` | Integrate asynchronous catalog readiness, pending restored pins, metadata/icon refresh, and native executable registration. Preserve pin order, item identity, custom overrides, recent apps, and live-window continuity. |
 | `applets/{base.py,services.py,platform.py}` | Extend the stable/late service groups only where the native implementation requires it. Do not reintroduce fallback selection or temporary service ownership. |
 | `applets/worker.py` | Reuse Phase 1’s serial worker; reconcile the PR’s guarded-worker changes without losing completion/error cleanup. Preserve worker-thread finalizers after GTK exits. |
-| `platform/{application_icons.py,icon_source.py,icons.py}` | Add the PR’s native pixel source as an explicitly supplied factory. Preserve lazy worker creation, readiness notifications, cache invalidation, custom/model icon precedence, and cleanup. |
-| `platform/keyboard.py` | Implement the native modifier service through Windows composition. Shared shortcut capture must not select its own OS implementation. |
+| `platform/{application_icons.py,desktop/base.py,icons.py}` | Add the PR’s native pixel source as an explicitly supplied factory. Preserve lazy worker creation, readiness notifications, cache invalidation, custom/model icon precedence, and cleanup. |
+| `platform/desktop/implementations/windows/backend.py` | Implement `text_modifier_active` by calling the existing native `altgr_pressed` helper directly. Shared shortcut capture uses the desktop API; do not add keyboard forwarding modules. |
 
 ## 2.3 Windows application and catalog modules
 
@@ -835,8 +851,8 @@ Do not replace native failures with generic success/no-op results to satisfy a c
 | Source/reference module | Required Phase 2 changes and preservation requirements |
 |---|---|
 | `platform/backends/base.py` | Add the Windows display family and real shared extension hooks needed by consumers: popup preparation/restoration, managed popup policy, capture overlay preparation, source-window capture, native file drag, screen rectangle conversion, input-region alpha, and monitor workarea. Document ownership and coordinate units. |
-| `platform/backends/gtk_geometry.py`, `gtk_surface.py` | Retain common GTK coordinate/hint/placement helpers. Preserve logical coordinates and existing hint order. |
-| `platform/backends/reduced/services.py`, `platform/backends/x11/services/surface.py` | Implement the common GTK rectangle behavior and preserve existing reduced/X11 placement. Keep unsupported Windows-only hooks explicitly unsupported. |
+| `platform/backends/gtk_surface.py` | Add the unchanged logical rectangle conversion helper here for Windows, alongside the existing shared GTK hints/placement helpers. Keep Windows DPI/physical-coordinate conversion in `windows/surface.py`. Do not create `gtk_geometry.py`. |
+| `platform/backends/reduced/services.py`, `platform/backends/x11/services/surface.py` | Retain the prerequisite implementations unchanged. Neither backend needs a `screen_rectangle` override; inherited `None` preserves existing native-geometry behavior. |
 | `platform/backends/window_projection.py`, `platform/backends/kwin/bridge.py`, `platform/backends/wayland/sway_ipc.py` | Retain the Phase 1 projection extraction; reconcile duplicate PR renames rather than restoring the old module. |
 | `platform/backends/unix/{__init__.py,processes.py}`, `platform/backends/x11/services/picking.py`, `platform/backends/wayland/{niri_picking.py,wayfire_ipc.py}` | Retain Phase 1’s platform-layer process termination and validation. |
 | Other existing compositor session/surface implementations | Verify inherited defaults and mixed-session policy. Do not force new Windows behavior onto Unix surfaces. |
@@ -878,7 +894,7 @@ Paths are under `docking/platform/tray/` unless stated otherwise.
 | `backend.py`, `state.py`, `menu.py` | Extend Phase 1’s neutral contracts with the native geometry, pointer, double-click, and focus-request operations required by Windows. Preserve Unix activation/menu behavior. |
 | `service.py` | Integrate provider generations, current-request checks, focus delivery, and backend pinning at the final command boundary. Continue using the required factory for fresh restart lifetimes. |
 | `notifications.py`, `__init__.py` | Preserve canonical shared service exports and badge bridge behavior. Avoid duplicate SNI and generic poll loops. |
-| PR `linux.py` → Phase 1 `unix.py` | Reconcile the SNI adapter with Phase 1’s canonical Unix implementation. Preserve geometry forwarding, menu conversion, and activation. Do not maintain two equivalent adapters. |
+| PR `linux.py` → Phase 1 `unix.py` | Reconcile the SNI adapter with Phase 1’s canonical Unix implementation. Preserve existing menu conversion and activation, including SNI's default `(0, 0)` coordinates. Windows alone uses native anchor geometry. Do not maintain two equivalent adapters. |
 | `windows.py` | Preserve item generations, activation identity, hover lifetime, native callback parameters, focus ownership, and late command rejection. |
 | `windows_host.py`, `windows_appbar.py`, `windows_icons.py`, `windows_messages.py` | Preserve hidden receiver/message-pump ownership, Explorer forwarding, AppBar bridging, bounded message parsing, and icon conversion. |
 | `docking/applets/systemtray/{applet.py,state.py,presentation.py,unix_presentation.py}` | Port native pointer/keyboard/menu interaction and focus return through the shared service/surface APIs. Preserve XEmbed presentation on Unix. Applet stop must unsubscribe and release its own UI without stopping the shared service. |
@@ -903,7 +919,7 @@ Test stop/restart races involving old workers, old menus, removed items, new foc
 
 | Source/reference module | Required Phase 2 changes and preservation requirements |
 |---|---|
-| `search/services/{windows_shortcuts.py,windows_focus.py,window_focus.py}` | Register native shortcut/focus implementations through composition. Preserve layout changes, conflicts, cancellation, shell handoff, and foreground ownership. |
+| `search/services/{windows_shortcuts.py,windows_focus.py,platform.py}` | Register native shortcut/focus implementations through composition. Preserve layout changes, conflicts, cancellation, shell handoff, and foreground ownership. |
 | `search/services/{platform.py,global_shortcuts.py,x11_shortcuts.py}` | Keep Phase 1’s explicit integration factories and lifecycle contracts. Remove the PR’s per-call OS dispatch. Preserve portal and fallback behavior. |
 | `search/controller.py` | Integrate native status/conflict reporting, focus factory, workarea, icon updates, and asynchronous preview refresh. Preserve provider order, query generations, preference recreation, and stale-result rejection. |
 | `search/icons.py`, `platform/application_icons.py` | Preserve current dock/applet/custom artwork precedence and async native icon updates. Unsubscribe when views close. |
@@ -1046,8 +1062,8 @@ Interpret the source paths in this manifest relative to the recorded PR head, an
 
 | PR module or responsibility | Canonical Phase 2 destination |
 |---|---|
-| Planned `platform/host/windows.py` | `platform/host/implementations/windows/{backend,paths,storage,locking,process}.py`, matching the Unix host contract. The headless host may use suitable native ABI leaves but may not import GUI services. |
-| Windows branches in `platform/files.py`, `targets.py`, `keyboard.py`, and GUI signal installation | `platform/desktop/implementations/windows/{files,targets,keyboard,lifecycle}.py`, supplied through the domain contracts/facades. |
+| Planned `platform/host/windows.py` | `platform/host/implementations/windows/{backend,paths,locking,process}.py`, matching the Unix host contract. The headless host may use suitable native ABI leaves but may not import GUI services. Keep the documented directory-flush no-op directly in `WindowsHostServices`; do not add a one-function storage module. Callers still fsync file contents. |
+| Windows file/target operations, modifier handling, and GUI signal installation | `platform/desktop/implementations/windows/{backend,files,targets,lifecycle}.py`, supplied through the domain contracts/facades. |
 | `platform/applications/windows/{catalog,discovery,associations,launch,process,registration,export}.py` | Same basenames under `platform/applications/implementations/windows/`. Adapt the now-existing association reader to the common contract and its catalog-owned metadata worker; do not implement a second native query/cache path. |
 | `platform/backends/windows/catalog.py` | `platform/applications/implementations/windows/native_catalog.py`. Keep this distinct from the higher-level `catalog.py` adapter; it imports application models/export policy and is not a reusable ABI primitive. |
 | `platform/backends/windows/{catalog_monitor,catalog_shortcuts,documents,drag_source}.py` | Same basenames under `platform/applications/implementations/windows/`. Adapt callers to the application contracts and shared native primitives. |
@@ -1101,7 +1117,7 @@ For each applet below, source filenames are relative to `applets/<name>/` in the
 | `notifications`, `powerprofiles`, `volume` | Each `windows.py` → that applet's `implementations/windows/backend.py`. |
 | `screenshot` | `windows.py` → `implementations/windows/backend.py`; `windows_selection.py` → `implementations/windows/selection.py`. Root `selection.py`/`preview.py` remain shared GTK workflow modules. |
 | `session` | `windows.py` → `implementations/windows/backend.py`. |
-| `trash` | `windows.py` → `implementations/windows/backend.py`; `windows_monitor.py` → `implementations/windows/monitor.py`. |
+| `trash` | `windows.py` → `implementations/windows/backend.py`; Configure the existing application `ShellChangeMonitor` directly in `WindowsTrashBackend.watch_changes`; do not add a `RecycleBinMonitor` forwarding subclass/module. Preserve the exact Recycle Bin folder ID, monitor title, and close callback. |
 | `webapp` | `windows.py` → `implementations/windows/backend.py`; `windows_notifications.py` → `implementations/windows/notifications.py`; the entire `windows_companion/` package → `implementations/windows/companion/`, preserving its internal basenames. |
 | `systemtray` | Windows transport belongs in `platform/tray/implementations/windows/`; no second applet-local Windows tray receiver. Existing Unix presentation follows the Phase 1 manifest. |
 

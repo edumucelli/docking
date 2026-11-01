@@ -99,7 +99,7 @@ class UnixTrayBackend(TrayBackend):
         )
 
     def set_geometry(self, bounds: Mapping[str, Rect]) -> None:
-        # SNI receives the invocation point directly in each action.
+        # Keep the transport's existing default action coordinates on Unix.
         pass
 
     def pointer(
@@ -121,20 +121,12 @@ class UnixTrayBackend(TrayBackend):
     def activate(
         self, identifier: str, *, anchor: Rect | None = None, keyboard: bool = False
     ) -> bool:
-        return (
-            self._backend.activate(identifier, x=anchor.x, y=anchor.bottom)
-            if anchor
-            else self._backend.activate(identifier)
-        )
+        return self._backend.activate(identifier)
 
     def context_menu(
         self, identifier: str, *, anchor: Rect | None = None, keyboard: bool = False
     ) -> bool:
-        return (
-            self._backend.context_menu(identifier, x=anchor.x, y=anchor.bottom)
-            if anchor
-            else self._backend.context_menu(identifier)
-        )
+        return self._backend.context_menu(identifier)
 
     def double_click(self, identifier: str, *, anchor: Rect | None = None) -> bool:
         # SNI exposes semantic activation rather than a native double-click.
