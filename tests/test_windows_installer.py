@@ -5,12 +5,14 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
 import zipfile
+from importlib.util import find_spec
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -23,6 +25,20 @@ from tools.windows import installer as installer_tool
 from tools.windows.bundle import filesystem_path, native_path, payload_root
 from tools.windows.installer import build, payload_script, removal_manifest
 from tools.windows.visual import installer_smoke
+
+
+@pytest.mark.parametrize(
+    "source",
+    ["packaging/windows/installer.nsi", "packaging/windows/installed_launcher.c"],
+)
+def test_native_launcher_python_entry_points_exist(source):
+    script = Path(__file__).resolve().parents[1] / source
+    modules = re.findall(r"\s-m\s+(docking(?:\.\w+)+)", script.read_text())
+    assert modules, "Native launchers must identify their Python entry points"
+    for module in modules:
+        spec = find_spec(module)
+        assert spec is not None and spec.origin is not None, module
+        assert Path(spec.origin).is_file(), module
 
 
 @pytest.mark.parametrize("different", [False, True])

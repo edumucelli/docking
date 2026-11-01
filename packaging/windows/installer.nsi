@@ -253,7 +253,7 @@ Section "Uninstall"
     Goto uninstall_failed
   ${EndIf}
   ReadINIStr $VersionId "$INSTDIR\current.ini" "Docking" "Current"
-  ExecWait '$\"$INSTDIR\versions\$VersionId\runtime\bin\python.exe$\" -X utf8 -I -m docking.platform.backends.windows.installation --remove-hooks $\"$INSTDIR$\"' $0
+  ExecWait '$\"$INSTDIR\versions\$VersionId\runtime\bin\python.exe$\" -X utf8 -I -m docking.platform.native.windows.installation --remove-hooks $\"$INSTDIR$\"' $0
   ${If} $0 != 0
     Goto uninstall_failed
   ${EndIf}
