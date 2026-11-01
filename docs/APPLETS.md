@@ -372,11 +372,24 @@ Camera privacy indicator. The icon shows a red dot while an app is using a camer
 - Active app list when available
 - Lock Camera / Unlock Camera
 - Refresh Now
+- Camera Settings on Windows
 
 **Tooltip:** Whether the camera is idle, active, or unavailable, plus the apps
 using it when they can be identified
 
-Locking blocks new camera access. Apps that are already using the camera may need to be closed first.
+Locking blocks new camera sessions. Apps that are already using the camera may need to be closed first.
+
+Windows provides Media Foundation camera inventory and process activity, plus
+the camera privacy Settings page. On Windows Pro, Enterprise and Education,
+Lock Camera requests administrator permission to block new sessions through
+the machine camera policy. Unlock restores the policy value Docking saved;
+it cannot remove a restriction that was already set elsewhere. Recovery stays
+available after cameras disconnect or Docking restarts. Existing capture apps
+can remain active while locked and continue to appear in the indicator.
+Unreadable or missing activity reports show unknown activity rather than idle.
+This indicator never opens the camera for a test capture.
+
+**Update interval:** 2 seconds
 
 ### Caps Lock
 
@@ -559,13 +572,26 @@ Circular gauge showing real-time CPU and memory usage. The fill color shifts fro
 
 ### System Tray
 
-Access tray icons for chat clients, sync tools, and other background apps.
+Tray host for chat clients, sync tools, background utilities and desktop services.
 
 **Click:** Show tray applications
 **Right-click options:**
 
-- Actions and menus provided by each app, when available
+- Registered tray app actions
+- Context menus exposed through DBusMenu when available
+- Native application menus on Windows
 - Refresh Now
+
+On Linux and BSD, the applet uses an existing StatusNotifier watcher or provides
+one so tray apps can register with the dock. The optional XEmbed host supports
+legacy X11 tray applications.
+
+On Windows, native notification icons appear in the popup alongside their
+status. Open sends a primary activation; double-click an icon for applications
+that require that gesture, such as Task Manager. Menu opens the application's
+native menu. Explorer's notification area continues to work when Docking closes.
+
+**Update interval:** 3 seconds
 
 ### Thermals
 

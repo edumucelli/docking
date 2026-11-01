@@ -7,9 +7,12 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import docking.applets.micshield.applet as micshield_applet_mod
-import docking.applets.micshield.implementations.unix.backend as native_micshield
+import docking.applets.micshield.implementations.unix.backend as micshield_linux_mod
 from docking.applets.micshield.applet import MicShieldApplet
 from docking.applets.micshield.implementations.unix.backend import (
+    parse_input_sources,
+    parse_source_mute,
+    parse_source_outputs,
     probe_mic_state,
     set_mic_muted,
     toggle_mic_mute,
@@ -19,9 +22,6 @@ from docking.applets.micshield.state import (
     MicShieldState,
     MicStream,
     build_tooltip,
-    parse_input_sources,
-    parse_source_mute,
-    parse_source_outputs,
     stream_label,
 )
 from docking.core.config import Config
@@ -42,6 +42,31 @@ class _ImmediateWorker:
         if on_result is not None:
             on_result(result)
 
+    def run_guarded(self, **kwargs):
+        self.run(**kwargs)
+        return True
+
+
+class _MicBackend:
+    def __init__(self, state):
+        self.state = state
+
+    def get_state(self):
+        return self.state
+
+    def set_muted(self, muted):
+        self.state = MicShieldState(True, muted, self.state.active, self.state.streams)
+        return True
+
+    def toggle_muted(self):
+        return self.set_muted(not self.state.muted)
+
+    def settings_available(self):
+        return False
+
+    def stop(self):
+        pass
+
 
 def _active_state() -> MicShieldState:
     return MicShieldState(
@@ -60,16 +85,19 @@ def _active_state() -> MicShieldState:
 
 
 def _make_applet(state: MicShieldState | None = None) -> MicShieldApplet:
+    backend = _MicBackend(state or MicShieldState(False, False, False))
     with (
         patch("docking.applets.micshield.applet.BackgroundWorker", _ImmediateWorker),
         patch(
-            "docking.applets.micshield.implementations.unix.backend.probe_mic_state",
-            lambda: state or MicShieldState(False, False, False),
+            "tests.platform_factories.TestAppletBackendFactories.micshield",
+            staticmethod(lambda: backend),
         ),
     ):
-        return MicShieldApplet(
+        applet = MicShieldApplet(
             48, config=Config(), platform_services=make_applet_platform()
         )
+        applet._on_probe_result(backend.get_state())
+        return applet
 
 
 SOURCE_OUTPUTS = """
@@ -143,11 +171,7 @@ Source Output #9
         )
 
     def test_probe_unavailable_without_pactl(self, monkeypatch):
-        monkeypatch.setattr(
-            native_micshield.shutil,
-            "which",
-            lambda _cmd: None,
-        )
+        monkeypatch.setattr(micshield_linux_mod.shutil, "which", lambda _cmd: None)
 
         assert probe_mic_state() == MicShieldState(
             available=False,
@@ -157,7 +181,7 @@ Source Output #9
 
     def test_probe_reads_mute_and_streams(self, monkeypatch):
         monkeypatch.setattr(
-            native_micshield.shutil,
+            micshield_linux_mod.shutil,
             "which",
             lambda _cmd: "/usr/bin/pactl",
         )
@@ -170,23 +194,19 @@ Source Output #9
                 return "Mute: no"
             return SOURCE_OUTPUTS
 
-        monkeypatch.setattr(native_micshield, "_run", run)
+        monkeypatch.setattr(micshield_linux_mod, "_run", run)
 
         assert probe_mic_state() == _active_state()
 
     def test_probe_without_mute_states_is_unavailable(self, monkeypatch):
         monkeypatch.setattr(
-            native_micshield.shutil,
+            micshield_linux_mod.shutil,
             "which",
             lambda _cmd: "/usr/bin/pactl",
         )
+        monkeypatch.setattr(micshield_linux_mod, "input_source_names", lambda: ("mic",))
         monkeypatch.setattr(
-            native_micshield,
-            "input_source_names",
-            lambda: ("mic",),
-        )
-        monkeypatch.setattr(
-            native_micshield,
+            micshield_linux_mod,
             "_source_mute_states",
             lambda **_kwargs: (),
         )
@@ -195,7 +215,7 @@ Source Output #9
 
     def test_toggle_returns_false_when_unavailable(self, monkeypatch):
         monkeypatch.setattr(
-            native_micshield,
+            micshield_linux_mod,
             "probe_mic_state",
             lambda: MicShieldState(False, False, False),
         )
@@ -203,33 +223,23 @@ Source Output #9
         assert toggle_mic_mute() is False
 
     def test_set_mic_muted_returns_false_without_pactl(self, monkeypatch):
-        monkeypatch.setattr(
-            native_micshield.shutil,
-            "which",
-            lambda _cmd: None,
-        )
+        monkeypatch.setattr(micshield_linux_mod.shutil, "which", lambda _cmd: None)
 
         assert set_mic_muted(muted=True) is False
 
     def test_set_mic_muted_uses_default_source_when_sources_missing(self, monkeypatch):
         seen: list[list[str]] = []
         monkeypatch.setattr(
-            native_micshield.shutil,
+            micshield_linux_mod.shutil,
             "which",
             lambda _cmd: "/usr/bin/pactl",
         )
+        monkeypatch.setattr(micshield_linux_mod, "input_source_names", lambda: ())
         monkeypatch.setattr(
-            native_micshield,
-            "input_source_names",
-            lambda: (),
+            micshield_linux_mod, "_source_outputs", lambda **_kwargs: ()
         )
         monkeypatch.setattr(
-            native_micshield,
-            "_source_outputs",
-            lambda **_kwargs: (),
-        )
-        monkeypatch.setattr(
-            native_micshield,
+            micshield_linux_mod,
             "_run",
             lambda *, cmd, action: seen.append(cmd) or None,
         )
@@ -240,7 +250,7 @@ Source Output #9
     def test_toggle_mic_mute_calls_pactl(self, monkeypatch):
         seen: list[list[str]] = []
         monkeypatch.setattr(
-            native_micshield.shutil,
+            micshield_linux_mod.shutil,
             "which",
             lambda _cmd: "/usr/bin/pactl",
         )
@@ -259,7 +269,7 @@ Source Output #9
             seen.append(cmd)
             return ""
 
-        monkeypatch.setattr(native_micshield, "_run", run)
+        monkeypatch.setattr(micshield_linux_mod, "_run", run)
 
         assert toggle_mic_mute() is True
         assert seen == [
@@ -270,7 +280,7 @@ Source Output #9
     def test_set_mic_muted_mutes_sources_and_active_streams(self, monkeypatch):
         seen: list[list[str]] = []
         monkeypatch.setattr(
-            native_micshield.shutil,
+            micshield_linux_mod.shutil,
             "which",
             lambda _cmd: "/usr/bin/pactl",
         )
@@ -283,7 +293,7 @@ Source Output #9
             seen.append(cmd)
             return ""
 
-        monkeypatch.setattr(native_micshield, "_run", run)
+        monkeypatch.setattr(micshield_linux_mod, "_run", run)
 
         assert set_mic_muted(muted=True) is True
         assert seen == [
@@ -312,18 +322,18 @@ Source Output #9
     def test_source_mute_states_and_command_helpers(self, monkeypatch):
         outputs = iter(["Mute: yes", "bad", "Mute: no"])
         monkeypatch.setattr(
-            native_micshield,
+            micshield_linux_mod,
             "_run",
             lambda **_kwargs: next(outputs),
         )
 
-        assert native_micshield._source_mute_states(
+        assert micshield_linux_mod._source_mute_states(
             source_names=("mic1", "mic2", "mic3")
         ) == (True, None, False)
 
     def test_run_handles_success_failure_and_exceptions(self, monkeypatch):
         monkeypatch.setattr(
-            native_micshield.subprocess,
+            micshield_linux_mod.subprocess,
             "run",
             lambda *_args, **_kwargs: SimpleNamespace(
                 returncode=0,
@@ -331,10 +341,10 @@ Source Output #9
                 stderr="",
             ),
         )
-        assert native_micshield._run(cmd=["pactl"], action="test") == "ok"
+        assert micshield_linux_mod._run(cmd=["pactl"], action="test") == "ok"
 
         monkeypatch.setattr(
-            native_micshield.subprocess,
+            micshield_linux_mod.subprocess,
             "run",
             lambda *_args, **_kwargs: SimpleNamespace(
                 returncode=1,
@@ -342,16 +352,16 @@ Source Output #9
                 stderr="bad",
             ),
         )
-        assert native_micshield._run(cmd=["pactl"], action="test") is None
+        assert micshield_linux_mod._run(cmd=["pactl"], action="test") is None
 
         monkeypatch.setattr(
-            native_micshield.subprocess,
+            micshield_linux_mod.subprocess,
             "run",
             lambda *_args, **_kwargs: (_ for _ in ()).throw(
                 subprocess.TimeoutExpired(["pactl"], timeout=2)
             ),
         )
-        assert native_micshield._run(cmd=["pactl"], action="test") is None
+        assert micshield_linux_mod._run(cmd=["pactl"], action="test") is None
 
 
 class TestMicShieldRender:
@@ -425,22 +435,21 @@ class TestMicShieldApplet:
         applet._worker = MagicMock()
         applet._refresh_now()
 
-        assert applet._worker.run.call_args.kwargs["name"] == "micshield-poll"
+        assert applet._worker.run_guarded.call_args.kwargs["name"] == "micshield-poll"
 
     def test_on_clicked_toggles_and_refreshes(self, monkeypatch):
         calls: list[str] = []
-        monkeypatch.setattr(
-            native_micshield,
-            "toggle_mic_mute",
-            lambda: calls.append("toggle") or True,
-        )
         applet = _make_applet(_active_state())
+        monkeypatch.setattr(
+            applet._backend, "toggle_muted", lambda: calls.append("toggle") or True
+        )
         applet._refresh_now = MagicMock()
 
         applet.on_clicked()
 
         assert calls == ["toggle"]
-        applet._refresh_now.assert_called_once()
+        applet._refresh_now.assert_not_called()
+        assert not applet._action_in_progress
 
     def test_toggle_and_set_muted_ignore_unavailable_state(self):
         applet = _make_applet(MicShieldState(False, False, False))
@@ -453,18 +462,17 @@ class TestMicShieldApplet:
 
     def test_set_muted_runs_worker_and_refreshes(self, monkeypatch):
         calls: list[bool] = []
-        monkeypatch.setattr(
-            native_micshield,
-            "set_mic_muted",
-            lambda *, muted: calls.append(muted) or True,
-        )
         applet = _make_applet(_active_state())
+        monkeypatch.setattr(
+            applet._backend, "set_muted", lambda muted: calls.append(muted) or True
+        )
         applet._refresh_now = MagicMock()
 
         applet._set_muted(True)
 
         assert calls == [True]
-        applet._refresh_now.assert_called_once()
+        applet._refresh_now.assert_not_called()
+        assert not applet._action_in_progress
 
     def test_probe_result_updates_state(self):
         applet = _make_applet()

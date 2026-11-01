@@ -1,16 +1,15 @@
 """Tests for the brightness applet."""
 
 import subprocess
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
-from gi import repository as gi_repository
 
 import docking.applets.brightness.implementations.linux.backlight as native_brightness_backlight
+import docking.applets.brightness.implementations.unix.backend as brightness_state
 import docking.applets.brightness.implementations.unix.backend as native_brightness
-import docking.applets.brightness.state as brightness_state
 from docking.applets.brightness.applet import BrightnessApplet
+from docking.applets.brightness.backend import BrightnessBackend
 from docking.applets.brightness.implementations.linux.backlight import (
     LinuxBacklightSource,
 )
@@ -19,9 +18,9 @@ from docking.applets.brightness.implementations.unix.backend import (
     detect_output,
     get_brightness,
 )
-from docking.applets.brightness.state import STEP, brightness_icon_name
+from docking.applets.brightness.state import BrightnessState, brightness_icon_name
 from docking.core.config import Config
-from tests.platform_factories import make_applet_platform
+from tests.platform_factories import TestAppletBackendFactories, make_applet_platform
 
 
 class _ImmediateWorker:
@@ -499,18 +498,53 @@ class TestBrightnessStateHelpers:
         probe.assert_called_once_with()
 
 
-def _make_applet(brightness: float = 0.8) -> BrightnessApplet:
-    backend = Backend(output="HDMI-1")
+def test_linux_backend_revalidates_primary_and_stops_writes(monkeypatch, tmp_path):
+    (tmp_path / "brightness").write_text("50\n")
+    (tmp_path / "max_brightness").write_text("100\n")
+    selected = [Backend("eDP-1", sysfs=tmp_path)]
+    monkeypatch.setattr(brightness_state, "is_wayland_session", lambda: True)
+    monkeypatch.setattr(
+        brightness_state, "detect_output", lambda backlight: selected[0]
+    )
+    backend = brightness_state.UnixBrightnessBackend(LinuxBacklightSource())
+    state = backend.get_state()
+    assert state.level == 0.5
+    assert backend.set_brightness(value=0.6, target=state.target).level == 0.6
+    selected[0] = Backend("DP-2", sysfs=tmp_path)
+    assert backend.set_brightness(value=1, target=state.target).target != state.target
+    assert (tmp_path / "brightness").read_text() == "60\n"
+    backend.stop()
+    assert backend.set_brightness(value=1, target=state.target) == BrightnessState()
+    assert (tmp_path / "brightness").read_text() == "60\n"
+
+
+class FakeBrightnessBackend(BrightnessBackend):
+    def __init__(self, level=0.5):
+        self.state = (
+            BrightnessState(level, "test-panel")
+            if level is not None
+            else BrightnessState()
+        )
+        self.writes = []
+        self.stopped = False
+
+    def get_state(self):
+        return self.state
+
+    def set_brightness(self, *, value, target):
+        self.writes.append((value, target))
+        self.state = BrightnessState(value, target)
+        return self.state
+
+    def stop(self):
+        self.stopped = True
+
+
+def _make_applet(brightness: float | None = 0.8) -> BrightnessApplet:
+    backend = FakeBrightnessBackend(brightness)
     with (
         patch("docking.applets.brightness.applet.BackgroundWorker", _ImmediateWorker),
-        patch(
-            "docking.applets.brightness.implementations.unix.backend.detect_output",
-            return_value=backend,
-        ),
-        patch(
-            "docking.applets.brightness.implementations.unix.backend.get_brightness",
-            return_value=brightness,
-        ),
+        patch.object(TestAppletBackendFactories, "brightness", return_value=backend),
     ):
         return BrightnessApplet(
             48, config=Config(), platform_services=make_applet_platform()
@@ -518,227 +552,152 @@ def _make_applet(brightness: float = 0.8) -> BrightnessApplet:
 
 
 class TestBrightnessApplet:
-    @pytest.mark.parametrize("action", ["scroll", "reset"])
-    def test_denied_backlight_write_restores_measured_level(
-        self, monkeypatch, tmp_path, action
-    ):
-        from pathlib import Path
-
-        (tmp_path / "brightness").write_text("500")
-        (tmp_path / "max_brightness").write_text("1000")
-        applet = _make_applet(brightness=0.5)
-        applet._native._output = Backend(output="", sysfs=tmp_path)
-        monkeypatch.setattr(
-            native_brightness,
-            "is_wayland_session",
-            lambda: True,
-        )
-        write_text = Path.write_text
-
-        def denied(path, *args, **kwargs):
-            if path == tmp_path / "brightness":
-                raise PermissionError("read-only backlight")
-            return write_text(path, *args, **kwargs)
-
-        monkeypatch.setattr(Path, "write_text", denied)
-        if action == "scroll":
-            applet.on_scroll(direction_up=True)
-        else:
-            applet.on_clicked()
-
-        assert (tmp_path / "brightness").read_text() == "500"
-        assert applet._brightness == pytest.approx(0.5)
-        assert applet.item.name == "Brightness: 50%"
-
-    def _fake_gtk(self, monkeypatch):
-        class _FakeCheckMenuItem:
-            def __init__(self, label: str = "") -> None:
-                self._label = label
-                self._active = False
-                self._signals: dict[str, list[object]] = {}
-
-            def get_label(self) -> str:
-                return self._label
-
-            def set_active(self, active: bool) -> None:
-                self._active = active
-
-            def get_active(self):
-                return self._active
-
-            def connect(self, signal: str, callback) -> None:
-                self._signals.setdefault(signal, []).append(callback)
-
-        monkeypatch.setattr(
-            gi_repository,
-            "Gtk",
-            SimpleNamespace(CheckMenuItem=_FakeCheckMenuItem),
-        )
-
     def test_creates_with_icon(self):
-        applet = _make_applet()
-        assert applet.item.icon is not None
-
-    def test_tooltip_shows_percentage(self):
-        applet = _make_applet(brightness=0.75)
-        assert "75%" in applet.item.name
+        assert _make_applet().item.icon is not None
 
     @pytest.mark.parametrize(
-        ("steps", "expected"),
-        [(10, "80%"), (9, "82%"), (1, "98%")],
+        "level,percent", [(0.75, 75), (0.80, 80), (0.82, 82), (0.98, 98)]
     )
-    def test_tooltip_matches_the_percentage_applied_to_the_hardware(
-        self, steps, expected
-    ):
-        """Truncating showed one percent less than the hardware was given."""
-        brightness = 1.0
-        for _ in range(steps):
-            brightness = max(0.1, brightness - STEP)
+    def test_tooltip_matches_rounded_percentage(self, level, percent):
+        assert _make_applet(level).item.name == f"Brightness: {percent}%"
 
-        applet = _make_applet(brightness=brightness)
+    @pytest.mark.parametrize("size", [32, 48, 64])
+    def test_icon_renders_at_various_sizes(self, size):
+        pixbuf = _make_applet().create_icon(size=size)
+        assert pixbuf is not None and pixbuf.get_width() == size
 
-        assert expected in applet.item.name
-
-    def test_icon_renders_at_various_sizes(self):
-        for size in [32, 48, 64]:
-            applet = _make_applet()
-            pixbuf = applet.create_icon(size=size)
-            assert pixbuf is not None
-            assert pixbuf.get_width() == size
-
-    def test_scroll_up_increases(self):
-        applet = _make_applet(brightness=0.5)
-        with patch(
-            "docking.applets.brightness.implementations.unix.backend.set_brightness"
-        ) as mock_set:
-            applet.on_scroll(direction_up=True)
-        expected = 0.5 + STEP
-        mock_set.assert_called_once()
-        assert abs(mock_set.call_args[1]["value"] - expected) < 0.001
-
-    def test_scroll_down_decreases(self):
-        applet = _make_applet(brightness=0.5)
-        with patch(
-            "docking.applets.brightness.implementations.unix.backend.set_brightness"
-        ) as mock_set:
-            applet.on_scroll(direction_up=False)
-        expected = 0.5 - STEP
-        mock_set.assert_called_once()
-        assert abs(mock_set.call_args[1]["value"] - expected) < 0.001
-
-    def test_scroll_clamps_at_min(self):
-        applet = _make_applet(brightness=0.1)
-        with patch(
-            "docking.applets.brightness.implementations.unix.backend.set_brightness"
-        ) as mock_set:
-            applet.on_scroll(direction_up=False)
-        assert mock_set.call_args[1]["value"] >= 0.1
+    @pytest.mark.parametrize(
+        "level,up,expected",
+        [(0.5, True, 0.52), (0.5, False, 0.48), (0.1, False, 0.1), (1.0, True, 1.0)],
+    )
+    def test_scroll_clamps_and_targets_selected_display(self, level, up, expected):
+        applet = _make_applet(level)
+        applet.on_scroll(direction_up=up)
+        value, target = applet._backend.writes[-1]
+        assert value == pytest.approx(expected)
+        assert target == "test-panel"
+        assert applet._brightness == pytest.approx(expected)
 
     def test_click_resets_to_full(self):
-        applet = _make_applet(brightness=0.5)
-        with patch(
-            "docking.applets.brightness.implementations.unix.backend.set_brightness"
-        ) as mock_set:
-            applet.on_clicked()
-        mock_set.assert_called_once_with(
-            backend=applet._native._output,
-            value=1.0,
-            backlight=applet._native._backlight,
-        )
-        assert applet._brightness == 1.0
-
-    def test_no_backend_is_safe(self):
-        with patch(
-            "docking.applets.brightness.implementations.unix.backend.detect_output",
-            return_value=None,
-        ):
-            applet = BrightnessApplet(
-                48, config=Config(), platform_services=make_applet_platform()
-            )
-        applet.on_scroll(direction_up=True)
+        applet = _make_applet(0.5)
         applet.on_clicked()
+        assert applet._backend.writes == [(1.0, "test-panel")]
+        assert applet.item.name == "Brightness: 100%"
 
-    def test_start_stop_menu_and_toggle(self, monkeypatch):
-        self._fake_gtk(monkeypatch)
-        applet = _make_applet(brightness=0.5)
-        removed: list[int] = []
+    def test_unavailable_has_no_fictitious_level_or_requests(self):
+        applet = _make_applet(None)
+        applet.on_clicked()
+        applet.on_scroll(direction_up=True)
+        assert applet._backend.writes == []
+        assert applet._brightness is None
+        assert applet.item.name == "Brightness: Unavailable"
+        applet._show_level = True
+        assert applet.create_icon(48) is not None
+
+    def test_tick_detects_display_arrival_and_removal(self):
+        applet = _make_applet(None)
+        applet._backend.state = BrightnessState(0.7, "new-panel")
+        applet._tick()
+        assert applet.item.name == "Brightness: 70%"
+        applet._backend.state = BrightnessState()
+        applet._tick()
+        assert applet.item.name == "Brightness: Unavailable"
+
+    def test_hardware_rounding_replaces_optimistic_value(self, monkeypatch):
+        applet = _make_applet(0.5)
         monkeypatch.setattr(
-            brightness_state,
-            "STEP",
-            STEP,
+            applet._backend,
+            "set_brightness",
+            lambda **kwargs: BrightnessState(0.6, "test-panel"),
         )
+        applet.on_scroll(direction_up=True)
+        assert applet.item.name == "Brightness: 60%"
+
+    def test_start_stop_releases_backend_and_preserves_level_preference(
+        self, monkeypatch
+    ):
+        applet = _make_applet(0.5)
+        removed = []
         monkeypatch.setattr(
             "docking.applets.brightness.applet.GLib.timeout_add_seconds",
-            lambda sec, cb: 11,
+            lambda *args: 11,
         )
         monkeypatch.setattr(
-            "docking.applets.brightness.applet.GLib.source_remove",
-            lambda source_id: removed.append(source_id),
+            "docking.applets.brightness.applet.GLib.source_remove", removed.append
         )
         applet.start(notify=lambda: None)
         assert applet._timer_id == 11
+        items = applet.get_menu_items()
+        show = next(item for item in items if item.get_label() == "Show Level")
+        show.set_active(True)
+        applet._on_toggle_level(show)
+        assert applet._show_level is True
+        assert applet._config.applet_prefs["brightness"]["show_level"] is True
         applet.stop()
+        applet.on_clicked()
+        applet.on_scroll(direction_up=True)
+        assert applet._backend.stopped
+        assert applet._backend.writes == []
         assert applet._timer_id == 0
         assert removed == [11]
+        assert applet._tick() is False
 
-        labels = [item.get_label() for item in applet.get_menu_items()]
-        assert "Show Level" in labels
-
-        class _Widget:
-            def __init__(self, active: bool):
-                self._active = active
-
-            def get_active(self):
-                return self._active
-
+    def test_unchanged_poll_does_not_redraw(self):
+        applet = _make_applet(0.5)
         applet.present = MagicMock()
-        applet._on_toggle_level(_Widget(active=True))
-        assert applet._show_level is True
-        applet.present.assert_called_once()
-
-    def test_poll_and_tick_branches(self, monkeypatch):
-        applet = _make_applet(brightness=0.5)
-        applet._backend = None
-        assert applet._tick() is True
-        applet._poll()
-
-        backend = Backend(output="HDMI-1")
-        applet._native._output = backend
-        applet._backend = applet._native
-        monkeypatch.setattr(
-            "docking.applets.brightness.implementations.unix.backend.get_brightness",
-            lambda backend, *, backlight: None,
-        )
-        applet._poll()
-        assert applet._brightness == 0.5
-
-        seen: list[float | None] = []
-        monkeypatch.setattr(
-            applet, "_on_poll_result", lambda val, **_kwargs: seen.append(val) or False
-        )
-        monkeypatch.setattr(
-            "docking.applets.brightness.implementations.unix.backend.get_brightness",
-            lambda backend, *, backlight: 0.8,
-        )
-        assert applet._tick() is True
-        assert seen == [0.8]
-
-    def test_poll_result_updates_on_change(self):
-        applet = _make_applet(brightness=0.5)
-        applet.present = MagicMock()
-        applet._on_poll_result(0.8)
-        assert applet._brightness == 0.8
-        applet.present.assert_called_once()
-
-    def test_poll_result_ignores_none(self):
-        applet = _make_applet(brightness=0.5)
-        applet.present = MagicMock()
-        applet._on_poll_result(None)
-        assert applet._brightness == 0.5
+        applet._tick()
         applet.present.assert_not_called()
 
-    def test_poll_result_ignores_small_change(self):
-        applet = _make_applet(brightness=0.5)
-        applet.present = MagicMock()
-        applet._on_poll_result(0.505)
-        applet.present.assert_not_called()
+    def test_backend_selection_keeps_platform_imports_out_of_state(self):
+        from docking.applets.brightness.implementations.unix.backend import (
+            UnixBrightnessBackend,
+        )
+        from docking.applets.brightness.implementations.windows.backend import (
+            WindowsBrightnessBackend,
+        )
+        from docking.platform.composition.linux import LinuxAppletBackendFactories
+        from docking.platform.composition.windows import WindowsAppletBackendFactories
+
+        assert isinstance(
+            WindowsAppletBackendFactories().brightness(), WindowsBrightnessBackend
+        )
+        assert isinstance(
+            LinuxAppletBackendFactories().brightness(), UnixBrightnessBackend
+        )
+
+
+def test_unix_poll_preserves_read_failure_and_small_change_behavior(monkeypatch):
+    levels = iter((0.5, None, 0.505, 0.8))
+    panel = Backend("eDP-1")
+    monkeypatch.setattr(brightness_state, "detect_output", lambda _source: panel)
+    monkeypatch.setattr(brightness_state, "get_brightness", lambda *_args: next(levels))
+    backend = brightness_state.UnixBrightnessBackend(LinuxBacklightSource())
+    first = backend.get_state()
+    assert first.level == 0.5
+    assert backend.get_state() == first
+    assert backend.get_state() == first
+    assert backend.get_state().level == 0.8
+    panel = None
+    assert backend.get_state() == BrightnessState()
+
+
+def test_brightness_restart_creates_a_live_backend_and_rejects_old_poll(monkeypatch):
+    applet = _make_applet(0.5)
+    first = applet._backend
+    generation = applet._poll_generation
+    applet.stop()
+    second = FakeBrightnessBackend(0.8)
+    monkeypatch.setattr(TestAppletBackendFactories, "brightness", lambda self: second)
+    applet.start(notify=lambda: None)
+    try:
+        assert first.stopped
+        assert applet._backend is second
+        assert applet.item.name == "Brightness: 80%"
+        applet._on_poll_result(
+            BrightnessState(0.1, "test-panel"), generation=generation
+        )
+        assert applet.item.name == "Brightness: 80%"
+        applet.on_scroll(direction_up=False)
+        assert second.writes[-1][0] == pytest.approx(0.78)
+    finally:
+        applet.stop()

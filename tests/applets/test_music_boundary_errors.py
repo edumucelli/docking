@@ -2,6 +2,7 @@
 
 import json
 import os
+from unittest.mock import Mock
 
 import pytest
 from gi.repository import GdkPixbuf
@@ -17,6 +18,9 @@ def _cover(path, color):
     return path
 
 
+@pytest.mark.skipif(
+    os.name == "nt", reason="POSIX byte filenames have no Windows equivalent"
+)
 def test_artwork_uri_keeps_filesystem_filename_bytes(tmp_path):
     cover = _cover(tmp_path / os.fsdecode(b"cover-\xff.png"), 0x112233FF)
 
@@ -69,3 +73,40 @@ def test_malformed_online_artwork_metadata_is_a_cache_miss(monkeypatch, payload)
         resolver.resolve(MusicState(available=True, artist="Artist", album="Album"))
         is None
     )
+
+
+def test_native_artwork_bytes_are_decoded_and_changed_pixels_invalidate_cache(
+    tmp_path, monkeypatch
+):
+    from dataclasses import replace
+
+    from docking.applets.music.artwork import CoverArtResolver
+    from docking.applets.music.state import MusicState
+
+    first, second = tmp_path / "one.png", tmp_path / "two.png"
+    _cover(first, 0x143C6EFF)
+    _cover(second, 0xB42850FF)
+    resolver = CoverArtResolver()
+    remote = Mock(side_effect=AssertionError("Native artwork should need no lookup"))
+    monkeypatch.setattr(resolver, "_lookup_online_cover_url", remote)
+    state = MusicState(
+        available=True,
+        player_id="session",
+        title="Same metadata",
+        art_data=first.read_bytes(),
+    )
+    one = resolver.resolve(state)
+    assert tuple(one.get_pixels()[:3]) == (20, 60, 110)
+    assert resolver.resolve(state) is one
+    two = resolver.resolve(replace(state, art_data=second.read_bytes()))
+    assert tuple(two.get_pixels()[:3]) == (180, 40, 80)
+    remote.assert_not_called()
+
+
+def test_unicode_artwork_paths_and_file_uris_are_native(tmp_path):
+    cover = _cover(tmp_path / "cover-ü-🎵.png", 0x112233FF)
+    resolver = CoverArtResolver()
+    for value in (str(cover), cover.as_posix(), cover.as_uri()):
+        image = resolver._load_from_uri(value)
+        assert image is not None
+        assert image.get_pixels()[:3] == b"\x11\x22\x33"

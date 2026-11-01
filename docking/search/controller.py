@@ -10,8 +10,8 @@ Every query starts a coordinator generation. A callback, preview, action, or
 provider batch is accepted only while it still belongs to the active
 generation. This rule is what makes rapid typing safe even when catalog work,
 currency loading, or image decoding completes later. The controller also owns
-the XDG portal shortcut and starts the X11 helper only when the portal is
-unavailable on an X11 session.
+a native shortcut on Windows. Other desktops use the XDG portal, with the X11
+helper started only when the portal is unavailable on an X11 session.
 """
 
 from __future__ import annotations
@@ -42,6 +42,7 @@ from docking.search.config import (
     DEFAULT_GLOBAL_SEARCH_PROVIDERS,
 )
 from docking.search.coordinator import SearchCoordinator, SearchRequest, SearchSnapshot
+from docking.search.icons import SearchResultIcons
 from docking.search.intents import (
     QueryIntent,
     QueryIntentKind,
@@ -86,7 +87,12 @@ log = get_logger("search.controller")
 
 if TYPE_CHECKING:
     from docking.core.config import Config
-    from docking.platform.backends.base import PreviewService, WindowService
+    from docking.platform.backends.base import (
+        MonitorSnapshot,
+        PreviewService,
+        Rect,
+        WindowService,
+    )
     from docking.platform.model import DockModel
 
 
@@ -112,6 +118,7 @@ class GlobalSearchController:
         application_launcher: ApplicationLauncher,
         icon_loader: IconLoader,
         target_service: TargetService,
+        monitor_workarea: Callable[[MonitorSnapshot], Rect | None] | None = None,
     ) -> None:
         """Compose providers and services around the injected Docking runtime."""
         self._integration = integration
@@ -136,7 +143,7 @@ class GlobalSearchController:
         self._currency_rates = CurrencyRatesCatalog(schedule_idle=self._schedule_idle)
         self._usage_store = SearchUsageStore()
         self._window_preview_cache: dict[
-            tuple[str, int, int],
+            tuple[str, int | None, int, int],
             tuple[float, LoadedSearchImage],
         ] = {}
 
@@ -157,7 +164,7 @@ class GlobalSearchController:
                 model=model,
                 target_service=self._target_service,
             ),
-            WindowSearchProvider(windows=windows),
+            WindowSearchProvider(windows=windows, registry=self._application_registry),
             CalculatorSearchProvider(copy_text=copy_text),
             ConverterSearchProvider(
                 copy_text=copy_text,
@@ -182,6 +189,11 @@ class GlobalSearchController:
         self._coordinator = self._new_coordinator()
         self.window = SearchWindow(
             icon_loader=self._icon_loader,
+            result_icons=SearchResultIcons(
+                model=self._model,
+                registry=self._application_registry,
+                loader=self._icon_loader,
+            ),
             on_query_changed=self._search,
             on_result_selected=self._select,
             on_result_activated=self._activate_primary,
@@ -190,6 +202,10 @@ class GlobalSearchController:
             on_refine_requested=self._refine_result,
             dynamic_preview_loader=self._load_dynamic_preview,
             preview_resolver=self._resolve_result_preview,
+            refresh_dynamic_previews=self._preview_service.asynchronous is True,
+            window_focus_factory=self._integration.focus_factory(),
+            opaque_action_panel=self._integration.opaque_action_panel,
+            monitor_workarea=monitor_workarea,
         )
         self._global_shortcuts = self._new_shortcut_service()
         self._shortcut_fallback = self._new_shortcut_fallback()
@@ -202,7 +218,7 @@ class GlobalSearchController:
 
     @property
     def shortcut_status(self) -> GlobalShortcutsStatus | None:
-        """Return the latest portal status, if the portal has reported one."""
+        """Return the latest shortcut backend status, if available."""
         return self._shortcut_status
 
     def shortcut_status_text(self) -> str:
@@ -218,6 +234,11 @@ class GlobalSearchController:
         status = self._shortcut_status
         if status is None:
             return _("Not active")
+        if (
+            status.state is GlobalShortcutsState.ERROR
+            and status.message == "shortcut is already in use"
+        ):
+            return _("Shortcut already in use")
         trigger = status.binding.trigger_description if status.binding else None
         if status.state in {
             GlobalShortcutsState.STARTING,
@@ -254,6 +275,11 @@ class GlobalSearchController:
         status = self._shortcut_status
         if status is None:
             return _("Inactive")
+        if (
+            status.state is GlobalShortcutsState.ERROR
+            and status.message == "shortcut is already in use"
+        ):
+            return _("Conflict")
         if status.state in {
             GlobalShortcutsState.STARTING,
             GlobalShortcutsState.CREATING,
@@ -392,8 +418,11 @@ class GlobalSearchController:
         return self._integration.primary(
             app_id=application_id(),
             preferred_trigger=self._config.global_search_shortcut,
+            trigger_description=shortcut_label(self._config.global_search_shortcut),
             on_activated=self._on_global_shortcut,
             on_status_changed=self._on_shortcut_status,
+            schedule_idle=self._schedule_idle,
+            remove_source=GLib.source_remove,
         )
 
     def _new_shortcut_fallback(self) -> ShortcutFallback | None:
@@ -701,11 +730,6 @@ class GlobalSearchController:
         service = self._preview_service
         if preview.kind != "window":
             return None
-        cache_key = (preview.target, width, height)
-        cached = self._window_preview_cache.get(cache_key)
-        now = time.monotonic()
-        if cached is not None and now - cached[0] <= 1.0:
-            return cached[1]
         window = next(
             (
                 candidate
@@ -716,6 +740,11 @@ class GlobalSearchController:
         )
         if window is None:
             return None
+        cache_key = (preview.target, window.pid, width, height)
+        cached = self._window_preview_cache.get(cache_key)
+        now = time.monotonic()
+        if cached is not None and now - cached[0] <= 1.0:
+            return cached[1]
         try:
             captured = service.capture(window.id, width=width, height=height)
         except Exception as exc:
@@ -731,6 +760,12 @@ class GlobalSearchController:
             file_size=-1,
         )
         self._window_preview_cache[cache_key] = (now, loaded)
+        while len(self._window_preview_cache) > 32:
+            oldest = min(
+                self._window_preview_cache,
+                key=lambda key: self._window_preview_cache[key][0],
+            )
+            self._window_preview_cache.pop(oldest)
         return loaded
 
     def _resolve_result_preview(

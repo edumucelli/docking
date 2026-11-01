@@ -9,6 +9,8 @@ from importlib import import_module
 import pytest
 
 CONTRACTS = (
+    "docking.platform.native.windows.capture.WindowObservation",
+    "docking.platform.applications.backend.ApplicationDragSource",
     "docking.platform.applications.backend.CatalogMonitor",
     "docking.platform.applications.backend.ApplicationCatalogBackend",
     "docking.platform.applications.backend.ApplicationAssociationBackend",
@@ -26,30 +28,40 @@ CONTRACTS = (
     "docking.search.services.global_shortcuts.GlobalShortcutService",
     "docking.search.services.implementations.unix.x11_shortcuts.ShortcutWorker",
     "docking.applets.brightness.backend.BacklightSource",
-    "docking.applets.brightness.backend.BrightnessOperations",
-    "docking.applets.bluetooth.operations.BluetoothOperations",
+    "docking.applets.brightness.backend.BrightnessBackend",
+    "docking.applets.bluetooth.backend.BluetoothBackend",
     "docking.applets.camshield.backend.CamshieldBackend",
-    "docking.applets.capslock.backend.CapslockOperations",
-    "docking.applets.keyboardlayout.backend.KeyboardlayoutOperations",
-    "docking.applets.micshield.backend.MicshieldOperations",
+    "docking.applets.capslock.backend.LockKeyBackend",
+    "docking.applets.keyboardlayout.backend.LayoutBackend",
+    "docking.applets.micshield.backend.MicShieldBackend",
     "docking.applets.music.backend.MusicBackend",
-    "docking.applets.network.operations.NetworkOperations",
-    "docking.applets.notifications.backend.NotificationActivityMonitor",
-    "docking.applets.notifications.backend.NotificationsOperations",
+    "docking.applets.network.backend.NetworkBackend",
     "docking.applets.notifications.backend.NotificationsBackend",
-    "docking.applets.powerprofiles.backend.PowerprofilesOperations",
     "docking.applets.powerprofiles.backend.PowerProfilesControlBackend",
-    "docking.applets.screenshot.backend.ScreenshotOperations",
-    "docking.applets.volume.operations.VolumeOperations",
+    "docking.applets.screenshot.backend.ScreenshotBackend",
     "docking.applets.trash.backend.TrashBackend",
     "docking.applets.webapp.backend.BrowserBackend",
     "docking.applets.systemmonitor.gpu.GpuSource",
     "docking.applets.caffeine.inhibit.Inhibitor",
     "docking.applets.session.implementations.unix.actions.SessionCommands",
     "docking.applets.thermals.backend.ThermalsBackend",
+    "docking.platform.applications.backend.ProcessBackend",
+    "docking.platform.icon_source.ApplicationIconSource",
+    "docking.applets.aiusage.hooks.UsageHooks",
+    "docking.applets.session.backend.SessionBackend",
 )
 
 ADAPTERS = (
+    (
+        "docking.platform.backends.windows.windows.Win32WindowAPI",
+        "docking.platform.native.windows.capture.WindowObservation",
+        False,
+    ),
+    (
+        "docking.platform.applications.implementations.windows.drag_source.WindowsFileDragSource",
+        "docking.platform.applications.backend.ApplicationDragSource",
+        False,
+    ),
     (
         "docking.platform.composition.unix.UnixPlatformProvider",
         "docking.platform.composition.base.PlatformProvider",
@@ -76,7 +88,7 @@ ADAPTERS = (
         False,
     ),
     (
-        "docking.platform.applications.implementations.unix.monitor.UnixCatalogMonitor",
+        "docking.platform.applications.implementations.shared.monitor.GioCatalogMonitor",
         "docking.platform.applications.backend.CatalogMonitor",
         False,
     ),
@@ -101,7 +113,7 @@ ADAPTERS = (
         False,
     ),
     (
-        "docking.platform.tray.implementations.unix.dbusmenu.DBusMenuClient",
+        "docking.platform.tray.implementations.unix.backend.UnixTrayMenu",
         "docking.platform.tray.menu.TrayMenuClient",
         False,
     ),
@@ -146,26 +158,6 @@ ADAPTERS = (
         False,
     ),
     (
-        "docking.applets.notifications.implementations.unix.activity.UnixNotificationActivityMonitor",
-        "docking.applets.notifications.backend.NotificationActivityMonitor",
-        False,
-    ),
-    (
-        "docking.applets.notifications.implementations.unix.backend.DunstBackend",
-        "docking.applets.notifications.backend.NotificationsBackend",
-        False,
-    ),
-    (
-        "docking.applets.notifications.implementations.unix.backend.GnomeBackend",
-        "docking.applets.notifications.backend.NotificationsBackend",
-        False,
-    ),
-    (
-        "docking.applets.notifications.implementations.unix.backend.NullBackend",
-        "docking.applets.notifications.backend.NotificationsBackend",
-        False,
-    ),
-    (
         "docking.applets.powerprofiles.implementations.unix.backend.NullPowerProfilesBackend",
         "docking.applets.powerprofiles.backend.PowerProfilesControlBackend",
         False,
@@ -186,53 +178,38 @@ ADAPTERS = (
         False,
     ),
     (
-        "docking.applets.capslock.implementations.unix.backend.CapslockOperations",
-        "docking.applets.capslock.backend.CapslockOperations",
+        "docking.applets.capslock.implementations.unix.backend.X11LockKeyBackend",
+        "docking.applets.capslock.backend.LockKeyBackend",
         False,
     ),
     (
-        "docking.applets.brightness.implementations.unix.backend.BrightnessOperations",
-        "docking.applets.brightness.backend.BrightnessOperations",
+        "docking.applets.brightness.implementations.unix.backend.UnixBrightnessBackend",
+        "docking.applets.brightness.backend.BrightnessBackend",
         False,
     ),
     (
-        "docking.applets.bluetooth.implementations.unix.desktop.BluetoothOperations",
-        "docking.applets.bluetooth.operations.BluetoothOperations",
+        "docking.applets.bluetooth.implementations.linux.backend.LinuxBluetoothBackend",
+        "docking.applets.bluetooth.backend.BluetoothBackend",
         False,
     ),
     (
-        "docking.applets.keyboardlayout.implementations.unix.backend.KeyboardlayoutOperations",
-        "docking.applets.keyboardlayout.backend.KeyboardlayoutOperations",
+        "docking.applets.keyboardlayout.implementations.unix.backend.LinuxKeyboardBackend",
+        "docking.applets.keyboardlayout.backend.LayoutBackend",
         False,
     ),
     (
-        "docking.applets.micshield.implementations.unix.backend.MicshieldOperations",
-        "docking.applets.micshield.backend.MicshieldOperations",
+        "docking.applets.micshield.implementations.unix.backend.LinuxMicShieldBackend",
+        "docking.applets.micshield.backend.MicShieldBackend",
         False,
     ),
     (
-        "docking.applets.network.implementations.unix.desktop_settings.NetworkOperations",
-        "docking.applets.network.operations.NetworkOperations",
+        "docking.applets.network.implementations.linux.backend.LinuxNetworkBackend",
+        "docking.applets.network.backend.NetworkBackend",
         False,
     ),
     (
-        "docking.applets.volume.implementations.unix.desktop_settings.VolumeOperations",
-        "docking.applets.volume.operations.VolumeOperations",
-        False,
-    ),
-    (
-        "docking.applets.notifications.implementations.unix.backend.NotificationsOperations",
-        "docking.applets.notifications.backend.NotificationsOperations",
-        False,
-    ),
-    (
-        "docking.applets.powerprofiles.implementations.unix.backend.PowerprofilesOperations",
-        "docking.applets.powerprofiles.backend.PowerprofilesOperations",
-        False,
-    ),
-    (
-        "docking.applets.screenshot.implementations.unix.backend.ScreenshotOperations",
-        "docking.applets.screenshot.backend.ScreenshotOperations",
+        "docking.applets.screenshot.implementations.unix.backend.UnixScreenshotBackend",
+        "docking.applets.screenshot.backend.ScreenshotBackend",
         False,
     ),
     (
@@ -315,6 +292,66 @@ ADAPTERS = (
         "docking.platform.host.base.HostServices",
         False,
     ),
+    (
+        "docking.platform.composition.windows.WindowsPlatformProvider",
+        "docking.platform.composition.base.PlatformProvider",
+        False,
+    ),
+    (
+        "docking.platform.composition.windows.WindowsAppletBackendFactories",
+        "docking.applets.platform.AppletBackendFactories",
+        False,
+    ),
+    (
+        "docking.platform.host.implementations.windows.backend.WindowsHostServices",
+        "docking.platform.host.base.HostServices",
+        False,
+    ),
+    (
+        "docking.platform.desktop.implementations.windows.backend.WindowsDesktopServices",
+        "docking.platform.desktop.base.DesktopServices",
+        False,
+    ),
+    (
+        "docking.platform.tray.implementations.windows.backend.WindowsTrayBackend",
+        "docking.platform.tray.backend.TrayBackend",
+        False,
+    ),
+    (
+        "docking.applets.aiusage.implementations.unix.hooks.UnixUsageHooks",
+        "docking.applets.aiusage.hooks.UsageHooks",
+        False,
+    ),
+    (
+        "docking.applets.aiusage.implementations.windows.hooks.WindowsUsageHooks",
+        "docking.applets.aiusage.hooks.UsageHooks",
+        False,
+    ),
+    (
+        "docking.platform.applications.implementations.windows.catalog.WindowsApplicationCatalogBackend",
+        "docking.platform.applications.backend.ApplicationCatalogBackend",
+        False,
+    ),
+    (
+        "docking.platform.applications.implementations.windows.associations.WindowsApplicationAssociationBackend",
+        "docking.platform.applications.backend.ApplicationAssociationBackend",
+        False,
+    ),
+    (
+        "docking.platform.applications.implementations.windows.launch.WindowsApplicationLaunchBackend",
+        "docking.platform.applications.backend.ApplicationLaunchBackend",
+        False,
+    ),
+    (
+        "docking.platform.applications.implementations.windows.registration.WindowsExecutableRegistration",
+        "docking.platform.applications.backend.ExecutableRegistrationBackend",
+        False,
+    ),
+    (
+        "docking.platform.applications.implementations.windows.process.WindowsProcessBackend",
+        "docking.platform.applications.backend.ProcessBackend",
+        False,
+    ),
 )
 
 
@@ -324,23 +361,24 @@ def _class(qualified_name: str) -> type:
 
 
 @pytest.mark.parametrize("qualified_name", CONTRACTS)
-def test_contract_requires_every_declared_operation(qualified_name):
+def test_contract_requires_every_abstract_operation(qualified_name):
     contract = _class(qualified_name)
     assert isinstance(contract, ABCMeta)
     assert inspect.isabstract(contract)
-    required = {
-        name
-        for name, value in vars(contract).items()
-        if isinstance(value, property) or inspect.isfunction(value)
+    required = contract.__abstractmethods__
+    assert required
+    declarations = {
+        name: value
+        for base in reversed(contract.__mro__)
+        for name, value in vars(base).items()
     }
-    assert contract.__abstractmethods__ == required
 
     # Omit each operation separately so an otherwise complete implementation
     # also fails before its constructor can acquire any native resources.
     for missing in required:
         members = {
             name: property(lambda self: None)
-            if isinstance(vars(contract)[name], property)
+            if isinstance(declarations[name], property)
             else lambda *args, **kwargs: None
             for name in required - {missing}
         }

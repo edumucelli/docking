@@ -2,12 +2,16 @@
 
 import pytest
 
-import docking.applets.brightness.implementations.linux.backlight as native_brightness_backlight
-import docking.applets.brightness.implementations.unix.backend as native_brightness
+import docking.applets.brightness.implementations.linux.backlight as native_backlight
+import docking.applets.brightness.implementations.unix.backend as state_mod
 from docking.applets.brightness.applet import BrightnessApplet
+from docking.applets.brightness.implementations.linux.backlight import (
+    LinuxBacklightSource,
+)
 from docking.applets.brightness.render import create_icon
 from docking.core.config import Config
-from tests.platform_factories import make_applet_platform
+from tests.applets.test_brightness import _ImmediateWorker
+from tests.platform_factories import TestAppletBackendFactories, make_applet_platform
 
 
 @pytest.mark.parametrize(
@@ -17,27 +21,23 @@ def test_selected_display_brightness_is_presented(
     monkeypatch, tmp_path, setup, percent
 ):
     monkeypatch.setattr(
-        native_brightness_backlight,
-        "_BACKLIGHT_DIR",
-        tmp_path,
+        "docking.applets.brightness.applet.BackgroundWorker", _ImmediateWorker
     )
     monkeypatch.setattr(
-        native_brightness.shutil,
-        "which",
-        lambda _: None,
+        TestAppletBackendFactories,
+        "brightness",
+        staticmethod(lambda: state_mod.UnixBrightnessBackend(LinuxBacklightSource())),
     )
-    monkeypatch.setattr(
-        native_brightness,
-        "is_wayland_session",
-        lambda: setup == "wayland",
-    )
+    monkeypatch.setattr(native_backlight, "_BACKLIGHT_DIR", tmp_path)
+    monkeypatch.setattr(state_mod.shutil, "which", lambda _: None)
+    monkeypatch.setattr(state_mod, "is_wayland_session", lambda: setup == "wayland")
     if setup == "wayland":
         panel = tmp_path / "panel"
         panel.mkdir()
         (panel / "brightness").write_text("60\n")
         (panel / "max_brightness").write_text("100\n")
         monkeypatch.setattr(
-            native_brightness,
+            state_mod,
             "_run",
             lambda cmd: None,
         )
@@ -51,7 +51,7 @@ def test_selected_display_brightness_is_presented(
         first = "HDMI-1" if setup == "primary" else "eDP-1"
         verbose = f"{first} connected\n\tBrightness: 0.25\nDP-1 connected\n\tBrightness: 0.75\n"
         monkeypatch.setattr(
-            native_brightness,
+            state_mod,
             "_run",
             lambda cmd: monitors if "--listmonitors" in cmd else verbose,
         )
@@ -61,6 +61,7 @@ def test_selected_display_brightness_is_presented(
         platform_services=make_applet_platform(),
     )
     try:
+        applet._tick()
         assert applet.item.name == f"Brightness: {percent}%"
         expected = create_icon(size=48, brightness=percent / 100, show_level=True)
         assert bytes(applet.item.icon.get_pixels()) == bytes(expected.get_pixels())

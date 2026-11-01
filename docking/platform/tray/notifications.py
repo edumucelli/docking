@@ -1,4 +1,4 @@
-"""Runtime bridge from StatusNotifier items to pinned launcher overlays."""
+"""Runtime bridge from tray items to pinned launcher overlays."""
 
 from __future__ import annotations
 
@@ -7,10 +7,7 @@ from typing import TYPE_CHECKING
 
 from docking.log import get_logger, with_context
 from docking.platform.tray.service import TrayService
-from docking.platform.tray.state import (
-    StatusTrayState,
-    TrayItem,
-)
+from docking.platform.tray.state import TrayItem, TrayState
 
 if TYPE_CHECKING:
     from docking.platform.applications.registry import ApplicationRegistry
@@ -29,13 +26,16 @@ _UNREAD_NOTIFICATION_RE = re.compile(
     re.IGNORECASE,
 )
 
-log = with_context(get_logger(name="status_notifier"), component="notification_bridge")
+log = with_context(get_logger(name="tray"), component="notification_bridge")
 
 
 def status_notifier_desktop_id(item: TrayItem) -> str | None:
     """Map supported tray item identities to desktop IDs."""
     item_id = item.item_id or item.title
-    if item_id.casefold().startswith(SLACK_ITEM_PREFIX):
+    if (
+        item_id.casefold().startswith(SLACK_ITEM_PREFIX)
+        or item.item_id.casefold() == "slack"
+    ):
         return SLACK_DESKTOP_ID
     return None
 
@@ -59,12 +59,12 @@ def parse_slack_notification_count(item: TrayItem) -> int | None:
     return None
 
 
-class StatusNotifierNotificationBridge:
+class TrayNotificationBridge:
     """Publish supported launcher notification overlays from tray metadata.
 
     The tray state itself comes from a :class:`TrayService`, which is
-    shared with the System Tray applet and supplied during construction.
-    The runtime composition owns its lifetime.
+    shared with the System Tray applet. Composition owns its lifetime; this
+    bridge only owns its subscription and launcher overlays.
     """
 
     def __init__(
@@ -101,7 +101,7 @@ class StatusNotifierNotificationBridge:
             )
         return application.desktop_id if application is not None else desktop_id
 
-    def _on_state_result(self, state: StatusTrayState) -> bool:
+    def _on_state_result(self, state: TrayState) -> bool:
         if not self._running:
             return False
         if not state.available:

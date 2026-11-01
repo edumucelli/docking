@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 from docking.applets.camshield.backend import CamshieldBackend
@@ -40,34 +41,48 @@ class UnixCamshieldClient(CamshieldBackend):
         proc_root: Path = Path("/proc"),
     ) -> None:
         self._control = control
-        self._dev_root = dev_root
-        self._proc_root = proc_root
+        self._dev_root, self._proc_root = dev_root, proc_root
+        self._lock = threading.RLock()
+        self._stopped = threading.Event()
 
-    def probe(self) -> CamshieldState:
-        return self._control.probe(dev_root=self._dev_root, proc_root=self._proc_root)
+    def stop(self) -> None:
+        self._stopped.set()
 
-    def helper_available(self) -> bool:
-        return _helper_command(action="status") is not None
-
-    def perform(self, action: str) -> bool:
-        command = _helper_command(action=action)
-        if command is None:
-            log.warning("Camera lock helper unavailable")
-            return False
-        try:
-            completed = subprocess.run(
-                command,
-                check=False,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                text=True,
+    def get_state(self) -> CamshieldState:
+        with self._lock:
+            if self._stopped.is_set():
+                return CamshieldState(False, False)
+            return self._control.probe(
+                dev_root=self._dev_root, proc_root=self._proc_root
             )
-        except OSError:
-            log.exception("Failed to run camera lock helper")
-            return False
-        if completed.returncode != 0:
-            log.warning(
-                "Camera lock helper exited with status %s", completed.returncode
-            )
-        # A failed helper may still have changed some devices; re-probe it.
-        return True
+
+    def controls_available(self) -> bool:
+        return (
+            not self._stopped.is_set() and _helper_command(action="status") is not None
+        )
+
+    def _perform(self, action: str) -> bool:
+        with self._lock:
+            if self._stopped.is_set():
+                return False
+            command = _helper_command(action=action)
+            if command is None:
+                return False
+            try:
+                result = subprocess.run(
+                    command,
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=120,
+                )
+                return result.returncode == 0 and not self._stopped.is_set()
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                log.debug("Camera helper action failed: %s", exc)
+                return False
+
+    def lock(self) -> bool:
+        return self._perform("lock")
+
+    def unlock(self) -> bool:
+        return self._perform("unlock")

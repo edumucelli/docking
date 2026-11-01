@@ -48,3 +48,28 @@ def test_capture_button_commits_next_sequence() -> None:
     assert capture.get_shortcut() == "CTRL+SHIFT+k"
     assert capture.get_label() == "Ctrl+Shift+k"
     changed.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "key", [Gdk.KEY_ISO_Level3_Shift, Gdk.KEY_Mode_switch, Gdk.KEY_EuroSign]
+)
+def test_altgr_input_is_not_captured_as_a_global_shortcut(key):
+    state = (
+        Gdk.ModifierType.CONTROL_MASK
+        | Gdk.ModifierType.MOD1_MASK
+        | Gdk.ModifierType.MOD5_MASK
+    )
+    assert shortcut_from_key_event(key, state) is None
+
+
+def test_windows_altgr_is_rejected_even_when_gdk_reports_only_ctrl_alt(monkeypatch):
+    from docking.search.ui import shortcut_capture as mod
+
+    monkeypatch.setattr(mod, "text_modifier_active", lambda: True)
+    assert (
+        shortcut_from_key_event(
+            Gdk.KEY_EuroSign,
+            Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.MOD1_MASK,
+        )
+        is None
+    )

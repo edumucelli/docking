@@ -44,7 +44,9 @@ def _make_window():
         ),
         autohide=_autohide(),
         dnd=SimpleNamespace(set_locked=MagicMock()),
-        surface_service=SimpleNamespace(set_workspace_scope=MagicMock()),
+        surface_service=SimpleNamespace(
+            set_workspace_scope=MagicMock(), prepare_menu_popup=MagicMock()
+        ),
         tooltip=SimpleNamespace(hide=MagicMock()),
         preview=SimpleNamespace(hide=MagicMock()),
         theme="old-theme",
@@ -68,6 +70,13 @@ def _make_update_checker():
 
 
 class TestDockRuntime:
+    def test_menu_preparation_delegates_to_surface(self):
+        window = _make_window()
+        runtime = DockRuntime(window, update_checker=_make_update_checker())
+        menu = object()
+        runtime.prepare_menu_popup(menu)
+        window.surface_service.prepare_menu_popup.assert_called_once_with(menu)
+
     def test_menu_popup_hooks_delegate_to_interaction(self):
         window = _make_window()
         runtime = DockRuntime(window, update_checker=_make_update_checker())

@@ -1,11 +1,19 @@
-"""Unix native operations extracted without changing fallback policy."""
-
-from __future__ import annotations
+"""Power settings launchers shared by Linux and BSD implementations."""
 
 import shutil
 import subprocess
 
-from ...state import _POWER_SETTINGS_COMMANDS, log
+from docking.log import get_logger, with_context
+
+log = with_context(get_logger("battery.desktop_settings"))
+
+_POWER_SETTINGS_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("gnome-control-center", "power"),
+    ("mate-power-preferences",),
+    ("xfce4-power-manager-settings",),
+    ("kcmshell6", "powerdevilprofilesconfig"),
+    ("kcmshell5", "powerdevilprofilesconfig"),
+)
 
 
 def power_settings_command() -> list[str] | None:
@@ -27,11 +35,3 @@ def open_power_settings() -> bool:
         log.bind(action="open_power_settings").warning("Failed to run %s: %s", cmd, exc)
         return False
     return True
-
-
-class BatteryOperations:
-    def power_settings_command(self) -> list[str] | None:
-        return power_settings_command()
-
-    def open_power_settings(self) -> bool:
-        return open_power_settings()

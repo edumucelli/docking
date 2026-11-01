@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import datetime
 import json
-import sys
 from pathlib import Path
 from typing import Any, cast
 
@@ -26,7 +25,7 @@ from docking.applets.aiusage.state import ModelUsage, Provider, _has_usage
 from docking.applets.aiusage.store import replace_session
 from docking.core.paths import ensure_parent_dir
 from docking.log import get_logger, with_context
-from docking.platform.host.selection import host_services
+from docking.platform.composition.selection import platform_provider
 
 log = with_context(get_logger(name="aiusage.claude"))
 
@@ -67,58 +66,17 @@ def register_hooks() -> None:
         return
 
     hooks = settings.setdefault("hooks", {})
-    changed = False
-    prefix = _hook_command_prefix()
-
-    # Remove stale module paths from before the aiusage applet was generalized.
-    for event_key in ("Stop", "SessionStart"):
-        entries = hooks.get(event_key, [])
-        cleaned = [
-            e
-            for e in entries
-            if not any(
-                "docking.applets.claude.hook" in h.get("command", "")
-                for h in e.get("hooks", [])
-            )
-        ]
-        if len(cleaned) != len(entries):
-            hooks[event_key] = cleaned
-            changed = True
-
-    stop_entries = hooks.get("Stop", [])
-    if not _has_hook(entries=stop_entries, needle=prefix):
-        stop_entries.append(
-            {
-                "matcher": "*",
-                "hooks": [{"type": "command", "command": f"{prefix} claude Stop"}],
-            }
+    if not platform_provider().usage_hooks().update_claude(hooks):
+        return
+    try:
+        ensure_parent_dir(_CLAUDE_SETTINGS)
+        _CLAUDE_SETTINGS.write_text(
+            json.dumps(settings, indent=2) + "\n", encoding="utf-8"
         )
-        hooks["Stop"] = stop_entries
-        changed = True
-
-    start_entries = hooks.get("SessionStart", [])
-    if not _has_hook(entries=start_entries, needle=prefix):
-        start_entries.append(
-            {
-                "hooks": [
-                    {"type": "command", "command": f"{prefix} claude SessionStart"}
-                ],
-            }
+    except OSError:
+        log.bind(action="register_hooks").warning(
+            "Could not write %s", _CLAUDE_SETTINGS
         )
-        hooks["SessionStart"] = start_entries
-        changed = True
-
-    if changed:
-        try:
-            ensure_parent_dir(_CLAUDE_SETTINGS)
-            _CLAUDE_SETTINGS.write_text(
-                json.dumps(settings, indent=2) + "\n",
-                encoding="utf-8",
-            )
-        except OSError:
-            log.bind(action="register_hooks").warning(
-                "Could not write %s", _CLAUDE_SETTINGS
-            )
 
 
 def query_today() -> ProviderSessions:
@@ -180,19 +138,6 @@ def parse_transcript(path: Path) -> dict[str, ModelUsage]:
             + int(usage.get("cache_read_input_tokens", 0)),
         )
     return {m: u for m, u in result.items() if _has_usage(u)}
-
-
-def _hook_command_prefix() -> str:
-    root = Path(__file__).resolve().parents[4]
-    return host_services().hook_command(root, sys.executable)
-
-
-def _has_hook(entries: list[dict[str, Any]], needle: str) -> bool:
-    for entry in entries:
-        for hook in entry.get("hooks", []):
-            if needle in hook.get("command", ""):
-                return True
-    return False
 
 
 def _today_iso() -> str:

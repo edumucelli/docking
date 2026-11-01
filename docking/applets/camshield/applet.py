@@ -63,8 +63,9 @@ class CamshieldApplet(PlatformServicesApplet):
         *,
         platform_services: AppletPlatformServices,
     ) -> None:
-        self._native = platform_services.backends.camshield()
         self._platform = platform_services
+        self._backend = self._platform.backends.camshield()
+        self._action_in_progress = False
         self._state = CamshieldState(available=False, active=False)
         self._worker = BackgroundWorker(logger=log)
         self._generation = 0
@@ -84,7 +85,7 @@ class CamshieldApplet(PlatformServicesApplet):
         return render_icon(
             size=size,
             available=self._state.available,
-            active=active,
+            active=bool(active),
             pulse_phase=phase,
         )
 
@@ -92,6 +93,10 @@ class CamshieldApplet(PlatformServicesApplet):
         self.item.name = build_tooltip(self._state)
 
     def start(self, notify: Callable[[], None]) -> None:
+        if self._stopped:
+            self._backend = self._platform.backends.camshield()
+            self._state = CamshieldState(False, False)
+            self._action_in_progress = False
         self._stopped = False
         self._generation += 1
         super().start(notify=notify)
@@ -105,6 +110,7 @@ class CamshieldApplet(PlatformServicesApplet):
     def stop(self) -> None:
         self._stopped = True
         self._generation += 1
+        self._backend.stop()
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -116,35 +122,48 @@ class CamshieldApplet(PlatformServicesApplet):
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         status: list[Gtk.MenuItem] = []
         if not self._state.available:
-            status.append(disabled_menu_item(_("No camera devices found"), gtk=Gtk))
+            status.append(
+                disabled_menu_item(
+                    _("Camera state unavailable")
+                    if self._state.error
+                    else _("No camera devices found"),
+                    gtk=Gtk,
+                )
+            )
+        elif self._state.active is None:
+            status.append(disabled_menu_item(_("Camera activity unknown"), gtk=Gtk))
         elif not self._state.active:
             status.append(disabled_menu_item(_("Camera idle"), gtk=Gtk))
         else:
             status.append(disabled_menu_item(_("Camera active"), gtk=Gtk))
             for holder in self._state.holders:
                 status.append(disabled_menu_item(holder_label(holder), gtk=Gtk))
-        if self._state.available and self._state.locked:
+        if self._state.locked:
             status.insert(0, disabled_menu_item(_("Camera locked"), gtk=Gtk))
 
         lock = Gtk.MenuItem(label=_("Lock Camera"))
-        lock.set_sensitive(self._helper_available())
-        lock.connect("activate", lambda _w: self._run_helper_action("lock"))
+        lock.set_sensitive(self._state.available and self._backend.lock_available())
+        lock.connect("activate", lambda _w: self._run_action("lock"))
 
         unlock = Gtk.MenuItem(label=_("Unlock Camera"))
-        unlock.set_sensitive(self._helper_available())
-        unlock.connect("activate", lambda _w: self._run_helper_action("unlock"))
+        unlock.set_sensitive(self._backend.unlock_available())
+        unlock.connect("activate", lambda _w: self._run_action("unlock"))
 
-        if not self._helper_available():
-            status.append(
-                disabled_menu_item(_("Camera lock helper unavailable"), gtk=Gtk)
-            )
+        if not self._backend.controls_available():
+            status.append(disabled_menu_item(_("Camera locking unavailable"), gtk=Gtk))
 
         refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _w: self._refresh_now())
+        settings = []
+        if self._backend.settings_available():
+            item = Gtk.MenuItem(label=_("Camera Settings"))
+            item.connect("activate", lambda _w: self._backend.open_settings())
+            settings.append(item)
         return menu_sections(
             status=status,
             primary=[lock, unlock],
             refresh=[refresh],
+            settings=settings,
             gtk=Gtk,
         )
 
@@ -153,14 +172,29 @@ class CamshieldApplet(PlatformServicesApplet):
         return False
 
     def _refresh_now(self) -> None:
-        if self._stopped:
+        if self._stopped or self._action_in_progress:
             return
-        generation = self._generation
+        generation, backend = self._generation, self._backend
         self._worker.run_guarded(
             key="camera-probe",
             name="camera-probe",
-            fn=self._native.probe,
-            on_result=lambda state: self._on_state_result(state, generation),
+            fn=lambda: (
+                backend.get_state()
+                if self._request_is_current(backend, generation)
+                else CamshieldState(False, False)
+            ),
+            on_result=lambda state: (
+                self._on_state_result(state, generation)
+                if self._request_is_current(backend, generation)
+                else None
+            ),
+            on_error=lambda _error: (
+                self._on_state_result(
+                    CamshieldState(False, None, error=True), generation
+                )
+                if self._request_is_current(backend, generation)
+                else None
+            ),
         )
 
     def _on_state_result(self, state: CamshieldState, generation: int) -> None:
@@ -171,12 +205,16 @@ class CamshieldApplet(PlatformServicesApplet):
         self.present()
 
     def _tick(self) -> bool:
+        if self._stopped:
+            return False
         self._refresh_now()
         return True
 
     def _ensure_pulse_timer(self) -> None:
         """Run the red-dot pulse only while a camera device is active."""
-        should_pulse = self._notify is not None and self._state.active
+        should_pulse = (
+            not self._stopped and self._notify is not None and self._state.active
+        )
         if should_pulse and not self._pulse_timer_id:
             self._pulse_timer_id = GLib.timeout_add(
                 _PULSE_INTERVAL_MS,
@@ -188,6 +226,8 @@ class CamshieldApplet(PlatformServicesApplet):
             self._pulse_phase = 0.0
 
     def _pulse_tick(self) -> bool:
+        if self._stopped:
+            return False
         self._pulse_phase = (
             self._pulse_phase + _PULSE_INTERVAL_MS / _PULSE_PERIOD_MS
         ) % 1.0
@@ -197,21 +237,50 @@ class CamshieldApplet(PlatformServicesApplet):
             self._notify()
         return True
 
-    def _helper_available(self) -> bool:
-        return self._native.helper_available()
+    def _request_is_current(self, backend, generation: int) -> bool:
+        return (
+            not self._stopped
+            and backend is self._backend
+            and generation == self._generation
+        )
 
-    def _run_helper_action(self, action: str) -> None:
-        if not self._native.helper_available():
-            log.warning("Camera lock helper unavailable")
+    def _run_action(self, action: str) -> None:
+        if (
+            self._stopped
+            or self._action_in_progress
+            or action not in ("lock", "unlock")
+        ):
             return
-        backend = self._native
+        backend = self._backend
+        if not (
+            backend.lock_available() if action == "lock" else backend.unlock_available()
+        ):
+            return
+        self._generation += 1
         generation = self._generation
+        self._action_in_progress = True
+
+        def task():
+            if not self._request_is_current(backend, generation):
+                return None
+            if action == "lock":
+                backend.lock()
+            else:
+                backend.unlock()
+            return backend.get_state()
+
+        def completed(state):
+            if not self._request_is_current(backend, generation):
+                return False
+            self._action_in_progress = False
+            self._generation += 1
+            if state is not None:
+                self._on_state_result(state, self._generation)
+            return False
+
         self._worker.run(
-            name="camera-helper",
-            fn=lambda: backend.perform(action),
-            on_result=lambda accepted: (
-                self._refresh_once()
-                if accepted and not self._stopped and generation == self._generation
-                else False
-            ),
+            name="camera-" + action,
+            fn=task,
+            on_result=completed,
+            on_error=lambda _error: completed(CamshieldState(False, None, error=True)),
         )

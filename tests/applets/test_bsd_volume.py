@@ -8,6 +8,11 @@ from docking.applets.volume.state import VolumeState
 from docking.platform import environment
 
 
+@pytest.fixture(autouse=True)
+def bsd_environment(monkeypatch):
+    monkeypatch.setattr(environment, "is_windows", lambda: False)
+
+
 @pytest.mark.parametrize(
     "system,volume,mute",
     [("openbsd7", "0.65", "1"), ("freebsd15", "vol.volume=0.65:0.65", "vol.mute=on")],
@@ -26,8 +31,8 @@ def test_native_audio_reads_volume_and_mute(monkeypatch, system, volume, mute):
     )
     monkeypatch.setattr(environment, "is_bsd", lambda: True)
     backend = create_backend()
-    assert backend is not None
-    assert backend.get_state() == VolumeState(65, True)
+    assert backend.controls is not None
+    assert backend.controls.get_state() == VolumeState(65, True)
 
 
 @pytest.mark.parametrize(
@@ -50,14 +55,14 @@ def test_native_audio_writes_fractional_volume(monkeypatch, system, expected):
     )
     monkeypatch.setattr(environment, "is_bsd", lambda: True)
     backend = create_backend()
-    assert backend is not None
-    backend.set_volume(50)
+    assert backend.controls is not None
+    backend.controls.set_volume(50)
     assert calls == [expected]
 
 
 def test_missing_audio_tool_is_unavailable(monkeypatch):
     monkeypatch.setattr(bsd.shutil, "which", lambda name: None)
-    assert bsd.create_backend() is None
+    assert bsd.create_backend().controls is None
 
 
 def test_bsd_pulseaudio_preference_is_preserved(monkeypatch):
@@ -66,5 +71,5 @@ def test_bsd_pulseaudio_preference_is_preserved(monkeypatch):
         bsd.shutil, "which", lambda name: "/bin/pactl" if name == "pactl" else None
     )
     backend = create_backend()
-    assert backend is not None
-    assert backend.command == "pactl"
+    assert backend.controls is not None
+    assert backend.controls.command == "pactl"

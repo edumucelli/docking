@@ -85,13 +85,13 @@ for name in (
     "docking.applets.systemtray.presentation",
     "docking.search.services.platform", "docking.search.services.global_shortcuts",
     "docking.search.services.implementations.unix.x11_shortcuts",
-    "docking.applets.brightness.backend", "docking.applets.bluetooth.operations",
+    "docking.applets.brightness.backend", "docking.applets.bluetooth.backend",
     "docking.applets.camshield.backend", "docking.applets.capslock.backend",
     "docking.applets.keyboardlayout.backend", "docking.applets.micshield.backend",
-    "docking.applets.music.backend", "docking.applets.network.operations",
+    "docking.applets.music.backend", "docking.applets.network.backend",
     "docking.applets.notifications.backend", "docking.applets.notifications.state",
     "docking.applets.powerprofiles.backend", "docking.applets.powerprofiles.state",
-    "docking.applets.screenshot.backend", "docking.applets.volume.operations",
+    "docking.applets.screenshot.backend", "docking.applets.volume.backend",
     "docking.applets.trash.backend", "docking.applets.webapp.backend",
     "docking.applets.whatsapp.state", "docking.applets.telegram.state",
     "docking.applets.systemmonitor.gpu", "docking.applets.caffeine.inhibit",
@@ -288,3 +288,28 @@ def test_serial_worker_stop_before_first_job_finalizes_once():
     worker.stop()
     assert len(calls) == 1
     assert calls[0] != threading.get_ident()
+
+
+def test_native_consumers_do_not_import_concrete_windows_session_services():
+    paths = list((ROOT / "docking/applets").rglob("*.py"))
+    paths += list((ROOT / "docking/search").rglob("*.py"))
+    paths += list((ROOT / "docking/platform/native/windows").glob("*.py"))
+    paths += [ROOT / "docking/platform/backends/windows/surface.py"]
+    for path in paths:
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.ImportFrom):
+                modules = (node.module or "",)
+            elif isinstance(node, ast.Import):
+                modules = tuple(alias.name for alias in node.names)
+            elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+                modules = (node.value,)
+            else:
+                continue
+            assert not any(
+                name.startswith("docking.platform.backends.windows") for name in modules
+            ), path
+            if path.name == "surface.py":
+                assert not any(
+                    name.startswith("docking.platform.applications.implementations")
+                    for name in modules
+                ), path

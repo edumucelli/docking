@@ -78,6 +78,8 @@ from docking.applets.services import AppletServices
 from docking.core.config import Config, PinnedEntry, build_initial_pinned
 from docking.core.theme import Theme
 from docking.ipc import DockItemsService
+from docking.platform.application_icons import ApplicationIcons
+from docking.platform.applications.associations import AssociationStatus
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
     ProcessIdentityService,
@@ -94,7 +96,7 @@ from docking.platform.environment import apply_tweaks, detect_desktop
 from docking.platform.icons import IconLoader
 from docking.platform.model import DockModel
 from docking.platform.targets import TargetService
-from docking.platform.tray.notifications import StatusNotifierNotificationBridge
+from docking.platform.tray.notifications import TrayNotificationBridge
 from docking.platform.tray.service import TrayService
 from docking.platform.unity import UnityLauncherListener
 from docking.ui.factory import build_dock_window
@@ -111,15 +113,21 @@ log = with_context(get_logger(name="app"), action="start_runtime")
 
 def _initial_pinned_for_registry(
     registry: ApplicationRegistry,
-) -> list[PinnedEntry]:
+) -> list[PinnedEntry] | None:
+    pending = False
+
     def default_desktop_id_for(content_type: str) -> str | None:
-        application = registry.default_for_content_type(content_type).listing
+        nonlocal pending
+        resolution = registry.default_for_content_type(content_type)
+        pending |= resolution.status is AssociationStatus.PENDING
+        application = resolution.listing
         return application.desktop_id if application is not None else None
 
-    return build_initial_pinned(
+    entries = build_initial_pinned(
         desktop_id_exists=lambda desktop_id: registry.get(desktop_id) is not None,
         default_desktop_id_for=default_desktop_id_for,
     )
+    return None if pending else entries
 
 
 def _refresh_initial_registry(registry: ApplicationRegistry) -> None:
@@ -137,16 +145,23 @@ def _safe_stop(name: str, callback: Callable[[], object]) -> None:
         log.exception("Failed to stop runtime stage: %s", name)
 
 
+def _refresh_application_icon(model: DockModel, desktop_id: str) -> None:
+    item = model.find_by_desktop_id(desktop_id)
+    if item is not None:
+        model.refresh_item_icons(item)
+
+
 def main(provider: PlatformProvider | None = None) -> None:
     """Entry point for the docking application."""
     provider = platform_provider() if provider is None else provider
     apply_tweaks(desktop=detect_desktop())
 
     with ExitStack() as providers, ExitStack() as cleanup:
+        sources = provider.application_sources()
         registry = ApplicationRegistry(
-            catalog_backend=provider.catalog(),
-            association_backend=provider.associations(),
-            registration_backend=provider.registrations(),
+            catalog_backend=sources.catalog,
+            association_backend=sources.associations,
+            registration_backend=sources.registrations,
         )
         providers.callback(_safe_stop, "registry", registry.stop)
 
@@ -157,16 +172,32 @@ def main(provider: PlatformProvider | None = None) -> None:
         application_launcher = ApplicationLauncher(
             registry, provenance_store, backend=provider.launches()
         )
-        icon_loader = IconLoader()
+        desktop = provider.desktop()
+        icon_loader = IconLoader(
+            application_icon_source_factory=desktop.create_icon_source
+        )
+        cleanup.callback(_safe_stop, "icons", icon_loader.stop)
         target_service = TargetService(
             icon_loader=icon_loader, application_registry=registry
         )
 
         _refresh_initial_registry(registry)
 
-        config = Config.load(
-            initial_pinned_factory=lambda: _initial_pinned_for_registry(registry)
-        )
+        pending_initial_pinned: tuple[PinnedEntry, ...] | None = None
+
+        def initial_pinned() -> list[PinnedEntry]:
+            nonlocal pending_initial_pinned
+            entries = (
+                None
+                if registry.initial_discovery_pending
+                else _initial_pinned_for_registry(registry)
+            )
+            if entries is None:
+                entries = build_initial_pinned()
+                pending_initial_pinned = tuple(entries)
+            return entries
+
+        config = Config.load(initial_pinned_factory=initial_pinned)
         recent_applications = RecentApplications(
             registry,
             RecentApplicationsPersistence(config),
@@ -192,6 +223,26 @@ def main(provider: PlatformProvider | None = None) -> None:
         )
         cleanup.callback(_safe_stop, "applets", model.stop_applets)
 
+        def refresh_applications() -> None:
+            nonlocal pending_initial_pinned
+            if pending_initial_pinned is not None:
+                if tuple(config.pinned) != pending_initial_pinned:
+                    pending_initial_pinned = None
+                elif not registry.initial_discovery_pending:
+                    resolved = _initial_pinned_for_registry(registry)
+                    if resolved is not None:
+                        pending_initial_pinned = None
+                        config.pinned = resolved
+                        config.save()
+            model.refresh_applications()
+
+        cleanup.callback(registry.subscribe(refresh_applications))
+        cleanup.callback(
+            icon_loader.subscribe(
+                lambda desktop_id: _refresh_application_icon(model, desktop_id)
+            )
+        )
+
         renderer = DockRenderer()
         backend = provider.session(
             config=config,
@@ -203,11 +254,15 @@ def main(provider: PlatformProvider | None = None) -> None:
 
         applet_services = replace(
             applet_services,
+            application_icons=ApplicationIcons(
+                model=model, registry=registry, loader=icon_loader
+            ),
             desktop_actions=backend.desktop_actions,
             workspaces=backend.workspaces,
             window_picker=backend.window_picker,
             idle=backend.idle,
             screen_capture=backend.screen_capture,
+            surface=backend.surface,
         )
         model.set_applet_services(applet_services)
         unity = UnityLauncherListener(
@@ -216,7 +271,7 @@ def main(provider: PlatformProvider | None = None) -> None:
         )
         cleanup.callback(_safe_stop, "unity", unity.stop)
 
-        status_notifications = StatusNotifierNotificationBridge(
+        status_notifications = TrayNotificationBridge(
             model=model,
             application_registry=registry,
             service=status_service,
@@ -257,7 +312,7 @@ def main(provider: PlatformProvider | None = None) -> None:
         model.set_applet_services(applet_services)
 
         # Graceful shutdown on SIGINT/SIGTERM
-        cleanup.callback(provider.desktop().install_quit_handlers(_quit))
+        cleanup.callback(desktop.install_quit_handlers(_quit))
 
         registry.start()
         status_service.start()

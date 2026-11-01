@@ -1,4 +1,17 @@
-"""Unix native operations extracted without changing fallback policy."""
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+"""Unix power-profiles-daemon, tuned and TLP implementations."""
 
 from __future__ import annotations
 
@@ -9,40 +22,41 @@ from typing import Any, ClassVar
 
 import gi
 
-from docking.applets.powerprofiles.backend import (
-    PowerprofilesOperations as PowerprofilesOperationsBase,
-)
-
 gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 from gi.repository import Gio, GLib
 
-from ...backend import PowerProfilesControlBackend
-from ...state import (
-    DBUS_GET_ALL_TIMEOUT_MS,
-    DBUS_IFACE,
-    DBUS_NAME_HAS_OWNER_TIMEOUT_MS,
-    DBUS_PATH,
-    DBUS_PROPERTY_SET_TIMEOUT_MS,
-    DBUS_SERVICE,
-    DEFAULT_COMMAND_TIMEOUT_S,
-    PATH,
-    POWER_PROFILES_IFACE,
-    PROPERTIES_IFACE,
-    SERVICE,
-    TLP_SET_TIMEOUT_S,
-    TLP_STATUS_TIMEOUT_S,
-    TUNED_ACTIVE_TIMEOUT_S,
-    TUNED_LIST_TIMEOUT_S,
-    TUNED_SET_TIMEOUT_S,
+from docking.applets.powerprofiles import meta
+from docking.applets.powerprofiles.backend import (
+    NullPowerProfilesBackend,
+    PowerProfilesControlBackend,
+)
+from docking.applets.powerprofiles.state import (
     PowerProfilesState,
-    _as_str,
-    _unpack,
-    log,
     normalize_profile,
     order_profiles,
     unavailable_state,
 )
+from docking.log import get_logger, with_context
+
+log = with_context(get_logger(name="powerprofiles"), applet_id=meta.id)
+
+SERVICE = "net.hadess.PowerProfiles"
+PATH = "/net/hadess/PowerProfiles"
+POWER_PROFILES_IFACE = "net.hadess.PowerProfiles"
+PROPERTIES_IFACE = "org.freedesktop.DBus.Properties"
+DBUS_SERVICE = "org.freedesktop.DBus"
+DBUS_PATH = "/org/freedesktop/DBus"
+DBUS_IFACE = "org.freedesktop.DBus"
+DBUS_NAME_HAS_OWNER_TIMEOUT_MS = 1200
+DBUS_GET_ALL_TIMEOUT_MS = 2000
+DBUS_PROPERTY_SET_TIMEOUT_MS = 1800
+TUNED_SET_TIMEOUT_S = 4.0
+TUNED_ACTIVE_TIMEOUT_S = 3.0
+TUNED_LIST_TIMEOUT_S = 3.0
+TLP_STATUS_TIMEOUT_S = 3.0
+TLP_SET_TIMEOUT_S = 4.0
+DEFAULT_COMMAND_TIMEOUT_S = 2.5
 
 
 def detect_backend() -> PowerProfilesControlBackend:
@@ -70,21 +84,6 @@ def detect_backend() -> PowerProfilesControlBackend:
             return tlp
 
     return NullPowerProfilesBackend()
-
-
-class NullPowerProfilesBackend(PowerProfilesControlBackend):
-    """Unavailable backend placeholder.
-
-    This backend preserves a stable contract when no real backend exists.
-    The applet can still render an informative unavailable tooltip/menu.
-    """
-
-    def get_state(self) -> PowerProfilesState:
-        return unavailable_state(error="No supported backend found")
-
-    def set_active_profile(self, profile: str) -> bool:
-        _ = profile
-        return False
 
 
 class PowerProfilesBackend(PowerProfilesControlBackend):
@@ -469,6 +468,26 @@ def _supported_profiles() -> tuple[str, ...]:
     return ("power-saver", "balanced", "performance")
 
 
-class PowerprofilesOperations(PowerprofilesOperationsBase):
-    def detect_backend(self) -> PowerProfilesControlBackend:
-        return detect_backend()
+def _unpack(value: Any) -> Any:
+    """Recursively unpack GLib variant-like objects into native Python values."""
+    if hasattr(value, "unpack"):
+        try:
+            return _unpack(value.unpack())
+        except Exception as exc:
+            log.debug("Failed to unpack GLib variant-like value: %s", exc)
+            return value
+    if isinstance(value, dict):
+        return {k: _unpack(v) for k, v in value.items()}
+    if isinstance(value, tuple):
+        return tuple(_unpack(v) for v in value)
+    if isinstance(value, list):
+        return [_unpack(v) for v in value]
+    return value
+
+
+def _as_str(value: Any) -> str:
+    """String coercion helper after variant unpacking."""
+    unpacked = _unpack(value)
+    if unpacked is None:
+        return ""
+    return str(unpacked)

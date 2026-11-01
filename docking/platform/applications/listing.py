@@ -69,9 +69,11 @@ def gicon_from_icon_name(icon_name: str) -> Gio.Icon | None:
     return Gio.ThemedIcon.new(value)
 
 
-def listing_desktop_file_uri(listing: ApplicationListing) -> str | None:
-    """Return the exact recorded desktop-file path as a file URI."""
+def listing_drag_file_uri(listing: ApplicationListing) -> str | None:
+    """Return a recorded desktop file or prepared native launcher for COPY."""
     desktop_file = listing.desktop_file
+    if isinstance(listing, ApplicationInfo) and listing.export_file is not None:
+        desktop_file = listing.export_file
     if desktop_file is None:
         return None
     try:
@@ -95,7 +97,7 @@ __all__ = [
     "ApplicationListingLauncher",
     "activate_listing",
     "gicon_from_icon_name",
-    "listing_desktop_file_uri",
+    "listing_drag_file_uri",
     "listing_gicon",
     "visible_listings",
 ]

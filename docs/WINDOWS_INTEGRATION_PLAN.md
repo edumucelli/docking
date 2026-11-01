@@ -6,7 +6,8 @@ Reorganize the existing Linux/BSD implementation into explicit platform interfac
 
 Use these inspected revisions as reference points:
 
-- **Master (current PR base):** `39a066846b8f719c343c2cccc645d7d504f0db52`.
+- **Accepted Phase 1 master / Phase 2 integration base:** `094e50a4540d2432476a3691f7399407204b09a5` (merged PR #480).
+- **Pre-refactor master reference:** `39a066846b8f719c343c2cccc645d7d504f0db52`.
 - **Windows PR:** `2b0bbd9462987678a781905c5fde7d41103e5386`.
 
 The latest review covers the ten PR commits after `8f53eb5d`, through `2b0bbd94`. The previous master reference was `96605f07`; the new base additionally preserves zero-percent peripheral battery readings in `39a06684`. These are reference revisions, not instructions to reset the implementation checkout or discard a newer master.
@@ -105,8 +106,9 @@ docking/
 │   │   ├── {registry,launcher,identity,matcher,listing,recents}.py
 │   │   └── implementations/
 │   │       ├── unix/
-│   │       │   └── {catalog,associations,monitor,discovery,entries,
+│   │       │   └── {catalog,associations,discovery,entries,
 │   │       │        launch,desktop_launch,registration,flatpak,steam}.py
+│   │       ├── shared/monitor.py  # Gio observer used by both catalogs
 │   │       ├── linux/process.py
 │   │       ├── bsd/process.py
 │   │       └── windows/
@@ -142,8 +144,7 @@ docking/
 │   │   ├── {applet,state,render,presentation}.py
 │   │   └── implementations/unix/{presentation,xembed}.py
 │   ├── webapp/
-│   │   ├── {applet,backend,profile,storage,state,bridge,
-│   │   │    browser,notification_backend}.py
+│   │   ├── {applet,backend,profile,state,bridge}.py
 │   │   └── implementations/
 │   │       ├── unix/{backend,notifications}.py
 │   │       └── windows/{backend,notifications,companion/}
@@ -686,6 +687,72 @@ Do not resolve conflicts by taking either branch’s entire shared file. Do not 
 
 The following inventories cover the runtime module groups changed in the inspected PR. A listed native helper may require only dependency adaptation and verification; it does not require a rewrite.
 
+### Refinements confirmed while implementing Phase 2
+
+These supersede Phase 1 extraction details where the Windows port requires a
+richer common contract. They do not change the historical Phase 1 instructions.
+
+- `applications/backend.py` remains the single owner of backend ABCs and their
+  result records. `ApplicationSources` composes a fresh catalog, association
+  reader, and executable-registration strategy. Every call to a provider creates
+  a separate graph. `app.py` passes these three capabilities to the registry.
+  Windows associations share exactly the lookup owned by that graph's catalog.
+- `applications/implementations/shared/monitor.py` owns `GioCatalogMonitor`, used
+  by both Unix and Windows. Windows adds its native observer in its catalog
+  adapter. Observe before requesting worker reads; invalidate for native/Gio
+  changes, but only queue a registry refresh after worker publication. Reject
+  callbacks and read completions from previous observer lifetimes.
+- `DiscoveryResult.initial_discovery_pending` carries catalog readiness into the
+  immutable registry snapshot. Failed refreshes preserve the last published
+  readiness and handles. Association revisions can notify consumers even if
+  visible catalog metadata is unchanged. Unix ordered reads remain lazy;
+  Windows remembers all requested association keys on its single worker.
+- `ApplicationHandleSource` supplies lazy private launch handles to native launch
+  strategies. A selected Windows shell/document target must never consult Gio,
+  including after native failure. Unix resolves handles only for operations that
+  actually use Gio. Do not add fallback selection to `ApplicationLauncher`.
+- The richer applet APIs replace the earlier separate Bluetooth desktop,
+  Network settings, and Volume settings operation factories. Each applet receives
+  one domain backend/bundle from `AppletBackendFactories`; native actions and
+  readers share the same ownership. Keep public owned contracts nominal ABCs;
+  external-handle views and callable factory/resolver protocols remain structural.
+- Unix notification controls and their worker-owned activity queue live together
+  in `notifications/implementations/unix/backend.py`. Remove the obsolete
+  callback-based `activity.py` implementation. Preserve host `dbus-monitor` PID
+  cleanup, cancellation, bounded events, and the applet's history/badge timers.
+- `webapp/backend.py` owns common browser callback policy and the shared session,
+  download collision, and error helpers needed by both engines. Keep WebKitGTK
+  operations in its Unix backend and Windows engines/companion in their native
+  packages. There are no root `browser.py`, `storage.py`, or notification forwarding
+  modules; Telegram and WhatsApp keep their profiles in their own `state.py`.
+- `aiusage/hooks.py` declares the headless registration-policy ABC; native policies
+  live under `aiusage/implementations/{unix,windows}/hooks.py`. Claude/Codex keep
+  provider file/schema policy and request the selected headless policy. Locking
+  and hook argv remain host operations; there are no forwarding helper modules.
+- `ApplicationDragSource` in `applications/backend.py` is supplied to the Windows
+  surface by session composition. The surface owns its lazy lifetime, prepare,
+  and stop calls and never imports concrete application implementations.
+  `platform/native/windows/process.py` owns executable-path observation shared
+  by application identity, camera holders, tray ownership, and media audio session matching.
+  `WindowObservation` and `WindowsWindowTarget` in `native/windows/capture.py`
+  define the shared native observation boundary. Composition supplies its factory
+  to screenshot capture and media audio; neither imports the session implementation.
+- A tray-service successor waits for its predecessor's native close on its own
+  worker, never on GTK. Commands and timers carry service-generation guards.
+  The System Tray applet and overlay bridge borrow the construction-time shared
+  service; late `AppletServices` delivery cannot replace or stop it.
+- `tools/windows/visual/application_graph.py` composes registries after installed
+  candidate selection. One-shot tools own start/stop and wait for real published
+  readiness while pumping the main context. Preserve passive catalog timing,
+  exact module provenance, DLL paths, candidate hashes, and release evidence.
+- Search integration exposes the opaque-action-panel presentation capability.
+  Windows retains its opaque overlay; Unix retains its existing GTK styling.
+  Do not infer this policy from the presence of a focus adapter.
+- Unix brightness preserves its last measured level for transient read failures
+  of the same display and its sub-one-percent poll tolerance. Target changes
+  invalidate queued writes. Restart creates a fresh backend and rejects old
+  reads, writes, and callbacks without changing Windows discrete-level policy.
+
 ## 2.2 Bootstrap, host, and common runtime modules
 
 | Source/reference module | Required Phase 2 changes and preservation requirements |
@@ -1066,6 +1133,11 @@ For each applet below, source filenames are relative to `applets/<name>/` in the
 For the PR's Unix files, reconcile into the Phase 1 destinations: `unix_desktop.py` → `implementations/unix/desktop.py`; `unix_{client,control,devices}.py` → that applet's `implementations/unix/{client,control,devices}.py`; desktop settings, UPower, PulseAudio, and browser notifications follow the explicit Phase 1 applet rows. Never restore flat `linux.py` files for an implementation already classified as Unix.
 
 Shared applet values, renderers, browser profile/storage/bridge logic, Search UI, and GTK popup workflows retain their domain-root paths. `aiusage/backends/{claude,codex,...}.py` remain provider adapters; their directory does not become an OS package. `search/providers/windows.py` remains the neutral window-search provider and must not be moved into the Windows implementation tree.
+
+The common Gio observer moves from the Phase 1 Unix implementation into
+`applications/implementations/shared/monitor.py`. Executable observation extracted
+from the PR's application-process strategy becomes `platform/native/windows/process.py`;
+application-specific script/Steam identity stays in its application adapter.
 
 ### Resource, entry-point, and regression checks for the moves
 

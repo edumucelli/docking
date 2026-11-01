@@ -42,19 +42,20 @@ from docking.applets.battery.state import (
     tooltip_text,
 )
 from docking.applets.menu import menu_sections, radio_menu_items
+from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 
 if TYPE_CHECKING:
     from docking.core.config import Config
 
 # Battery charge/status changes slowly; power draw changes by the second, so the
-# live power overlay refreshes on a separate, faster sysfs-only timer.
+# live power overlay refreshes on a separate, faster native-reading timer.
 _FULL_POLL_SECONDS = 60
 _POWER_POLL_SECONDS = 5
 
 
 class BatteryApplet(PlatformServicesApplet):
-    """Shows a battery icon from sysfs, with an optional percent/power overlay."""
+    """Shows the system battery, with an optional percent/power overlay."""
 
     id = meta.id
     name = _("Battery")
@@ -68,14 +69,17 @@ class BatteryApplet(PlatformServicesApplet):
         platform_services: AppletPlatformServices,
     ) -> None:
         self._platform = platform_services
-        self._native = platform_services.backends.battery()
         self._timer_id: int = 0
         self._power_timer_id: int = 0
         self._overlay = OVERLAY_NONE
         prefs = config.applet_prefs.get(meta.id, {})
         self._overlay = overlay_from_prefs(prefs)
-        self._state: BatteryState | None = self._native.read_battery()
-        self._peripherals: list[PeripheralBattery] = self._native.read_peripherals()
+        self._backend = self._platform.backends.battery()
+        self._worker = BackgroundWorker()
+        self._stopped = False
+        self._generation = 0
+        self._state: BatteryState | None = self._backend.read_battery()
+        self._peripherals: list[PeripheralBattery] = []
         super().__init__(
             icon_size=icon_size, config=config, platform_services=platform_services
         )
@@ -94,13 +98,17 @@ class BatteryApplet(PlatformServicesApplet):
     def start(self, notify: Callable[[], None]) -> None:
         """Start the slow full-state poll plus the power overlay poll if needed."""
         super().start(notify=notify)
-        self._peripherals = self._native.read_peripherals()
+        self._stopped = False
+        self._generation += 1
+        self._refresh_peripherals()
         self._timer_id = GLib.timeout_add_seconds(_FULL_POLL_SECONDS, self._tick)
         self._sync_power_timer()
         self.present()
 
     def stop(self) -> None:
         """Stop the polling timers."""
+        self._stopped = True
+        self._generation += 1
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -122,11 +130,10 @@ class BatteryApplet(PlatformServicesApplet):
         )
 
         settings: list[Gtk.MenuItem] = []
-        available = self._native.settings_available()
-        if available:
+        if self._backend.settings_available():
             power_settings = Gtk.MenuItem(label=_("Power Settings"))
             power_settings.connect(
-                "activate", lambda _widget: self._native.open_settings()
+                "activate", lambda _widget: self._backend.open_settings()
             )
             settings.append(power_settings)
         return menu_sections(display=overlay, settings=settings, gtk=Gtk)
@@ -150,17 +157,43 @@ class BatteryApplet(PlatformServicesApplet):
             self._power_timer_id = 0
 
     def _tick(self) -> bool:
-        """Re-read sysfs + peripherals and refresh icon."""
-        self._state = self._native.read_battery()
-        self._peripherals = self._native.read_peripherals()
+        """Re-read system battery and peripherals and refresh the icon."""
+        if self._stopped:
+            return False
+        self._state = self._backend.read_battery()
+        self._refresh_peripherals()
         self.present()
         return True
 
+    def _refresh_peripherals(self) -> None:
+        if self._stopped:
+            return
+        backend, generation = self._backend, self._generation
+
+        def ready(peripherals: list[PeripheralBattery]) -> bool:
+            if (
+                not self._stopped
+                and generation == self._generation
+                and backend is self._backend
+            ):
+                self._peripherals = peripherals
+                self.present()
+            return False
+
+        self._worker.run_guarded(
+            key=f"peripherals:{generation}",
+            name="battery-peripherals",
+            fn=backend.read_peripherals,
+            on_result=ready,
+        )
+
     def _power_tick(self) -> bool:
-        """Cheap sysfs-only refresh of the live power reading."""
+        """Refresh the live power reading without a subprocess."""
+        if self._stopped:
+            return False
         if self._state is not None:
             self._state = self._state._replace(
-                power_watts=self._native.read_power_watts()
+                power_watts=self._backend.read_power_watts()
             )
             self.present()
         return True

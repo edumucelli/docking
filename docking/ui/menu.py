@@ -354,15 +354,15 @@ class MenuHandler:
         """
         item = None if force_background else frame.item_at_point(event.x, event.y)
 
+        menu = self._new_popup_menu()
         if item:
-            menu = self._new_popup_menu()
             self._build_item_menu(menu=menu, item=item)
         else:
-            menu = self._new_popup_menu()
             insert_idx = self._insert_index(cursor_main=cursor_main, frame=frame)
             self._build_dock_menu(menu=menu, insert_index=insert_idx)
 
         menu.show_all()
+        self._runtime.prepare_menu_popup(menu)
         menu.popup_at_pointer(event)
 
     def _invalidate_folder_target_cache(self, target: str) -> None:
@@ -866,12 +866,42 @@ class MenuHandler:
             row.remove(child)
         row.add(box)
         row._window_row = True
+        if self._preview_service.asynchronous is True:
+            self._watch_window_thumbnail(row, image, window.id, thumbnail)
         row.connect("button-press-event", self._on_window_row_button_press, window.id)
         row.connect(
             "button-release-event", self._on_window_row_button_release, window.id
         )
         row.connect("activate", lambda *_a: self._tracker.activate(window.id))
         return row
+
+    def _watch_window_thumbnail(self, row, image, window_id, previous) -> None:
+        source = 0
+
+        def refresh() -> bool:
+            nonlocal previous
+            thumbnail = self._preview_service.thumbnail(
+                window_id, width=WINDOW_MENU_THUMB_W, height=WINDOW_MENU_THUMB_H
+            )
+            if thumbnail is not None and thumbnail is not previous:
+                image.set_from_pixbuf(cast(GdkPixbuf.Pixbuf, thumbnail.image))
+                previous = thumbnail
+            return True
+
+        def mapped(*_args) -> None:
+            nonlocal source
+            if not source:
+                source = GLib.timeout_add(200, refresh)
+
+        def unmapped(*_args) -> None:
+            nonlocal source
+            if source:
+                GLib.source_remove(source)
+                source = 0
+
+        row.connect("map", mapped)
+        row.connect("unmap", unmapped)
+        row.connect("destroy", unmapped)
 
     def _window_close_zone_hit(
         self, widget: Gtk.Widget, event: Gdk.EventButton
@@ -934,6 +964,8 @@ class MenuHandler:
         parent.check_resize()
         parent.queue_draw()
         if refresh_popup:
+            self._runtime.menu_popup_opened()
+            self._runtime.prepare_menu_popup(parent)
             parent.popup_at_pointer(event)
 
     def _on_add_applet_activate(self, _widget: Gtk.MenuItem, applet_id: str) -> None:

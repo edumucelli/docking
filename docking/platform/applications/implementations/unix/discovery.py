@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import stat
-import unicodedata
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,10 +17,14 @@ from docking.log import get_logger, with_context
 
 from ...backend import DiscoveryResult
 from ...handle_adapters import (
+    clean_text,
     desktop_filename,
     desktop_id,
+    normalise_values,
+    safe_bool_call,
     safe_call,
     source_text,
+    transient_from_gio,
     unique_paths,
 )
 from ...types import (
@@ -92,7 +95,7 @@ def desktop_entry_string_list(key_file: object, key: str) -> tuple[str, ...]:
         values = key_file.get_string_list("Desktop Entry", key)  # type: ignore[attr-defined]
     except Exception:
         return ()
-    return tuple(text for text in (_clean_text(value) for value in values) if text)
+    return tuple(text for text in (clean_text(value) for value in values) if text)
 
 
 def visible_on_current_desktop(
@@ -125,7 +128,8 @@ def default_gio_applications() -> tuple[object, ...]:
 
 
 def is_gio_desktop_app_info(app_info: object) -> bool:
-    return isinstance(app_info, Gio.DesktopAppInfo)
+    desktop_app_info = getattr(Gio, "DesktopAppInfo", None)
+    return desktop_app_info is not None and isinstance(app_info, desktop_app_info)
 
 
 def discover(
@@ -304,38 +308,6 @@ def discover(
     )
 
 
-def transient_from_gio(
-    *,
-    app_info: object,
-    listing_key: str,
-    require_visible: bool,
-) -> TransientApplicationInfo | None:
-    if require_visible and (
-        _safe_bool_call(app_info, "get_is_hidden")
-        or _safe_bool_call(app_info, "get_nodisplay")
-    ):
-        return None
-    icon = safe_call(app_info, "get_icon")
-    filename = source_text(safe_call(app_info, "get_filename"))
-    application_id = desktop_id(app_info)
-    categories_raw = source_text(safe_call(app_info, "get_categories"))
-    return TransientApplicationInfo(
-        listing_key=listing_key,
-        name=(
-            source_text(safe_call(app_info, "get_display_name"))
-            or application_id
-            or "Unknown"
-        ),
-        categories=_normalise_values(categories_raw),
-        categories_raw=categories_raw,
-        declared_icon=source_text(safe_call(icon, "to_string")),
-        desktop_file=Path(filename).expanduser() if filename else None,
-        exec_line=source_text(safe_call(app_info, "get_commandline")),
-        description=source_text(safe_call(app_info, "get_description")),
-        generic_name=source_text(safe_call(app_info, "get_generic_name")),
-    )
-
-
 def file_facts(path: Path | None) -> _FileFacts | None:
     if path is None:
         return None
@@ -349,7 +321,7 @@ def file_facts(path: Path | None) -> _FileFacts | None:
     except Exception:
         action_ids = ()
     for raw_action_id in action_ids:
-        action_id = _clean_text(raw_action_id)
+        action_id = clean_text(raw_action_id)
         if not action_id:
             continue
         group = f"Desktop Action {action_id}"
@@ -392,7 +364,7 @@ def file_facts(path: Path | None) -> _FileFacts | None:
         ),
         description=desktop_entries.desktop_entry_locale_string(key_file, "Comment"),
         categories_raw=desktop_entries.desktop_entry_string(key_file, "Categories"),
-        keywords=_normalise_values(
+        keywords=normalise_values(
             desktop_entries.desktop_entry_locale_string(key_file, "Keywords")
         ),
         actions=tuple(action_values),
@@ -422,7 +394,7 @@ def _application_from_gio_with_diagnostic(
     fallback_path: Path | None,
     fallback_facts: _FileFacts | None,
 ) -> _DiscoveredApplication | None:
-    if _safe_bool_call(app_info, "get_is_hidden"):
+    if safe_bool_call(app_info, "get_is_hidden"):
         return None
 
     filename = desktop_filename(app_info)
@@ -440,16 +412,16 @@ def _application_from_gio_with_diagnostic(
     declared_icon = source_text(safe_call(icon, "to_string"))
     name = source_text(safe_call(app_info, "get_display_name")) or desktop_id
     generic_name = source_text(safe_call(app_info, "get_generic_name"))
-    if not _clean_text(generic_name) and facts is not None:
+    if not clean_text(generic_name) and facts is not None:
         generic_name = facts.generic_name
 
     description = source_text(safe_call(app_info, "get_description"))
-    if not _clean_text(description) and facts is not None:
+    if not clean_text(description) and facts is not None:
         description = facts.description or facts.generic_name
 
     raw_categories = safe_call(app_info, "get_categories")
     categories_raw = source_text(raw_categories) if raw_categories is not None else ""
-    keywords = _normalise_values(safe_call(app_info, "get_keywords"))
+    keywords = normalise_values(safe_call(app_info, "get_keywords"))
     if not keywords and facts is not None:
         keywords = facts.keywords
 
@@ -473,7 +445,7 @@ def _application_from_gio_with_diagnostic(
         location=_location(desktop_file),
         desktop_file=desktop_file,
         visible=(
-            not _safe_bool_call(app_info, "get_nodisplay")
+            not safe_bool_call(app_info, "get_nodisplay")
             # Gio answers the OnlyShowIn/NotShowIn gate here; without it an
             # entry meant for another desktop is listed on this one.
             and safe_call(app_info, "should_show") is not False
@@ -686,7 +658,7 @@ def _gio_decision(
 
 
 def _rejected_gio_decision(app_info: object) -> DiscoveryDecision:
-    if _safe_bool_call(app_info, "get_is_hidden"):
+    if safe_bool_call(app_info, "get_is_hidden"):
         return _gio_decision(app_info, DiscoveryReason.HIDDEN)
     filename = desktop_filename(app_info)
     facts = file_facts(Path(filename)) if filename else None
@@ -727,7 +699,7 @@ def _application_from_file(
         working_directory=facts.working_directory,
         generic_name=facts.generic_name,
         description=(
-            facts.description if _clean_text(facts.description) else facts.generic_name
+            facts.description if clean_text(facts.description) else facts.generic_name
         ),
         categories_raw=facts.categories_raw,
         keywords=facts.keywords,
@@ -771,7 +743,7 @@ def _make_application(
         flatpak_app_id=flatpak_app_id_from_exec(exec_line),
         generic_name=generic_name,
         description=description,
-        categories=_normalise_values(categories_raw),
+        categories=normalise_values(categories_raw),
         categories_raw=categories_raw,
         keywords=keywords,
         actions=actions,
@@ -783,8 +755,8 @@ def _make_application(
 def _gio_actions(app_info: object) -> tuple[tuple[str, str], ...]:
     result: list[tuple[str, str]] = []
     for raw_action_id in safe_call(app_info, "list_actions") or ():
-        action_id = _clean_text(raw_action_id)
-        name = _clean_text(safe_call(app_info, "get_action_name", action_id))
+        action_id = clean_text(raw_action_id)
+        name = clean_text(safe_call(app_info, "get_action_name", action_id))
         if action_id and name:
             result.append((action_id, name))
     return tuple(result)
@@ -796,8 +768,8 @@ def _merge_actions(
 ) -> tuple[ApplicationAction, ...]:
     merged: dict[str, ApplicationAction] = {}
     for raw_action_id, raw_name in gio_actions:
-        action_id = _clean_text(raw_action_id)
-        name = _clean_text(raw_name)
+        action_id = clean_text(raw_action_id)
+        name = clean_text(raw_name)
         if action_id and name and action_id not in merged:
             merged[action_id] = ApplicationAction(
                 action_id=action_id,
@@ -805,8 +777,8 @@ def _merge_actions(
                 sources=frozenset({ActionSource.GIO}),
             )
     for file_action in file_actions:
-        action_id = _clean_text(file_action.action_id)
-        name = _clean_text(file_action.name)
+        action_id = clean_text(file_action.action_id)
+        name = clean_text(file_action.name)
         if not action_id or not name:
             continue
         existing = merged.get(action_id)
@@ -866,34 +838,5 @@ def _location(path: Path | None) -> ApplicationLocation:
     )
 
 
-def _normalise_values(value: object | None) -> tuple[str, ...]:
-    if value is None:
-        return ()
-    raw_values: Iterable[object]
-    if isinstance(value, str):
-        raw_values = value.split(";")
-    elif isinstance(value, Iterable):
-        raw_values = list(value)
-    else:
-        raw_values = (value,)
-    result: list[str] = []
-    seen: set[str] = set()
-    for raw_value in raw_values:
-        clean = _clean_text(raw_value)
-        key = " ".join(unicodedata.normalize("NFKC", clean).casefold().split())
-        if clean and key not in seen:
-            seen.add(key)
-            result.append(clean)
-    return tuple(result)
-
-
 def _plain_text(value: object) -> str:
     return "" if value is None else str(value).strip()
-
-
-def _clean_text(value: object) -> str:
-    return "" if value is None else " ".join(str(value).split())
-
-
-def _safe_bool_call(target: object, method_name: str) -> bool:
-    return bool(safe_call(target, method_name))

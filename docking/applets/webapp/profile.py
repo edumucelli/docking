@@ -1,9 +1,11 @@
-"""Persistent browser profile identity."""
+"""Pure website identity and origin policy shared by browser processes."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from urllib.parse import urlsplit
+
+from .state import NavigationTarget, navigation_target
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,3 +24,9 @@ class BrowserProfile:
     @property
     def host(self) -> str:
         return urlsplit(self.url).hostname or ""
+
+    def allows_origin(self, uri: str) -> bool:
+        return (
+            navigation_target(uri, self.host) is NavigationTarget.INTERNAL
+            and uri.split(":", 1)[0].casefold() == "https"
+        )

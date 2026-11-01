@@ -2,19 +2,22 @@
 
 from __future__ import annotations
 
+import math
 import re
 import shutil
 import subprocess
+import threading
 from pathlib import Path
 from typing import NamedTuple
 
-from docking.applets.brightness.backend import (
-    BrightnessOperations as BrightnessOperationsBase,
-)
+from docking.applets.brightness.backend import BrightnessBackend
+from docking.applets.brightness.state import BrightnessState
+from docking.log import get_logger
 from docking.platform.environment import is_wayland_session
 
 from ...backend import BacklightSource
-from ...state import log
+
+log = get_logger("brightness")
 
 
 class Backend(NamedTuple):
@@ -135,24 +138,59 @@ class NoBacklightSource(BacklightSource):
         return False
 
 
-class BrightnessOperations(BrightnessOperationsBase):
+class UnixBrightnessBackend(BrightnessBackend):
     def __init__(self, backlight: BacklightSource) -> None:
         self._backlight = backlight
-        self._output = detect_output(backlight)
+        self._stopped = threading.Event()
+        self._lock = threading.Lock()
+        self._last_state = BrightnessState()
 
-    def available(self) -> bool:
-        return self._output is not None
+    def _read(self) -> tuple[Backend | None, BrightnessState]:
+        if self._stopped.is_set():
+            return None, BrightnessState()
+        display = detect_output(self._backlight)
+        if display is None:
+            self._last_state = BrightnessState()
+            return None, self._last_state
+        level = get_brightness(display, self._backlight)
+        target = f"{display.output}|{display.sysfs or ''}"
+        state = BrightnessState(level=level, target=target)
+        if level is None and target == self._last_state.target:
+            # A transient command/read failure must not discard the last
+            # measured level for this display, as before the extraction.
+            state = self._last_state
+        self._last_state = state
+        return display, state
 
-    def get_brightness(self) -> float | None:
-        return (
-            get_brightness(backend=self._output, backlight=self._backlight)
-            if self._output is not None
-            else None
-        )
+    def get_state(self) -> BrightnessState:
+        with self._lock:
+            previous = self._last_state
+            state = self._read()[1]
+            if (
+                state.available
+                and previous.available
+                and state.target == previous.target
+                and state.level is not None
+                and previous.level is not None
+                and abs(state.level - previous.level) < 0.01
+            ):
+                self._last_state = previous
+                return previous
+            return state
 
-    def set_brightness(self, value: float) -> bool:
-        return (
-            set_brightness(backend=self._output, value=value, backlight=self._backlight)
-            if self._output is not None
-            else False
-        )
+    def set_brightness(self, *, value: float, target: str) -> BrightnessState:
+        with self._lock:
+            display, state = self._read()
+            if (
+                display is None
+                or not state.available
+                or state.target != target
+                or not math.isfinite(value)
+            ):
+                return state
+            if not self._stopped.is_set():
+                set_brightness(display, value, self._backlight)
+            return self._read()[1]
+
+    def stop(self) -> None:
+        self._stopped.set()

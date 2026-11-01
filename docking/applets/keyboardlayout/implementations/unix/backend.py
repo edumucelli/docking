@@ -1,39 +1,66 @@
-"""Unix native operations extracted without changing fallback policy."""
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+"""Linux keyboard layout discovery, commands and desktop integrations.
+
+Detects GNOME, IBus, Fcitx5, MATE and the setxkbmap fallback. The active desktop
+determines priority; existing session-specific configuration stays in place.
+
+IBus engines use ``xkb:LAYOUT:VARIANT:LANG`` (e.g. ``xkb:br::por``).
+Fcitx5 input methods use ``keyboard-LAYOUT`` (e.g. ``keyboard-br``).
+"""
 
 from __future__ import annotations
 
+import ast
 import re
 import shutil
 import subprocess
+import threading
 from pathlib import Path
 
-from docking.applets.keyboardlayout.backend import (
-    KeyboardlayoutOperations as KeyboardlayoutOperationsBase,
-)
+from docking.applets.keyboardlayout.backend import LayoutBackend
+from docking.applets.keyboardlayout.state import LayoutState
+from docking.log import get_logger, with_context
 from docking.platform import environment
 from docking.platform.environment import flatpak
 
-from ...state import (
-    _GNOME_CURRENT_KEY,
-    _GNOME_INPUT_SOURCES_SCHEMA,
-    _GNOME_MRU_SOURCES_KEY,
-    _GNOME_SOURCES_KEY,
-    _KEYBOARD_SETTINGS_COMMANDS,
-    _LAYOUT_RE,
-    _LAYOUT_VIEWER_COMMANDS,
-    _MATE_LAYOUTS_KEY,
-    _MATE_LAYOUTS_SCHEMA,
-    _MATE_MODEL_KEY,
-    _MATE_OPTIONS_KEY,
-    LayoutBackend,
-    LayoutState,
-    _fcitx5_layout_code,
-    _ibus_layout_code,
-    _parse_gsettings_string,
-    _parse_gsettings_string_list,
-    _parse_input_sources,
-    _source_layout_code,
-    log,
+log = with_context(get_logger(name="keyboardlayout"))
+
+_LAYOUT_RE = re.compile(r"^layout:\s+(.+)$", re.MULTILINE)
+_IBUS_XKB_RE = re.compile(r"^xkb:([^:]+):")
+_FCITX5_KB_RE = re.compile(r"^keyboard-(.+)$")
+
+_MATE_LAYOUTS_SCHEMA = "org.mate.peripherals-keyboard-xkb.kbd"
+_MATE_GENERAL_SCHEMA = "org.mate.peripherals-keyboard-xkb.general"
+_MATE_LAYOUTS_KEY = "layouts"
+_MATE_MODEL_KEY = "model"
+_MATE_OPTIONS_KEY = "options"
+_GNOME_INPUT_SOURCES_SCHEMA = "org.gnome.desktop.input-sources"
+_GNOME_SOURCES_KEY = "sources"
+_GNOME_MRU_SOURCES_KEY = "mru-sources"
+_GNOME_CURRENT_KEY = "current"
+_KEYBOARD_SETTINGS_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("mate-keyboard-properties",),
+    ("gnome-control-center", "keyboard"),
+    ("ibus-setup",),
+    ("fcitx5-configtool",),
+    ("kcmshell6", "kcm_keyboard"),
+    ("kcmshell5", "kcm_keyboard"),
+)
+_LAYOUT_VIEWER_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("gkbd-keyboard-display",),
+    ("tecla",),
 )
 
 
@@ -98,7 +125,80 @@ def _run_direct(cmd: list[str]) -> str | None:
     return None
 
 
-class GnomeBackend(LayoutBackend):
+def _parse_gsettings_string_list(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    cleaned = raw.strip()
+    if cleaned.startswith("@as "):
+        cleaned = cleaned[4:].strip()
+    try:
+        value = ast.literal_eval(cleaned)
+    except (ValueError, SyntaxError) as exc:
+        log.debug("Failed to parse gsettings string list %r: %s", raw, exc)
+        return []
+    if not isinstance(value, list):
+        return []
+    return [entry for entry in value if isinstance(entry, str) and entry]
+
+
+def _parse_gsettings_string(raw: str | None) -> str:
+    if not raw:
+        return ""
+    cleaned = raw.strip()
+    try:
+        value = ast.literal_eval(cleaned)
+    except (ValueError, SyntaxError):
+        return cleaned.strip("'\"")
+    return value if isinstance(value, str) else ""
+
+
+def _parse_input_sources(raw: str | None) -> list[tuple[str, str]]:
+    if not raw:
+        return []
+    cleaned = raw.strip()
+    if cleaned.startswith("@a("):
+        prefix_end = cleaned.find(" ")
+        if prefix_end != -1:
+            cleaned = cleaned[prefix_end + 1 :].strip()
+    try:
+        value = ast.literal_eval(cleaned)
+    except (ValueError, SyntaxError) as exc:
+        log.debug("Failed to parse input sources %r: %s", raw, exc)
+        return []
+    sources: list[tuple[str, str]] = []
+    if not isinstance(value, list):
+        return sources
+    for entry in value:
+        if (
+            isinstance(entry, tuple)
+            and len(entry) == 2
+            and all(isinstance(part, str) for part in entry)
+        ):
+            sources.append((entry[0], entry[1]))
+    return sources
+
+
+def _source_layout_code(source_id: str) -> str:
+    if "+" in source_id:
+        return source_id.split("+", 1)[0]
+    return source_id
+
+
+class LinuxLayoutBackend(LayoutBackend):
+    def settings_available(self) -> bool:
+        return keyboard_settings_command() is not None
+
+    def viewer_available(self, layout_code: str) -> bool:
+        return current_layout_command(layout_code) is not None
+
+    def open_settings(self) -> bool:
+        return open_keyboard_settings()
+
+    def show_layout(self, layout_code: str) -> bool:
+        return show_current_layout(layout_code)
+
+
+class GnomeBackend(LinuxLayoutBackend):
     """Reads GNOME input sources and switches via GNOME Shell D-Bus."""
 
     name = "gnome"
@@ -120,7 +220,7 @@ class GnomeBackend(LayoutBackend):
             active = available[0]
         return LayoutState(active=active, available=available)
 
-    def switch(self, layout_code: str) -> None:
+    def switch(self, layout_code: str, *, context: str = "") -> None:
         for idx, (source_type, source_id) in enumerate(self._sources()):
             if source_type != "xkb":
                 continue
@@ -200,7 +300,13 @@ class GnomeBackend(LayoutBackend):
         return int(match.group(1))
 
 
-class IBusBackend(LayoutBackend):
+def _ibus_layout_code(engine: str) -> str:
+    """Extract layout code from IBus engine (e.g. 'xkb:br::por' → 'br')."""
+    match = _IBUS_XKB_RE.match(engine)
+    return str(match.group(1)) if match else engine
+
+
+class IBusBackend(LinuxLayoutBackend):
     """Reads/switches layouts via ``ibus`` CLI and dconf."""
 
     name = "ibus"
@@ -219,7 +325,7 @@ class IBusBackend(LayoutBackend):
         available = [_ibus_layout_code(engine=e) for e in engines]
         return LayoutState(active=active, available=available)
 
-    def switch(self, layout_code: str) -> None:
+    def switch(self, layout_code: str, *, context: str = "") -> None:
         for engine in self._get_engines():
             if _ibus_layout_code(engine=engine) == layout_code:
                 _run(cmd=["ibus", "engine", engine])
@@ -240,7 +346,13 @@ class IBusBackend(LayoutBackend):
         return [e.strip() for e in cleaned.split(",") if e.strip()]
 
 
-class Fcitx5Backend(LayoutBackend):
+def _fcitx5_layout_code(im_name: str) -> str:
+    """Extract layout code from Fcitx5 IM (e.g. 'keyboard-br' → 'br')."""
+    match = _FCITX5_KB_RE.match(im_name)
+    return str(match.group(1)) if match else im_name
+
+
+class Fcitx5Backend(LinuxLayoutBackend):
     """Reads/switches layouts via ``fcitx5-remote`` and profile file."""
 
     name = "fcitx5"
@@ -259,7 +371,7 @@ class Fcitx5Backend(LayoutBackend):
         available = [_fcitx5_layout_code(im_name=im) for im in ims]
         return LayoutState(active=active, available=available)
 
-    def switch(self, layout_code: str) -> None:
+    def switch(self, layout_code: str, *, context: str = "") -> None:
         for im in self._get_ims():
             if _fcitx5_layout_code(im_name=im) == layout_code:
                 _run(cmd=["fcitx5-remote", "-s", im])
@@ -292,7 +404,7 @@ class Fcitx5Backend(LayoutBackend):
         return ims
 
 
-class MateBackend(LayoutBackend):
+class MateBackend(LinuxLayoutBackend):
     """Reads configured layouts from MATE and switches with setxkbmap."""
 
     name = "mate"
@@ -309,7 +421,7 @@ class MateBackend(LayoutBackend):
             active = available[0]
         return LayoutState(active=active, available=available)
 
-    def switch(self, layout_code: str) -> None:
+    def switch(self, layout_code: str, *, context: str = "") -> None:
         cmd = ["setxkbmap"]
         model = self._model()
         if model:
@@ -339,7 +451,7 @@ class MateBackend(LayoutBackend):
         return _parse_gsettings_string_list(raw=raw)
 
 
-class XkbBackend(LayoutBackend):
+class XkbBackend(LinuxLayoutBackend):
     """Reads/switches layouts via ``setxkbmap``."""
 
     name = "xkb"
@@ -356,7 +468,7 @@ class XkbBackend(LayoutBackend):
         active = layouts[0] if layouts else ""
         return LayoutState(active=active, available=layouts)
 
-    def switch(self, layout_code: str) -> None:
+    def switch(self, layout_code: str, *, context: str = "") -> None:
         _run(cmd=["setxkbmap", "-layout", layout_code])
 
 
@@ -424,18 +536,34 @@ def _open_command(*, cmd: list[str] | None, action: str) -> bool:
     return True
 
 
-class KeyboardlayoutOperations(KeyboardlayoutOperationsBase):
-    def keyboard_settings_command(self) -> list[str] | None:
-        return keyboard_settings_command()
+class LinuxKeyboardBackend(LinuxLayoutBackend):
+    """Lazy Linux selection keeps daemon/CLI discovery off the GTK thread."""
 
-    def current_layout_command(self, layout_code: str) -> list[str] | None:
-        return current_layout_command(layout_code)
+    name = "linux"
 
-    def open_keyboard_settings(self) -> bool:
-        return open_keyboard_settings()
+    def __init__(self) -> None:
+        self._delegate: LayoutBackend | None = None
+        self._lock = threading.Lock()
+        self._stopped = threading.Event()
 
-    def show_current_layout(self, layout_code: str) -> bool:
-        return show_current_layout(layout_code)
+    def is_available(self) -> bool:
+        return bool(self.query().available)
 
-    def detect_backend(self) -> LayoutBackend:
-        return detect_backend()
+    def query(self) -> LayoutState:
+        with self._lock:
+            if self._stopped.is_set():
+                return LayoutState("", [])
+            if self._delegate is None:
+                self._delegate = detect_backend()
+            return self._delegate.query()
+
+    def switch(self, layout_code: str, *, context: str = "") -> None:
+        with self._lock:
+            if self._stopped.is_set():
+                return
+            if self._delegate is None:
+                self._delegate = detect_backend()
+            self._delegate.switch(layout_code, context=context)
+
+    def stop(self) -> None:
+        self._stopped.set()

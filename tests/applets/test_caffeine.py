@@ -239,6 +239,12 @@ class TestCompositeInhibitor:
 
 
 class TestApplet:
+    @pytest.fixture(autouse=True)
+    def inline_requests(self, monkeypatch):
+        from tests.applets.test_brightness import _ImmediateWorker
+
+        monkeypatch.setattr("docking.applets.worker.BackgroundWorker", _ImmediateWorker)
+
     def test_creates_with_icon(self):
         applet = CaffeineApplet(
             48,
@@ -450,7 +456,10 @@ class TestSystemdSleepInhibitor:
         inh = SystemdSleepInhibitor()
         fake_proc = MagicMock()
         fake_proc.poll.return_value = None  # Still running
-        fake_proc.wait.side_effect = subprocess.TimeoutExpired(cmd="test", timeout=2)
+        fake_proc.wait.side_effect = [
+            subprocess.TimeoutExpired(cmd="test", timeout=2),
+            0,
+        ]
         inh._proc = fake_proc
         inh.release()
         fake_proc.kill.assert_called_once()
@@ -486,13 +495,11 @@ class TestCompositeInhibitorParts:
         comp.acquire()
         assert comp.active is True
 
-    def test_default_inhibitor_returns_composite(self):
-        from docking.applets.caffeine.implementations.unix.backend import (
-            default_inhibitor,
-        )
+    def test_default_unix_inhibitor_returns_composite(self, monkeypatch):
         from docking.applets.caffeine.inhibit import CompositeInhibitor
+        from docking.platform.composition.linux import LinuxAppletBackendFactories
 
-        inh = default_inhibitor()
+        inh = LinuxAppletBackendFactories().caffeine()
         assert isinstance(inh, CompositeInhibitor)
         assert len(inh._parts) == 2
 

@@ -15,6 +15,11 @@ from docking.platform.composition.bsd import BsdAppletBackendFactories
 from tests.platform_factories import make_applet_platform
 
 
+@pytest.fixture(autouse=True)
+def bsd_platform(monkeypatch):
+    monkeypatch.setattr(environment, "is_windows", lambda: False)
+
+
 def test_native_interface_change_resets_traffic_baseline(monkeypatch):
     monkeypatch.setattr(environment, "is_bsd", lambda: True)
     readings = [bsd.NetworkInterface("vio0", "192.0.2.1", True, 1000, 2000)]
@@ -38,13 +43,19 @@ def test_native_interface_change_resets_traffic_baseline(monkeypatch):
 
 
 def test_bluetooth_available_on_freebsd_but_not_openbsd(monkeypatch):
+    from types import SimpleNamespace
+
     from docking.applets import identity
     from docking.applets.camshield import meta as camera_meta
 
-    monkeypatch.setattr(identity.sys, "platform", "freebsd15")
+    monkeypatch.setattr(
+        identity, "host_services", lambda: SimpleNamespace(platform_name="freebsd15")
+    )
     assert bluetooth_meta.available_on_host
     assert camera_meta.available_on_host
-    monkeypatch.setattr(identity.sys, "platform", "openbsd7")
+    monkeypatch.setattr(
+        identity, "host_services", lambda: SimpleNamespace(platform_name="openbsd7")
+    )
     assert not bluetooth_meta.available_on_host
     assert camera_meta.available_on_host
 

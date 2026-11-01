@@ -15,13 +15,10 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 import gi
-
-from docking.platform.tray.menu import TrayMenuClient
-
-from ...menu import DBusMenuItem, DBusMenuLayout
 
 gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
@@ -49,7 +46,35 @@ _MENU_PROPERTY_NAMES = frozenset(
 )
 
 
-class DBusMenuClient(TrayMenuClient):
+@dataclass(frozen=True, slots=True)
+class DBusMenuItem:
+    """One menu item from a DBusMenu layout tree."""
+
+    item_id: int
+    label: str
+    enabled: bool = True
+    visible: bool = True
+    item_type: str = ""
+    icon_name: str = ""
+    icon_data: bytes = b""
+    toggle_type: str = ""
+    toggle_state: int = -1
+    children: tuple[DBusMenuItem, ...] = ()
+
+    @property
+    def is_separator(self) -> bool:
+        return self.item_type == "separator"
+
+
+@dataclass(frozen=True, slots=True)
+class DBusMenuLayout:
+    """Parsed DBusMenu layout."""
+
+    revision: int
+    root: DBusMenuItem
+
+
+class DBusMenuClient:
     """Small synchronous DBusMenu client used by the tray popup/menu UI."""
 
     def __init__(

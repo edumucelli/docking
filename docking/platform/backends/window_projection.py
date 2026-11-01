@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from abc import abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import replace
 from typing import TYPE_CHECKING
@@ -34,12 +35,14 @@ class SnapshotWindowService(WindowService):
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
         config: Config | None = None,
+        allow_unlisted_executables: bool = False,
     ) -> None:
         self._model = model
         self._config = config
         self._matcher = AppIdMatcher(
             registry=application_registry,
             process_identity_service=process_identity_service,
+            allow_unlisted_executables=allow_unlisted_executables,
         )
         self._snapshots: dict[WindowId, WindowSnapshot] = {}
         self._changes = WindowChanges()
@@ -116,6 +119,7 @@ class SnapshotWindowService(WindowService):
     def icon_name_for_desktop(self, desktop_id: str) -> str:
         return "application-x-executable"
 
+    @abstractmethod
     def perform(self, window_id: WindowId, action: str) -> ActionResult:
         raise NotImplementedError
 

@@ -273,6 +273,7 @@ class TestTrashAppletDrops:
         file = MagicMock()
         file.trash.return_value = True
         backend = MagicMock()
+        backend.trash_file.side_effect = lambda file: file.trash(None)
         backend.count_items.return_value = 3
         backend.trash_uris.side_effect = lambda uris: UnixTrashWatch.trash_uris(
             backend, uris
@@ -297,9 +298,7 @@ class TestTrashAppletDrops:
         file.trash.return_value = False
         applet = TrashApplet.__new__(TrashApplet)
         applet._backend = MagicMock()
-        applet._backend.trash_uris.side_effect = lambda uris: UnixTrashWatch.trash_uris(
-            applet._backend, uris
-        )
+        applet._backend.trash_uris.side_effect = UnixTrashWatch().trash_uris
         applet._item_count = 0
         applet.present = MagicMock()
 

@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 import ast
+import os
 import subprocess
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
 import docking.platform.desktop.implementations.unix.targets as native_targets
-from tests.platform_factories import make_target_service
+from tests.platform_factories import make_icon_loader, make_target_service
 
 try:
     import gi  # noqa: F401
@@ -24,12 +24,22 @@ except Exception:
 
 from docking.platform import icons as icons_mod
 from docking.platform import targets as targets_mod
-from docking.platform.icons import FileIconInfo, IconLoader
+from docking.platform.icons import FileIconInfo
 from docking.platform.targets import (
     FileTargetInfo,
     normalize_file_target,
     open_target,
 )
+
+
+@pytest.fixture(autouse=True)
+def use_gio_default_handler(monkeypatch):
+    """These shared tests exercise the non-Windows Gio/Flatpak launch path."""
+    from docking.platform.desktop.implementations.unix.backend import (
+        UnixDesktopServices,
+    )
+
+    monkeypatch.setattr(targets_mod, "desktop_services", UnixDesktopServices)
 
 
 def test_default_uri_launch_ownership_is_centralized():
@@ -78,6 +88,7 @@ def test_file_uri_localhost_authority_keeps_local_target(tmp_path, authority):
     assert normalize_file_target(f"file://{authority}{uri_path}") == path.as_uri()
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows file authorities are UNC paths")
 @pytest.mark.parametrize("authority", ["server.example", "127.0.0.1"])
 def test_remote_file_uri_never_opens_same_local_path(tmp_path, monkeypatch, authority):
     path = tmp_path / "report.txt"
@@ -292,7 +303,7 @@ def test_resolve_file_preserves_target_metadata(
     info.get_content_type.return_value = content_type
     gfile = MagicMock()
     gfile.query_info.return_value = info
-    monkeypatch.setattr(targets_mod.Gio.File, "new_for_uri", lambda _uri: gfile)
+    monkeypatch.setattr(targets_mod, "file_for_uri", lambda _uri: gfile)
     icon_loader = MagicMock()
     icon_loader.resolve_file_icon_info.return_value = FileIconInfo("pixbuf")
     service = make_target_service(icon_loader=icon_loader)
@@ -327,7 +338,7 @@ def test_resolve_file_returns_none_for_query_error(monkeypatch):
     monkeypatch.setattr(targets_mod.GLib, "Error", RuntimeError)
     gfile = MagicMock()
     gfile.query_info.side_effect = RuntimeError("missing")
-    monkeypatch.setattr(targets_mod.Gio.File, "new_for_uri", lambda _uri: gfile)
+    monkeypatch.setattr(targets_mod, "file_for_uri", lambda _uri: gfile)
 
     assert (
         make_target_service(icon_loader=MagicMock()).resolve_file("/tmp/missing", 48)
@@ -354,9 +365,11 @@ def test_resolve_file_uses_image_thumbnail(tmp_path, monkeypatch):
     info.get_content_type.return_value = "image/png"
     gfile = MagicMock()
     gfile.query_info.return_value = info
-    monkeypatch.setattr(targets_mod.Gio.File, "new_for_uri", lambda _uri: gfile)
+    monkeypatch.setattr(targets_mod, "file_for_uri", lambda _uri: gfile)
 
-    result = make_target_service(icon_loader=IconLoader()).resolve_file(str(path), 48)
+    result = make_target_service(icon_loader=make_icon_loader()).resolve_file(
+        str(path), 48
+    )
 
     assert result is not None
     assert result.icon is thumbnail
@@ -369,20 +382,53 @@ def test_resolve_file_uses_image_thumbnail(tmp_path, monkeypatch):
     )
 
 
-def test_default_directory_handler_name_and_error(monkeypatch):
-    app_info = SimpleNamespace(get_display_name=lambda: "Files")
-    monkeypatch.setattr(
-        targets_mod.Gio.AppInfo,
-        "get_default_for_type",
-        lambda *_args: app_info,
+def test_default_directory_handler_name_and_pending():
+    from docking.platform.applications.associations import (
+        AssociationResolution,
+        AssociationStatus,
     )
-    service = make_target_service(icon_loader=MagicMock())
-    assert service.default_directory_app_name() == "Files"
 
-    monkeypatch.setattr(targets_mod.GLib, "Error", RuntimeError)
-    monkeypatch.setattr(
-        targets_mod.Gio.AppInfo,
-        "get_default_for_type",
-        MagicMock(side_effect=RuntimeError("lookup failed")),
+    registry = MagicMock()
+    service = make_target_service(
+        icon_loader=MagicMock(), application_registry=registry
     )
-    assert service.default_directory_app_name() is None
+    registry.directory_application_name.return_value = AssociationResolution(
+        AssociationStatus.READY, name="Files"
+    )
+    assert service.default_directory_app_name() == "Files"
+    registry.directory_application_name.assert_called_once_with()
+    for status in (AssociationStatus.PENDING, AssociationStatus.UNAVAILABLE):
+        registry.directory_application_name.return_value = AssociationResolution(status)
+        assert service.default_directory_app_name() is None
+
+
+def test_windows_default_handler_receives_the_decoded_native_path(
+    tmp_path, monkeypatch
+):
+    from docking.platform.desktop.implementations.windows import targets as native
+    from docking.platform.desktop.implementations.windows.backend import (
+        WindowsDesktopServices,
+    )
+
+    path = tmp_path / "report # résumé 100%.txt"
+    path.write_text("document")
+    launch = MagicMock(return_value=True)
+    monkeypatch.setattr(targets_mod, "desktop_services", WindowsDesktopServices)
+    monkeypatch.setattr(native, "open_default_target", launch)
+    assert open_target(path.as_uri())
+    launch.assert_called_once_with(str(path.resolve()))
+
+
+def test_windows_default_handler_receives_allowed_web_uri_and_reports_failure(
+    monkeypatch,
+):
+    from docking.platform.desktop.implementations.windows import targets as native
+    from docking.platform.desktop.implementations.windows.backend import (
+        WindowsDesktopServices,
+    )
+
+    launch = MagicMock(return_value=False)
+    monkeypatch.setattr(targets_mod, "desktop_services", WindowsDesktopServices)
+    monkeypatch.setattr(native, "open_default_target", launch)
+    assert not open_target("https://example.com/docs")
+    launch.assert_called_once_with("https://example.com/docs")

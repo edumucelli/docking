@@ -6,8 +6,9 @@ import re
 import shutil
 import sys
 
-from docking.applets.volume.backend import VolumeBackend
+from docking.applets.volume.backend import VolumeBackend, VolumeControls
 from docking.applets.volume.implementations.unix.command import run_command
+from docking.applets.volume.implementations.unix.desktop_settings import SETTINGS
 from docking.applets.volume.implementations.unix.pulseaudio import BACKEND as PULSEAUDIO
 from docking.applets.volume.state import VolumeState
 
@@ -24,7 +25,11 @@ def _number(text: str | None) -> float | None:
         return None
 
 
-def create_backend() -> VolumeBackend | None:
+def create_backend() -> VolumeBackend:
+    return VolumeBackend(_controls(), SETTINGS)
+
+
+def _controls() -> VolumeControls | None:
     if shutil.which("pactl"):
         return PULSEAUDIO
     openbsd = sys.platform.startswith("openbsd")
@@ -55,4 +60,4 @@ def create_backend() -> VolumeBackend | None:
     def toggle_mute() -> None:
         run_command([tool, f"{mute_key}={'!' if openbsd else 'toggle'}"], "toggle_mute")
 
-    return VolumeBackend(tool, get_state, set_volume, toggle_mute)
+    return VolumeControls(tool, get_state, set_volume, toggle_mute)

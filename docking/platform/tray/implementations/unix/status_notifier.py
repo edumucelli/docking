@@ -29,9 +29,6 @@ from gi.repository import Gio, GLib
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
-from ...state import StatusTrayState, TrayIconPixmap, TrayItem
-from ...state import unavailable_state as empty_state
-
 if TYPE_CHECKING:
     from docking.platform.tray.implementations.unix.dbusmenu import DBusMenuClient
 
@@ -94,6 +91,68 @@ class RegisteredItemAddress:
     @property
     def identifier(self) -> str:
         return f"{self.service}{self.path}"
+
+
+@dataclass(frozen=True, slots=True)
+class TrayIconPixmap:
+    """Raw StatusNotifier icon pixmap converted to RGBA bytes."""
+
+    width: int
+    height: int
+    rgba: bytes
+
+
+@dataclass(frozen=True, slots=True)
+class TrayItem:
+    """Snapshot of one StatusNotifier item."""
+
+    identifier: str
+    service: str
+    path: str
+    title: str
+    status: str
+    category: str
+    icon_name: str
+    attention_icon_name: str
+    overlay_icon_name: str
+    icon_theme_path: str
+    icon_pixmap: TrayIconPixmap | None
+    menu_path: str
+    tooltip_title: str
+    tooltip_text: str
+    item_is_menu: bool
+    item_id: str = ""
+
+    @property
+    def display_title(self) -> str:
+        return self.title or self.tooltip_title or self.service
+
+    @property
+    def effective_icon_name(self) -> str:
+        if self.status.casefold() == "needsattention" and self.attention_icon_name:
+            return self.attention_icon_name
+        return self.icon_name or self.attention_icon_name or self.overlay_icon_name
+
+
+@dataclass(frozen=True, slots=True)
+class StatusTrayState:
+    """Current StatusNotifier state."""
+
+    available: bool
+    watcher_mode: str
+    items: tuple[TrayItem, ...]
+    error: str = ""
+    legacy_tray_owner: str = ""
+
+
+def unavailable_state(error: str = "") -> StatusTrayState:
+    return StatusTrayState(
+        available=False,
+        watcher_mode="unavailable",
+        items=(),
+        error=error,
+        legacy_tray_owner=legacy_tray_owner_name(),
+    )
 
 
 def parse_registered_item(
@@ -213,18 +272,18 @@ class StatusNotifierBackend:
             legacy_tray_owner=legacy_tray_owner_name() if not items else "",
         )
 
-    def activate(self, identifier: str) -> bool:
+    def activate(self, identifier: str, *, x: int = 0, y: int = 0) -> bool:
         item = self._last_items.get(identifier)
         if item is None:
             return False
         method = "ContextMenu" if item.item_is_menu else "Activate"
-        return self._call_item_method(item=item, method=method)
+        return self._call_item_method(item=item, method=method, x=x, y=y)
 
-    def context_menu(self, identifier: str) -> bool:
+    def context_menu(self, identifier: str, *, x: int = 0, y: int = 0) -> bool:
         item = self._last_items.get(identifier)
         if item is None:
             return False
-        return self._call_item_method(item=item, method="ContextMenu")
+        return self._call_item_method(item=item, method="ContextMenu", x=x, y=y)
 
     def menu_client(self, identifier: str) -> DBusMenuClient | None:
         item = self._last_items.get(identifier)
@@ -296,14 +355,16 @@ class StatusNotifierBackend:
             self._host = _StatusNotifierWatcherHost(bus=bus)
         return self._host
 
-    def _call_item_method(self, *, item: TrayItem, method: str) -> bool:
+    def _call_item_method(
+        self, *, item: TrayItem, method: str, x: int = 0, y: int = 0
+    ) -> bool:
         try:
             self._connection().call_sync(
                 item.service,
                 item.path,
                 ITEM_IFACE,
                 method,
-                GLib.Variant("(ii)", (0, 0)),
+                GLib.Variant("(ii)", (x, y)),
                 None,
                 Gio.DBusCallFlags.NONE,
                 METHOD_TIMEOUT_MS,
@@ -746,9 +807,3 @@ def _unpack_variant(value: object) -> Any:
     if isinstance(value, list):
         return [_unpack_variant(item) for item in value]
     return value
-
-
-def unavailable_state(error: str = "") -> StatusTrayState:
-    from dataclasses import replace
-
-    return replace(empty_state(error), legacy_tray_owner=legacy_tray_owner_name())

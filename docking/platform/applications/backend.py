@@ -6,12 +6,11 @@ platform I/O; importing these declarations must not initialize GUI services.
 
 from __future__ import annotations
 
-import subprocess
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Protocol
 
 from .associations import AssociationKey, AssociationRead
 from .types import (
@@ -38,6 +37,7 @@ class DiscoveryResult:
     diagnostics: tuple[ApplicationDiagnostic, ...] = ()
     decisions: tuple[DiscoveryDecision, ...] = ()
     directory_statuses: tuple[DiscoveryDirectoryDiagnostic, ...] = ()
+    initial_discovery_pending: bool = False
 
 
 class CatalogMonitor(ABC):
@@ -50,6 +50,11 @@ class CatalogMonitor(ABC):
 
 
 class ApplicationCatalogBackend(ABC):
+    @property
+    @abstractmethod
+    def initial_discovery_pending(self) -> bool: ...
+    @abstractmethod
+    def invalidate(self) -> None: ...
     @abstractmethod
     def discover(self, *, handle_epoch: int) -> DiscoveryResult: ...
     @abstractmethod
@@ -63,14 +68,20 @@ class ApplicationCatalogBackend(ABC):
 
 
 class ApplicationAssociationBackend(ABC):
+    @property
     @abstractmethod
-    def read(self, key: AssociationKey) -> AssociationRead: ...
+    def revision(self) -> int: ...
+    @abstractmethod
+    def reads(
+        self, keys: tuple[AssociationKey, ...]
+    ) -> Iterable[tuple[AssociationKey, AssociationRead]]: ...
+    @abstractmethod
+    def association_only(self, application: ApplicationInfo) -> bool: ...
+    def read(self, key: AssociationKey) -> AssociationRead:
+        return next(iter(self.reads((key,))))[1]
+
     @abstractmethod
     def visible(self, handle: object, /) -> bool: ...
-    @abstractmethod
-    def application(
-        self, registry: ApplicationRegistry, handle: object | None, /
-    ) -> ApplicationInfo | None: ...
     @abstractmethod
     def registered(
         self, registry: ApplicationRegistry, handle: object, /
@@ -85,9 +96,26 @@ class ApplicationAssociationBackend(ABC):
     ) -> TransientApplicationInfo: ...
 
 
+class LaunchedProcessHandle(Protocol):
+    """Opaque external process handle; both Popen and Win32 handles satisfy it."""
+
+    @property
+    def pid(self) -> int: ...
+    def poll(self) -> int | None: ...
+
+
+@dataclass(frozen=True, slots=True)
+class LaunchOutcome:
+    """Native activation result, retaining only an owned process handle."""
+
+    started: bool
+    process: LaunchedProcessHandle | None = None
+    executable_path: Path | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class LaunchedProcess:
-    process: subprocess.Popen[Any]
+    process: LaunchedProcessHandle
     executable_path: Path | None
 
 
@@ -97,16 +125,29 @@ class LaunchResult:
     launched: LaunchedProcess | None = None
 
 
+ApplicationHandleSource = Callable[[], object | None]
+
+
 class ApplicationLaunchBackend(ABC):
     @abstractmethod
-    def launch(self, application: ApplicationInfo) -> LaunchResult: ...
+    def launch(
+        self,
+        application: ApplicationInfo,
+        handle: ApplicationHandleSource | None = None,
+    ) -> LaunchResult: ...
     @abstractmethod
     def launch_action(
-        self, application: ApplicationInfo, action_id: str, handle: object | None
+        self,
+        application: ApplicationInfo,
+        action_id: str,
+        handle: ApplicationHandleSource,
     ) -> LaunchResult: ...
     @abstractmethod
     def launch_app_uris(
-        self, application: ApplicationInfo, uris: Iterable[str], handle: object | None
+        self,
+        application: ApplicationInfo,
+        uris: Iterable[str],
+        handle: ApplicationHandleSource,
     ) -> LaunchResult: ...
     @abstractmethod
     def launch_listing(
@@ -116,7 +157,7 @@ class ApplicationLaunchBackend(ABC):
 
 @dataclass(frozen=True, slots=True)
 class GeneratedDesktopEntry:
-    """A user-local desktop file generated for a dropped executable."""
+    """A user-local launcher generated for a dropped executable."""
 
     desktop_id: str
     path: Path
@@ -156,3 +197,33 @@ class ProcessBackend(ABC):
     def sandbox_app_id(self, pid: int) -> str | None: ...
     @abstractmethod
     def steam_app_id(self, pid: int) -> str | None: ...
+
+
+class ApplicationDragSource(ABC):
+    """Native export lifecycle supplied to a session surface by composition."""
+
+    @abstractmethod
+    def prepare(
+        self,
+        widget: object,
+        *,
+        application_id: str,
+        data: tuple[tuple[str, bytes], ...],
+    ) -> None: ...
+
+    @abstractmethod
+    def stop(self) -> None: ...
+
+
+@dataclass(frozen=True, slots=True)
+class ApplicationSources:
+    """Fresh capabilities whose catalog/association lifetimes are composed together.
+
+    Consumers still receive each narrow backend independently. Native discovery
+    and association acquisition may share one metadata worker owned by the
+    catalog; this composition value never enters persisted state.
+    """
+
+    catalog: ApplicationCatalogBackend
+    associations: ApplicationAssociationBackend
+    registrations: ExecutableRegistrationBackend

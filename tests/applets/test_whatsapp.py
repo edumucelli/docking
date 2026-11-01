@@ -12,7 +12,11 @@ from gi.repository import GLib
 import docking.applets.webapp.applet as webapp_applet_mod
 import docking.applets.webapp.implementations.unix.backend as whatsapp_browser_mod
 import tests.platform_factories as test_platform
-from docking.applets.webapp.backend import BrowserBackend
+from docking.applets.webapp.backend import (
+    BrowserBackend,
+    error_message,
+    unique_download_path,
+)
 from docking.applets.webapp.implementations.unix.notifications import DesktopNotifier
 from docking.applets.whatsapp.applet import WhatsAppApplet
 from docking.applets.whatsapp.bridge import (
@@ -189,7 +193,7 @@ class TestWhatsAppState:
     def test_tooltips_cover_lifecycle_and_unread_state(self):
         assert "click to open" in tooltip_text(WhatsAppState())
         assert "loading" in tooltip_text(WhatsAppState(phase=BrowserPhase.STARTING))
-        assert "not installed" in tooltip_text(
+        assert "browser is unavailable" in tooltip_text(
             WhatsAppState(phase=BrowserPhase.UNAVAILABLE)
         )
         assert "offline" in tooltip_text(
@@ -378,7 +382,7 @@ class TestWhatsAppBrowserHelpers:
         assert pixbuf.get_width() == 48
         assert pixbuf.get_height() == 48
 
-    def test_unique_download_path_sanitizes_and_deduplicates(
+    def testunique_download_path_sanitizes_and_deduplicates(
         self, tmp_path, monkeypatch
     ):
         monkeypatch.setattr(
@@ -388,14 +392,14 @@ class TestWhatsAppBrowserHelpers:
         )
         (tmp_path / "photo.jpg").touch()
 
-        path = whatsapp_browser_mod._unique_download_path("../../photo.jpg")
+        path = whatsapp_browser_mod.unique_download_path("../../photo.jpg")
 
         assert path == tmp_path / "photo (1).jpg"
 
-    def test_error_message_is_single_line_and_bounded(self):
+    def testerror_message_is_single_line_and_bounded(self):
         error = "first line\nsecond line" + ("x" * 300)
 
-        message = whatsapp_browser_mod._error_message(error)
+        message = whatsapp_browser_mod.error_message(error)
 
         assert message == "first line"
         assert len(message) <= 160
@@ -502,6 +506,28 @@ class TestWhatsAppBrowserHelpers:
 
         assert browser.phase is BrowserPhase.READY
         assert phases == [BrowserPhase.READY]
+
+    def test_unique_download_path_sanitizes_and_deduplicates(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(
+            whatsapp_browser_mod.GLib,
+            "get_user_special_dir",
+            lambda _directory: str(tmp_path),
+        )
+        (tmp_path / "photo.jpg").touch()
+
+        path = unique_download_path("../../photo.jpg")
+
+        assert path == tmp_path / "photo (1).jpg"
+
+    def test_error_message_is_single_line_and_bounded(self):
+        error = "first line\nsecond line" + ("x" * 300)
+
+        message = error_message(error)
+
+        assert message == "first line"
+        assert len(message) <= 160
 
 
 class TestDesktopNotifier:

@@ -14,6 +14,7 @@ gi.require_version("GLib", "2.0")
 from gi.repository import Gio, GLib
 
 from docking.applets.bluetooth.backend import BluetoothBackend
+from docking.applets.bluetooth.implementations.unix import desktop as unix_desktop
 from docking.applets.bluetooth.state import (
     BluetoothAdapterState,
     BluetoothDeviceState,
@@ -64,6 +65,12 @@ class LinuxBluetoothBackend(BluetoothBackend):
     - Power-off can fail with `org.bluez.Error.Busy` when discovery or other
       controller activity is still active.
     """
+
+    def desktop_actions(self):
+        return unix_desktop.desktop_actions()
+
+    def open_desktop_action(self, action):
+        return unix_desktop.open_desktop_action(action)
 
     def close(self) -> None:
         # The applet releases its owned BlueZ discovery sessions before closing.

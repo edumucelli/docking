@@ -66,6 +66,30 @@ def _layout():
 
 
 class TestHoverUpdates:
+    def test_visible_preview_suppresses_the_ordinary_tooltip(self):
+        hover, _window, _model, _config, tooltip, frame = _make_hover()
+        item = DockItem(desktop_id="app", name="App", is_running=True, instance_count=1)
+        frame.hover_item_at_point.return_value = item
+        hover.hovered_item = item
+        preview = MagicMock()
+        preview.get_visible.return_value = True
+        preview.current_desktop_id = "app"
+        hover.set_preview(preview)
+        hover.update(cursor_main=20.0)
+        tooltip.hide.assert_called_once_with()
+        tooltip.update.assert_not_called()
+        preview.cancel_hide.assert_called_once_with()
+
+    def test_delayed_preview_hides_the_tooltip_without_another_pointer_motion(self):
+        hover, _window, _model, _config, tooltip, _frame = _make_hover()
+        item = DockItem(desktop_id="app", name="App", is_running=True, instance_count=1)
+        hover.hovered_item = item
+        preview = MagicMock()
+        preview.get_visible.return_value = True
+        hover.set_preview(preview)
+        hover._show_preview(item, None)
+        tooltip.hide.assert_called_once_with()
+
     def test_update_changes_hover_and_starts_preview_timer(self, monkeypatch):
         # Given
         hover, _window, model, _config, tooltip, frame = _make_hover()

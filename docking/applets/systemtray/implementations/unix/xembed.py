@@ -39,7 +39,15 @@ GDK_FILTER_REMOVE = 1
 PROP_MODE_REPLACE = 0
 
 
-from ...presentation import LegacyTrayIcon
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True, slots=True)
+class LegacyTrayIcon:
+    """One XEmbed tray icon owned by the Unix host."""
+
+    xid: int
+    title: str
 
 
 class XClientMessageData(ctypes.Union):

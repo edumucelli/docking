@@ -6,5 +6,6 @@ from .mounts import mount_points
 
 
 class LinuxHostServices(UnixHostServices):
+    platform_name = "linux"
     family = HostFamily.LINUX
     mount_points = staticmethod(mount_points)

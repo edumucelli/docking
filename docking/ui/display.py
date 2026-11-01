@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import NamedTuple
 
 import gi
@@ -188,12 +189,20 @@ def clamp_popup(
     )
 
 
-def popup_workarea(popup: Gtk.Window, anchor_x: float, anchor_y: float) -> Rect:
+def popup_workarea(
+    popup: Gtk.Window,
+    anchor_x: float,
+    anchor_y: float,
+    *,
+    workarea_provider: Callable[[MonitorSnapshot], Rect | None] | None = None,
+) -> Rect:
     """Logical bounds of the anchor monitor, excluding external panels when known.
 
     Select from the icon, not the proposed popup origin: an overflowing popup
     can start on another monitor. Do not infer panel geometry on Wayland; use
     GDK's workarea when the surface backend cannot distinguish reservations.
+    An explicit provider can instead include the dock's own reservation, as
+    needed when fitting an independent palette into the usable desktop.
     """
     display = popup.get_display()
     monitor = display.get_monitor_at_point(int(anchor_x), int(anchor_y))
@@ -206,7 +215,10 @@ def popup_workarea(popup: Gtk.Window, anchor_x: float, anchor_y: float) -> Rect:
     area = Rect(workarea.x, workarea.y, workarea.width, workarea.height)
     parent = popup.get_transient_for()
     surface = window_surface_service(parent) if parent is not None else None
-    if surface is not None:
+    provider = workarea_provider
+    if provider is None and surface is not None:
+        provider = surface.external_workarea
+    if provider is not None:
         index = next(
             (
                 i
@@ -215,7 +227,7 @@ def popup_workarea(popup: Gtk.Window, anchor_x: float, anchor_y: float) -> Rect:
             ),
             0,
         )
-        external = surface.external_workarea(
+        external = provider(
             MonitorSnapshot(
                 index=index,
                 geometry=bounds,

@@ -20,6 +20,11 @@ from pathlib import Path
 from docking.platform.host.selection import host_services
 
 
+def is_explicit_path(target: str) -> bool:
+    """Recognize explicit path syntax through the selected host."""
+    return host_services().is_explicit_path(target)
+
+
 def local_path_from_uri_or_path(target: str) -> Path | None:
     """Decode a local file URI or expand a path through the selected host."""
     return host_services().local_path(target)

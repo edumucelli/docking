@@ -12,6 +12,7 @@ gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 from gi.repository import Gio, GLib
 
+from docking.applets.webapp.backend import NotificationBackend
 from docking.log import get_logger
 
 log = get_logger("webapp.notifications")
@@ -22,7 +23,7 @@ NOTIFICATION_IFACE = "org.freedesktop.Notifications"
 METHOD_TIMEOUT_MS = 1500
 
 
-class DesktopNotifier:
+class DesktopNotifier(NotificationBackend[object]):
     """Publish WebKit notifications and route clicks back to the web page."""
 
     def __init__(

@@ -781,3 +781,71 @@ def test_shortcut_status_notifications_do_not_leak_a_slow_listener(
     controller._notify_shortcut_status()
 
     assert seen == ["first", "second"]
+
+
+def test_window_preview_cache_rejects_closed_and_reused_process_identity(monkeypatch):
+    from dataclasses import replace
+
+    controller, _window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
+    window_id = WindowId(DisplayServer.WINDOWS, 100)
+    snapshot = WindowSnapshot(
+        id=window_id, desktop_id="fixture", pid=101, can_preview=True
+    )
+    windows = MagicMock(list_all_windows=MagicMock(return_value=(snapshot,)))
+    controller._windows = windows
+    first = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, 28, 20)
+    second = first.copy()
+    controller._preview_service = MagicMock(
+        capture=MagicMock(return_value=PreviewImage(first, 28, 20))
+    )
+    preview = SearchPreview(
+        title="Fixture", body="Native window", kind="window", target=str(window_id)
+    )
+    assert controller._load_dynamic_preview(preview, 28, 20).pixbuf is first
+    windows.list_all_windows.return_value = ()
+    assert controller._load_dynamic_preview(preview, 28, 20) is None
+    windows.list_all_windows.return_value = (replace(snapshot, pid=202),)
+    controller._preview_service.capture.return_value = PreviewImage(second, 28, 20)
+    assert controller._load_dynamic_preview(preview, 28, 20).pixbuf is second
+
+
+def test_windows_shortcut_conflict_uses_existing_actionable_feedback(monkeypatch):
+    controller, _window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
+    controller._shortcut_status = GlobalShortcutsStatus(
+        state=GlobalShortcutsState.ERROR, message="shortcut is already in use"
+    )
+    assert controller.shortcut_status_text() == "Shortcut already in use"
+    assert controller.shortcut_status_summary() == "Conflict"
+
+
+def test_shortcut_composition_uses_shared_platform_factories(monkeypatch):
+    primary, fallback = MagicMock(), MagicMock()
+    controller = SimpleNamespace(
+        _integration=SimpleNamespace(primary=primary, fallback=fallback),
+        _config=Config(),
+        _on_global_shortcut=MagicMock(),
+        _on_shortcut_status=MagicMock(),
+        _on_fallback_shortcut=MagicMock(),
+        _schedule_idle=MagicMock(),
+    )
+    assert (
+        GlobalSearchController._new_shortcut_service(controller) is primary.return_value
+    )
+    assert (
+        GlobalSearchController._new_shortcut_fallback(controller)
+        is fallback.return_value
+    )
+    assert primary.call_args.kwargs == {
+        "app_id": controller_mod.application_id(),
+        "preferred_trigger": "CTRL+ALT+space",
+        "trigger_description": "Ctrl+Alt+Space",
+        "on_activated": controller._on_global_shortcut,
+        "on_status_changed": controller._on_shortcut_status,
+        "schedule_idle": controller._schedule_idle,
+        "remove_source": controller_mod.GLib.source_remove,
+    }
+    assert fallback.call_args.kwargs == {
+        "shortcut": "CTRL+ALT+space",
+        "on_activated": controller._on_fallback_shortcut,
+        "schedule_idle": controller._schedule_idle,
+    }

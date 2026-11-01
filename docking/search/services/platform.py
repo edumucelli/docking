@@ -5,6 +5,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 
+from docking.search.services.window_focus import WindowFocus
+
 from .global_shortcuts import ActivationCallback, GlobalShortcutService, StatusCallback
 
 
@@ -35,6 +37,14 @@ class ShortcutFallback(ABC):
 
 
 class SearchIntegration(ABC):
+    @property
+    @abstractmethod
+    def opaque_action_panel(self) -> bool:
+        """Whether the native popup requires an opaque action overlay."""
+        ...
+
+    @abstractmethod
+    def focus_factory(self) -> Callable[[], WindowFocus] | None: ...
     @abstractmethod
     def primary(
         self,
@@ -43,6 +53,9 @@ class SearchIntegration(ABC):
         preferred_trigger: str,
         on_activated: ActivationCallback,
         on_status_changed: StatusCallback,
+        trigger_description: str,
+        schedule_idle: Callable[..., int],
+        remove_source: Callable[[int], bool],
     ) -> GlobalShortcutService: ...
     @abstractmethod
     def fallback(

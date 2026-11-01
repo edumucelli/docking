@@ -5,15 +5,14 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-import docking.applets.camshield.implementations.unix.client as native_camshield_client
 import tests.platform_factories as test_platform
 from docking.applets.camshield.implementations.bsd import backend as bsd
 from docking.applets.camshield.implementations.unix import helper
-from docking.platform.composition.bsd import BsdAppletBackendFactories
-from tests.platform_factories import make_applet_platform
+from tests.platform_factories import TestAppletBackendFactories, make_applet_platform
 
 create_backend = bsd.BsdCamshieldBackend
 from docking.applets.camshield.state import CameraHolder, CamshieldState, build_tooltip
@@ -121,7 +120,7 @@ def test_freebsd_lock_refuses_to_destroy_an_unsaved_acl(monkeypatch, tmp_path):
         helper.lock_devices(
             dev_root=tmp_path,
             state_dir=tmp_path / "state",
-            backend=test_platform.camera_control(),
+            backend=bsd.BsdCamshieldBackend(),
         )
     assert device.stat().st_mode & 0o777 == 0o660
 
@@ -141,13 +140,13 @@ def test_freebsd_device_filesystem_without_acls_uses_mode_recovery(
         helper.lock_devices(
             dev_root=tmp_path,
             state_dir=tmp_path / "state",
-            backend=test_platform.camera_control(),
+            backend=bsd.BsdCamshieldBackend(),
         )
         == 0
     )
     assert (
         helper.unlock_devices(
-            state_dir=tmp_path / "state", backend=test_platform.camera_control()
+            state_dir=tmp_path / "state", backend=bsd.BsdCamshieldBackend()
         )
         == 0
     )
@@ -168,9 +167,7 @@ def test_freebsd_failed_acl_restore_retains_recovery_data(monkeypatch, tmp_path)
         state_dir=tmp_path,
     )
     assert (
-        helper.unlock_devices(
-            state_dir=tmp_path, backend=test_platform.camera_control()
-        )
+        helper.unlock_devices(state_dir=tmp_path, backend=bsd.BsdCamshieldBackend())
         == 1
     )
     assert str(device) in helper._read_state(state_dir=tmp_path)
@@ -193,20 +190,20 @@ def test_camera_reads_run_off_gtk_and_old_replies_are_ignored(monkeypatch):
         def __init__(self, **kwargs):
             pass
 
-        def run_guarded(self, *, key, name, fn, on_result):
+        def run_guarded(self, *, key, name, fn, on_result, **kwargs):
             tasks.append((fn, on_result))
             return True
 
     monkeypatch.setattr(camera, "BackgroundWorker", Worker)
+    backend = SimpleNamespace(
+        get_state=lambda: reads.append(True) or CamshieldState(True, True),
+        stop=lambda: None,
+    )
     monkeypatch.setattr(
-        native_camshield_client.UnixCamshieldClient,
-        "probe",
-        staticmethod(lambda: reads.append(True) or CamshieldState(True, True)),
+        TestAppletBackendFactories, "camshield", staticmethod(lambda: backend)
     )
     applet = camera.CamshieldApplet(
-        48,
-        Config(),
-        platform_services=make_applet_platform(backends=BsdAppletBackendFactories()),
+        48, Config(), platform_services=make_applet_platform()
     )
     assert not reads
     applet.stop()
@@ -218,13 +215,8 @@ def test_camera_reads_run_off_gtk_and_old_replies_are_ignored(monkeypatch):
 def test_interrupted_repeated_lock_preserves_the_original_recovery_record(
     monkeypatch, tmp_path
 ):
-    from docking.applets.camshield.implementations.linux.backend import (
-        LinuxCamshieldBackend,
-    )
-
     monkeypatch.setattr(helper.os, "geteuid", lambda: 0)
     monkeypatch.setattr(helper, "DEV_ROOT", tmp_path)
-    monkeypatch.setattr(test_platform, "camera_control", LinuxCamshieldBackend)
     monkeypatch.setattr(helper.shutil, "which", lambda name: None)
     device = tmp_path / "video0"
     device.touch()
@@ -392,8 +384,3 @@ def test_actual_freebsd_permission_and_acl_roundtrip(monkeypatch, tmp_path):
 )
 def test_actual_freebsd_device_filesystem_has_no_extended_acl():
     assert not bsd.BsdCamshieldBackend().requires_acl_backup(Path("/dev/null"))
-
-
-@pytest.fixture(autouse=True)
-def _bsd_camera_control(monkeypatch):
-    monkeypatch.setattr(test_platform, "camera_control", bsd.BsdCamshieldBackend)
