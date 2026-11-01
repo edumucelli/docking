@@ -4,11 +4,10 @@ from collections.abc import Callable
 from typing import NamedTuple
 
 from docking.applets.volume.state import VolumeState
-from docking.platform import environment
 
 
-class VolumeBackend(NamedTuple):
-    """Audio backend with commands for reading/setting volume."""
+class VolumeControls(NamedTuple):
+    """Optional audio controls; settings remain available without a mixer."""
 
     command: str
     get_state: Callable[[], VolumeState | None]
@@ -16,9 +15,13 @@ class VolumeBackend(NamedTuple):
     toggle_mute: Callable[[], None]
 
 
-def create_backend() -> VolumeBackend | None:
-    if environment.is_bsd():
-        from docking.applets.volume.bsd import create_backend
-    else:
-        from docking.applets.volume.linux import create_backend
-    return create_backend()
+class VolumeSettings(NamedTuple):
+    available: Callable[[], bool]
+    open: Callable[[], bool]
+
+
+class VolumeBackend(NamedTuple):
+    """System integration with optional audio controls and settings actions."""
+
+    controls: VolumeControls | None
+    settings: VolumeSettings

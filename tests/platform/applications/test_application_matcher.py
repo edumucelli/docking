@@ -8,7 +8,10 @@ from docking.platform.applications.identity import (
     LaunchProvenance,
     ProcessIdentity,
 )
-from docking.platform.applications.matcher import AppIdMatcher, _is_native_executable
+from docking.platform.applications.implementations.unix.registration import (
+    _is_native_executable,
+)
+from docking.platform.applications.matcher import AppIdMatcher
 from docking.platform.applications.types import (
     ApplicationAction,
     ApplicationInfo,
@@ -27,6 +30,11 @@ class _Registry:
         return None
 
     def __init__(self) -> None:
+        from docking.platform.applications.implementations.unix.registration import (
+            UnixExecutableRegistrationBackend,
+        )
+
+        self.registrations = UnixExecutableRegistrationBackend()
         self.generation = 1
         self.records: dict[str, ApplicationInfo] = {}
         self.aliases: dict[str, tuple[ApplicationInfo, ...]] = {}

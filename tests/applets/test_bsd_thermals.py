@@ -1,6 +1,6 @@
 """BSD integration regression tests at their owning boundaries."""
 
-from docking.applets.thermals import bsd
+from docking.applets.thermals.implementations.bsd import backend as bsd
 
 
 def test_openbsd_sensors_ignore_voltages_and_fans(monkeypatch):

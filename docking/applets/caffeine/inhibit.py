@@ -1,219 +1,45 @@
-# Author: Eduardo Mucelli Rezende Oliveira
-# E-mail: edumucelli@gmail.com
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU General Public License for more details.
-
-"""Idle and sleep inhibition backends for the Caffeine applet.
-
-Two independent, best-effort locks are held while Caffeine is active:
-
-1. Screensaver/idle, via the session-bus ``ScreenSaver`` service. The lock is a
-   cookie returned by ``Inhibit(app, reason)`` and released by ``UnInhibit``.
-   It MUST be held on a long-lived connection: a one-shot ``gdbus call Inhibit``
-   would release the moment its connection closes, so we keep the Gio
-   session-bus connection alive for the applet's lifetime and call ``UnInhibit``
-   explicitly. Dropping the cookie without uninhibiting leaks the lock.
-
-2. System sleep/suspend, via a held ``systemd-inhibit`` child process blocking
-   ``idle:sleep``. Releasing the lock means terminating that process.
-
-The two are acquired and released independently so a missing one (no session
-bus, no systemd) never blocks the other. Several desktops export the same
-``Inhibit(ss)->u`` ScreenSaver interface under different names, so we try the
-freedesktop name first and fall back through the common vendor variants. GNOME
-is intentionally absent: it has no ScreenSaver ``Inhibit`` method (it routes
-inhibition through ``SessionManager`` with a different signature); its
-``systemd-inhibit`` idle lock covers the idle case instead.
-"""
+"""Wake-lock contract and the composite attempt-every-part policy."""
 
 from __future__ import annotations
 
-import subprocess
-from typing import Protocol
+import threading
+from abc import ABC, abstractmethod
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from gi.repository import Gio, GLib
-
+if TYPE_CHECKING:
+    from docking.applets.worker import BackgroundWorker
 from docking.log import get_logger
-from docking.platform.environment import flatpak
 
 log = get_logger("caffeine.inhibit")
 
-_APP_NAME = "Docking"
-_REASON = "Caffeine keeps the session awake"
 
-# (bus name, object path, interface) candidates that all expose the same
-# ``Inhibit(s application, s reason) -> u cookie`` / ``UnInhibit(u)`` contract.
-_SCREENSAVER_TARGETS: tuple[tuple[str, str, str], ...] = (
-    (
-        "org.freedesktop.ScreenSaver",
-        "/org/freedesktop/ScreenSaver",
-        "org.freedesktop.ScreenSaver",
-    ),
-    ("org.freedesktop.ScreenSaver", "/ScreenSaver", "org.freedesktop.ScreenSaver"),
-    ("org.mate.ScreenSaver", "/org/mate/ScreenSaver", "org.mate.ScreenSaver"),
-    (
-        "org.cinnamon.ScreenSaver",
-        "/org/cinnamon/ScreenSaver",
-        "org.cinnamon.ScreenSaver",
-    ),
-    ("org.xfce.ScreenSaver", "/org/xfce/ScreenSaver", "org.xfce.ScreenSaver"),
-)
-
-_DBUS_TIMEOUT_MS = 2000
-
-
-class Inhibitor(Protocol):
+class Inhibitor(ABC):
     """Acquire/release contract for a wake lock."""
 
     @property
+    @abstractmethod
     def active(self) -> bool: ...
 
+    @abstractmethod
     def acquire(self) -> bool: ...
 
+    @abstractmethod
     def release(self) -> None: ...
 
 
-class ScreenSaverInhibitor:
-    """Hold a screensaver/idle inhibit cookie on the session bus."""
-
-    def __init__(self) -> None:
-        self._conn: Gio.DBusConnection | None = None
-        self._target: tuple[str, str, str] | None = None
-        self._cookie: int | None = None
-
-    @property
-    def active(self) -> bool:
-        return self._cookie is not None
-
-    def acquire(self) -> bool:
-        if self._cookie is not None:
-            return True
-        try:
-            conn = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-        except GLib.Error as exc:
-            log.debug("No session bus for screensaver inhibit: %s", exc)
-            return False
-        for name, path, iface in _SCREENSAVER_TARGETS:
-            try:
-                result = conn.call_sync(
-                    name,
-                    path,
-                    iface,
-                    "Inhibit",
-                    GLib.Variant("(ss)", (_APP_NAME, _REASON)),
-                    GLib.VariantType("(u)"),
-                    Gio.DBusCallFlags.NONE,
-                    _DBUS_TIMEOUT_MS,
-                    None,
-                )
-            except GLib.Error as exc:
-                log.debug("Screensaver inhibit via %s failed: %s", name, exc)
-                continue
-            self._conn = conn
-            self._target = (name, path, iface)
-            self._cookie = int(result.unpack()[0])
-            log.debug("Screensaver inhibited via %s (cookie=%s)", name, self._cookie)
-            return True
-        return False
-
-    def release(self) -> None:
-        cookie, conn, target = self._cookie, self._conn, self._target
-        self._cookie = None
-        self._target = None
-        if cookie is None or conn is None or target is None:
-            return
-        name, path, iface = target
-        try:
-            conn.call_sync(
-                name,
-                path,
-                iface,
-                "UnInhibit",
-                GLib.Variant("(u)", (cookie,)),
-                None,
-                Gio.DBusCallFlags.NONE,
-                _DBUS_TIMEOUT_MS,
-                None,
-            )
-        except GLib.Error as exc:
-            log.debug("Screensaver uninhibit failed: %s", exc)
-
-
-class SystemdSleepInhibitor:
-    """Hold a ``systemd-inhibit`` child blocking idle and sleep."""
-
-    def __init__(self) -> None:
-        self._proc: subprocess.Popen[bytes] | None = None
-
-    @property
-    def active(self) -> bool:
-        return self._proc is not None and self._proc.poll() is None
-
-    def acquire(self) -> bool:
-        if self.active:
-            return True
-        cmd = [
-            "systemd-inhibit",
-            "--what=idle:sleep",
-            f"--who={_APP_NAME}",
-            f"--why={_REASON}",
-            "--mode=block",
-            "sleep",
-            "infinity",
-        ]
-        resolved = flatpak.host_command(cmd) or cmd
-        try:
-            self._proc = subprocess.Popen(
-                resolved,
-                start_new_session=True,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-        except OSError as exc:
-            log.debug("systemd-inhibit unavailable: %s", exc)
-            self._proc = None
-            return False
-        return True
-
-    def release(self) -> None:
-        proc = self._proc
-        self._proc = None
-        if proc is None or proc.poll() is not None:
-            return
-        try:
-            proc.terminate()
-            proc.wait(timeout=2)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-        except OSError as exc:
-            log.debug("Failed to stop systemd-inhibit: %s", exc)
-
-
-class CompositeInhibitor:
+class CompositeInhibitor(Inhibitor):
     """Combine several inhibitors, acquiring/releasing all of them."""
 
-    def __init__(self, parts: tuple[Inhibitor, ...] | None = None) -> None:
-        self._parts: tuple[Inhibitor, ...] = (
-            parts
-            if parts is not None
-            else (ScreenSaverInhibitor(), SystemdSleepInhibitor())
-        )
+    def __init__(self, parts: tuple[Inhibitor, ...]) -> None:
+        self._parts = parts
 
     @property
     def active(self) -> bool:
         return any(part.active for part in self._parts)
 
     def acquire(self) -> bool:
-        # Acquire every part (no short-circuit) so a failing one does not skip
-        # the others; report success if any lock was taken.
         results = [part.acquire() for part in self._parts]
         return any(results)
 
@@ -222,6 +48,120 @@ class CompositeInhibitor:
             part.release()
 
 
-def default_inhibitor() -> Inhibitor:
-    """Build the production inhibitor (screensaver + systemd sleep)."""
-    return CompositeInhibitor()
+@dataclass(frozen=True)
+class InhibitionResult:
+    version: int
+    active: bool
+    succeeded: bool
+
+
+class InhibitionSession:
+    """Reconcile the latest intent without relying on GTK to release a lock.
+
+    A stop during a native call is observed by that same worker before it
+    finishes. A stop after native completion starts an independent release,
+    even if the older result has not yet been delivered on GTK.
+    """
+
+    def __init__(
+        self,
+        inhibitor: Inhibitor,
+        on_result: Callable[[InhibitionResult], object],
+        *,
+        worker: BackgroundWorker | None = None,
+    ) -> None:
+        self._inhibitor = inhibitor
+        self._on_result = on_result
+        # A normal process exit must wait for release, including a Unix child
+        # lock which could otherwise outlive its parent. No GTK callback is
+        # needed for the worker to observe stop and finish cleanup.
+        if worker is None:
+            from docking.applets.worker import BackgroundWorker
+
+            worker = BackgroundWorker(
+                thread_factory=lambda target, daemon: threading.Thread(
+                    target=target, daemon=False, name="caffeine-inhibit"
+                )
+            )
+        self._worker = worker
+        self._lock = threading.Lock()
+        self._version = 0
+        self._desired = False
+        self._running = False
+        self._stopped = False
+
+    @property
+    def version(self) -> int:
+        with self._lock:
+            return self._version
+
+    @property
+    def pending(self) -> bool:
+        with self._lock:
+            return self._running
+
+    def start(self) -> None:
+        with self._lock:
+            if self._stopped:
+                self._stopped = False
+                self._version += 1
+
+    def request(self, active: bool) -> None:
+        with self._lock:
+            if self._stopped:
+                return
+            self._desired = active
+            self._version += 1
+            launch = not self._running
+            self._running = True
+        if launch:
+            self._launch()
+
+    def stop(self) -> None:
+        with self._lock:
+            if self._stopped:
+                return
+            self._stopped = True
+            self._desired = False
+            self._version += 1
+            launch = not self._running
+            self._running = True
+        if launch:
+            self._launch()
+
+    def _launch(self) -> None:
+        self._worker.run(
+            name="caffeine-inhibit", fn=self._reconcile, on_result=self._on_result
+        )
+
+    def _reconcile(self) -> InhibitionResult:
+        completed = False
+        try:
+            while True:
+                with self._lock:
+                    version, desired = (
+                        self._version,
+                        self._desired and not self._stopped,
+                    )
+                try:
+                    if desired:
+                        succeeded = self._inhibitor.acquire()
+                    else:
+                        self._inhibitor.release()
+                        succeeded = not self._inhibitor.active
+                    active = self._inhibitor.active
+                except OSError as exc:
+                    log.debug("Inhibition request failed: %s", exc)
+                    active, succeeded = self._inhibitor.active, False
+                with self._lock:
+                    if version != self._version:
+                        continue
+                    completed = True
+                    self._running = False
+                    return InhibitionResult(
+                        version, active, succeeded and active == desired
+                    )
+        finally:
+            if not completed:
+                with self._lock:
+                    self._running = False

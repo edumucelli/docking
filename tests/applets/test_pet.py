@@ -7,7 +7,8 @@ from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
-import docking.applets.systemmonitor.linux as linux_mod
+import docking.applets.systemmonitor.implementations.linux.backend as linux_mod
+from tests.platform_factories import make_applet_platform
 
 try:
     import gi  # noqa: F401
@@ -281,20 +282,26 @@ class TestPetApplet:
     def test_creates_with_happy_mood(self):
         from docking.applets.pet.applet import PetApplet
 
-        applet = PetApplet(icon_size=48, config=Config())
+        applet = PetApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         assert applet._state.mood == Mood.HAPPY
 
     def test_create_icon_returns_pixbuf(self):
         from docking.applets.pet.applet import PetApplet
 
-        applet = PetApplet(icon_size=48, config=Config())
+        applet = PetApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         result = applet.create_icon(size=48)
         assert result is not None
 
     def test_refresh_tooltip_sets_name(self):
         from docking.applets.pet.applet import PetApplet
 
-        applet = PetApplet(icon_size=48, config=Config())
+        applet = PetApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         applet.refresh_tooltip()
         assert applet.item.name
         assert "Happy" in applet.item.name
@@ -302,7 +309,9 @@ class TestPetApplet:
     def test_on_clicked_resets_to_happy(self):
         from docking.applets.pet.applet import PetApplet
 
-        applet = PetApplet(icon_size=48, config=Config())
+        applet = PetApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         applet._state = PetState(mood=Mood.SLEEPING)
         applet.item.is_urgent = True
         applet.on_clicked()
@@ -319,7 +328,9 @@ class TestPetApplet:
             "timeout_add_seconds",
             lambda _s, _cb: next(timer_ids),
         )
-        applet = PetApplet(icon_size=48, config=Config())
+        applet = PetApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         applet.start(notify=MagicMock())
         assert applet._timer_id == 42
 
@@ -338,7 +349,9 @@ class TestPetApplet:
             "source_remove",
             lambda sid: removed.append(sid),
         )
-        applet = PetApplet(icon_size=48, config=Config())
+        applet = PetApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         applet.start(notify=MagicMock())
         applet.stop()
         assert removed == [42]
@@ -348,7 +361,9 @@ class TestPetApplet:
         from docking.applets.pet.applet import PetApplet
 
         proc_data = "cpu  100 0 50 800 10 5 3\n"
-        applet = PetApplet(icon_size=48, config=Config())
+        applet = PetApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         # First tick just records the sample
         with patch("builtins.open", mock_open(read_data=proc_data)):
             applet._tick()
@@ -360,7 +375,9 @@ class TestPetApplet:
     def test_tick_handles_proc_stat_error(self):
         from docking.applets.pet.applet import PetApplet
 
-        applet = PetApplet(icon_size=48, config=Config())
+        applet = PetApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         with patch("builtins.open", side_effect=OSError("nope")):
             result = applet._tick()
         assert result is True
@@ -370,7 +387,9 @@ class TestPetApplet:
         from docking.applets.pet.applet import PetApplet
 
         monkeypatch.setattr(pet_mod.GLib, "get_monotonic_time", lambda: 999)
-        applet = PetApplet(icon_size=48, config=Config())
+        applet = PetApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         # Force state one tick away from committing EXCITED
         applet._state = PetState(
             mood=Mood.HAPPY,

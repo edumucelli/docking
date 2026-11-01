@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from docking.search.intents import (
@@ -181,3 +183,24 @@ def test_web_targets_and_templates_are_conservative() -> None:
     assert get_web_engine("duckduckgo").url_for("docking linux") == (
         "https://duckduckgo.com/?q=docking+linux"
     )
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows path syntax")
+@pytest.mark.parametrize(
+    "query",
+    [
+        r"C:\Users\Test\notes.txt",
+        "C:/notes.txt",
+        r"\\server\share\notes.txt",
+        r".\notes.txt",
+        r"~\notes.txt",
+    ],
+)
+def test_windows_paths_route_exclusively_to_path_provider(query):
+    from docking.search.providers.base import is_special_query
+
+    intent = parse_query_intent(query)
+    assert intent.kind is QueryIntentKind.PATH
+    assert intent.provider_ids == ("path",)
+    assert intent.search_text == query
+    assert is_special_query(query)

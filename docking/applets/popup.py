@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, cast
 
 import gi
 
@@ -26,6 +27,9 @@ from gi.repository import Gdk, Gtk
 
 from docking.core.position import Position
 from docking.ui.display import clamp_popup, clamp_to_screen, get_pointer_position
+
+if TYPE_CHECKING:
+    from docking.platform.backends.base import Rect, SurfaceService, WindowSnapshot
 
 _POPUP_CLASS = "applet-popup-surface"
 _POPUP_CSS = f"""
@@ -52,6 +56,15 @@ class PopupAnchor:
     y: int
     position: Position
     parent: Gtk.Window | None = None
+    bounds: Rect | None = None  # Icon bounds relative to the parent's client area.
+
+
+def prepare_menu_popup(menu: Gtk.Menu, anchor: PopupAnchor | None) -> None:
+    """Give an applet menu its dock's native focus and close handling."""
+    parent = anchor.parent if anchor is not None else None
+    surface = getattr(parent, "surface_service", None)
+    if surface is not None:
+        surface.prepare_menu_popup(menu)
 
 
 def entry_completion_combo(
@@ -129,9 +142,11 @@ def wrap_popup(content: Gtk.Widget) -> Gtk.Frame:
     return frame
 
 
-def create_popup_window() -> Gtk.Window:
+def create_popup_window(*, managed: bool = False) -> Gtk.Window:
     """Create a transient, undecorated applet popup window."""
-    window = Gtk.Window(type=Gtk.WindowType.POPUP)
+    window = Gtk.Window(
+        type=Gtk.WindowType.TOPLEVEL if managed else Gtk.WindowType.POPUP
+    )
     window.set_decorated(False)
     window.set_skip_taskbar_hint(True)
     window.set_resizable(False)
@@ -272,17 +287,31 @@ def add_cancel_ok_buttons(
     )
 
 
+def capture_source_window(anchor: PopupAnchor | None) -> WindowSnapshot | None:
+    parent = anchor.parent if anchor is not None else None
+    # Anchors can also wrap plain Gtk.Window instances supplied by embedders.
+    surface = cast("SurfaceService | None", getattr(parent, "surface_service", None))
+    return surface.capture_source_window() if surface is not None else None
+
+
 def create_capture_overlay(
     *,
     draw_handler: Callable[[Gtk.Window, object], bool],
     click_handler: Callable[[Gtk.Window, Gdk.EventButton], bool],
     key_handler: Callable[[Gtk.Window, Gdk.EventKey], bool],
     cursor_type: Gdk.CursorType,
+    anchor: PopupAnchor | None = None,
+    release_handler: Callable[[Gtk.Window, Gdk.EventButton], bool] | None = None,
+    motion_handler: Callable[[Gtk.Window, Gdk.EventMotion], bool] | None = None,
 ) -> Gtk.Window | None:
     """Create a fullscreen pointer-capture overlay, or return None when unavailable."""
     overlay = Gtk.Window(type=Gtk.WindowType.POPUP)
     overlay.set_decorated(False)
     overlay.set_app_paintable(True)
+    parent = anchor.parent if anchor is not None else None
+    if parent is not None:
+        overlay.set_transient_for(parent)
+        overlay.set_attached_to(parent)
 
     screen = overlay.get_screen()
     visual = screen.get_rgba_visual()
@@ -293,6 +322,12 @@ def create_capture_overlay(
     overlay.move(0, 0)
     overlay.connect("draw", draw_handler)
     overlay.set_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.KEY_PRESS_MASK)
+    if release_handler is not None:
+        overlay.add_events(Gdk.EventMask.BUTTON_RELEASE_MASK)
+        overlay.connect("button-release-event", release_handler)
+    if motion_handler is not None:
+        overlay.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
+        overlay.connect("motion-notify-event", motion_handler)
     overlay.connect("button-press-event", click_handler)
     overlay.connect("key-press-event", key_handler)
 
@@ -312,6 +347,10 @@ def create_capture_overlay(
     if seat is None:
         overlay.destroy()
         return None
+    # Some backends need native focus before grabbing for Escape to arrive.
+    surface = getattr(parent, "surface_service", None)
+    if surface is not None:
+        surface.prepare_capture_overlay(overlay)
     seat.grab(
         window,
         Gdk.SeatCapabilities.ALL_POINTING | Gdk.SeatCapabilities.KEYBOARD,

@@ -9,18 +9,24 @@ from unittest.mock import MagicMock
 import pytest
 from gi.repository import GLib
 
-import docking.applets.whatsapp.applet as whatsapp_applet_mod
-import docking.applets.whatsapp.browser as whatsapp_browser_mod
+import docking.applets.webapp.applet as webapp_applet_mod
+import docking.applets.webapp.implementations.unix.backend as whatsapp_browser_mod
+import tests.platform_factories as test_platform
+from docking.applets.webapp.backend import (
+    BrowserBackend,
+    error_message,
+    unique_download_path,
+)
+from docking.applets.webapp.implementations.unix.notifications import DesktopNotifier
 from docking.applets.whatsapp.applet import WhatsAppApplet
 from docking.applets.whatsapp.bridge import (
     BRIDGE_SCRIPT,
     BridgeEvent,
     parse_bridge_message,
 )
-from docking.applets.whatsapp.browser import WhatsAppBrowser
-from docking.applets.whatsapp.notifications import DesktopNotifier
 from docking.applets.whatsapp.render import render_icon
 from docking.applets.whatsapp.state import (
+    WHATSAPP_WEB_URL,
     BrowserPhase,
     NavigationTarget,
     WhatsAppState,
@@ -29,20 +35,25 @@ from docking.applets.whatsapp.state import (
     tooltip_text,
 )
 from docking.core.config import Config
+from tests.platform_factories import make_applet_platform, make_whatsapp_browser
 
 
-class _FakeBrowser:
+class _FakeBrowser(BrowserBackend):
+    phase = BrowserPhase.STOPPED
+    visible = False
     instances: ClassVar[list[_FakeBrowser]] = []
 
     def __init__(
         self,
         *,
+        profile,
         on_phase,
         on_title,
         on_badge,
         on_notification,
         on_attention_cleared,
     ) -> None:
+        self.profile = profile
         self.on_phase = on_phase
         self.on_title = on_title
         self.on_badge = on_badge
@@ -79,8 +90,11 @@ class _FakeBrowser:
         self.shown += 1
         self.visible = True
 
+    def hide(self) -> None:
+        self.visible = False
 
-def _browser(**overrides) -> WhatsAppBrowser:
+
+def _browser(**overrides) -> object:
     callbacks = {
         "on_phase": lambda *_args: None,
         "on_title": lambda _title: None,
@@ -89,13 +103,17 @@ def _browser(**overrides) -> WhatsAppBrowser:
         "on_attention_cleared": lambda: None,
     }
     callbacks.update(overrides)
-    return WhatsAppBrowser(**callbacks)
+    return make_whatsapp_browser(**callbacks)
 
 
 @pytest.fixture
 def fake_browser(monkeypatch):
     _FakeBrowser.instances.clear()
-    monkeypatch.setattr(WhatsAppApplet, "browser_factory", _FakeBrowser)
+    monkeypatch.setattr(
+        test_platform.TestAppletBackendFactories,
+        "browser",
+        staticmethod(lambda: _FakeBrowser),
+    )
     return _FakeBrowser
 
 
@@ -175,7 +193,7 @@ class TestWhatsAppState:
     def test_tooltips_cover_lifecycle_and_unread_state(self):
         assert "click to open" in tooltip_text(WhatsAppState())
         assert "loading" in tooltip_text(WhatsAppState(phase=BrowserPhase.STARTING))
-        assert "not installed" in tooltip_text(
+        assert "browser is unavailable" in tooltip_text(
             WhatsAppState(phase=BrowserPhase.UNAVAILABLE)
         )
         assert "offline" in tooltip_text(
@@ -244,31 +262,35 @@ class TestWhatsAppApplet:
     def test_browser_starts_after_short_delay(self, monkeypatch, fake_browser):
         callbacks = []
         monkeypatch.setattr(
-            whatsapp_applet_mod.GLib,
+            webapp_applet_mod.GLib,
             "timeout_add_seconds",
             lambda seconds, callback: callbacks.append((seconds, callback)) or 17,
         )
-        applet = WhatsAppApplet(icon_size=48, config=Config())
+        applet = WhatsAppApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
 
         applet.start(lambda: None)
 
-        assert callbacks[0][0] == whatsapp_applet_mod.STARTUP_DELAY_S
+        assert callbacks[0][0] == webapp_applet_mod.STARTUP_DELAY_S
         assert callbacks[0][1]() is False
         assert fake_browser.instances[0].started == 1
 
     def test_click_cancels_delay_and_toggles_browser(self, monkeypatch, fake_browser):
         removed = []
         monkeypatch.setattr(
-            whatsapp_applet_mod.GLib,
+            webapp_applet_mod.GLib,
             "timeout_add_seconds",
             lambda _seconds, _callback: 23,
         )
         monkeypatch.setattr(
-            whatsapp_applet_mod.GLib,
+            webapp_applet_mod.GLib,
             "source_remove",
             lambda source_id: removed.append(source_id),
         )
-        applet = WhatsAppApplet(icon_size=48, config=Config())
+        applet = WhatsAppApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         applet.start(lambda: None)
 
         applet.on_clicked()
@@ -277,16 +299,20 @@ class TestWhatsAppApplet:
         assert fake_browser.instances[0].toggled == 1
 
     def test_open_in_browser_uses_target_service(self, monkeypatch, fake_browser):
-        applet = WhatsAppApplet(icon_size=48, config=Config())
+        applet = WhatsAppApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         open_target = MagicMock(return_value=True)
-        monkeypatch.setattr(whatsapp_applet_mod.targets, "open_target", open_target)
+        monkeypatch.setattr(webapp_applet_mod.targets, "open_target", open_target)
 
         applet._open_in_browser()
 
-        open_target.assert_called_once_with(whatsapp_applet_mod.WHATSAPP_WEB_URL)
+        open_target.assert_called_once_with(WHATSAPP_WEB_URL)
 
     def test_browser_callbacks_update_tooltip_and_badge(self, fake_browser):
-        applet = WhatsAppApplet(icon_size=48, config=Config())
+        applet = WhatsAppApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         browser = fake_browser.instances[0]
 
         browser.on_phase(BrowserPhase.READY, "")
@@ -305,7 +331,9 @@ class TestWhatsAppApplet:
         assert applet.item.badge_visible is True
 
     def test_notification_fallback_clears_when_window_is_opened(self, fake_browser):
-        applet = WhatsAppApplet(icon_size=48, config=Config())
+        applet = WhatsAppApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         browser = fake_browser.instances[0]
         browser.on_phase(BrowserPhase.READY, "")
 
@@ -322,16 +350,18 @@ class TestWhatsAppApplet:
     ):
         removed = []
         monkeypatch.setattr(
-            whatsapp_applet_mod.GLib,
+            webapp_applet_mod.GLib,
             "timeout_add_seconds",
             lambda _seconds, _callback: 31,
         )
         monkeypatch.setattr(
-            whatsapp_applet_mod.GLib,
+            webapp_applet_mod.GLib,
             "source_remove",
             lambda source_id: removed.append(source_id),
         )
-        applet = WhatsAppApplet(icon_size=48, config=Config())
+        applet = WhatsAppApplet(
+            icon_size=48, config=Config(), platform_services=make_applet_platform()
+        )
         applet.start(lambda: None)
 
         applet.stop()
@@ -352,7 +382,7 @@ class TestWhatsAppBrowserHelpers:
         assert pixbuf.get_width() == 48
         assert pixbuf.get_height() == 48
 
-    def test_unique_download_path_sanitizes_and_deduplicates(
+    def testunique_download_path_sanitizes_and_deduplicates(
         self, tmp_path, monkeypatch
     ):
         monkeypatch.setattr(
@@ -362,14 +392,14 @@ class TestWhatsAppBrowserHelpers:
         )
         (tmp_path / "photo.jpg").touch()
 
-        path = whatsapp_browser_mod._unique_download_path("../../photo.jpg")
+        path = whatsapp_browser_mod.unique_download_path("../../photo.jpg")
 
         assert path == tmp_path / "photo (1).jpg"
 
-    def test_error_message_is_single_line_and_bounded(self):
+    def testerror_message_is_single_line_and_bounded(self):
         error = "first line\nsecond line" + ("x" * 300)
 
-        message = whatsapp_browser_mod._error_message(error)
+        message = whatsapp_browser_mod.error_message(error)
 
         assert message == "first line"
         assert len(message) <= 160
@@ -476,6 +506,28 @@ class TestWhatsAppBrowserHelpers:
 
         assert browser.phase is BrowserPhase.READY
         assert phases == [BrowserPhase.READY]
+
+    def test_unique_download_path_sanitizes_and_deduplicates(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(
+            whatsapp_browser_mod.GLib,
+            "get_user_special_dir",
+            lambda _directory: str(tmp_path),
+        )
+        (tmp_path / "photo.jpg").touch()
+
+        path = unique_download_path("../../photo.jpg")
+
+        assert path == tmp_path / "photo (1).jpg"
+
+    def test_error_message_is_single_line_and_bounded(self):
+        error = "first line\nsecond line" + ("x" * 300)
+
+        message = error_message(error)
+
+        assert message == "first line"
+        assert len(message) <= 160
 
 
 class TestDesktopNotifier:

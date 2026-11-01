@@ -1,6 +1,7 @@
-"""Local-file consumers must reject remote authorities and unusable paths."""
+"""File consumers preserve authority and reject unusable paths."""
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -8,18 +9,19 @@ from docking.applets.dragshare.state import file_path_from_uri
 from docking.core.config import Config
 from docking.core.icons import CUSTOM_ICON_PATH_KEY, ICON_SOURCE_PREF_KEY, IconSource
 from docking.core.items import DockItem
-from docking.platform.applications.entries import (
+from docking.platform.applications.implementations.unix.entries import (
     desktop_id_from_uri_or_path,
     local_path_from_uri_or_path,
 )
 from docking.platform.icon_overrides import custom_icon_path
-from docking.platform.icons import IconLoader, _normalize_file_target_for_icon
+from docking.platform.icons import _normalize_file_target_for_icon
 from docking.platform.targets import normalize_file_target
 from docking.search.preview import (
     local_path_from_target,
     preview_local_descriptor,
     preview_local_target,
 )
+from tests.platform_factories import make_icon_loader
 
 LOCAL_CONSUMERS = [
     normalize_file_target,
@@ -35,7 +37,12 @@ LOCAL_CONSUMERS = [
 @pytest.mark.parametrize(
     "target",
     [
-        "file://server.example/tmp/test.desktop",
+        pytest.param(
+            "file://server.example/tmp/test.desktop",
+            marks=pytest.mark.skipif(
+                os.name == "nt", reason="Windows supports UNC file targets"
+            ),
+        ),
         "file://[broken",
         "file://localhost",
         "file:report.desktop",
@@ -48,10 +55,18 @@ def test_nonlocal_or_malformed_file_uri_is_not_a_local_path(consume, target):
 
 
 @pytest.mark.parametrize("consume", LOCAL_CONSUMERS)
-def test_unknown_home_user_does_not_abort_file_processing(consume):
-    assert consume("~_docking_audit_absent_user/test.desktop") is None
+def test_other_user_home_follows_platform_expansion_without_raising(consume):
+    expected = None
+    if os.name == "nt":
+        expected = Path.home().parent / "_docking_audit_absent_user" / "test.desktop"
+        if consume is desktop_id_from_uri_or_path:
+            expected = expected.name
+        elif consume in (normalize_file_target, _normalize_file_target_for_icon):
+            expected = expected.as_uri()
+    assert consume("~_docking_audit_absent_user/test.desktop") == expected
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows supports UNC file targets")
 @pytest.mark.parametrize("preview", [preview_local_target, preview_local_descriptor])
 def test_remote_file_preview_does_not_read_the_same_local_path(tmp_path, preview):
     path = tmp_path / "private.txt"
@@ -85,6 +100,7 @@ def test_broken_symlink_cannot_abort_thumbnail_lookup(tmp_path):
 
 
 @pytest.mark.parametrize("consume", LOCAL_CONSUMERS)
+@pytest.mark.skipif(os.name == "nt", reason="POSIX byte filenames")
 def test_file_uri_preserves_non_utf8_filename_bytes(tmp_path, consume):
     path = tmp_path / os.fsdecode(b"audit-\xff.desktop")
     path.write_text("[Desktop Entry]\nType=Application\nName=Audit\nExec=true\n")
@@ -108,9 +124,15 @@ def test_stale_custom_icon_home_does_not_abort_item_loading():
         }
     )
 
-    assert custom_icon_path(config, item) is None
+    expected = (
+        Path.home().parent / "_docking_audit_absent_user" / "icon.png"
+        if os.name == "nt"
+        else None
+    )
+    assert custom_icon_path(config, item) == expected
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX byte filenames")
 def test_thumbnail_reader_opens_non_utf8_filename(tmp_path):
     from gi.repository import GdkPixbuf
 
@@ -121,7 +143,7 @@ def test_thumbnail_reader_opens_non_utf8_filename(tmp_path):
     path = tmp_path / os.fsdecode(b"audit-\xff.png")
     source.rename(path)
 
-    result = IconLoader().resolve_file_icon_info(
+    result = make_icon_loader().resolve_file_icon_info(
         target=path.as_uri(), gicon=None, content_type="image/png", size=3, is_dir=False
     )
 

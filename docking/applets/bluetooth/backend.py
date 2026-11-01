@@ -4,9 +4,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING
-
-from docking.platform import environment
 
 if TYPE_CHECKING:
     from docking.applets.bluetooth.state import BluetoothState
@@ -16,10 +15,34 @@ if TYPE_CHECKING:
 class BluetoothCapabilities:
     trust: bool = True
     remove_pairing: bool = True
+    power: bool = True
+    discovery: bool = True
+    connect: bool = True
+    disconnect: bool = True
+    pair: bool = True
+    connect_label: str | None = None
+    disconnect_label: str | None = None
+
+
+class BluetoothAction(Enum):
+    SEND_FILES = "send_files"
+    DEVICES = "devices"
+    ADAPTERS = "adapters"
+    LOCAL_SERVICES = "local_services"
 
 
 class BluetoothBackend(ABC):
     capabilities = BluetoothCapabilities()
+
+    def device_capabilities(self, device_path: str) -> BluetoothCapabilities:
+        """Read controls from published state, without device IO on GTK."""
+        return self.capabilities
+
+    def desktop_actions(self) -> tuple[BluetoothAction, ...]:
+        return ()
+
+    def open_desktop_action(self, action: BluetoothAction) -> bool:
+        return False
 
     @abstractmethod
     def close(self) -> None:
@@ -45,13 +68,3 @@ class BluetoothBackend(ABC):
     def remove_device(self, adapter_path: str, device_path: str) -> bool: ...
     @abstractmethod
     def set_trusted(self, device_path: str, trusted: bool) -> bool: ...
-
-
-def create_backend() -> BluetoothBackend:
-    if environment.is_bsd():
-        from docking.applets.bluetooth.bsd import BsdBluetoothBackend
-
-        return BsdBluetoothBackend()
-    from docking.applets.bluetooth.linux import LinuxBluetoothBackend
-
-    return LinuxBluetoothBackend()

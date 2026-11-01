@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
@@ -29,22 +31,23 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 from docking.applets.base import ApplicationServicesApplet
 from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.music import meta
-from docking.applets.worker import BackgroundWorker
+from docking.applets.worker import SerialWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform.applications.associations import (
+    AssociationResolution,
+    AssociationStatus,
+)
 from docking.platform.applications.listing import (
     activate_listing,
 )
-from docking.platform.applications.types import ApplicationListing
 
 from .artwork import CoverArtResolver
+from .backend import MusicBackend
 from .render import create_music_icon
 from .state import (
-    _MPRIS_PREFIX,
     VOLUME_STEP,
-    HybridBackend,
     MusicState,
-    _normalize_desktop_entry,
     clamp_percent,
     has_active_media,
     play_pause_menu_label,
@@ -69,35 +72,6 @@ MEDIA_CONTENT_TYPES = (
 log = with_context(get_logger(name="music"), applet_id=meta.id)
 
 
-def _desktop_entry_candidates(raw: str) -> tuple[str, ...]:
-    """Return registry desktop-ID candidates without consulting platform APIs."""
-    value = raw.strip()
-    if not value:
-        return ()
-
-    value = value.replace("\\", "/").rsplit("/", 1)[-1]
-    if value.lower().endswith(".desktop"):
-        value = value[: -len(".desktop")]
-    if value.startswith(_MPRIS_PREFIX):
-        value = value[len(_MPRIS_PREFIX) :]
-
-    candidates: list[str] = []
-
-    def add(desktop_id: str) -> None:
-        if desktop_id and desktop_id not in candidates:
-            candidates.append(desktop_id)
-
-    if value:
-        add(f"{value}.desktop")
-
-    normalized = _normalize_desktop_entry(raw)
-    if normalized:
-        add(f"{normalized}.desktop")
-    if normalized == "rhythmbox":
-        add("org.gnome.Rhythmbox3.desktop")
-    return tuple(candidates)
-
-
 class MusicApplet(ApplicationServicesApplet):
     """Media control applet with album-art rendering."""
 
@@ -110,46 +84,87 @@ class MusicApplet(ApplicationServicesApplet):
         icon_size: int,
         config: Config,
         *,
+        platform_services: AppletPlatformServices,
         application_registry: ApplicationRegistry,
         application_launcher: ApplicationLauncher,
     ) -> None:
+        self._platform = platform_services
         super().__init__(
             icon_size=icon_size,
             config=config,
+            platform_services=platform_services,
             application_registry=application_registry,
             application_launcher=application_launcher,
         )
-        self._backend = HybridBackend()
+        self._backend = self._platform.backends.music()
         self._cover_art = CoverArtResolver()
         self._state = unavailable_state()
         self._album_art: GdkPixbuf.Pixbuf | None = None
         self._timer_id: int = 0
         self._scroll_sync_id: int = 0
         self._poll_generation = 0
-        self._worker = BackgroundWorker()
-
-        self._state = self._state_with_registry_icon(self._backend.poll())
-        self._album_art = self._cover_art.resolve(state=self._state)
+        self._stopped = False
+        self._loading = True
+        self._error = False
+        self._lifetime = 0
+        self._pending_media_launch = False
+        self._association_unsubscribe: Callable[[], None] | None = (
+            application_registry.subscribe(self._on_associations_changed)
+        )
+        self._worker = SerialWorker(on_close=self._backend.close, logger=log)
         self.present()
+        self._tick()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_music_icon(
             size=size,
             playback_status=self._state.playback_status,
             album_art=self._album_art,
-            volume_percent=self._state.volume_percent,
+            volume_percent=self._state.volume_percent
+            if self._state.can_set_volume
+            else None,
             available=self._state.available,
         )
 
+    def _tooltip(self) -> str:
+        if self._loading:
+            return self.name + "\n" + _("Loading...")
+        if self._error:
+            return self.name + "\n" + _("Unavailable")
+        return tooltip_text(state=self._state)
+
     def refresh_tooltip(self) -> None:
-        self.item.name = tooltip_text(state=self._state)
+        self.item.name = self._tooltip()
         self.item.tooltip_builder = self._build_tooltip_widget
 
     def start(self, notify: Callable[[], None]) -> None:
+        if self._association_unsubscribe is None:
+            self._association_unsubscribe = self._application_registry.subscribe(
+                self._on_associations_changed
+            )
+        if self._stopped:
+            self._stopped = False
+            self._loading = True
+            self._error = False
+            self._backend = self._platform.backends.music()
+            self._worker = SerialWorker(on_close=self._backend.close, logger=log)
+            self._tick()
         super().start(notify=notify)
-        self._timer_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)
+        if not self._timer_id:
+            self._timer_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)
 
     def stop(self) -> None:
+        if self._stopped:
+            return
+        self._stopped = True
+        self._pending_media_launch = False
+        if self._association_unsubscribe is not None:
+            self._association_unsubscribe()
+            self._association_unsubscribe = None
+        self._lifetime += 1
+        self._poll_generation += 1
+        self._backend.stop()
+        self._worker.stop()
         if self._scroll_sync_id:
             GLib.source_remove(self._scroll_sync_id)
             self._scroll_sync_id = 0
@@ -159,27 +174,49 @@ class MusicApplet(ApplicationServicesApplet):
         super().stop()
 
     def on_clicked(self) -> None:
+        if self._stopped or self._loading:
+            return
+        if self._error:
+            self._refresh_now()
+            return
         if not has_active_media(self._state):
+            if self._pending_media_launch:
+                return
             self._launch_default_media_app()
             return
-        if self._backend.play_pause(state=self._state):
-            self._refresh_now()
+        if self._state.can_play_pause:
+            self._request_action(self._backend.play_pause)
 
     def on_scroll(self, direction_up: bool) -> None:
-        if not self._state.available:
+        if self._stopped or not self._state.available or not self._state.can_set_volume:
             return
         delta = VOLUME_STEP if direction_up else -VOLUME_STEP
-        target = clamp_percent(self._state.volume_percent + delta)
-        if self._backend.set_volume(state=self._state, volume_percent=target):
-            self._poll_generation += 1
-            # Avoid synchronous re-poll on rapid scroll bursts (can stall UI).
-            self._state = replace(self._state, volume_percent=target)
-            self.present()
-            self._schedule_scroll_sync()
+        state, backend, lifetime = self._state, self._backend, self._lifetime
+        target = clamp_percent(state.volume_percent + delta)
+        self._poll_generation += 1
+        generation = self._poll_generation
+        self._state = replace(state, volume_percent=target)
+        self.present()
+
+        def change() -> bool:
+            if not self._current(generation, lifetime):
+                return False
+            return backend.set_volume(state=state, volume_percent=target)
+
+        self._worker.run(
+            name="music-volume",
+            fn=change,
+            on_error=lambda _error: self._refresh_if_current(generation, lifetime),
+        )
+        self._schedule_scroll_sync()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         if not self._state.available:
-            return [disabled_menu_item(_("No active player"), gtk=Gtk)]
+            return [
+                disabled_menu_item(
+                    _("Unavailable") if self._error else _("No active player"), gtk=Gtk
+                )
+            ]
 
         previous_item = Gtk.MenuItem(label=_("Previous"))
         previous_item.set_sensitive(self._state.can_go_previous)
@@ -194,12 +231,14 @@ class MusicApplet(ApplicationServicesApplet):
         next_item.connect("activate", lambda _w: self._action_next())
 
         volume_up_item = Gtk.MenuItem(label=_("Volume Up"))
+        volume_up_item.set_sensitive(self._state.can_set_volume)
         volume_up_item.connect(
             "activate",
             lambda _w: self._action_volume(direction_up=True),
         )
 
         volume_down_item = Gtk.MenuItem(label=_("Volume Down"))
+        volume_down_item.set_sensitive(self._state.can_set_volume)
         volume_down_item.connect(
             "activate", lambda _w: self._action_volume(direction_up=False)
         )
@@ -212,58 +251,147 @@ class MusicApplet(ApplicationServicesApplet):
         )
 
     def _action_previous(self) -> None:
-        if self._backend.previous_track(state=self._state):
-            self._refresh_now()
+        if self._state.can_go_previous:
+            self._request_action(self._backend.previous_track)
 
     def _action_play_pause(self) -> None:
-        if self._backend.play_pause(state=self._state):
-            self._refresh_now()
+        if self._state.can_play_pause:
+            self._request_action(self._backend.play_pause)
 
     def _action_next(self) -> None:
-        if self._backend.next_track(state=self._state):
-            self._refresh_now()
+        if self._state.can_go_next:
+            self._request_action(self._backend.next_track)
 
     def _action_volume(self, direction_up: bool) -> None:
         self.on_scroll(direction_up=direction_up)
 
-    def _tick(self) -> bool:
+    def _current(self, generation: int, lifetime: int) -> bool:
+        return (
+            not self._stopped
+            and lifetime == self._lifetime
+            and generation == self._poll_generation
+        )
+
+    def _request_action(self, operation: Callable[[MusicState], bool]) -> None:
+        if self._stopped:
+            return
+        state, backend, lifetime = self._state, self._backend, self._lifetime
+        self._poll_generation += 1
         generation = self._poll_generation
+
+        def action() -> tuple[MusicState, GdkPixbuf.Pixbuf | None]:
+            # Every explicit transport click is ordered; a newer click does not
+            # erase it. Stop/restart still invalidates the complete old lifetime.
+            if self._stopped or lifetime != self._lifetime:
+                return unavailable_state(), None
+            operation(state)
+            return self._poll_worker(backend)
+
+        self._worker.run(
+            name="music-action",
+            fn=action,
+            on_result=lambda result: (
+                self._on_poll_result(result)
+                if self._current(generation, lifetime)
+                else False
+            ),
+            on_error=lambda _error: self._failed(generation, lifetime),
+        )
+
+    def _tick(self) -> bool:
+        if self._stopped:
+            return False
+        generation, lifetime, backend = (
+            self._poll_generation,
+            self._lifetime,
+            self._backend,
+        )
         self._worker.run_guarded(
             key="poll",
             name="music-poll",
-            fn=self._poll_worker,
+            fn=lambda: (
+                self._poll_worker(backend)
+                if self._current(generation, lifetime)
+                else (unavailable_state(), None)
+            ),
             on_result=lambda result: (
                 self._on_poll_result(result)
-                if generation == self._poll_generation
+                if self._current(generation, lifetime)
                 else False
             ),
+            on_error=lambda _error: self._failed(generation, lifetime),
         )
         return True
 
-    def _poll_worker(self) -> tuple[MusicState, GdkPixbuf.Pixbuf | None]:
-        state = self._backend.poll()
+    def _poll_worker(
+        self, backend: MusicBackend
+    ) -> tuple[MusicState, GdkPixbuf.Pixbuf | None]:
+        state = backend.poll()
         art = self._cover_art.resolve(state=state)
         return state, art
 
     def _on_poll_result(
-        self,
-        result: tuple[MusicState, GdkPixbuf.Pixbuf | None],
+        self, result: tuple[MusicState, GdkPixbuf.Pixbuf | None]
     ) -> bool:
+        had_error, self._error = self._error, False
         state, art = result
-        return self._apply_poll_result(state, art)
+        return self._apply_poll_result(state, art, force=had_error)
+
+    def _failed(self, generation: int, lifetime: int) -> bool:
+        if self._current(generation, lifetime):
+            self._error = True
+            self._apply_poll_result(unavailable_state(), None, force=True)
+        return False
+
+    def _refresh_if_current(self, generation: int, lifetime: int) -> bool:
+        if self._current(generation, lifetime):
+            self._refresh_now()
+        return False
 
     def _refresh_now(self) -> None:
+        if self._stopped:
+            return
         self._poll_generation += 1
-        state, art = self._poll_worker()
-        self._apply_poll_result(state, art)
+        self._fresh_poll()
+
+    def _fresh_poll(self) -> None:
+        generation, lifetime, backend = (
+            self._poll_generation,
+            self._lifetime,
+            self._backend,
+        )
+        self._worker.run(
+            name="music-refresh",
+            fn=lambda: (
+                self._poll_worker(backend)
+                if self._current(generation, lifetime)
+                else (unavailable_state(), None)
+            ),
+            on_result=lambda result: (
+                self._on_poll_result(result)
+                if self._current(generation, lifetime)
+                else False
+            ),
+            on_error=lambda _error: self._failed(generation, lifetime),
+        )
 
     def _apply_poll_result(
         self,
         state: MusicState,
         art: GdkPixbuf.Pixbuf | None,
+        *,
+        force: bool = False,
     ) -> bool:
+        if has_active_media(state):
+            self._pending_media_launch = False
         state = self._state_with_registry_icon(state)
-        if state == self._state and art is self._album_art:
+        was_loading, self._loading = self._loading, False
+        if (
+            not force
+            and not was_loading
+            and state == self._state
+            and art is self._album_art
+        ):
             return False
         self._state = state
         self._album_art = art
@@ -272,9 +400,9 @@ class MusicApplet(ApplicationServicesApplet):
 
     def _state_with_registry_icon(self, state: MusicState) -> MusicState:
         registry = self._application_registry
-        if not state.player_desktop_entry:
+        if not state.player_application_id:
             return state
-        for desktop_id in _desktop_entry_candidates(state.player_desktop_entry):
+        for desktop_id in self._backend.application_ids(state):
             application = registry.get(desktop_id)
             if application is None:
                 continue
@@ -283,17 +411,27 @@ class MusicApplet(ApplicationServicesApplet):
             return state
         return state
 
-    def _find_media_application(self) -> ApplicationListing | None:
+    def _find_media_application(self) -> AssociationResolution:
         return self._application_registry.preferred_listing_for_content_types(
             MEDIA_CONTENT_TYPES
         )
 
+    def _on_associations_changed(self) -> None:
+        if self._pending_media_launch and not self._stopped:
+            if has_active_media(self._state):
+                self._pending_media_launch = False
+            else:
+                self._launch_default_media_app()
+
     def _launch_default_media_app(self) -> bool:
-        launcher = self._application_launcher
-        application = self._find_media_application()
-        if application is None:
+        resolution = self._find_media_application()
+        self._pending_media_launch = resolution.status is AssociationStatus.PENDING
+        if (
+            resolution.status is not AssociationStatus.READY
+            or resolution.listing is None
+        ):
             return False
-        return activate_listing(launcher, application)
+        return activate_listing(self._application_launcher, resolution.listing)
 
     def _schedule_scroll_sync(self) -> None:
         if self._scroll_sync_id:
@@ -305,21 +443,13 @@ class MusicApplet(ApplicationServicesApplet):
 
     def _run_scroll_sync(self) -> bool:
         self._scroll_sync_id = 0
-        generation = self._poll_generation
-        self._worker.run(
-            name="music-scroll-sync",
-            fn=self._poll_worker,
-            on_result=lambda result: (
-                self._on_poll_result(result)
-                if generation == self._poll_generation
-                else False
-            ),
-        )
+        if not self._stopped:
+            self._fresh_poll()
         return False
 
     def _build_tooltip_widget(self) -> Gtk.Box:
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
-        lines = tooltip_text(state=self._state).splitlines() or ["Music"]
+        lines = self._tooltip().splitlines() or [self.name]
         for line in lines:
             label = Gtk.Label(label=line)
             label.set_xalign(0.5)

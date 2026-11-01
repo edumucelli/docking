@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-import subprocess
 from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from threading import RLock
-from typing import Any, TypeGuard
+from typing import TypeGuard
 
-from docking.platform.applications.process_backend import create_backend
+from docking.platform.applications.backend import ProcessBackend
+
+from .backend import LaunchedProcessHandle
 
 APP_URI_PREFIX = "application://"
 DEFAULT_MAX_LAUNCH_RECORDS = 256
@@ -40,7 +41,7 @@ class ProcessIdentity:
 
 @dataclass(slots=True)
 class _LaunchRecord:
-    process: subprocess.Popen[Any]
+    process: LaunchedProcessHandle
     provenance: LaunchProvenance
 
 
@@ -59,8 +60,8 @@ def _valid_pid(pid: object) -> TypeGuard[int]:
     return isinstance(pid, int) and not isinstance(pid, bool) and pid > 0
 
 
-def _process_finished(process: subprocess.Popen[Any]) -> bool:
-    """Return whether ``Popen.poll`` produced a real integer exit status."""
+def _process_finished(process: LaunchedProcessHandle) -> bool:
+    """Return whether ``poll`` produced a real integer exit status."""
     try:
         status = process.poll()
     except (OSError, ValueError):
@@ -85,7 +86,7 @@ class LaunchProvenanceStore:
     def record_launch(
         self,
         *,
-        process: subprocess.Popen[Any],
+        process: LaunchedProcessHandle,
         desktop_id: str,
         executable_path: Path | None,
     ) -> None:
@@ -136,16 +137,15 @@ class ProcessIdentityService:
         self,
         provenance_store: LaunchProvenanceStore,
         *,
+        backend: ProcessBackend,
         executable_resolver: ExecutableResolver | None = None,
-        proc_root: Path = Path("/proc"),
     ) -> None:
         self._provenance_store = provenance_store
-        self._proc_root = proc_root
-        self._backend = create_backend(proc_root)
+        self._backend = backend
         self._executable_resolver = (
             executable_resolver
             if executable_resolver is not None
-            else lambda pid: _process_executable_path(pid, proc_root=self._proc_root)
+            else backend.executable
         )
 
     def identity_for_pid(self, pid: int | None) -> ProcessIdentity | None:
@@ -164,12 +164,6 @@ class ProcessIdentityService:
             script_basename=self._backend.script(pid),
             steam_app_id=self._backend.steam_app_id(pid),
         )
-
-
-def _process_executable_path(
-    pid: int, *, proc_root: Path = Path("/proc")
-) -> Path | None:
-    return create_backend(proc_root).executable(pid)
 
 
 __all__ = [

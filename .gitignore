@@ -9,6 +9,7 @@ build/
 *.so
 .idea/
 .venv/
+website/node_modules/
 .venv-bsd/
 .coverage
 coverage.xml

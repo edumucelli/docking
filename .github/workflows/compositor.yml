@@ -2,7 +2,6 @@ name: Wayland compositors
 
 on:
   pull_request:
-    branches: [master, visual-compositor-lab]
     paths: ["docking/**", "tools/linux/visual/**", "tests/test_visual_compositor.py", ".github/workflows/compositor.yml"]
   push:
     branches: [master]
@@ -47,7 +46,8 @@ jobs:
           tags: docking-ci:${{ matrix.compositor }}
           load: true
           cache-from: type=gha,scope=compositor-${{ matrix.compositor }}
-          cache-to: type=gha,mode=max,scope=compositor-${{ matrix.compositor }}
+          # Cache uploads must not prevent tests from running on a loaded image.
+          cache-to: type=gha,mode=max,scope=compositor-${{ matrix.compositor }},ignore-error=true
       - name: Check real compositor geometry and lifecycle
         env:
           DOCKING_LAB_IMAGE: docking-ci:${{ matrix.compositor }}

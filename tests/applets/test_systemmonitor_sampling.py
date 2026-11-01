@@ -6,12 +6,13 @@ from unittest.mock import MagicMock
 import pytest
 
 import docking.applets.systemmonitor.applet as applet_mod
-import docking.applets.systemmonitor.linux as linux_mod
+import docking.applets.systemmonitor.implementations.linux.backend as linux_mod
 from docking.applets.systemmonitor.applet import SystemMonitorApplet
 from docking.applets.systemmonitor.gpu import GpuStats
 from docking.applets.worker import BackgroundWorker
 from docking.core.config import Config
 from tests.applets.systemmonitor_support import DeferredSensors
+from tests.platform_factories import make_applet_platform
 
 
 @pytest.fixture
@@ -24,7 +25,9 @@ def sampling(tmp_path, monkeypatch):
     monkeypatch.setattr(linux_mod, "_PROC_MEMINFO", memory)
     monkeypatch.setattr(applet_mod.GLib, "timeout_add_seconds", lambda *_: 7)
     monkeypatch.setattr(applet_mod.GLib, "source_remove", lambda *_: True)
-    applet = SystemMonitorApplet(48, config=Config())
+    applet = SystemMonitorApplet(
+        48, config=Config(), platform_services=make_applet_platform()
+    )
     applet._show_disk = False
     applet._temperature_reader.read = MagicMock(return_value=55.2)
     applet._gpu_reader.read = MagicMock(return_value=GpuStats("GPU", 0.4))

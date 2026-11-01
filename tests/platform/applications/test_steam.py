@@ -8,16 +8,15 @@ import pytest
 
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
-    ProcessIdentityService,
 )
-from docking.platform.applications.launcher import ApplicationLauncher
+from docking.platform.applications.implementations.unix.steam import (
+    SteamDiscovery,
+    default_steam_roots,
+)
 from docking.platform.applications.matcher import AppIdMatcher
-from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.applications.running import RunningAppInfo, RunningWindowInfo
 from docking.platform.applications.steam import (
     MAX_VDF_BYTES,
-    SteamDiscovery,
-    default_steam_roots,
     parse_vdf,
     steam_app_id_from_exec,
 )
@@ -25,6 +24,11 @@ from docking.platform.applications.types import ApplicationOrigin, MatchMethod
 from docking.platform.backends.base import WindowId
 from docking.platform.backends.x11.impl.window_tracker import WindowMatcher
 from tests.platform.test_model import _make_config, _make_model
+from tests.platform_factories import (
+    make_application_launcher,
+    make_application_registry,
+    make_process_identity,
+)
 
 
 def _manifest(library, app_id="440", name="Team Fortress 2", directory=None, extra=""):
@@ -51,15 +55,15 @@ def steam_fixture(tmp_path):
     proc = tmp_path / "proc"
     (proc / "41").mkdir(parents=True)
     source = SteamDiscovery(((root, False),))
-    registry = ApplicationRegistry(
+    registry = make_application_registry(
         application_source=lambda: (),
         desktop_directories_source=lambda: (apps,),
         steam_source=source,
     )
-    registry._desktop_app_info_for_id = lambda _id: None
-    registry._desktop_app_info_from_filename = lambda _path: None
+    registry._catalog._desktop_app_info_for_id = lambda _id: None
+    registry._catalog._desktop_app_info_from_filename = lambda _path: None
     registry.refresh()
-    processes = ProcessIdentityService(
+    processes = make_process_identity(
         LaunchProvenanceStore(),
         proc_root=proc,
         executable_resolver=lambda _pid: executable,
@@ -104,10 +108,10 @@ def test_tf2_report_matches_without_shortcut_or_environment(steam_fixture):
 @pytest.mark.parametrize("flatpak", [False, True])
 def test_game_pin_restart_and_launch_use_steam(steam_fixture, flatpak):
     fixture = steam_fixture
-    fixture.registry._steam_source = SteamDiscovery(((fixture.root, flatpak),))
+    fixture.registry._catalog._steam_source = SteamDiscovery(((fixture.root, flatpak),))
     fixture.registry.refresh()
     popen = MagicMock(return_value=SimpleNamespace(pid=77, poll=lambda: None))
-    launcher = ApplicationLauncher(
+    launcher = make_application_launcher(
         fixture.registry, LaunchProvenanceStore(), popen=popen
     )
     icons = MagicMock()
@@ -271,14 +275,14 @@ def test_install_uninstall_and_monitor_cleanup(steam_fixture):
     fixture = steam_fixture
     registry = fixture.registry
     monitors = []
-    registry._app_monitor_factory = MagicMock
+    registry._monitor._app_monitor_factory = MagicMock
 
     def monitor(_path):
         value = MagicMock()
         monitors.append(value)
         return value
 
-    registry._directory_monitor_factory = monitor
+    registry._monitor._directory_monitor_factory = monitor
     registry.start()
     generation = registry.generation
     _manifest(fixture.root, "570", "Dota 2")
@@ -405,7 +409,9 @@ def test_steam_diagnostic_report_is_cached_and_omits_environment(steam_fixture):
     )
     backend = _Backend()
     backend.windows = SimpleNamespace(diagnostic_snapshot=lambda: tracking)
-    fixture.registry._steam_source = lambda: pytest.fail("No Steam rediscovery")
+    fixture.registry._catalog._steam_source = lambda: pytest.fail(
+        "No Steam rediscovery"
+    )
     report = format_diagnostics_report(
         collect_diagnostics(
             backend=backend,
@@ -438,7 +444,7 @@ def test_native_installation_precedes_duplicate_flatpak(steam_fixture, tmp_path)
     fixture = steam_fixture
     flatpak = tmp_path / "FlatpakSteam"
     _manifest(flatpak)
-    fixture.registry._steam_source = SteamDiscovery(
+    fixture.registry._catalog._steam_source = SteamDiscovery(
         ((flatpak, True), (fixture.root, False))
     )
     fixture.registry.refresh()
@@ -467,7 +473,7 @@ def test_steam_home_failure_preserves_desktop_discovery(tmp_path, monkeypatch):
     (tmp_path / "editor.desktop").write_text(
         "[Desktop Entry]\nType=Application\nName=Editor\nExec=true\n"
     )
-    registry = ApplicationRegistry(
+    registry = make_application_registry(
         application_source=lambda: (),
         desktop_directories_source=lambda: (tmp_path,),
         steam_source=SteamDiscovery(),
@@ -503,7 +509,7 @@ def test_first_steam_install_is_discovered_from_dedicated_parent(
     parent = tmp_path / (".var/app" if flatpak else ".steam")
     parent.mkdir(parents=True)
     root = parent / "com.valvesoftware.Steam/data/Steam" if flatpak else parent / "root"
-    registry = ApplicationRegistry(
+    registry = make_application_registry(
         application_source=lambda: (),
         desktop_directories_source=lambda: (),
         steam_source=SteamDiscovery(),
@@ -518,8 +524,8 @@ def test_first_steam_install_is_discovered_from_dedicated_parent(
         )
         return value
 
-    registry._directory_monitor_factory = monitor
-    registry._app_monitor_factory = MagicMock
+    registry._monitor._directory_monitor_factory = monitor
+    registry._monitor._app_monitor_factory = MagicMock
     registry._schedule_timeout = lambda _delay, callback: timers.append(callback) or 1
     registry.start()
     try:

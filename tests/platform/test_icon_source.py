@@ -1,0 +1,49 @@
+"""Optional native artwork stays behind a lazy, binding-free source contract."""
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+from unittest.mock import Mock
+
+from docking.platform import icons
+from docking.platform.desktop.base import DesktopServices
+from tests.platform.application_fakes import application
+
+
+def test_no_optional_source_keeps_gio_fallback_and_selects_only_once(monkeypatch):
+    desktop = Mock(spec=DesktopServices)
+    desktop.create_icon_source.return_value = None
+    loader = icons.IconLoader(desktop_service=desktop)
+    loader.stop()
+    desktop.create_icon_source.assert_not_called()
+    retained = object()
+    monkeypatch.setattr(loader, "load_gicon", lambda **_kwargs: retained)
+    for identifier in ("One.App", "Two.App"):
+        assert (
+            loader.load_desktop_icon(application(identifier), 16, gicon=object())
+            is retained
+        )
+    desktop.create_icon_source.assert_called_once_with(loader._native_icon_ready)
+    loader.stop()
+
+
+def test_unix_factory_never_imports_gtk_or_windows_implementation():
+    root = Path(__file__).resolve().parents[2]
+    script = (
+        "import sys,json;sys.path.insert(0,sys.argv[1]);"
+        "from docking.platform.desktop.implementations.unix.backend import UnixDesktopServices;"
+        "assert UnixDesktopServices().create_icon_source(lambda identifier:None) is None;"
+        "print(json.dumps([name for name in sys.modules if name=='gi' "
+        "or name.startswith('docking.platform.backends.windows') "
+        "or name=='docking.platform.icons' "
+        "or name.startswith('docking.platform.applications')]))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-I", "-S", "-c", script, str(root)],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=10,
+    )
+    assert json.loads(result.stdout) == []

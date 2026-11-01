@@ -58,12 +58,22 @@ DOCKING_LOG_LEVEL=DEBUG python run.py
 # Run all tests
 pytest tests/ -v
 
+# Run the no-GI smoke suite in a separate process
+pytest tests/smoke/test_python314_smoke.py -q
+
 # Run specific module
 pytest tests/applets/test_clock.py -v
 
 # Coverage report
 pytest tests/ -v --cov=docking --cov-report=term-missing
 ```
+
+Run the smoke command separately: imports cached during full-suite collection
+can hide incomplete smoke fixtures.
+
+CI also checks pull requests targeting prerequisite branches, so stacked changes
+receive the same checks before their base reaches master. Release jobs remain
+restricted to master.
 
 For the GUI/integration-oriented slice under a headless X11 session:
 
@@ -93,6 +103,75 @@ You can also pass explicit pytest targets:
 bash tools/test_gui_headless.sh tests/ui/test_pointer_scenarios.py
 ```
 
+## Platform boundaries
+
+Shared application policy lives in `platform/applications/`, applet policy and
+GTK wiring in each `applets/<name>/` directory, and concrete adapters in the
+owning domain's `implementations/<family>/` package. Use `unix` for shared
+Linux/BSD protocols and tools, `linux` or `bsd` for kernel APIs, and `shared`
+for portable native tools. Keep package initializers lightweight.
+
+`platform/host/` supplies paths, storage durability, file locking, hook commands,
+and mounted-filesystem facts without importing GI. Host selection is cached;
+XDG variables are read when directory helpers are called. Desktop file/URI
+operations and GUI lifecycle hooks live separately in `platform/desktop/`.
+Window-management sessions remain under `platform/backends/`; an OS and its
+GTK display/session are separate choices.
+
+`platform/composition/` assembles these interfaces at startup. Only entry points
+use the complete `PlatformProvider`. Registries, launchers, the model, applets,
+and Search receive the narrow dependencies they need. Native discovery sources
+and desktop monitors stay in their adapters. Association lookups return an
+`AssociationResolution`: inspect its status and use `.listing` or `.name`.
+Unix lookups remain synchronous, and ready-empty differs from unavailable.
+
+`platform/applications/backend.py` collects the application platform contracts
+and their catalog, launch, and registration results. Each capability remains
+independently injected. Canonical application values stay in `types.py`, and
+association requests/statuses/resolutions stay in `associations.py`. The common
+contract module imports no GI or native implementations.
+
+Owned platform contracts use `ABC` and `@abstractmethod`. Implementations and
+backend test doubles inherit their contracts explicitly; an incomplete adapter
+must fail at construction. Required metadata uses abstract read-only properties,
+which concrete properties or class constants can implement. Shared Unix host,
+provider, and applet factory classes remain abstract where Linux/BSD supply the
+remaining operations. Preserve structural protocols for callable factories
+(`BrowserFactory`), external native handles, and consumer views. Keep native
+resource acquisition in concrete implementations and retain their existing
+method signatures and lifetimes.
+
+Keep each domain's contracts in its root `backend.py`, separate from state and
+native code. Import canonical modules directly; avoid import-only compatibility
+files or forwarding modules with a single caller. Shared native helpers expose
+public functions when other implementation modules call them. Tests patch I/O
+at the module that owns it. Tray consumers import `platform/tray/`; SNI transport
+lives under `platform/tray/implementations/unix/`.
+
+Create one shared `TrayService` before constructing applets. Consumers borrow
+it and unsubscribe on stop; composition owns shutdown. Stateful backend
+factories produce independent instances. A serial worker queues related native
+I/O and finalizes resources on its own thread, including when stopped before its
+first job. Always guard replies across stop/restart. Stop UI and applet consumers
+before session, tray, and registry providers, including on startup failure.
+
+For a complete regression run without a desktop session:
+
+```bash
+xvfb-run -a dbus-run-session -- .venv/bin/python -m pytest tests/ -q
+.venv/bin/python -m pytest tests/smoke/test_python314_smoke.py -q
+xvfb-run -a dbus-run-session -- .venv/bin/behave -q
+```
+
+Run the smoke file in its own process. Full-suite import caches can hide
+incomplete no-GI fixtures. The type-checker configuration explicitly prioritizes
+this checkout over system-installed Docking releases.
+
+When changing platform interfaces, migrate Behave callers in `features/steps/`
+as well as pytest fixtures. The shared test factories deliberately construct
+Linux adapters for deterministic filesystem/command fixtures; tests reading the
+real host must explicitly use the native backend from composition.
+
 ## D-Bus Remote Control
 
 Docking exposes the `org.docking.Docking.Items1` session-bus interface for item
@@ -103,6 +182,54 @@ reference, examples, and expected responses.
 
 Build dependencies, commands, output paths, and local installation steps for
 every package format live in the [packaging guide](../packaging/README.md).
+
+## Website
+
+The website uses Node.js 22 or later to generate static English, Portuguese,
+French and Spanish pages. Run from the repository root:
+
+```bash
+npm --prefix website ci
+npm --prefix website run dev
+```
+
+Open `http://127.0.0.1:8000`. The development command builds all language pages
+and serves them using Python 3. Restart it after editing website sources to
+rebuild. From the `website` directory, use `npm run dev` directly. Run
+`npm --prefix website test` to check the generated pages. Both `npm test` and
+`npm run test:browser` rebuild the site automatically before running checks.
+
+Netlify uses the root `netlify.toml` to build and publish `website/dist`.
+Publish the built directory, not the source `website` directory. Build output
+and `node_modules` are ignored by Git. Tailwind runs at build time; visitors
+do not download a CSS compiler. Applet icons come from the repository, and the
+original `website/hero.gif` is copied without recompression.
+
+Edit the English template in `website/index.html` and the corresponding strings
+in `website/translations.json`. Translation keys are the exact English text;
+builds fail on missing translations. Keep shell commands and technical names
+unchanged. The build generates `/`, `/pt/`, `/fr/` and `/es/`, with reciprocal
+`hreflang` links and a self-canonical URL for each language. All content remains
+readable without JavaScript. Browser-language detection suggests a version;
+explicit language links and remembered choices take precedence over detection.
+
+Keep `website/sitemap.xml` synchronized with published pages. Update each
+`lastmod` only when that page's content changes, not on every build. The public
+sitemap to submit in Google Search Console is `https://docking.cc/sitemap.xml`.
+Submit new language URLs for inspection after deploying the generated pages.
+
+Browser checks cover all languages on desktop and mobile, JavaScript disabled,
+accent-insensitive applet search, language preferences and reduced motion:
+
+```bash
+cd website
+npx playwright install chromium
+npm run test:browser
+```
+
+To use an existing Chrome installation, set `CHROME_PATH` to its executable
+instead of installing Chromium. The website workflow runs both the static SEO
+checks and browser checks on relevant changes.
 
 ## Contributing
 

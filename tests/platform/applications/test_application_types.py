@@ -60,6 +60,7 @@ def test_enum_wire_values_match_the_v3_contract():
         "desktop-id",
         "wm-class",
         "runtime-path-split",
+        "runtime-executable",
         "application-id",
         "sandbox-id",
         "script-name",

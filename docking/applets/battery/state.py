@@ -16,16 +16,9 @@
 from __future__ import annotations
 
 import re
-import shutil
-import subprocess
-from pathlib import Path
 from typing import NamedTuple
 
 from docking.i18n import _
-from docking.log import get_logger, with_context
-
-BAT_BASE = Path("/sys/class/power_supply")
-log = with_context(get_logger("battery.state"))
 
 # Bottom-center overlay modes (mutually exclusive, mirroring the network applet).
 OVERLAY_NONE = "none"
@@ -35,10 +28,10 @@ OVERLAY_MODES = (OVERLAY_NONE, OVERLAY_PERCENT, OVERLAY_POWER)
 
 
 class BatteryState(NamedTuple):
-    """Resolved battery info from sysfs."""
+    """Resolved battery status; an unknown percentage is distinct from zero."""
 
     icon_name: str  # FDO icon name (e.g. "battery-good-charging")
-    capacity: int  # 0-100 percent
+    capacity: int | None  # 0-100 percent, or unknown
     status: str  # Kernel battery status (e.g. Charging / Discharging / Full)
     seconds_remaining: int | None  # Time estimate until empty/full when known
     power_watts: float | None = None  # Instantaneous battery power draw/input
@@ -53,14 +46,6 @@ _LEVEL_TO_ICON = {
     "critical": "battery-caution",
     "unknown": "battery-empty",
 }
-
-_POWER_SETTINGS_COMMANDS: tuple[tuple[str, ...], ...] = (
-    ("gnome-control-center", "power"),
-    ("mate-power-preferences",),
-    ("xfce4-power-manager-settings",),
-    ("kcmshell6", "powerdevilprofilesconfig"),
-    ("kcmshell5", "powerdevilprofilesconfig"),
-)
 
 
 def resolve_battery_icon(capacity_level: str, status: str) -> str:
@@ -85,32 +70,15 @@ def format_power(watts: float, *, compact: bool = False) -> str:
     return f"{digits}W" if compact else f"{digits} W"
 
 
-def power_settings_command() -> list[str] | None:
-    """Return the first available desktop power-settings command."""
-    for cmd in _POWER_SETTINGS_COMMANDS:
-        if shutil.which(cmd[0]):
-            return list(cmd)
-    return None
-
-
-def open_power_settings() -> bool:
-    """Launch the desktop power-settings tool when one is available."""
-    cmd = power_settings_command()
-    if cmd is None:
-        return False
-    try:
-        subprocess.Popen(cmd, start_new_session=True)
-    except OSError as exc:
-        log.bind(action="open_power_settings").warning("Failed to run %s: %s", cmd, exc)
-        return False
-    return True
-
-
 def tooltip_text(state: BatteryState | None) -> str:
     """Build tooltip string from current state."""
     if state is None:
         return _("No battery")
-    parts = [_("Battery: {pct}%").format(pct=state.capacity)]
+    parts = [
+        _("Battery: {pct}%").format(pct=state.capacity)
+        if state.capacity is not None
+        else f"{_('Battery')}: {_('Unknown')}"
+    ]
     estimate = _estimate_suffix(state=state)
     if estimate is not None:
         parts.append(estimate)
@@ -193,15 +161,3 @@ def _positive_delta(full: int | None, now: int | None) -> int | None:
     if delta <= 0:
         return None
     return delta
-
-
-def read_battery(bat_name: str = "BAT0", base: Path = BAT_BASE) -> BatteryState | None:
-    from docking.applets.battery.backend import create_backend
-
-    return create_backend(base=base).read_battery(bat_name, base)
-
-
-def read_power_watts(bat_name: str = "BAT0", base: Path = BAT_BASE) -> float | None:
-    from docking.applets.battery.backend import create_backend
-
-    return create_backend(base=base).read_power_watts(bat_name, base)

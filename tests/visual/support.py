@@ -9,7 +9,6 @@ from pathlib import Path
 import cairo
 import numpy as np
 from PIL import Image, ImageChops
-from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 
 BASELINE_DIR = Path(__file__).resolve().parent / "baselines"
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
@@ -54,6 +53,8 @@ def load_image(path: Path) -> Image.Image:
 
 def compute_metrics(expected: Image.Image, actual: Image.Image) -> VisualMetrics:
     """Compute SSIM and PSNR for two equal-sized RGBA images."""
+    from skimage.metrics import peak_signal_noise_ratio, structural_similarity
+
     expected_pixels = np.asarray(expected, dtype=np.float32)
     actual_pixels = np.asarray(actual, dtype=np.float32)
     ssim = structural_similarity(

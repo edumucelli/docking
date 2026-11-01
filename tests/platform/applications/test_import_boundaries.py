@@ -94,7 +94,7 @@ def test_application_modules_do_not_reach_consumer_layers():
         "docking.ui",
     )
 
-    for path in PACKAGE.glob("*.py"):
+    for path in PACKAGE.rglob("*.py"):
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             if isinstance(node, ast.Import):
                 modules = [alias.name for alias in node.names]
@@ -187,8 +187,9 @@ def test_canonical_running_has_no_runtime_compatibility_constructor():
         if isinstance(node, ast.ClassDef | ast.FunctionDef)
     }
     assert names == {"RunningAppInfo", "RunningWindowInfo"}
-    assert "docking.platform.applications.entries" not in _imported_modules(
-        PACKAGE / "running.py"
+    assert (
+        "docking.platform.applications.implementations.unix.entries"
+        not in _imported_modules(PACKAGE / "running.py")
     )
     assert not any(
         isinstance(node, ast.Name | ast.Attribute)
@@ -211,7 +212,7 @@ def test_reduced_backend_uses_binding_free_application_constants():
     reduced = DOCKING / "platform" / "backends" / "reduced" / "services.py"
     imports = _imported_modules(reduced)
     assert "docking.platform.applications.constants" in imports
-    assert "docking.platform.applications.entries" not in imports
+    assert "docking.platform.applications.implementations.unix.entries" not in imports
 
 
 def test_core_config_has_no_platform_application_imports():

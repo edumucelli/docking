@@ -8,7 +8,8 @@ import subprocess
 
 import pytest
 
-import docking.applets.camshield.helper as helper
+import docking.applets.camshield.implementations.unix.helper as helper
+import tests.platform_factories as test_platform
 
 
 def _mode(path):
@@ -37,7 +38,14 @@ def test_lock_without_devices_reports_error(tmp_path, monkeypatch, capsys):
     dev.mkdir()
     monkeypatch.setattr(helper.os, "geteuid", lambda: 0)
 
-    assert helper.lock_devices(dev_root=dev, state_dir=tmp_path / "state") == 1
+    assert (
+        helper.lock_devices(
+            dev_root=dev,
+            state_dir=tmp_path / "state",
+            backend=test_platform.camera_control(),
+        )
+        == 1
+    )
     assert "No camera devices" in capsys.readouterr().err
 
 
@@ -53,10 +61,20 @@ def test_lock_and_unlock_restore_previous_mode(tmp_path, monkeypatch):
     monkeypatch.setattr(helper.os, "geteuid", lambda: 0)
     monkeypatch.setattr(helper.shutil, "which", lambda _cmd: None)
 
-    assert helper.lock_devices(dev_root=dev, state_dir=state_dir) == 0
+    assert (
+        helper.lock_devices(
+            dev_root=dev, state_dir=state_dir, backend=test_platform.camera_control()
+        )
+        == 0
+    )
     assert _mode(video0) == 0
 
-    assert helper.unlock_devices(state_dir=state_dir) == 0
+    assert (
+        helper.unlock_devices(
+            state_dir=state_dir, backend=test_platform.camera_control()
+        )
+        == 0
+    )
     assert _mode(video0) == 0o660
     assert not (state_dir / helper.STATE_FILE.name).exists()
 
@@ -64,7 +82,12 @@ def test_lock_and_unlock_restore_previous_mode(tmp_path, monkeypatch):
 def test_unlock_without_state_reports_error(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(helper.os, "geteuid", lambda: 0)
 
-    assert helper.unlock_devices(state_dir=tmp_path / "state") == 1
+    assert (
+        helper.unlock_devices(
+            state_dir=tmp_path / "state", backend=test_platform.camera_control()
+        )
+        == 1
+    )
     assert "No locked camera" in capsys.readouterr().err
 
 
@@ -80,9 +103,24 @@ def test_lock_preserves_original_snapshot_on_repeated_lock(tmp_path, monkeypatch
     monkeypatch.setattr(helper.os, "geteuid", lambda: 0)
     monkeypatch.setattr(helper.shutil, "which", lambda _cmd: None)
 
-    assert helper.lock_devices(dev_root=dev, state_dir=state_dir) == 0
-    assert helper.lock_devices(dev_root=dev, state_dir=state_dir) == 0
-    assert helper.unlock_devices(state_dir=state_dir) == 0
+    assert (
+        helper.lock_devices(
+            dev_root=dev, state_dir=state_dir, backend=test_platform.camera_control()
+        )
+        == 0
+    )
+    assert (
+        helper.lock_devices(
+            dev_root=dev, state_dir=state_dir, backend=test_platform.camera_control()
+        )
+        == 0
+    )
+    assert (
+        helper.unlock_devices(
+            state_dir=state_dir, backend=test_platform.camera_control()
+        )
+        == 0
+    )
 
     assert _mode(video0) == 0o660
 
@@ -112,7 +150,9 @@ def test_unlock_rejects_disallowed_recovery_entries(tmp_path, monkeypatch):
     )
 
     with pytest.raises(OSError, match="recovery"):
-        helper.unlock_devices(state_dir=state_dir)
+        helper.unlock_devices(
+            state_dir=state_dir, backend=test_platform.camera_control()
+        )
     assert _mode(video0) == 0
 
 
@@ -165,7 +205,7 @@ def test_status_marks_recorded_devices(tmp_path, monkeypatch, capsys):
 def test_main_rejects_lock_without_root(monkeypatch, capsys):
     monkeypatch.setattr(helper.os, "geteuid", lambda: 1000)
 
-    assert helper.main(["lock"]) == 77
+    assert helper.main(["lock"], backend=test_platform.camera_control()) == 77
     assert "must be run as root" in capsys.readouterr().err
 
 
@@ -190,11 +230,14 @@ def test_acl_snapshot_save_and_restore_success(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(helper.subprocess, "run", fake_run)
 
-    acl_file = helper._save_acl_snapshot(device=device, state_dir=state_dir)
+    acl_file = helper._save_acl_snapshot(
+        device=device, state_dir=state_dir, backend=test_platform.camera_control()
+    )
     assert acl_file is not None
     assert acl_file.exists()
     assert helper._restore_acl(
-        snapshot=helper.DeviceSnapshot(path=device, mode=0o660, acl_file=acl_file)
+        snapshot=helper.DeviceSnapshot(path=device, mode=0o660, acl_file=acl_file),
+        backend=test_platform.camera_control(),
     )
     assert calls[0][0].endswith("getfacl")
     assert calls[1][0].endswith("setfacl")
@@ -214,15 +257,26 @@ def test_acl_snapshot_failures_return_false_or_none(tmp_path, monkeypatch):
             subprocess.CalledProcessError(1, args[0])
         ),
     )
-    assert helper._save_acl_snapshot(device=device, state_dir=state_dir) is None
+    assert (
+        helper._save_acl_snapshot(
+            device=device, state_dir=state_dir, backend=test_platform.camera_control()
+        )
+        is None
+    )
 
     acl_file = state_dir / "missing.acl"
     snapshot = helper.DeviceSnapshot(path=device, mode=0o660, acl_file=acl_file)
-    assert helper._restore_acl(snapshot=snapshot) is False
+    assert (
+        helper._restore_acl(snapshot=snapshot, backend=test_platform.camera_control())
+        is False
+    )
 
     acl_file.write_text("# acl\n", encoding="utf-8")
     monkeypatch.setattr(helper.shutil, "which", lambda _command: None)
-    assert helper._restore_acl(snapshot=snapshot) is False
+    assert (
+        helper._restore_acl(snapshot=snapshot, backend=test_platform.camera_control())
+        is False
+    )
 
 
 def test_read_state_accepts_complete_device_snapshots(tmp_path, monkeypatch):
@@ -261,13 +315,17 @@ def test_device_locked_handles_stat_error(tmp_path):
 
 def test_main_dispatches_commands_and_os_errors(monkeypatch, capsys):
     calls: list[str] = []
-    monkeypatch.setattr(helper, "lock_devices", lambda: calls.append("lock") or 0)
-    monkeypatch.setattr(helper, "unlock_devices", lambda: calls.append("unlock") or 0)
+    monkeypatch.setattr(
+        helper, "lock_devices", lambda *, backend: calls.append("lock") or 0
+    )
+    monkeypatch.setattr(
+        helper, "unlock_devices", lambda *, backend: calls.append("unlock") or 0
+    )
     monkeypatch.setattr(helper, "status_devices", lambda: calls.append("status") or 0)
 
-    assert helper.main(["lock"]) == 0
-    assert helper.main(["unlock"]) == 0
-    assert helper.main(["status"]) == 0
+    assert helper.main(["lock"], backend=test_platform.camera_control()) == 0
+    assert helper.main(["unlock"], backend=test_platform.camera_control()) == 0
+    assert helper.main(["status"], backend=test_platform.camera_control()) == 0
     assert calls == ["lock", "unlock", "status"]
 
     monkeypatch.setattr(
@@ -275,5 +333,5 @@ def test_main_dispatches_commands_and_os_errors(monkeypatch, capsys):
         "status_devices",
         lambda: (_ for _ in ()).throw(OSError("boom")),
     )
-    assert helper.main(["status"]) == 1
+    assert helper.main(["status"], backend=test_platform.camera_control()) == 1
     assert "Camera helper failed" in capsys.readouterr().err

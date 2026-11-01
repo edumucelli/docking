@@ -21,11 +21,13 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.freshness import cadence_label
 from docking.applets.live_state import (
     live_state_error,
@@ -45,7 +47,6 @@ from docking.applets.thermals.state import (
     format_temperature,
     prefs_from_mapping,
     prefs_payload,
-    read_thermal_snapshot,
     reading_label,
     temperature_unit_label,
 )
@@ -59,14 +60,22 @@ if TYPE_CHECKING:
 log = with_context(get_logger(name="thermals"), applet_id=meta.id)
 
 
-class ThermalsApplet(Applet):
+class ThermalsApplet(PlatformServicesApplet):
     """Show the hottest lm-sensors reading and fastest fan RPM."""
 
     id = meta.id
     name = _("Thermals")
     icon_name = "utilities-system-monitor"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._backend = platform_services.backends.thermals()
+        self._platform = platform_services
         self._snapshot: ThermalSnapshot | None = None
         self._last_updated: dt.datetime | None = None
         self._loading = False
@@ -77,7 +86,9 @@ class ThermalsApplet(Applet):
         self._worker = BackgroundWorker(logger=log)
         prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
         self._temperature_unit = prefs.temperature_unit
-        super().__init__(icon_size=icon_size, config=config)
+        super().__init__(
+            icon_size=icon_size, config=config, platform_services=platform_services
+        )
         self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -237,7 +248,7 @@ class ThermalsApplet(Applet):
 
         self._worker.run(
             name="thermals-fetch",
-            fn=read_thermal_snapshot,
+            fn=self._backend.get_snapshot,
             on_result=lambda snapshot: self._on_fetch_result(
                 request_id=request_id,
                 snapshot=snapshot,

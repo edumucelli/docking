@@ -8,8 +8,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from docking.applets.bluetooth import bsd
-from docking.applets.bluetooth.backend import create_backend
+from docking.applets.bluetooth.implementations.bsd import backend as bsd
+from docking.platform.composition.bsd import BsdAppletBackendFactories
+
+create_backend = BsdAppletBackendFactories().bluetooth
 from docking.platform import environment
 
 NODE = "ubt0hci"
@@ -64,8 +66,11 @@ def test_missing_controller_and_openbsd_are_unavailable(backend, monkeypatch):
 
 
 def test_factory_selects_bsd_without_importing_bluez(monkeypatch):
+
     monkeypatch.setattr(environment, "is_bsd", lambda: True)
-    monkeypatch.setitem(bsd.sys.modules, "docking.applets.bluetooth.linux", None)
+    monkeypatch.setitem(
+        bsd.sys.modules, "docking.applets.bluetooth.implementations.linux.backend", None
+    )
     assert isinstance(create_backend(), bsd.BsdBluetoothBackend)
 
 

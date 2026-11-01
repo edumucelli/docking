@@ -5,12 +5,22 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, replace
 
+from docking.applets.telegram.bridge import BRIDGE_HANDLER, BRIDGE_SCRIPT
+from docking.applets.webapp.profile import BrowserProfile
 from docking.applets.webapp.state import BrowserPhase, NavigationTarget, WebAppState
 from docking.applets.webapp.state import navigation_target as classify_navigation
 from docking.i18n import _, ngettext
 
 TELEGRAM_WEB_URL = "https://web.telegram.org/k/"
 TELEGRAM_WEB_HOST = "web.telegram.org"
+PROFILE = BrowserProfile(
+    name="Telegram",
+    session_name="telegram",
+    url=TELEGRAM_WEB_URL,
+    bridge_handler=BRIDGE_HANDLER,
+    bridge_script=BRIDGE_SCRIPT,
+)
+
 _TITLE_COUNT = re.compile(
     r"^\s*(?:\((\d+)\+?\)|Telegram(?:\s+Web)?\s*\((\d+)\+?\))", re.IGNORECASE
 )
@@ -39,7 +49,9 @@ def navigation_target(uri: str | None) -> NavigationTarget:
 
 def tooltip_text(state: WebAppState) -> str:
     if state.phase is BrowserPhase.UNAVAILABLE:
-        return _("Telegram: WebKitGTK is not installed")
+        if state.error:
+            return _("Telegram: {error}").format(error=state.error)
+        return _("Telegram: browser is unavailable")
     if state.phase is BrowserPhase.STARTING:
         return _("Telegram: loading...")
     if state.phase is BrowserPhase.LOGIN_REQUIRED:

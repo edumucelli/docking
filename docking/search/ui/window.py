@@ -30,11 +30,14 @@ import gi
 
 gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gdk, GLib, Gtk, Pango
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango
 
 from docking.i18n import _
+from docking.platform.backends.base import Size, SurfaceService
 from docking.platform.icons import IconLoader
 from docking.search.coordinator import ProviderError, SearchSnapshot
+from docking.search.icons import SearchResultIcons
+from docking.search.services.platform import WindowFocus
 from docking.search.types import (
     SearchAction,
     SearchIdentity,
@@ -42,6 +45,7 @@ from docking.search.types import (
     SearchResult,
 )
 from docking.search.ui.thumbnails import LoadedSearchImage, SearchImageCache
+from docking.ui.display import get_pointer_position, popup_workarea
 from docking.ui.popup_surface import (
     configure_transparent_startup_popup_window,
     wrap_startup_popup_content,
@@ -49,6 +53,7 @@ from docking.ui.popup_surface import (
 
 SEARCH_WINDOW_WIDTH = 680
 SEARCH_WINDOW_HEIGHT = 470
+SEARCH_WINDOW_MARGIN = 16
 SEARCH_ICON_SIZE = 32
 ACTION_PANEL_WIDTH = 320
 PREVIEW_PANEL_WIDTH = 320
@@ -73,14 +78,19 @@ class _ResultRow(Gtk.ListBoxRow):
         result: SearchResult,
         *,
         icon_loader: IconLoader,
+        resolve_icon: Callable[[SearchResult, int], GdkPixbuf.Pixbuf | None]
+        | None = None,
     ) -> None:
         super().__init__()
         self.result = result
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         box.set_border_width(8)
-        icon = icon_loader.load_icon(
-            icon_name=result.icon_name or "system-search",
-            size=SEARCH_ICON_SIZE,
+        icon = (
+            resolve_icon(result, SEARCH_ICON_SIZE)
+            if resolve_icon is not None
+            else icon_loader.load_icon(
+                icon_name=result.icon_name or "system-search", size=SEARCH_ICON_SIZE
+            )
         )
         image = Gtk.Image.new_from_pixbuf(icon) if icon is not None else Gtk.Image()
         image.set_pixel_size(SEARCH_ICON_SIZE)
@@ -153,9 +163,19 @@ class SearchWindow:
             Callable[[SearchPreview, int, int], LoadedSearchImage | None]
         ),
         preview_resolver: Callable[[SearchResult], SearchPreview | None],
+        refresh_dynamic_previews: bool = False,
+        opaque_action_panel: bool = False,
+        result_icons: SearchResultIcons | None = None,
+        window_focus: WindowFocus | None = None,
+        surface_service: SurfaceService | None = None,
     ) -> None:
         """Construct the reusable toplevel and bind controller callbacks."""
         self._icon_loader = icon_loader
+        self._result_icons = result_icons
+        self._destroyed = False
+        self._unsubscribe_icons: Callable[[], None] | None = None
+        self._window_focus = window_focus
+        self._surface_service = surface_service
         self._on_query_changed = on_query_changed
         self._on_result_selected = on_result_selected
         self._on_result_activated = on_result_activated
@@ -164,6 +184,13 @@ class SearchWindow:
         self._on_refine_requested = on_refine_requested
         self._dynamic_preview_loader = dynamic_preview_loader
         self._preview_resolver = preview_resolver
+        self._refresh_dynamic_previews = refresh_dynamic_previews
+        self._dynamic_preview_source = 0
+        self._dynamic_preview: SearchPreview | None = None
+        self._shown_dynamic_image: LoadedSearchImage | None = None
+        self._preediting: set[Gtk.Entry] = set()
+        self._preedit_ended: dict[Gtk.Entry, int] = {}
+        self._preedit_terminal: set[Gtk.Entry] = set()
         self._results: tuple[SearchResult, ...] = ()
         self._selected_identity: SearchIdentity | None = None
         self._syncing_query = False
@@ -176,6 +203,8 @@ class SearchWindow:
         )
         self._pending_thumbnails: set[tuple[str, int, int]] = set()
         self._result_generation = 0
+        self._preferred_size = Size(SEARCH_WINDOW_WIDTH, SEARCH_WINDOW_HEIGHT)
+        self._fitted_size: Size | None = None
 
         window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
         window.set_title(_("Docking Search"))
@@ -193,6 +222,7 @@ class SearchWindow:
         window.get_accessible().set_name(_("Docking Search"))
         window.connect("delete-event", self._on_delete_event)
         window.connect("key-press-event", self._on_key_press)
+        window.connect("key-release-event", self._on_key_release)
         window.connect("hide", self._handle_hidden)
         self.window = window
 
@@ -203,8 +233,9 @@ class SearchWindow:
         self.search_entry.set_margin_top(12)
         self.search_entry.set_margin_bottom(12)
         self.search_entry.connect("search-changed", self._on_search_changed)
-        self.search_entry.connect("activate", lambda *_: self.activate_selected())
-        self.search_entry.connect("stop-search", lambda *_: self.hide())
+        self.search_entry.connect("activate", self._activate_search)
+        self.search_entry.connect("stop-search", self._stop_search)
+        self.search_entry.connect("preedit-changed", self._on_preedit_changed)
         outer.pack_start(self.search_entry, False, False, 0)
         outer.pack_start(Gtk.Separator(), False, False, 0)
 
@@ -229,6 +260,8 @@ class SearchWindow:
         self.action_frame.set_margin_end(10)
         self.action_frame.set_margin_bottom(10)
         self.action_frame.set_size_request(ACTION_PANEL_WIDTH, -1)
+        if opaque_action_panel:
+            self.action_frame.get_style_context().add_class("view")
         action_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         action_box.set_border_width(8)
         action_title = Gtk.Label(label=_("Actions"))
@@ -238,11 +271,18 @@ class SearchWindow:
         self.action_filter.set_placeholder_text(_("Filter actions..."))
         self.action_filter.connect("search-changed", self._filter_actions)
         self.action_filter.connect("activate", self._activate_filtered_action)
+        self.action_filter.connect("preedit-changed", self._on_preedit_changed)
         action_box.pack_start(self.action_filter, False, False, 0)
         self.actions_list = Gtk.ListBox()
         self.actions_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self.actions_list.connect("row-activated", self._on_action_row_activated)
-        action_box.pack_start(self.actions_list, False, False, 0)
+        self._actions_scroller = Gtk.ScrolledWindow()
+        self._actions_scroller.set_policy(
+            Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC
+        )
+        self._actions_scroller.set_propagate_natural_height(True)
+        self._actions_scroller.add(self.actions_list)
+        action_box.pack_start(self._actions_scroller, False, False, 0)
         self.action_frame.add(action_box)
         overlay.add_overlay(self.action_frame)
 
@@ -265,12 +305,13 @@ class SearchWindow:
         self.preview_image.set_halign(Gtk.Align.CENTER)
         self.preview_image.set_valign(Gtk.Align.START)
         self.preview_image.set_no_show_all(True)
-        preview_box.pack_start(self.preview_image, False, False, 0)
+        preview_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        preview_content.pack_start(self.preview_image, False, False, 0)
         self.preview_metadata = Gtk.Label()
         self.preview_metadata.set_xalign(0.0)
         self.preview_metadata.get_style_context().add_class("dim-label")
         self.preview_metadata.set_no_show_all(True)
-        preview_box.pack_start(self.preview_metadata, False, False, 0)
+        preview_content.pack_start(self.preview_metadata, False, False, 0)
         self.preview_body = Gtk.Label()
         self.preview_body.set_xalign(0.0)
         self.preview_body.set_yalign(0.0)
@@ -281,7 +322,8 @@ class SearchWindow:
             Gtk.PolicyType.NEVER,
             Gtk.PolicyType.AUTOMATIC,
         )
-        preview_scroller.add(self.preview_body)
+        preview_content.pack_start(self.preview_body, False, False, 0)
+        preview_scroller.add(preview_content)
         preview_box.pack_start(preview_scroller, True, True, 0)
         self.preview_frame.add(preview_box)
         overlay.add_overlay(self.preview_frame)
@@ -306,6 +348,9 @@ class SearchWindow:
         outer.pack_end(footer, False, False, 0)
         self.surface = wrap_startup_popup_content(outer)
         window.add(self.surface)
+        overlay.connect("size-allocate", self._constrain_actions)
+        if result_icons is not None:
+            self._unsubscribe_icons = result_icons.subscribe(self.refresh_result_icons)
 
     @property
     def visible(self) -> bool:
@@ -319,6 +364,13 @@ class SearchWindow:
         activation_context: dict[str, object] | None = None,
     ) -> None:
         """Show the palette with correct activation metadata and search focus."""
+        grab = Gtk.grab_get_current()
+        if isinstance(grab, Gtk.MenuShell):
+            grab.cancel()
+        self._fit_workarea()
+        focus = self._window_focus
+        if focus is not None:
+            focus.before_present()
         context = activation_context or {}
         startup_id = str(
             context.get("XDG_ACTIVATION_TOKEN")
@@ -345,13 +397,76 @@ class SearchWindow:
             self.window.present_with_time(timestamp)
         else:
             self.window.present()
+        if focus is not None:
+            title = self.window.get_title()
+            assert title is not None
+            focus.after_present(title=title, visible=lambda: self.visible)
+
+    def _fit_workarea(self) -> None:
+        """Fit the palette to the pointer monitor in GTK's logical coordinates."""
+        display = self.window.get_display()
+        if display is None:
+            return
+        pointer = get_pointer_position(display)
+        if pointer is None:
+            monitor = display.get_primary_monitor()
+            if monitor is None and display.get_n_monitors():
+                monitor = display.get_monitor(0)
+            if monitor is None:
+                return
+            geometry = monitor.get_geometry()
+            anchor_x = geometry.x + geometry.width // 2
+            anchor_y = geometry.y + geometry.height // 2
+        else:
+            anchor_x, anchor_y = pointer
+        bounds = popup_workarea(
+            self.window,
+            anchor_x,
+            anchor_y,
+            surface_service=self._surface_service,
+        )
+        if self.window.get_realized() and self._fitted_size is not None:
+            current = Size(*self.window.get_size())
+            if current != self._fitted_size:
+                self._preferred_size = current
+        maximum = Size(
+            max(1, bounds.width - 2 * SEARCH_WINDOW_MARGIN),
+            max(1, bounds.height - 2 * SEARCH_WINDOW_MARGIN),
+        )
+        size = Size(
+            min(self._preferred_size.width, maximum.width),
+            min(self._preferred_size.height, maximum.height),
+        )
+        hints = Gdk.Geometry()
+        hints.max_width = maximum.width
+        hints.max_height = maximum.height
+        self.window.set_geometry_hints(None, hints, Gdk.WindowHints.MAX_SIZE)
+        self.window.resize(size.width, size.height)
+        self.window.set_position(Gtk.WindowPosition.NONE)
+        self.window.move(
+            bounds.x + (bounds.width - size.width) // 2,
+            bounds.y + (bounds.height - size.height) // 2,
+        )
+        self._fitted_size = size
 
     def hide(self) -> None:
         """Hide the toplevel while preserving reusable widget state."""
+        if self._window_focus is not None:
+            self._window_focus.cancel()
+        self._stop_dynamic_preview()
+        self._clear_input_methods()
         self.window.hide()
 
     def destroy(self) -> None:
         """Invalidate async image work, stop its executor, and destroy GTK state."""
+        self._destroyed = True
+        if self._window_focus is not None:
+            self._window_focus.cancel()
+        if self._unsubscribe_icons is not None:
+            self._unsubscribe_icons()
+            self._unsubscribe_icons = None
+        self._stop_dynamic_preview()
+        self._clear_input_methods()
         self._result_generation += 1
         self._thumbnail_executor.shutdown(wait=False, cancel_futures=True)
         self._image_cache.clear()
@@ -385,6 +500,9 @@ class SearchWindow:
                 row = _ResultRow(
                     result,
                     icon_loader=self._icon_loader,
+                    resolve_icon=self._result_icons.load
+                    if self._result_icons is not None
+                    else None,
                 )
                 self.results_list.add(row)
                 if (
@@ -412,6 +530,17 @@ class SearchWindow:
             snapshot.errors,
             query_empty=snapshot.query.is_empty,
         )
+
+    def refresh_result_icons(self, desktop_id: str | None = None) -> None:
+        """Update current images without rebuilding rows or disturbing typing."""
+        if self._destroyed or not self.visible or self._result_icons is None:
+            return
+        for row in self.results_list.get_children():
+            identity = dict(row.result.metadata).get("desktop_id", "")
+            if identity and (desktop_id is None or identity == desktop_id):
+                row.image.set_from_pixbuf(
+                    self._result_icons.load(row.result, SEARCH_ICON_SIZE)
+                )
 
     def _request_row_thumbnail(
         self,
@@ -486,7 +615,22 @@ class SearchWindow:
         self._hide_preview()
         self._sync_actions(result)
         self.action_frame.show_all()
+        self._constrain_actions()
         self.action_filter.grab_focus()
+
+    def _constrain_actions(self, *_args: object) -> None:
+        """Keep the filter visible while long action lists scroll in the overlay."""
+        if self._destroyed or not self.action_frame.get_visible():
+            return
+        overlay = self.action_frame.get_parent()
+        if overlay is None or overlay.get_allocated_height() <= 1:
+            return
+        _, panel_height = self.action_frame.get_preferred_height()
+        _, scroll_height = self._actions_scroller.get_preferred_height()
+        chrome = panel_height - scroll_height
+        maximum = max(1, overlay.get_allocated_height() - chrome)
+        if self._actions_scroller.get_max_content_height() != maximum:
+            self._actions_scroller.set_max_content_height(maximum)
 
     def _hide_actions(self, *, focus_search: bool) -> None:
         self.action_frame.hide()
@@ -508,10 +652,12 @@ class SearchWindow:
         self.search_entry.grab_focus()
 
     def _hide_preview(self) -> None:
+        self._stop_dynamic_preview()
         self.preview_frame.hide()
 
     def _sync_preview(self) -> None:
         """Resolve cheap or lazy preview data for the current stable selection."""
+        self._stop_dynamic_preview()
         result = self.selected_result()
         if result is None:
             self.preview_title.set_label("")
@@ -551,6 +697,32 @@ class SearchWindow:
             )
             if loaded is not None:
                 self._show_loaded_preview(loaded)
+                self._shown_dynamic_image = loaded
+            if self._refresh_dynamic_previews and preview.kind == "window":
+                self._dynamic_preview = preview
+                self._dynamic_preview_source = GLib.timeout_add(
+                    200, self._refresh_dynamic_preview
+                )
+
+    def _stop_dynamic_preview(self) -> None:
+        if self._dynamic_preview_source:
+            GLib.source_remove(self._dynamic_preview_source)
+            self._dynamic_preview_source = 0
+        self._dynamic_preview = None
+        self._shown_dynamic_image = None
+
+    def _refresh_dynamic_preview(self) -> bool:
+        preview = self._dynamic_preview
+        if preview is None or not self.visible or not self.preview_frame.get_visible():
+            self._dynamic_preview_source = 0
+            return False
+        loaded = self._dynamic_preview_loader(
+            preview, PREVIEW_IMAGE_MAX_WIDTH, PREVIEW_IMAGE_MAX_HEIGHT
+        )
+        if loaded is not None and loaded is not self._shown_dynamic_image:
+            self._show_loaded_preview(loaded)
+            self._shown_dynamic_image = loaded
+        return True
 
     def _sync_image_preview(self, path: str) -> None:
         loaded = self._image_cache.load(
@@ -670,13 +842,116 @@ class SearchWindow:
         else:
             self.actions_list.unselect_all()
 
-    def _activate_filtered_action(self, *_args: object) -> None:
+    def _activate_filtered_action(self, entry: Gtk.Entry) -> None:
+        if self._input_consumed_activation(entry):
+            return
         row = self.actions_list.get_selected_row()
         if row is not None and row.get_visible():
             self._on_action_row_activated(self.actions_list, row)
 
+    def _clear_preedit_end(self, entry: Gtk.Entry) -> None:
+        source = self._preedit_ended.pop(entry, 0)
+        if source:
+            GLib.source_remove(source)
+
+    def _expire_preedit_end(self, entry: Gtk.Entry) -> bool:
+        self._preedit_ended.pop(entry, None)
+        return False
+
+    def _clear_input_methods(self) -> None:
+        for entry in tuple(self._preedit_ended):
+            self._clear_preedit_end(entry)
+        self._preediting.clear()
+        self._preedit_terminal.clear()
+
+    def _on_preedit_changed(self, entry: Gtk.Entry, text: str) -> None:
+        was_preediting = entry in self._preediting
+        if self._destroyed or not self.visible:
+            self._preediting.discard(entry)
+            self._preedit_terminal.discard(entry)
+            self._clear_preedit_end(entry)
+            return
+        if text:
+            self._clear_preedit_end(entry)
+            self._preediting.add(entry)
+            self._preedit_terminal.discard(entry)
+            return
+        self._preediting.discard(entry)
+        already_handled = entry in self._preedit_terminal
+        self._preedit_terminal.discard(entry)
+        if was_preediting and not already_handled:
+            # Win32's IME emits commit/end from native composition messages
+            # before the terminating GDK key event. Keep that one event owned
+            # by the entry until GDK drains this dispatch, without a timer.
+            self._clear_preedit_end(entry)
+            self._preedit_ended[entry] = GLib.idle_add(
+                self._expire_preedit_end, entry, priority=GLib.PRIORITY_HIGH_IDLE
+            )
+        # Native IMEs may emit several empty changes for one commit. Preserve
+        # its existing end token until the key event or idle boundary consumes it.
+
+    def _input_consumed_activation(self, entry: Gtk.Entry) -> bool:
+        composing = entry in self._preediting
+        ended = entry in self._preedit_ended
+        self._clear_preedit_end(entry)
+        if composing:
+            self._preedit_terminal.add(entry)
+        return composing or ended
+
+    def _activate_search(self, entry: Gtk.Entry) -> None:
+        if not self._input_consumed_activation(entry):
+            self.activate_selected()
+
+    def _stop_search(self, entry: Gtk.Entry) -> None:
+        if not self._input_consumed_activation(entry):
+            self.hide()
+
+    def _on_key_release(self, _window: Gtk.Window, _event: Gdk.EventKey) -> bool:
+        self._preedit_terminal.clear()
+        return False
+
     def _on_key_press(self, _window: Gtk.Window, event: Gdk.EventKey) -> bool:
         """Implement palette navigation without stealing ordinary text input."""
+        control_shortcut = bool(event.state & Gdk.ModifierType.CONTROL_MASK) and not (
+            event.state
+            & (
+                Gdk.ModifierType.MOD1_MASK
+                | Gdk.ModifierType.MOD5_MASK
+                | Gdk.ModifierType.SUPER_MASK
+                | Gdk.ModifierType.META_MASK
+                | Gdk.ModifierType.HYPER_MASK
+            )
+        )
+        intercepted = event.keyval in {
+            Gdk.KEY_Escape,
+            Gdk.KEY_Return,
+            Gdk.KEY_KP_Enter,
+            Gdk.KEY_Up,
+            Gdk.KEY_Down,
+        } or (
+            control_shortcut
+            and event.keyval
+            in {Gdk.KEY_j, Gdk.KEY_J, Gdk.KEY_p, Gdk.KEY_P, Gdk.KEY_Right}
+        )
+        focused = self.window.get_focus()
+        if isinstance(focused, Gtk.Entry):
+            composing = focused in self._preediting
+            ended = focused in self._preedit_ended
+            if intercepted:
+                filtered = focused.im_context_filter_keypress(event)
+                if filtered or composing or ended:
+                    self._clear_preedit_end(focused)
+                    if composing and event.keyval in {
+                        Gdk.KEY_Return,
+                        Gdk.KEY_KP_Enter,
+                        Gdk.KEY_Escape,
+                    }:
+                        self._preedit_terminal.add(focused)
+                    return True
+            else:
+                # Space/ordinary typing can also finish composition. It must
+                # not suppress a later, separate palette activation key.
+                self._clear_preedit_end(focused)
         if event.keyval == Gdk.KEY_Escape:
             if self.action_frame.get_visible():
                 self._hide_actions(focus_search=True)
@@ -686,22 +961,13 @@ class SearchWindow:
             else:
                 self.hide()
             return True
-        if (
-            event.keyval in {Gdk.KEY_j, Gdk.KEY_J}
-            and event.state & Gdk.ModifierType.CONTROL_MASK
-        ):
+        if event.keyval in {Gdk.KEY_j, Gdk.KEY_J} and control_shortcut:
             self.toggle_actions()
             return True
-        if (
-            event.keyval in {Gdk.KEY_p, Gdk.KEY_P}
-            and event.state & Gdk.ModifierType.CONTROL_MASK
-        ):
+        if event.keyval in {Gdk.KEY_p, Gdk.KEY_P} and control_shortcut:
             self.toggle_preview()
             return True
-        if (
-            event.keyval == Gdk.KEY_Right
-            and event.state & Gdk.ModifierType.CONTROL_MASK
-        ):
+        if event.keyval == Gdk.KEY_Right and control_shortcut:
             result = self.selected_result()
             if result is not None:
                 self._on_refine_requested(result)
@@ -739,6 +1005,7 @@ class SearchWindow:
         return True
 
     def _handle_hidden(self, *_args: object) -> None:
+        self._clear_input_methods()
         self._hide_actions(focus_search=False)
         self._hide_preview()
         self._on_hidden()

@@ -36,7 +36,7 @@ _BLUE = (0.55, 0.75, 0.95)
 
 def create_icon(
     size: int,
-    brightness: float,
+    brightness: float | None,
     show_level: bool = False,
 ) -> GdkPixbuf.Pixbuf | None:
     """Render a sun icon - left half yellow, right half blue.
@@ -49,7 +49,7 @@ def create_icon(
 
     cx = size / 2
     cy = size * 0.45
-    b = max(0.0, min(1.0, brightness))
+    b = max(0.0, min(1.0, brightness)) if brightness is not None else 0.0
 
     disc_r = size * 0.24
     ray_len = size * 0.10
@@ -105,6 +105,7 @@ def create_icon(
     # Level label at bottom, rounded like the tooltip: the hardware gets a
     # rounded percentage.
     if show_level:
-        draw_icon_label(cr=cr, text=f"{round(brightness * 100)}%", size=size)
+        text = f"{round(brightness * 100)}%" if brightness is not None else "—"
+        draw_icon_label(cr=cr, text=text, size=size)
 
     return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)

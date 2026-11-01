@@ -241,6 +241,7 @@ class RenderState:
     hovered_id: str = ""
     drop_target_id: str = ""
     cursor_main: float = -1.0
+    input_region_alpha: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -769,6 +770,16 @@ class DockRenderer:
             theme=theme,
             state=state,
         )
+        if state.input_region_alpha > 0:
+            # Some window systems derive input from rendered alpha. Apply the
+            # backend's alpha floor behind content before the atomic blit.
+            rect = frame.cursor_rect
+            ocr.save()
+            ocr.set_operator(cairo.OPERATOR_DEST_OVER)
+            ocr.set_source_rgba(0, 0, 0, state.input_region_alpha)
+            ocr.rectangle(rect.x, rect.y, rect.w, rect.h)
+            ocr.fill()
+            ocr.restore()
         cr.set_operator(cairo.OPERATOR_SOURCE)
         cr.set_source_surface(offscreen, 0, 0)
         cr.paint()
