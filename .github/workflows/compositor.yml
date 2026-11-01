@@ -2,7 +2,6 @@ name: Wayland compositors
 
 on:
   pull_request:
-    branches: [master, visual-compositor-lab]
     paths: ["docking/**", "tools/linux/visual/**", "tests/test_visual_compositor.py", ".github/workflows/compositor.yml"]
   push:
     branches: [master]
