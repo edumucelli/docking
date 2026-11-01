@@ -165,7 +165,7 @@ def build_dock_window(
         application_launcher=application_launcher,
         icon_loader=icon_loader,
         target_service=target_service,
-        monitor_workarea=surface_service.monitor_workarea,
+        surface_service=surface_service,
     )
     folder_stack = FolderStackController(
         config=config,

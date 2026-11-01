@@ -232,7 +232,7 @@ class TestBuildDockWindow:
             application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,
-            monitor_workarea=surface_service.monitor_workarea,
+            surface_service=surface_service,
         )
         factory_mod.FolderStackController.assert_called_once_with(
             config=config,

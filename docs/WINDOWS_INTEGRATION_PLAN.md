@@ -173,6 +173,7 @@ The existing public facades `platform/files.py`, `targets.py`, and `icons.py` st
 
 | Choice | Final ownership and reason |
 |---|---|
+| Popup workarea dependency | Pass the existing `SurfaceService` from the UI factory through Search into `popup_workarea`; do not inject a bound method or add another interface. Explicit Search surfaces use `monitor_workarea`, while transient popups keep their parent's `external_workarea` and GDK fallback. |
 | GTK surface helpers | One `backends/gtk_surface.py`, reused by Reduced and Windows. Windows adds logical coordinate conversion here; X11 does not change. |
 | Small contracts and values | Artwork contracts live in `desktop/base.py`; Search `WindowFocus` lives in `search/services/platform.py`. No separate forwarding modules. |
 | Native notification observation | Preserve `notifications/implementations/unix/activity.py`; its backend owns start/drain/stop and the existing bounded queue. |
