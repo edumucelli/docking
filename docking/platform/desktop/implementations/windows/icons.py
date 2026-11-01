@@ -18,7 +18,7 @@ from gi.repository import GLib
 
 from docking.log import get_logger
 from docking.platform.applications.types import ApplicationInfo
-from docking.platform.icon_source import ApplicationIconSource, IconPixels
+from docking.platform.desktop.base import ApplicationIconSource, IconPixels
 from docking.platform.native.windows.com import (
     GUID,
     HRESULT,

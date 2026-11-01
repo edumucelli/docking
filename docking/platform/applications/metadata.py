@@ -298,20 +298,3 @@ class ApplicationMetadataLookup:
 
             source = self._schedule_idle(deliver)
             self._sources.add(source)
-
-
-def create_metadata_lookup(
-    *,
-    on_changed: Callable[[], None],
-    schedule_idle: Callable[..., int],
-    remove_source: Callable[[int], bool],
-    resolve_factory: Callable[[], MetadataResolver] | None,
-) -> ApplicationMetadataLookup | None:
-    if resolve_factory is None:
-        return None
-    return ApplicationMetadataLookup(
-        resolve_factory=resolve_factory,
-        on_changed=on_changed,
-        schedule_idle=schedule_idle,
-        remove_source=remove_source,
-    )

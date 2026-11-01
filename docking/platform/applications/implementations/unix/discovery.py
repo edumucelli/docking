@@ -128,8 +128,7 @@ def default_gio_applications() -> tuple[object, ...]:
 
 
 def is_gio_desktop_app_info(app_info: object) -> bool:
-    desktop_app_info = getattr(Gio, "DesktopAppInfo", None)
-    return desktop_app_info is not None and isinstance(app_info, desktop_app_info)
+    return isinstance(app_info, Gio.DesktopAppInfo)
 
 
 def discover(

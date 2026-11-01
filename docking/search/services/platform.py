@@ -5,9 +5,18 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 
-from docking.search.services.window_focus import WindowFocus
-
 from .global_shortcuts import ActivationCallback, GlobalShortcutService, StatusCallback
+
+
+class WindowFocus(ABC):
+    @abstractmethod
+    def before_present(self) -> None: ...
+
+    @abstractmethod
+    def after_present(self, *, title: str, visible: Callable[[], bool]) -> None: ...
+
+    @abstractmethod
+    def cancel(self) -> None: ...
 
 
 class ShortcutFallback(ABC):

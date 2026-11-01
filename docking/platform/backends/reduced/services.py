@@ -106,11 +106,6 @@ class ReducedSurfaceService(SurfaceService):
     def __init__(self) -> None:
         self._window: object | None = None
 
-    def screen_rectangle(self, window: object, rect: Rect) -> Rect | None:
-        from docking.platform.backends.gtk_geometry import logical_screen_rectangle
-
-        return logical_screen_rectangle(window, rect)
-
     def start(self) -> None:
         """No runtime state is tracked."""
 

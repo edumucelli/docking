@@ -768,7 +768,9 @@ def main(monitor):
                 close_search()
 
             def verify_altgr():
-                from docking.platform.keyboard import text_modifier_active
+                from docking.platform.desktop.selection import desktop_services
+
+                text_modifier_active = desktop_services().text_modifier_active
 
                 search = shared["ui"].search
                 attempt = {"stage": "binding", "capture_focus": []}

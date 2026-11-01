@@ -1,8 +1,8 @@
 """A native icon arriving asynchronously replaces the cached generic icon."""
 
 from docking.platform import icons
+from docking.platform.desktop.base import IconPixels
 from docking.platform.desktop.implementations.windows import icons as native_icons
-from docking.platform.icon_source import IconPixels
 from tests.platform.application_fakes import application
 
 

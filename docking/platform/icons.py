@@ -20,11 +20,11 @@ from docking.platform.applications.constants import FALLBACK_ICON, GNOME_APP_PRE
 from docking.platform.applications.executable import normalized_exec_basename
 from docking.platform.applications.projections import dock_icon_name
 from docking.platform.applications.types import ApplicationInfo
-from docking.platform.desktop.selection import desktop_services
-from docking.platform.icon_source import (
+from docking.platform.desktop.base import (
     ApplicationIconSource,
     ApplicationIconSourceFactory,
 )
+from docking.platform.desktop.selection import desktop_services
 
 FILE_ICON_CACHE_MAX_ENTRIES = 256
 HOST_XDG_DATA_DIRS = desktop_services().icon_locations().host_data_dirs

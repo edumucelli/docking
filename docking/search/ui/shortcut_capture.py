@@ -24,7 +24,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GObject, Gtk
 
 from docking.i18n import _
-from docking.platform.keyboard import text_modifier_active
+from docking.platform.desktop.selection import desktop_services
 
 _XDG_MODIFIERS = ("CTRL", "ALT", "SHIFT", "LOGO", "NUM")
 _MODIFIER_KEYVALS = {
@@ -51,7 +51,7 @@ def shortcut_from_key_event(keyval: int, state: Gdk.ModifierType) -> str | None:
     if (
         keyval in _MODIFIER_KEYVALS
         or state & Gdk.ModifierType.MOD5_MASK
-        or text_modifier_active()
+        or desktop_services().text_modifier_active()
     ):
         return None
     if keyval == Gdk.KEY_ISO_Left_Tab:

@@ -47,7 +47,7 @@ CONTRACTS = (
     "docking.applets.session.implementations.unix.actions.SessionCommands",
     "docking.applets.thermals.backend.ThermalsBackend",
     "docking.platform.applications.backend.ProcessBackend",
-    "docking.platform.icon_source.ApplicationIconSource",
+    "docking.platform.desktop.base.ApplicationIconSource",
     "docking.applets.aiusage.hooks.UsageHooks",
     "docking.applets.session.backend.SessionBackend",
 )

@@ -63,9 +63,12 @@ def test_altgr_input_is_not_captured_as_a_global_shortcut(key):
 
 
 def test_windows_altgr_is_rejected_even_when_gdk_reports_only_ctrl_alt(monkeypatch):
+    from docking.platform.desktop.base import DesktopServices
     from docking.search.ui import shortcut_capture as mod
 
-    monkeypatch.setattr(mod, "text_modifier_active", lambda: True)
+    desktop = MagicMock(spec=DesktopServices)
+    desktop.text_modifier_active.return_value = True
+    monkeypatch.setattr(mod, "desktop_services", lambda: desktop)
     assert (
         shortcut_from_key_event(
             Gdk.KEY_EuroSign,

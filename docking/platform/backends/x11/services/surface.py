@@ -47,11 +47,6 @@ from docking.platform.backends.x11.impl.workarea import ExternalWorkareaTracker
 class X11SurfaceService(SurfaceService):
     """SurfaceService implementation for the current X11 dock window."""
 
-    def screen_rectangle(self, window: object, rect: Rect) -> Rect | None:
-        from docking.platform.backends.gtk_geometry import logical_screen_rectangle
-
-        return logical_screen_rectangle(window, rect)
-
     def __init__(
         self,
         *,

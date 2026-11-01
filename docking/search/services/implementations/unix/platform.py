@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from docking.search.services.platform import SearchIntegration
-from docking.search.services.window_focus import WindowFocus
+from docking.search.services.platform import SearchIntegration, WindowFocus
 
 from ...global_shortcuts import (
     ActivationCallback,

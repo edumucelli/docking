@@ -37,7 +37,7 @@ from docking.platform.backends.base import MonitorSnapshot, Rect, Size
 from docking.platform.icons import IconLoader
 from docking.search.coordinator import ProviderError, SearchSnapshot
 from docking.search.icons import SearchResultIcons
-from docking.search.services.window_focus import WindowFocus
+from docking.search.services.platform import WindowFocus
 from docking.search.types import (
     SearchAction,
     SearchIdentity,

@@ -162,12 +162,14 @@ class WindowsTrashBackend(TrashBackend):
         return ()  # The virtual shell folder has no ordinary filesystem path.
 
     def watch_changes(self, changed: Callable[[], None]) -> Callable[[], None] | None:
-        from docking.applets.trash.implementations.windows.monitor import (
-            RecycleBinMonitor,
-        )
+        from docking.platform.native.windows.shell_changes import ShellChangeMonitor
 
         try:
-            observer = RecycleBinMonitor(changed)
+            observer = ShellChangeMonitor(
+                changed,
+                folder_id="b7534046-3ecb-4c18-be4e-64cd4cb7d6ac",
+                title="Docking Recycle Bin monitor",
+            )
         except OSError as exc:
             log.warning("Could not monitor Windows Recycle Bin: %s", exc)
             return None

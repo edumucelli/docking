@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from docking.platform.backends.base import MonitorSnapshot, Rect
-from docking.platform.backends.gtk_geometry import logical_screen_rectangle
+from docking.platform.backends.gtk_surface import logical_screen_rectangle
 from docking.platform.backends.reduced.services import ReducedSurfaceService
 from docking.platform.backends.windows.appbar import ScreenMapping
 from docking.platform.backends.windows.surface import WindowsSurfaceService
@@ -20,8 +20,7 @@ def window(*, mapped=True, origin=(1, 10, 50)):
 
 
 def test_gtk_coordinates_remain_relative_to_the_native_client_origin():
-    surface = ReducedSurfaceService()
-    assert surface.screen_rectangle(
+    assert logical_screen_rectangle(
         window(origin=(1, -1200, 80)), Rect(4, 5, 24, 24)
     ) == Rect(-1196, 85, 24, 24)
 

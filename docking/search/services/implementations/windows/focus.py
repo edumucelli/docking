@@ -17,7 +17,7 @@ from gi.repository import GLib
 
 from docking.platform.desktop.implementations.windows.menus import WindowsMenuFocus
 from docking.platform.native.windows.ffi import bind as _bind
-from docking.search.services.window_focus import WindowFocus
+from docking.search.services.platform import WindowFocus
 
 _EXPLORER_CLASSES = {"Shell_TrayWnd", "Shell_SecondaryTrayWnd", "Progman", "WorkerW"}
 _SHELL_PROCESSES = {

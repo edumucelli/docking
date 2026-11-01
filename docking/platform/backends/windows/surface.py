@@ -19,7 +19,11 @@ from docking.platform.backends.base import (
     WindowId,
     WindowSnapshot,
 )
-from docking.platform.backends.gtk_surface import apply_dock_hints, place_window
+from docking.platform.backends.gtk_surface import (
+    apply_dock_hints,
+    logical_screen_rectangle,
+    place_window,
+)
 
 if TYPE_CHECKING:
     from docking.platform.applications.backend import ApplicationDragSource
@@ -75,8 +79,6 @@ class WindowsSurfaceService(SurfaceService):
         return True
 
     def screen_rectangle(self, window: object, rect: Rect) -> Rect | None:
-        from docking.platform.backends.gtk_geometry import logical_screen_rectangle
-
         logical = logical_screen_rectangle(window, rect)
         if logical is None or self._appbar is None:
             return None

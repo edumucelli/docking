@@ -390,7 +390,8 @@ class SurfaceService(Service):
     def screen_rectangle(self, window: object, rect: Rect) -> Rect | None:
         """Map a GTK client rectangle into the platform's desktop coordinates.
 
-        Called on the GTK thread. Return None when global placement is unknown.
+        Called on the GTK thread. Return None when this backend does not publish
+        native screen geometry.
         """
         return None
 

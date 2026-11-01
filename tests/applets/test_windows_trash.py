@@ -9,9 +9,9 @@ import pytest
 from gi.repository import Gio
 
 from docking.applets.trash.implementations.windows import backend as windows
-from docking.applets.trash.implementations.windows import monitor as windows_monitor
 from docking.platform import environment
 from docking.platform.composition.windows import WindowsAppletBackendFactories
+from docking.platform.native.windows import shell_changes
 
 
 def test_windows_selection_does_not_inspect_unix_trash(monkeypatch):
@@ -184,9 +184,7 @@ def test_file_operation_preserves_recycle_warning_and_releases_on_failure(
 
 @pytest.fixture
 def observer(monkeypatch):
-    monitor = windows_monitor.RecycleBinMonitor.__new__(
-        windows_monitor.RecycleBinMonitor
-    )
+    monitor = shell_changes.ShellChangeMonitor.__new__(shell_changes.ShellChangeMonitor)
     monitor._hwnd = 101
     monitor._pidl = ctypes.c_void_p(202)
     monitor._registration = 303
@@ -210,9 +208,9 @@ def observer(monkeypatch):
         pending[1] = callback
         return 1
 
-    monkeypatch.setattr(windows_monitor.GLib, "idle_add", enqueue)
+    monkeypatch.setattr(shell_changes.GLib, "idle_add", enqueue)
     monkeypatch.setattr(
-        windows_monitor.GLib, "source_remove", lambda key: pending.pop(key)
+        shell_changes.GLib, "source_remove", lambda key: pending.pop(key)
     )
     return monitor, pending, timeline
 

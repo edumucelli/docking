@@ -1,6 +1,8 @@
 """Neutral tray and menu projection preserves the Linux provider contract."""
 
-from unittest.mock import Mock
+from unittest.mock import Mock, call
+
+import pytest
 
 from docking.platform.backends.base import Rect
 from docking.platform.tray.implementations.unix.backend import UnixTrayBackend
@@ -17,21 +19,39 @@ from docking.platform.tray.implementations.unix.status_notifier import (
 from docking.platform.tray.state import TrayState
 
 
-def test_linux_actions_send_the_presented_icon_anchor_without_ui_bus_calls():
-    provider = Mock(spec=StatusNotifierBackend)
+@pytest.mark.parametrize("anchor", [None, Rect(-200, 400, 24, 24)])
+@pytest.mark.parametrize("keyboard", [False, True])
+@pytest.mark.parametrize("accepted", [False, True])
+@pytest.mark.parametrize("item_is_menu", [False, True])
+def test_linux_actions_preserve_status_notifier_default_coordinates(
+    monkeypatch, anchor, keyboard, accepted, item_is_menu
+):
+    item = tray_item_from_properties(
+        address=RegisteredItemAddress("org.example.Tray", "/Item"),
+        properties={"ItemIsMenu": item_is_menu},
+    )
+    provider = StatusNotifierBackend()
+    provider._last_items[item.identifier] = item
+    send = Mock(return_value=accepted)
+    monkeypatch.setattr(provider, "_call_item_method", send)
     adapter = UnixTrayBackend(backend=provider)
-    anchor = Rect(-200, 400, 24, 24)
-    adapter.set_geometry({"item": anchor})
-    assert not provider.mock_calls
-    adapter.activate("item", anchor=anchor, keyboard=True)
-    provider.activate.assert_called_once_with("item", x=-200, y=424)
-    adapter.context_menu("item", anchor=anchor, keyboard=True)
-    provider.context_menu.assert_called_once_with("item", x=-200, y=424)
+    assert (
+        adapter.activate(item.identifier, anchor=anchor, keyboard=keyboard) is accepted
+    )
+    assert (
+        adapter.context_menu(item.identifier, anchor=anchor, keyboard=keyboard)
+        is accepted
+    )
+    assert send.call_args_list == [
+        call(item=item, method="ContextMenu" if item_is_menu else "Activate", x=0, y=0),
+        call(item=item, method="ContextMenu", x=0, y=0),
+    ]
 
 
-def test_linux_hover_and_native_focus_capabilities_do_not_contact_sni():
+def test_linux_geometry_hover_and_native_focus_do_not_contact_sni():
     provider = Mock(spec=StatusNotifierBackend)
     adapter = UnixTrayBackend(backend=provider)
+    adapter.set_geometry({"item": Rect(10, 10, 24, 24)})
     adapter.set_focus_handler(lambda _request: None)
     assert not adapter.pointer("item", point=(12, 15), anchor=Rect(10, 10, 24, 24))
     assert not adapter.pointer(None)

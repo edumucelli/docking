@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from docking.applets.trash.implementations.windows import monitor as windows_monitor
+from docking.applets.trash.implementations.windows import backend as windows_trash
 from docking.platform.applications.implementations.windows import catalog_monitor
 from docking.platform.native.windows import shell_changes
 
@@ -343,16 +343,20 @@ def test_reentrant_close_during_reconciliation_removes_every_source(
         subscription.close.assert_called_once_with()
 
 
-def test_recycle_bin_wrapper_keeps_its_exact_folder_and_native_title(monkeypatch):
-    initialize = Mock(return_value=None)
-    monkeypatch.setattr(shell_changes.ShellChangeMonitor, "__init__", initialize)
+def test_recycle_bin_subscription_keeps_its_folder_title_and_cleanup(monkeypatch):
+    observer = Mock(spec=shell_changes.ShellChangeMonitor)
+    create = Mock(return_value=observer)
+    monkeypatch.setattr(shell_changes, "ShellChangeMonitor", create)
     changed = Mock()
-    windows_monitor.RecycleBinMonitor(changed)
-    initialize.assert_called_once_with(
+    cleanup = windows_trash.WindowsTrashBackend(native=Mock()).watch_changes(changed)
+    create.assert_called_once_with(
         changed,
         folder_id="b7534046-3ecb-4c18-be4e-64cd4cb7d6ac",
         title="Docking Recycle Bin monitor",
     )
+    assert cleanup == observer.close
+    cleanup()
+    observer.close.assert_called_once_with()
 
 
 def test_registry_closes_native_source_and_rejects_old_lifecycle_callbacks(

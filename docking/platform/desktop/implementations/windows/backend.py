@@ -10,7 +10,7 @@ from docking.platform.desktop.base import DesktopServices, IconLocations
 if TYPE_CHECKING:
     from gi.repository import Gio
 
-    from docking.platform.icon_source import ApplicationIconSource
+    from docking.platform.desktop.base import ApplicationIconSource
 
 
 class WindowsDesktopServices(DesktopServices):
@@ -47,9 +47,9 @@ class WindowsDesktopServices(DesktopServices):
         return install_quit_handlers(quit)
 
     def text_modifier_active(self) -> bool:
-        from .keyboard import text_modifier_active
+        from docking.platform.native.windows.modifiers import altgr_pressed
 
-        return text_modifier_active()
+        return altgr_pressed()
 
     def create_icon_source(
         self, on_ready: Callable[[str], None]

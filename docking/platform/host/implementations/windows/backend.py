@@ -1,8 +1,10 @@
 """Windows host paths, durability, hook commands and advisory writer locks."""
 
+from pathlib import Path
+
 from docking.platform.host.base import HostFamily, HostServices
 
-from . import locking, paths, process, storage
+from . import locking, paths, process
 
 
 class WindowsHostServices(HostServices):
@@ -16,7 +18,11 @@ class WindowsHostServices(HostServices):
     cache_home = staticmethod(paths.xdg_cache_home)
     data_home = staticmethod(paths.xdg_data_home)
     state_home = staticmethod(paths.xdg_state_home)
-    flush_directory = staticmethod(storage.flush_directory)
     writer_lock = staticmethod(locking.writer_lock)
     hook_argv = staticmethod(process.hook_argv)
     hook_command = staticmethod(process.hook_command)
+
+    def flush_directory(self, path: Path) -> None:
+        # The Windows CRT cannot open directories as file descriptors. File
+        # contents remain flushed by their existing persistence orchestrators.
+        return
