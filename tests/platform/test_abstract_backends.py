@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import sys
 from abc import ABCMeta
 from importlib import import_module
 
@@ -202,8 +203,17 @@ ADAPTERS = (
         "docking.applets.micshield.backend.MicShieldBackend",
         False,
     ),
-    (
+    pytest.param(
         "docking.applets.network.implementations.linux.backend.LinuxNetworkBackend",
+        "docking.applets.network.backend.NetworkBackend",
+        False,
+        marks=pytest.mark.skipif(
+            not sys.platform.startswith("linux"),
+            reason="Linux NetworkManager adapter requires the NM 1.0 typelib",
+        ),
+    ),
+    (
+        "docking.applets.network.implementations.bsd.backend.BsdNetworkBackend",
         "docking.applets.network.backend.NetworkBackend",
         False,
     ),

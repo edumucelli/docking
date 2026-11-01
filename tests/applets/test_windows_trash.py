@@ -8,7 +8,6 @@ from unittest.mock import Mock
 import pytest
 from gi.repository import Gio
 
-from docking.applets.trash.applet import TrashApplet
 from docking.applets.trash.implementations.windows import backend as windows
 from docking.applets.trash.implementations.windows import monitor as windows_monitor
 from docking.platform import environment
@@ -265,11 +264,12 @@ def test_shell_restart_reconnects_from_idle_before_refreshing(observer):
 def test_native_drop_uri_keeps_drive_and_unc_authority(path):
     from pathlib import Path
 
+    native = Mock(recycle=Mock(return_value=True))
+    backend = windows.WindowsTrashBackend(native=native)
     for value in (path, Path(path).as_uri()):
-        file = TrashApplet._file_from_drop_uri(value)
-        assert file is not None
-        filename = file.get_path()
-        assert filename is not None and Path(filename) == Path(path)
+        assert backend.trash_uris([value])
+        native.recycle.assert_called_once_with(str(Path(path)))
+        native.recycle.reset_mock()
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Native Windows shell ABI")

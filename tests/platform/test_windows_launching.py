@@ -2,6 +2,7 @@
 
 import ctypes
 import gc
+import sys
 from contextlib import nullcontext
 from dataclasses import replace
 from types import SimpleNamespace
@@ -9,13 +10,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from docking.platform.applications.backend import LaunchOutcome
+from docking.platform.applications.backend import LaunchOutcome, ProcessBackend
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
     ProcessIdentityService,
-)
-from docking.platform.applications.implementations.windows.process import (
-    WindowsProcessBackend,
 )
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.matcher import AppIdMatcher
@@ -212,6 +210,7 @@ def test_provenance_eviction_releases_the_live_native_handle(native):
 def test_same_executable_launchers_match_the_process_they_actually_started(
     monkeypatch, tmp_path
 ):
+    monkeypatch.setitem(sys.modules, "psutil", None)
     executable = tmp_path / "shared.exe"
     apps = tuple(
         replace(
@@ -236,8 +235,13 @@ def test_same_executable_launchers_match_the_process_they_actually_started(
     )
     identity = ProcessIdentityService(
         store,
-        backend=WindowsProcessBackend(),
-        executable_resolver=lambda _pid: executable,
+        backend=Mock(
+            spec=ProcessBackend,
+            executable=Mock(return_value=executable),
+            script=Mock(return_value=None),
+            sandbox_app_id=Mock(return_value=None),
+            steam_app_id=Mock(return_value=None),
+        ),
     )
     matcher = AppIdMatcher(registry, identity)
     for app in apps:
