@@ -44,17 +44,17 @@ def main():
 
     gi.require_version("Gtk", "3.0")
     import psutil
-    from docking.applets.telegram.browser import TelegramBrowser
-    from docking.applets.whatsapp.browser import WhatsAppBrowser
     from gi.repository import GLib, Gtk
     from PIL import ImageGrab
 
     from docking.applets.notifications.implementations.windows.backend import (
         NotificationListener,
     )
+    from docking.applets.telegram.state import PROFILE as TELEGRAM
     from docking.applets.webapp.implementations.windows.companion.browser import (
         WindowsCompanionBrowser,
     )
+    from docking.applets.whatsapp.state import PROFILE as WHATSAPP
     from tools.windows.visual.desktop_driver import WindowsDesktop
     from tools.windows.visual.webengine_fixture import TLSFixture
 
@@ -95,8 +95,8 @@ def main():
         return original_packet(browser, values, lifetime)
 
     WindowsCompanionBrowser._packet = packet
-    browser_class = WhatsAppBrowser if args.service == "whatsapp" else TelegramBrowser
-    browser = browser_class(
+    browser = WindowsCompanionBrowser(
+        profile=WHATSAPP if args.service == "whatsapp" else TELEGRAM,
         entrypoint=Path(__file__).with_name("webengine_fixture.py"),
         on_phase=lambda phase, error: report["phases"].append((phase.value, error)),
         on_title=lambda title: None,

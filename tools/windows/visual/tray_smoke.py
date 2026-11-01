@@ -426,7 +426,8 @@ def main():
         try:
             assert ready.wait(90)
             applet = call(lambda: shared["model"].get_applet("applet://systemtray"))
-            assert applet is not None and applet._presentation is None
+            assert applet is not None
+            assert not applet._presentation.active
             shared["applet"] = applet
             dock = native.wait_for(
                 lambda: next(
@@ -460,7 +461,8 @@ def main():
             )
             assert "gi.repository.GdkX11" not in sys.modules
             assert not any(
-                n.startswith("docking.platform.status_notifier") for n in sys.modules
+                n.startswith("docking.platform.tray.implementations.unix")
+                for n in sys.modules
             )
             native.wait_for(
                 lambda: all(r["adds"] >= 2 for r in fixture_state()["icons"].values()),

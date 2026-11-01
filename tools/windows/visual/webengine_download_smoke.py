@@ -43,14 +43,14 @@ def main():
 
     gi.require_version("Gtk", "3.0")
     import psutil
-    from docking.applets.telegram.browser import PROFILE as TELEGRAM
-    from docking.applets.whatsapp.browser import PROFILE as WHATSAPP
     from gi.repository import GLib, Gtk
     from PIL import ImageGrab
 
+    from docking.applets.telegram.state import PROFILE as TELEGRAM
     from docking.applets.webapp.implementations.windows.companion.browser import (
         WindowsCompanionBrowser,
     )
+    from docking.applets.whatsapp.state import PROFILE as WHATSAPP
     from tools.windows.visual.desktop_driver import WindowsDesktop
     from tools.windows.visual.webengine_fixture import TLSFixture
 

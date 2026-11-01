@@ -219,13 +219,15 @@ def _phase(output: Path, phase: str, runtime) -> None:
     import gi
 
     gi.require_version("Gtk", "3.0")
-    from docking.platform.applications.registration import executable_application_id
     from gi.repository import GLib, Gtk
     from PIL import ImageGrab
 
     import docking.app as app
     from docking.core.items import APP_KIND
     from docking.core.paths import local_path_from_uri_or_path
+    from docking.platform.applications.implementations.windows.registration import (
+        executable_id,
+    )
     from docking.platform.applications.types import ApplicationOrigin
     from tools.windows.visual.desktop_driver import WindowsDesktop, read_shared_json
     from tools.windows.visual.explorer import ExplorerFolder
@@ -236,7 +238,7 @@ def _phase(output: Path, phase: str, runtime) -> None:
     executable = Path(manifest["executable"])
     source = Path(manifest.get("source", manifest["executable"]))
     shortcut = "source" in manifest
-    identifier = manifest.get("identifier") or executable_application_id(executable)
+    identifier = manifest.get("identifier") or executable_id(executable)
     native = WindowsDesktop()
     assert not any(w["title"] == "Docking" for w in native.windows())
     shared, report, failures = (

@@ -44,7 +44,6 @@ def main():
     from PIL import ImageGrab
 
     import docking.app as app
-    from docking.applets.battery.backend import create_backend
     from docking.applets.battery.implementations.windows import backend as windows
     from docking.platform.native.windows.hotkeys import (
         MOD_ALT,
@@ -118,7 +117,7 @@ def main():
             battery = call(lambda: model.get_applet("applet://battery"))
             assert battery is not None
             shared["battery"] = battery
-            assert isinstance(create_backend(), windows.WindowsBatteryBackend)
+            assert isinstance(battery._backend, windows.WindowsBatteryBackend)
             api = windows.WindowsPowerAPI()
             power, rate = api.power_status(), api.battery_state()
             assert power is not None and rate is not None
