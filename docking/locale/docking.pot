@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-11-01 21:16+0100\n"
+"POT-Creation-Date: 2026-11-01 21:35+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3128,7 +3128,7 @@ msgstr ""
 #: docking/applets/systemtray/applet.py:645
 #: docking/search/providers/applications.py:159
 #: docking/search/providers/dock.py:80 docking/search/providers/recent.py:70
-#: docking/search/providers/web.py:93 docking/search/ui/window.py:774
+#: docking/search/providers/web.py:93 docking/search/ui/window.py:772
 #: docking/ui/menu.py:452 docking/ui/menu.py:537
 msgid "Open"
 msgstr ""
@@ -4549,7 +4549,7 @@ msgstr ""
 msgid "Windows"
 msgstr ""
 
-#: docking/search/providers/applications.py:264 docking/search/ui/window.py:269
+#: docking/search/providers/applications.py:264 docking/search/ui/window.py:267
 #: docking/ui/settings.py:1093
 msgid "Actions"
 msgstr ""
@@ -4800,58 +4800,58 @@ msgstr ""
 msgid "Press shortcut..."
 msgstr ""
 
-#: docking/search/ui/window.py:212 docking/search/ui/window.py:224
+#: docking/search/ui/window.py:210 docking/search/ui/window.py:222
 msgid "Docking Search"
 msgstr ""
 
-#: docking/search/ui/window.py:273
+#: docking/search/ui/window.py:271
 msgid "Filter actions..."
 msgstr ""
 
-#: docking/search/ui/window.py:344
+#: docking/search/ui/window.py:342
 msgid "Actions  Ctrl+J"
 msgstr ""
 
-#: docking/search/ui/window.py:347
+#: docking/search/ui/window.py:345
 msgid "Preview  Ctrl+P"
 msgstr ""
 
-#: docking/search/ui/window.py:494
+#: docking/search/ui/window.py:492
 msgid "No matching results"
 msgstr ""
 
-#: docking/search/ui/window.py:736
+#: docking/search/ui/window.py:734
 msgid "Unable to decode image preview"
 msgstr ""
 
-#: docking/search/ui/window.py:745
+#: docking/search/ui/window.py:743
 #, python-brace-format
 msgid "{width} × {height} · {format} · {size}"
 msgstr ""
 
-#: docking/search/ui/window.py:752
+#: docking/search/ui/window.py:750
 #, python-brace-format
 msgid "{width} × {height} · {format}"
 msgstr ""
 
-#: docking/search/ui/window.py:787
+#: docking/search/ui/window.py:785
 #, python-brace-format
 msgid "{count} results"
 msgstr ""
 
-#: docking/search/ui/window.py:789
+#: docking/search/ui/window.py:787
 msgid "Type to search"
 msgstr ""
 
-#: docking/search/ui/window.py:791
+#: docking/search/ui/window.py:789
 msgid "No results"
 msgstr ""
 
-#: docking/search/ui/window.py:793
+#: docking/search/ui/window.py:791
 msgid "Searching..."
 msgstr ""
 
-#: docking/search/ui/window.py:795
+#: docking/search/ui/window.py:793
 msgid "Some sources failed"
 msgstr ""
 

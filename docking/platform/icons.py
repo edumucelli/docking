@@ -22,7 +22,7 @@ from docking.platform.applications.projections import dock_icon_name
 from docking.platform.applications.types import ApplicationInfo
 from docking.platform.desktop.base import (
     ApplicationIconSource,
-    ApplicationIconSourceFactory,
+    DesktopServices,
 )
 from docking.platform.desktop.selection import desktop_services
 
@@ -114,9 +114,9 @@ class IconLoader:
     def __init__(
         self,
         *,
-        application_icon_source_factory: ApplicationIconSourceFactory | None = None,
+        desktop_service: DesktopServices | None = None,
     ) -> None:
-        self._application_icon_source_factory = application_icon_source_factory
+        self._desktop_service = desktop_service
         self._icon_cache: dict[tuple[str, int], GdkPixbuf.Pixbuf | None] = {}
         self._file_icon_cache: dict[
             tuple[str, int, int, int], GdkPixbuf.Pixbuf | None
@@ -153,9 +153,11 @@ class IconLoader:
         self, info: ApplicationInfo, size: int
     ) -> GdkPixbuf.Pixbuf | None:
         if not self._icon_source_selected:
-            factory = self._application_icon_source_factory
+            desktop = self._desktop_service
             self._application_icon_source = (
-                factory(self._native_icon_ready) if factory is not None else None
+                desktop.create_icon_source(self._native_icon_ready)
+                if desktop is not None
+                else None
             )
             self._icon_source_selected = True
         if self._application_icon_source is None:

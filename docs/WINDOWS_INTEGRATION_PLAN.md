@@ -174,6 +174,9 @@ The existing public facades `platform/files.py`, `targets.py`, and `icons.py` st
 | Choice | Final ownership and reason |
 |---|---|
 | Popup workarea dependency | Pass the existing `SurfaceService` from the UI factory through Search into `popup_workarea`; do not inject a bound method or add another interface. Explicit Search surfaces use `monitor_workarea`, while transient popups keep their parent's `external_workarea` and GDK fallback. |
+| Icon source construction | Pass `DesktopServices` to `IconLoader`. Keep `create_icon_source(on_ready)` lazy on the first native artwork request, including one-time selection of an unavailable source, readiness invalidation, and loader-owned cleanup. Do not add a factory alias or pass a bound factory method. |
+| Search focus construction | `SearchIntegration.create_focus()` returns the existing `WindowFocus` object or `None`; `SearchWindow` receives it directly and retains cancellation ownership. Native observers still start only when presenting Search. |
+| Retained callbacks and factories | Keep event notifications, live state/handle queries, injectable clocks, and factories needed for a fresh backend lifetime or worker-thread/COM/native-window ownership. Do not replace them with new wrapper interfaces merely to avoid callable types. |
 | GTK surface helpers | One `backends/gtk_surface.py`, reused by Reduced and Windows. Windows adds logical coordinate conversion here; X11 does not change. |
 | Small contracts and values | Artwork contracts live in `desktop/base.py`; Search `WindowFocus` lives in `search/services/platform.py`. No separate forwarding modules. |
 | Native notification observation | Preserve `notifications/implementations/unix/activity.py`; its backend owns start/drain/stop and the existing bounded queue. |

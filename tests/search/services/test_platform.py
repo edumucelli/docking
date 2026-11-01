@@ -46,7 +46,7 @@ def test_unix_retains_portal_with_only_an_x11_fallback(monkeypatch, x11):
         on_activated=arguments["on_activated"],
         on_status_changed=arguments["on_status_changed"],
     )
-    assert integration.focus_factory() is None
+    assert integration.create_focus() is None
     native_arguments = {
         "shortcut": arguments["preferred_trigger"],
         "on_activated": MagicMock(),

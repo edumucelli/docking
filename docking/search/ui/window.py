@@ -166,7 +166,7 @@ class SearchWindow:
         refresh_dynamic_previews: bool = False,
         opaque_action_panel: bool = False,
         result_icons: SearchResultIcons | None = None,
-        window_focus_factory: Callable[[], WindowFocus] | None = None,
+        window_focus: WindowFocus | None = None,
         surface_service: SurfaceService | None = None,
     ) -> None:
         """Construct the reusable toplevel and bind controller callbacks."""
@@ -174,9 +174,7 @@ class SearchWindow:
         self._result_icons = result_icons
         self._destroyed = False
         self._unsubscribe_icons: Callable[[], None] | None = None
-        self._window_focus = (
-            window_focus_factory() if window_focus_factory is not None else None
-        )
+        self._window_focus = window_focus
         self._surface_service = surface_service
         self._on_query_changed = on_query_changed
         self._on_result_selected = on_result_selected

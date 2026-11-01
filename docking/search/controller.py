@@ -202,7 +202,7 @@ class GlobalSearchController:
             dynamic_preview_loader=self._load_dynamic_preview,
             preview_resolver=self._resolve_result_preview,
             refresh_dynamic_previews=self._preview_service.asynchronous is True,
-            window_focus_factory=self._integration.focus_factory(),
+            window_focus=self._integration.create_focus(),
             opaque_action_panel=self._integration.opaque_action_panel,
             surface_service=surface_service,
         )
