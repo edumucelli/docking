@@ -45,6 +45,7 @@ def main() -> None:
     from docking.search.types import SearchQuery
     from docking.ui.folder._browser import FolderBrowser, FolderPrefs
     from tools.windows.visual.application_graph import ready_application_registry
+    from tools.windows.visual.desktop_driver import read_shared_json
 
     user = ctypes.WinDLL("user32", use_last_error=True)
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -200,9 +201,7 @@ def main() -> None:
     registry = ready_application_registry()
     from docking.platform.composition.selection import platform_provider
 
-    icon_loader = IconLoader(
-        application_icon_source_factory=platform_provider().desktop().create_icon_source
-    )
+    icon_loader = IconLoader(desktop_service=platform_provider().desktop())
     target_service = TargetService(
         icon_loader=icon_loader, application_registry=registry
     )
@@ -238,7 +237,7 @@ def main() -> None:
     try:
         report["drive"] = check_path(document)
         report["unc"] = check_path(shared)
-        assert shared.drive.lower().startswith(r"\\host.lan\data")
+        assert shared.drive.replace("/", "\\").casefold() == r"\\host.lan\data"
         preview = preview_local_target(target=document.as_uri(), title=document.name)
         assert (
             preview.body
@@ -307,6 +306,10 @@ def main() -> None:
         time.sleep(2)
         report["default_folder_handler"] = explorer
         ImageGrab.grab(all_screens=True).save(output / "explorer-folder.png")
+        # The pin clicks below target a three-item fixture. Its own Explorer
+        # window would otherwise add a fourth running item and shift the pins.
+        close(explorer)
+        owned_windows.remove(explorer)
         config_home = output / "config"
         config = config_home / "docking" / "dock.json"
         config.parent.mkdir(parents=True, exist_ok=True)
@@ -414,6 +417,15 @@ def main() -> None:
             key(0x1B)
         # Native UI Automation locates the actual Explorer item; no file drop is
         # injected into GTK or its model. Win32 mouse input exercises native DnD.
+        assert target_service.open_target(folder.as_uri())
+        explorer = wait_for(
+            lambda: next((w for w in windows() if w["class"] == "CabinetWClass"), None),
+            "The drag-source folder handler did not open",
+            40,
+        )
+        owned_windows.append(explorer)
+        report["drag_folder_handler"] = explorer
+        time.sleep(2)
         ex1, ey1, ex2, _ey2 = explorer["rect"]
         click((ex1 + ex2) // 2, ey1 + 20)
         key(0x32, control=True, shift=True)
@@ -466,7 +478,7 @@ foreach ($item in $items) {{
         wait_for(
             lambda: any(
                 entry.get("target") == dropped.as_uri()
-                for entry in json.loads(config.read_text(encoding="utf-8"))["pinned"]
+                for entry in read_shared_json(config)["pinned"]
             ),
             "Explorer file drag did not persist the dropped file",
             20,

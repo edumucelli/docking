@@ -240,6 +240,4 @@ def make_icon_loader():
     )
     from docking.platform.icons import IconLoader
 
-    return IconLoader(
-        application_icon_source_factory=UnixDesktopServices().create_icon_source
-    )
+    return IconLoader(desktop_service=UnixDesktopServices())

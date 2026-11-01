@@ -53,7 +53,10 @@ class SearchIntegration(ABC):
         ...
 
     @abstractmethod
-    def focus_factory(self) -> Callable[[], WindowFocus] | None: ...
+    def create_focus(self) -> WindowFocus | None:
+        """Create a per-window focus controller on GTK, or leave focus to GTK."""
+        ...
+
     @abstractmethod
     def primary(
         self,

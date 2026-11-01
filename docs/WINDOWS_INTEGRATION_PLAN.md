@@ -8,7 +8,7 @@ Use these inspected revisions as reference points:
 
 - **Merged Phase 1:** `094e50a4540d2432476a3691f7399407204b09a5` (PR #480).
 - **Unix prerequisite completion base:** `25649297791f40959c76af888fc2a808b106387a`.
-- **Phase 2 prerequisite:** [PR #490](https://github.com/edumucelli/docking/pull/490), `a7180686e81babae96166783a682718aa2665845`.
+- **Phase 2 prerequisite:** [PR #490](https://github.com/edumucelli/docking/pull/490), `7b8f50d6d914377a1e5001d5458ebac6b083cce0`.
 - **Pre-refactor master reference:** `39a066846b8f719c343c2cccc645d7d504f0db52`.
 - **Windows PR:** `2b0bbd9462987678a781905c5fde7d41103e5386`.
 
@@ -174,6 +174,10 @@ The existing public facades `platform/files.py`, `targets.py`, and `icons.py` st
 
 | Choice | Final ownership and reason |
 |---|---|
+| Popup workarea dependency | Pass the existing `SurfaceService` from the UI factory through Search into `popup_workarea`; do not inject a bound method or add another interface. Explicit Search surfaces use `monitor_workarea`, while transient popups keep their parent's `external_workarea` and GDK fallback. |
+| Icon source construction | Pass `DesktopServices` to `IconLoader`. Keep `create_icon_source(on_ready)` lazy on the first native artwork request, including one-time selection of an unavailable source, readiness invalidation, and loader-owned cleanup. Do not add a factory alias or pass a bound factory method. |
+| Search focus construction | `SearchIntegration.create_focus()` returns the existing `WindowFocus` object or `None`; `SearchWindow` receives it directly and retains cancellation ownership. Native observers still start only when presenting Search. |
+| Retained callbacks and factories | Keep event notifications, live state/handle queries, injectable clocks, and factories needed for a fresh backend lifetime or worker-thread/COM/native-window ownership. Do not replace them with new wrapper interfaces merely to avoid callable types. |
 | GTK surface helpers | One `backends/gtk_surface.py`, reused by Reduced and Windows. Windows adds logical coordinate conversion here; X11 does not change. |
 | Small contracts and values | Artwork contracts live in `desktop/base.py`; Search `WindowFocus` lives in `search/services/platform.py`. No separate forwarding modules. |
 | Native notification observation | Preserve `notifications/implementations/unix/activity.py`; its backend owns start/drain/stop and the existing bounded queue. |

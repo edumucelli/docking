@@ -20,10 +20,10 @@ class WindowsSearchIntegration(SearchIntegration):
     def opaque_action_panel(self) -> bool:
         return True
 
-    def focus_factory(self) -> Callable[[], WindowFocus] | None:
+    def create_focus(self) -> WindowFocus | None:
         from .focus import WindowsSearchFocus
 
-        return WindowsSearchFocus
+        return WindowsSearchFocus()
 
     def primary(
         self,

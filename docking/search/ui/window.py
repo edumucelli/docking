@@ -33,7 +33,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, Pango
 
 from docking.i18n import _
-from docking.platform.backends.base import MonitorSnapshot, Rect, Size
+from docking.platform.backends.base import Size, SurfaceService
 from docking.platform.icons import IconLoader
 from docking.search.coordinator import ProviderError, SearchSnapshot
 from docking.search.icons import SearchResultIcons
@@ -166,18 +166,16 @@ class SearchWindow:
         refresh_dynamic_previews: bool = False,
         opaque_action_panel: bool = False,
         result_icons: SearchResultIcons | None = None,
-        window_focus_factory: Callable[[], WindowFocus] | None = None,
-        monitor_workarea: Callable[[MonitorSnapshot], Rect | None] | None = None,
+        window_focus: WindowFocus | None = None,
+        surface_service: SurfaceService | None = None,
     ) -> None:
         """Construct the reusable toplevel and bind controller callbacks."""
         self._icon_loader = icon_loader
         self._result_icons = result_icons
         self._destroyed = False
         self._unsubscribe_icons: Callable[[], None] | None = None
-        self._window_focus = (
-            window_focus_factory() if window_focus_factory is not None else None
-        )
-        self._monitor_workarea = monitor_workarea
+        self._window_focus = window_focus
+        self._surface_service = surface_service
         self._on_query_changed = on_query_changed
         self._on_result_selected = on_result_selected
         self._on_result_activated = on_result_activated
@@ -425,7 +423,7 @@ class SearchWindow:
             self.window,
             anchor_x,
             anchor_y,
-            workarea_provider=self._monitor_workarea,
+            surface_service=self._surface_service,
         )
         if self.window.get_realized() and self._fitted_size is not None:
             current = Size(*self.window.get_size())

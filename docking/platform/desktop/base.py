@@ -33,11 +33,6 @@ class ApplicationIconSource(ABC):
     def stop(self) -> None: ...
 
 
-ApplicationIconSourceFactory = Callable[
-    [Callable[[str], None]], ApplicationIconSource | None
-]
-
-
 @dataclass(frozen=True, slots=True)
 class IconLocations:
     host_data_dirs: tuple[str, ...]

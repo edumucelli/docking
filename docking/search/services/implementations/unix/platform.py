@@ -21,7 +21,7 @@ class UnixSearchIntegration(SearchIntegration):
     def opaque_action_panel(self) -> bool:
         return False
 
-    def focus_factory(self) -> Callable[[], WindowFocus] | None:
+    def create_focus(self) -> WindowFocus | None:
         return None
 
     def primary(

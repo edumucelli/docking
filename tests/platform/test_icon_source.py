@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 from docking.platform import icons
+from docking.platform.desktop.base import DesktopServices
 from docking.platform.desktop.implementations.windows import icons as windows_icons
 from docking.platform.desktop.implementations.windows.backend import (
     WindowsDesktopServices,
@@ -15,10 +16,11 @@ from tests.platform.application_fakes import application
 
 
 def test_no_optional_source_keeps_gio_fallback_and_selects_only_once(monkeypatch):
-    select = Mock(return_value=None)
-    loader = icons.IconLoader(application_icon_source_factory=select)
+    desktop = Mock(spec=DesktopServices)
+    desktop.create_icon_source.return_value = None
+    loader = icons.IconLoader(desktop_service=desktop)
     loader.stop()
-    select.assert_not_called()
+    desktop.create_icon_source.assert_not_called()
     retained = object()
     monkeypatch.setattr(loader, "load_gicon", lambda **_kwargs: retained)
     for identifier in ("One.App", "Two.App"):
@@ -26,7 +28,7 @@ def test_no_optional_source_keeps_gio_fallback_and_selects_only_once(monkeypatch
             loader.load_desktop_icon(application(identifier), 16, gicon=object())
             is retained
         )
-    select.assert_called_once()
+    desktop.create_icon_source.assert_called_once_with(loader._native_icon_ready)
     loader.stop()
 
 

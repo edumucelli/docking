@@ -173,9 +173,7 @@ def main(provider: PlatformProvider | None = None) -> None:
             registry, provenance_store, backend=provider.launches()
         )
         desktop = provider.desktop()
-        icon_loader = IconLoader(
-            application_icon_source_factory=desktop.create_icon_source
-        )
+        icon_loader = IconLoader(desktop_service=desktop)
         cleanup.callback(_safe_stop, "icons", icon_loader.stop)
         target_service = TargetService(
             icon_loader=icon_loader, application_registry=registry

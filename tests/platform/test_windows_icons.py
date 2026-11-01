@@ -1,7 +1,13 @@
 """A native icon arriving asynchronously replaces the cached generic icon."""
 
+from unittest.mock import Mock
+
 from docking.platform import icons
-from docking.platform.desktop.base import IconPixels
+from docking.platform.desktop.base import (
+    ApplicationIconSource,
+    DesktopServices,
+    IconPixels,
+)
 from docking.platform.desktop.implementations.windows import icons as native_icons
 from tests.platform.application_fakes import application
 
@@ -9,7 +15,7 @@ from tests.platform.application_fakes import application
 def test_ready_native_icon_replaces_fallback_and_notifies_subscribers(monkeypatch):
     caches = []
 
-    class Cache:
+    class Cache(ApplicationIconSource):
         def __init__(self, on_ready):
             self.on_ready = on_ready
             self.image = None
@@ -22,7 +28,9 @@ def test_ready_native_icon_replaces_fallback_and_notifies_subscribers(monkeypatc
         def stop(self):
             self.stopped = True
 
-    loader = icons.IconLoader(application_icon_source_factory=Cache)
+    desktop = Mock(spec=DesktopServices)
+    desktop.create_icon_source.side_effect = Cache
+    loader = icons.IconLoader(desktop_service=desktop)
     assert caches == []
     fallback = object()
     monkeypatch.setattr(loader, "_try_load_icon_without_fallback", lambda **_kw: None)

@@ -268,8 +268,8 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
             self.provenance_store = provenance_store
 
     class _IconLoader:
-        def __init__(self, *, application_icon_source_factory):
-            self.application_icon_source_factory = application_icon_source_factory
+        def __init__(self, *, desktop_service):
+            self.desktop_service = desktop_service
 
         def stop(self):
             pass

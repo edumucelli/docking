@@ -167,7 +167,7 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
                 "IconLoader",
                 (),
                 {
-                    "__init__": lambda self, *, application_icon_source_factory: None,
+                    "__init__": lambda self, *, desktop_service: None,
                     "stop": lambda self: None,
                     "subscribe": lambda self, _callback: lambda: None,
                 },

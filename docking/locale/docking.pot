@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-11-01 19:18+0100\n"
+"POT-Creation-Date: 2026-11-01 21:40+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -759,7 +759,7 @@ msgstr ""
 #: docking/applets/network/implementations/windows/connections.py:85
 #: docking/applets/screenshot/applet.py:125
 #: docking/applets/screenshot/preview.py:163
-#: docking/applets/weather/state.py:189 docking/search/controller.py:295
+#: docking/applets/weather/state.py:189 docking/search/controller.py:294
 msgid "Unavailable"
 msgstr ""
 
@@ -795,8 +795,8 @@ msgstr ""
 msgid "Caffeine: {time} remaining"
 msgstr ""
 
-#: docking/applets/caffeine/state.py:147 docking/search/controller.py:270
-#: docking/search/controller.py:293 docking/search/providers/windows.py:110
+#: docking/applets/caffeine/state.py:147 docking/search/controller.py:269
+#: docking/search/controller.py:292 docking/search/providers/windows.py:110
 msgid "Active"
 msgstr ""
 
@@ -1951,7 +1951,7 @@ msgid "Unnamed VPN"
 msgstr ""
 
 #: docking/applets/network/implementations/windows/connections.py:85
-#: docking/search/controller.py:259
+#: docking/search/controller.py:258
 msgid "Permission denied"
 msgstr ""
 
@@ -3178,7 +3178,7 @@ msgstr ""
 #: docking/applets/systemtray/applet.py:645
 #: docking/search/providers/applications.py:159
 #: docking/search/providers/dock.py:80 docking/search/providers/recent.py:70
-#: docking/search/providers/web.py:93 docking/search/ui/window.py:774
+#: docking/search/providers/web.py:93 docking/search/ui/window.py:772
 #: docking/ui/menu.py:452 docking/ui/menu.py:537
 msgid "Open"
 msgstr ""
@@ -4121,12 +4121,12 @@ msgid "Completed"
 msgstr ""
 
 #: docking/applets/webapp/implementations/windows/companion/downloads.py:73
-#: docking/search/controller.py:299
+#: docking/search/controller.py:298
 msgid "Cancelled"
 msgstr ""
 
 #: docking/applets/webapp/implementations/windows/companion/downloads.py:75
-#: docking/search/controller.py:274 docking/search/controller.py:301
+#: docking/search/controller.py:273 docking/search/controller.py:300
 msgid "Failed"
 msgstr ""
 
@@ -4510,62 +4510,62 @@ msgstr ""
 msgid "session bus unavailable"
 msgstr ""
 
-#: docking/search/controller.py:227
+#: docking/search/controller.py:226
 #, python-brace-format
 msgid "Active: {shortcut} (X11)"
 msgstr ""
 
-#: docking/search/controller.py:232 docking/search/controller.py:241
+#: docking/search/controller.py:231 docking/search/controller.py:240
 msgid "Shortcut already in use"
 msgstr ""
 
-#: docking/search/controller.py:233 docking/search/controller.py:263
+#: docking/search/controller.py:232 docking/search/controller.py:262
 msgid "Registration failed"
 msgstr ""
 
-#: docking/search/controller.py:236 docking/search/controller.py:264
+#: docking/search/controller.py:235 docking/search/controller.py:263
 msgid "Not active"
 msgstr ""
 
-#: docking/search/controller.py:248
+#: docking/search/controller.py:247
 msgid "Connecting..."
 msgstr ""
 
-#: docking/search/controller.py:254
+#: docking/search/controller.py:253
 #, python-brace-format
 msgid "Assigned: {shortcut}"
 msgstr ""
 
-#: docking/search/controller.py:255
+#: docking/search/controller.py:254
 msgid "Assigned by desktop"
 msgstr ""
 
-#: docking/search/controller.py:257 docking/ui/menu.py:681
+#: docking/search/controller.py:256 docking/ui/menu.py:681
 #: docking/ui/settings.py:1686
 msgid "Unavailable on this desktop"
 msgstr ""
 
-#: docking/search/controller.py:261
+#: docking/search/controller.py:260
 msgid "Setup cancelled"
 msgstr ""
 
-#: docking/search/controller.py:273 docking/search/controller.py:282
+#: docking/search/controller.py:272 docking/search/controller.py:281
 msgid "Conflict"
 msgstr ""
 
-#: docking/search/controller.py:277 docking/search/controller.py:302
+#: docking/search/controller.py:276 docking/search/controller.py:301
 msgid "Inactive"
 msgstr ""
 
-#: docking/search/controller.py:288
+#: docking/search/controller.py:287
 msgid "Connecting"
 msgstr ""
 
-#: docking/search/controller.py:297
+#: docking/search/controller.py:296
 msgid "Denied"
 msgstr ""
 
-#: docking/search/controller.py:759
+#: docking/search/controller.py:758
 msgid "Live Window"
 msgstr ""
 
@@ -4654,7 +4654,7 @@ msgstr ""
 msgid "Windows"
 msgstr ""
 
-#: docking/search/providers/applications.py:264 docking/search/ui/window.py:269
+#: docking/search/providers/applications.py:264 docking/search/ui/window.py:267
 #: docking/ui/settings.py:1093
 msgid "Actions"
 msgstr ""
@@ -4905,58 +4905,58 @@ msgstr ""
 msgid "Press shortcut..."
 msgstr ""
 
-#: docking/search/ui/window.py:212 docking/search/ui/window.py:224
+#: docking/search/ui/window.py:210 docking/search/ui/window.py:222
 msgid "Docking Search"
 msgstr ""
 
-#: docking/search/ui/window.py:273
+#: docking/search/ui/window.py:271
 msgid "Filter actions..."
 msgstr ""
 
-#: docking/search/ui/window.py:344
+#: docking/search/ui/window.py:342
 msgid "Actions  Ctrl+J"
 msgstr ""
 
-#: docking/search/ui/window.py:347
+#: docking/search/ui/window.py:345
 msgid "Preview  Ctrl+P"
 msgstr ""
 
-#: docking/search/ui/window.py:494
+#: docking/search/ui/window.py:492
 msgid "No matching results"
 msgstr ""
 
-#: docking/search/ui/window.py:736
+#: docking/search/ui/window.py:734
 msgid "Unable to decode image preview"
 msgstr ""
 
-#: docking/search/ui/window.py:745
+#: docking/search/ui/window.py:743
 #, python-brace-format
 msgid "{width} × {height} · {format} · {size}"
 msgstr ""
 
-#: docking/search/ui/window.py:752
+#: docking/search/ui/window.py:750
 #, python-brace-format
 msgid "{width} × {height} · {format}"
 msgstr ""
 
-#: docking/search/ui/window.py:787
+#: docking/search/ui/window.py:785
 #, python-brace-format
 msgid "{count} results"
 msgstr ""
 
-#: docking/search/ui/window.py:789
+#: docking/search/ui/window.py:787
 msgid "Type to search"
 msgstr ""
 
-#: docking/search/ui/window.py:791
+#: docking/search/ui/window.py:789
 msgid "No results"
 msgstr ""
 
-#: docking/search/ui/window.py:793
+#: docking/search/ui/window.py:791
 msgid "Searching..."
 msgstr ""
 
-#: docking/search/ui/window.py:795
+#: docking/search/ui/window.py:793
 msgid "Some sources failed"
 msgstr ""
 
