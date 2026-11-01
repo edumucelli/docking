@@ -8,7 +8,7 @@ Use these inspected revisions as reference points:
 
 - **Merged Phase 1:** `094e50a4540d2432476a3691f7399407204b09a5` (PR #480).
 - **Unix prerequisite completion base:** `25649297791f40959c76af888fc2a808b106387a`.
-- **Phase 2 prerequisite:** [PR #490](https://github.com/edumucelli/docking/pull/490), `7b8f50d6d914377a1e5001d5458ebac6b083cce0`.
+- **Merged Phase 2 prerequisite:** [PR #490](https://github.com/edumucelli/docking/pull/490), master commit `65016d3ea99f1e9f5682ad779570d42b67393b05` (the reviewed `7b8f50d6` tree).
 - **Pre-refactor master reference:** `39a066846b8f719c343c2cccc645d7d504f0db52`.
 - **Windows PR:** `2b0bbd9462987678a781905c5fde7d41103e5386`.
 
@@ -639,18 +639,17 @@ the earlier extraction details as follows; these are Phase 1 responsibilities.
 | `tests/`, `features/steps/folder_thumbnail_steps.py`, `tools/linux/visual/probes/wayfire_contract_probe.py` | Migrate callers and patch locations together. Keep generic/Unix assertions on the prerequisite branch and Windows-native cases on #481. Ensure the prerequisite suite collects with Windows implementations absent. Keep isolated no-GI smoke runs separate from normal collection. |
 | `.github/workflows/bsd.yml`, `docking/locale/` | Carry the BSD NumPy test dependency and shared camera/microphone translations with their Unix changes. Regenerate the prerequisite POT from its own source tree; Windows-only messages belong to Phase 2. |
 
-The standalone prerequisite must contain no Windows implementations, native
+The standalone prerequisite contains no Windows implementations, native
 helpers, package/build changes, OS-routing branches, or Windows acceptance tools.
-After it is committed, merge it into the integration branch without rewriting
-published history and base #481 on that prerequisite. The resulting Phase 2
-diff must contain no Unix/Linux/BSD runtime-adapter changes. Preserve the tested
-integration implementation while splitting mixed test files; the split must not
-drop Windows assertions from the final combined tree.
+It landed in #490 as master commit `65016d3e`, whose tree matches the reviewed
+`7b8f50d6` prerequisite. The Windows branch merges that master commit without
+rewriting its published history, so #481 can target master cleanly after the
+squash merge.
 
-Merge #490 before the Windows PR. After it lands, merge the then-current master
-into the Windows branch before retargeting #481 to master. This also keeps the
-comparison clean if #490 is squash-merged. Keep published history and leave both
-PRs for explicit review and merge.
+#481 remains the Windows integration PR for review. Its Phase 2 diff must contain
+no Unix/Linux/BSD runtime-adapter changes. Preserve the tested implementation and
+all Windows assertions when reconciling mixed files with master. Do not merge
+this PR automatically.
 
 ### Phase 1 import and test migration
 
