@@ -36,7 +36,7 @@ jobs:
           .venv/bin/python -m pip install --upgrade pip
           export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
           .venv/bin/python -m pip install -e '.[dev]'
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - name: Build pinned-base compositor image
         uses: docker/build-push-action@v7
         with:
