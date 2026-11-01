@@ -1,11 +1,14 @@
 """Tests for the dock data model."""
 
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+
+from docking.platform.applications.implementations.unix import entries as native_entries
+from tests.platform_factories import make_application_registry, make_dock_model
 
 try:
     import gi  # noqa: F401
@@ -17,10 +20,15 @@ except ModuleNotFoundError:  # pragma: no cover
 
 import docking.platform.model as model_mod
 from docking.applets.services import AppletServices
-from docking.core.config import PinnedEntry
+from docking.core.config import Config, PinnedEntry
 from docking.core.icons import CUSTOM_ICON_PATH_KEY, ICON_SOURCE_PREF_KEY, IconSource
 from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND
-from docking.platform.applications.entries import GeneratedDesktopEntry
+from docking.platform.applications.implementations.unix.entries import (
+    GeneratedDesktopEntry,
+)
+from docking.platform.applications.implementations.unix.registration import (
+    UnixExecutableRegistrationBackend,
+)
 from docking.platform.applications.recents import (
     RecentApplications,
     RecentApplicationsPersistence,
@@ -33,6 +41,7 @@ from docking.platform.applications.types import (
     ApplicationOrigin,
 )
 from docking.platform.model import DockItem, DockModel, LauncherEntryState
+from tests.platform.application_fakes import application
 
 
 @dataclass(frozen=True)
@@ -46,6 +55,7 @@ class _ModelDependencies:
 def _make_dependencies(*desktop_ids: str) -> _ModelDependencies:
     """Create distinct model collaborators that resolve given desktop IDs."""
     registry = MagicMock(spec=ApplicationRegistry)
+    registry.registrations = UnixExecutableRegistrationBackend()
     infos = {}
     for did in desktop_ids:
         stem = did.removesuffix(".desktop")
@@ -67,6 +77,7 @@ def _make_dependencies(*desktop_ids: str) -> _ModelDependencies:
     def get(desktop_id):
         return infos.get(desktop_id)
 
+    registry.initial_discovery_pending = False
     registry.get.side_effect = get
     icon_loader = MagicMock()
     icon_loader.load_icon.return_value = MagicMock()  # fake pixbuf
@@ -106,7 +117,7 @@ def _make_model(
             application_registry,
             RecentApplicationsPersistence(config),
         )
-    return DockModel(
+    return make_dock_model(
         config=config,
         applet_services=applet_services or AppletServices(),
         application_registry=application_registry,
@@ -213,6 +224,218 @@ class TestDockModelInit:
         )
 
         recent_applications.load.assert_called_once_with(pinned_ids={"a.desktop"})
+
+
+class TestApplicationCatalogUpdates:
+    @pytest.mark.parametrize("resolves", [True, False])
+    def test_saved_recent_history_survives_until_discovery_finishes(self, resolves):
+        config = _make_config([], show_recent_apps=True)
+        config.recent_apps = [
+            {"desktop_id": "Native.Recent", "last_closed": 9_999_999_999}
+        ]
+        saved = list(config.recent_apps)
+        dependencies = _make_dependencies()
+        registry = dependencies.application_registry
+        registry.initial_discovery_pending = True
+        model = _make_model(config, dependencies)
+        assert config.recent_apps == saved
+        item = model.visible_items()[0]
+        assert item.is_recent
+        if resolves:
+            registry.get.side_effect = lambda _id: application("Native.Recent")
+        registry.initial_discovery_pending = False
+
+        model.refresh_applications()
+
+        if resolves:
+            assert model.visible_items() == [item]
+            assert item.application_info is not None
+            assert item.name == "Native.Recent"
+            assert config.recent_apps == saved
+        else:
+            assert model.visible_items() == []
+            assert config.recent_apps == []
+        config.save.assert_not_called()
+
+    def test_pending_pins_keep_order_and_running_state_when_catalog_arrives(self):
+        config = _make_config(["Native.One", "known.desktop", "Native.Two"])
+        dependencies = _make_dependencies("known.desktop")
+        registry = dependencies.application_registry
+        known = registry.get("known.desktop")
+        available = {"known.desktop": known}
+        registry.get.side_effect = available.get
+        registry.initial_discovery_pending = True
+        model = _make_model(config, dependencies)
+
+        assert [item.desktop_id for item in model.pinned_items] == [
+            "Native.One",
+            "known.desktop",
+            "Native.Two",
+        ]
+        original = {item.desktop_id: item for item in model.pinned_items}
+        assert original["Native.One"].application_info is None
+        model.update_running({"Native.One": _running(count=2, active=True)})
+        original["Native.One"].progress = 0.6
+        model.reorder_visible(2, 0)
+        saved = list(config.pinned)
+        config.save.reset_mock()
+        changed = MagicMock()
+        model.add_change_listener(changed)
+        available.update(
+            {
+                "Native.One": replace(application("Native.One"), name="First program"),
+                "Native.Two": replace(application("Native.Two"), name="Second program"),
+            }
+        )
+        registry.initial_discovery_pending = False
+
+        model.refresh_applications()
+
+        assert [item.desktop_id for item in model.pinned_items] == [
+            "Native.Two",
+            "Native.One",
+            "known.desktop",
+        ]
+        assert all(item is original[item.desktop_id] for item in model.pinned_items)
+        first = original["Native.One"]
+        assert first.name == "First program"
+        assert first.is_pinned and first.is_running and first.is_active
+        assert first.instance_count == 2 and first.progress == 0.6
+        assert config.pinned == saved
+        config.save.assert_not_called()
+        changed.assert_called_once_with()
+        model.refresh_applications()
+        changed.assert_called_once_with()
+
+    def test_empty_complete_catalog_removes_loading_pin_but_preserves_config(self):
+        config = _make_config(["Native.Missing", "known.desktop"])
+        dependencies = _make_dependencies("known.desktop")
+        registry = dependencies.application_registry
+        known = registry.get("known.desktop")
+        available = {"known.desktop": known}
+        registry.get.side_effect = available.get
+        registry.initial_discovery_pending = True
+        model = _make_model(config, dependencies)
+        assert len(model.pinned_items) == 2
+        saved = list(config.pinned)
+
+        registry.initial_discovery_pending = False
+        model.refresh_applications()
+
+        assert [item.desktop_id for item in model.pinned_items] == ["known.desktop"]
+        assert config.pinned == saved
+        available["Native.Missing"] = application("Native.Missing")
+        model.refresh_applications()
+        assert [item.desktop_id for item in model.pinned_items] == [
+            "Native.Missing",
+            "known.desktop",
+        ]
+        config.save.assert_not_called()
+
+    def test_late_pin_reuses_a_running_transient_without_duplicate_items(
+        self, tmp_path
+    ):
+        config = _make_config(["Native.One"])
+        dependencies = _make_dependencies()
+        registry = dependencies.application_registry
+        model = _make_model(config, dependencies)
+        assert not model.pinned_items
+        runtime = _runtime_application(
+            desktop_id="Native.One", executable_path=tmp_path / "program.exe"
+        )
+        model.update_running(
+            {"Native.One": RunningAppInfo(count=2, active=True, runtime_app=runtime)}
+        )
+        item = model.visible_items()[0]
+        assert item.runtime_executable == str(runtime.executable_path)
+        registry.get.side_effect = lambda _id: application("Native.One")
+
+        model.refresh_applications()
+
+        assert model.pinned_items == [item]
+        assert model.visible_items() == [item]
+        assert item.is_pinned and item.is_running and item.is_active
+        assert item.instance_count == 2
+        assert item.runtime_executable == ""
+        assert not model._transient
+        config.save.assert_not_called()
+
+    def test_unresolved_loading_pin_keeps_its_running_window_after_discovery(self):
+        config = _make_config(["Native.One"])
+        dependencies = _make_dependencies()
+        registry = dependencies.application_registry
+        registry.initial_discovery_pending = True
+        model = _make_model(config, dependencies)
+        item = model.pinned_items[0]
+        model.update_running({"Native.One": _running(count=2, active=True)})
+        saved = list(config.pinned)
+
+        registry.initial_discovery_pending = False
+        model.refresh_applications()
+
+        assert not model.pinned_items
+        assert model.visible_items() == [item]
+        assert not item.is_pinned and item.is_running and item.is_active
+        assert item.instance_count == 2
+        assert item.name == "Native.One"
+        assert config.pinned == saved
+        config.save.assert_not_called()
+
+    def test_catalog_metadata_refresh_keeps_custom_icon_and_item_identity(
+        self, tmp_path
+    ):
+        config = _make_config(["Native.One"])
+        custom = tmp_path / "custom.png"
+        config.item_prefs = {
+            "Native.One": {
+                ICON_SOURCE_PREF_KEY: IconSource.CUSTOM.value,
+                CUSTOM_ICON_PATH_KEY: str(custom),
+            }
+        }
+        dependencies = _make_dependencies("Native.One")
+        dependencies.icon_loader.load_icon_file.return_value = object()
+        model = _make_model(config, dependencies)
+        item = model.pinned_items[0]
+        icon = item.icon
+        updated = replace(
+            item.application_info,
+            name="Updated program",
+            declared_icon="updated-icon",
+            wm_class="UpdatedProgram",
+            exec_line="updated-program",
+        )
+        dependencies.application_registry.get.side_effect = lambda _id: updated
+
+        model.refresh_applications()
+
+        assert model.pinned_items[0] is item
+        assert item.application_info is updated
+        assert item.name == "Updated program" and item.wm_class == "UpdatedProgram"
+        assert item.exec_line == "updated-program"
+        assert item.icon is icon and item.icon_name == "custom.png"
+        config.save.assert_not_called()
+
+    def test_catalog_refresh_keeps_live_applet_instances(self, monkeypatch):
+        config = _make_config(["Native.One", "applet://clock"])
+        dependencies = _make_dependencies()
+        dependencies.application_registry.initial_discovery_pending = True
+        applet = MagicMock()
+        applet.item = DockItem(desktop_id="applet://clock", name="Clock")
+        loader = MagicMock(return_value=lambda icon_size, config: applet)
+        monkeypatch.setattr(model_mod.applets, "load_applet_class", loader)
+        model = _make_model(config, dependencies)
+        dependencies.application_registry.get.side_effect = lambda _id: application(
+            "Native.One"
+        )
+        dependencies.application_registry.initial_discovery_pending = False
+
+        model.refresh_applications()
+
+        assert model.pinned_items[1] is applet.item
+        assert model.get_applet("applet://clock") is applet
+        loader.assert_called_once_with("clock")
+        applet.stop.assert_not_called()
+        config.save.assert_not_called()
 
 
 class TestUpdateRunning:
@@ -323,7 +546,7 @@ class TestPinUnpin:
     ):
         executable = tmp_path / "tool"
         executable.write_bytes(b"\x7fELF")
-        runtime_id = model_mod.desktop_entries.generated_desktop_id_for_path(executable)
+        runtime_id = native_entries.generated_desktop_id_for_path(executable)
         runtime = _runtime_application(
             desktop_id=runtime_id,
             executable_path=executable,
@@ -356,7 +579,7 @@ class TestPinUnpin:
             desktop_file=generated.path,
             executable_path=executable,
             aliases=tuple(
-                model_mod.desktop_entries.match_aliases(
+                native_entries.match_aliases(
                     desktop_id=runtime_id,
                     wm_class="tool",
                     exec_line=str(executable),
@@ -365,12 +588,7 @@ class TestPinUnpin:
             visible=True,
             has_gio_source=False,
         )
-        create = MagicMock(return_value=generated)
-        monkeypatch.setattr(
-            model_mod.desktop_entries,
-            "create_desktop_entry_for_executable",
-            create,
-        )
+        dependencies.application_registry.register_executable.return_value = resolved
         dependencies.application_registry.get.side_effect = lambda desktop_id: (
             resolved if desktop_id == runtime_id else None
         )
@@ -384,19 +602,52 @@ class TestPinUnpin:
         assert isinstance(item.application_info, ApplicationInfo)
         assert item.application_info.origin is ApplicationOrigin.GENERATED
         assert item.application_info.aliases == tuple(
-            model_mod.desktop_entries.match_aliases(
+            native_entries.match_aliases(
                 desktop_id=runtime_id,
                 wm_class="tool",
                 exec_line=str(executable),
             )
         )
-        create.assert_called_once_with(
+        dependencies.application_registry.register_executable.assert_called_once_with(
             str(executable),
             startup_wm_class="SharedTool",
         )
-        dependencies.application_registry.refresh.assert_called_once_with()
+        config.save.assert_called_once_with()
 
-    def test_runtime_pin_uses_generated_metadata_stably_across_restart(
+    @pytest.mark.parametrize(
+        "registered", [None, application("different"), OSError("Catalog unavailable")]
+    )
+    def test_failed_runtime_registration_preserves_the_running_transient(
+        self, registered
+    ):
+        dependencies = _make_dependencies()
+        config = _make_config([])
+        model = _make_model(config, dependencies, AppletServices())
+        runtime = _runtime_application(
+            desktop_id="runtime", executable_path=Path("tool")
+        )
+        model.update_running({"runtime": RunningAppInfo(count=1, runtime_app=runtime)})
+        item = model.visible_items()[0]
+        if isinstance(registered, OSError):
+            dependencies.application_registry.register_executable.side_effect = (
+                registered
+            )
+        else:
+            dependencies.application_registry.register_executable.return_value = (
+                registered
+            )
+
+        model.pin_item("runtime")
+
+        assert model.visible_items() == [item]
+        assert not item.is_pinned and item.is_running
+        assert item.runtime_executable
+        config.save.assert_not_called()
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Unix desktop-entry persistence"
+    )
+    def test_unix_runtime_pin_uses_generated_metadata_stably_across_restart(
         self,
         tmp_path,
         monkeypatch,
@@ -404,23 +655,23 @@ class TestPinUnpin:
         executable = tmp_path / "tool"
         executable.write_bytes(b"\x7fELF")
         executable.chmod(0o755)
-        runtime_id = model_mod.desktop_entries.generated_desktop_id_for_path(executable)
+        runtime_id = native_entries.generated_desktop_id_for_path(executable)
         runtime = _runtime_application(
             desktop_id=runtime_id,
             executable_path=executable,
         )
         applications_dir = tmp_path / "applications"
         monkeypatch.setattr(
-            model_mod.desktop_entries,
+            native_entries,
             "user_applications_dir",
             lambda: applications_dir,
         )
         monkeypatch.setattr(
-            model_mod.desktop_entries,
+            native_entries,
             "_refresh_desktop_database",
             lambda _directory: None,
         )
-        registry = ApplicationRegistry(
+        registry = make_application_registry(
             application_source=lambda: (),
             desktop_directories_source=lambda: (applications_dir,),
         )
@@ -456,7 +707,7 @@ class TestPinUnpin:
         assert promoted.icon_name == promoted_application.declared_icon
         assert promoted_application.description != runtime.description
 
-        fresh_registry = ApplicationRegistry(
+        fresh_registry = make_application_registry(
             application_source=lambda: (),
             desktop_directories_source=lambda: (applications_dir,),
         )
@@ -564,12 +815,13 @@ class TestPinUnpin:
 
 
 class TestCustomIcons:
-    def test_pinned_app_applies_custom_icon_on_load(self):
+    def test_pinned_app_applies_custom_icon_on_load(self, tmp_path):
         config = _make_config(["a.desktop"])
+        path = tmp_path / "a.png"
         config.item_prefs = {
             "a.desktop": {
                 ICON_SOURCE_PREF_KEY: IconSource.CUSTOM.value,
-                CUSTOM_ICON_PATH_KEY: "/home/user/a.png",
+                CUSTOM_ICON_PATH_KEY: str(path),
             }
         }
         dependencies = _make_dependencies("a.desktop")
@@ -582,7 +834,7 @@ class TestCustomIcons:
         assert item.icon is custom_icon
         assert item.icon_name == "a.png"
         dependencies.icon_loader.load_icon_file.assert_called_once_with(
-            path=Path("/home/user/a.png"),
+            path=path,
             size=48,
         )
 
@@ -647,12 +899,13 @@ class TestCustomIcons:
         assert item.window_urgent is True
         assert item.insert_factor == 0.5
 
-    def test_insert_pinned_item_applies_override_and_persists(self):
+    def test_insert_pinned_item_applies_override_and_persists(self, tmp_path):
         config = _make_config([])
+        path = tmp_path / "tool.png"
         config.item_prefs = {
             "tool.desktop": {
                 ICON_SOURCE_PREF_KEY: IconSource.CUSTOM.value,
-                CUSTOM_ICON_PATH_KEY: "/home/user/tool.png",
+                CUSTOM_ICON_PATH_KEY: str(path),
             }
         }
         dependencies = _make_dependencies("tool.desktop")
@@ -928,6 +1181,33 @@ class TestCallbacks:
 
 
 class TestAppletLifecycleIntegration:
+    @pytest.mark.parametrize("applet_id", ["applications", "runcommand", "music"])
+    def test_constructs_application_applets_with_application_and_platform_services(
+        self, monkeypatch, applet_id
+    ):
+        from docking.applets import load_applet_class
+        from docking.applets.music.state import unavailable_state
+
+        config = Config()
+        monkeypatch.setattr(config, "save", MagicMock())
+        dependencies = _make_dependencies()
+        model = _make_model(config, dependencies, AppletServices())
+        backend = MagicMock()
+        backend.poll.return_value = unavailable_state()
+        monkeypatch.setattr(model._applet_platform.backends, "music", lambda: backend)
+        cls = load_applet_class(applet_id)
+        assert cls is not None
+
+        applet = model._instantiate_applet(cls=cls, icon_size=48)
+        try:
+            assert applet._platform is model._applet_platform
+            assert applet._application_registry is dependencies.application_registry
+            assert applet._application_launcher is dependencies.application_launcher
+            if applet_id == "music":
+                backend.poll.assert_called_once_with()
+        finally:
+            applet.stop()
+
     def test_loads_pinned_applet_via_lazy_loader(self, monkeypatch):
         config = MagicMock()
         config.pinned = [PinnedEntry(kind="applet", target="applet://session")]

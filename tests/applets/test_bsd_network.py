@@ -7,17 +7,23 @@ from unittest.mock import MagicMock
 import pytest
 
 from docking.applets.bluetooth import meta as bluetooth_meta
-from docking.applets.network import bsd
 from docking.applets.network.applet import NetworkApplet
+from docking.applets.network.implementations.bsd import backend as bsd
 from docking.core.config import Config
 from docking.platform import environment
+from docking.platform.composition.bsd import BsdAppletBackendFactories
+from tests.platform_factories import make_applet_platform
 
 
 def test_native_interface_change_resets_traffic_baseline(monkeypatch):
     monkeypatch.setattr(environment, "is_bsd", lambda: True)
     readings = [bsd.NetworkInterface("vio0", "192.0.2.1", True, 1000, 2000)]
     monkeypatch.setattr(bsd, "network_interfaces", lambda: readings)
-    applet = NetworkApplet(48, Config())
+    applet = NetworkApplet(
+        48,
+        Config(),
+        platform_services=make_applet_platform(backends=BsdAppletBackendFactories()),
+    )
     applet._tick()
     assert applet._state.iface == "vio0"
     assert applet._state.rx_speed == 0
@@ -32,13 +38,19 @@ def test_native_interface_change_resets_traffic_baseline(monkeypatch):
 
 
 def test_bluetooth_available_on_freebsd_but_not_openbsd(monkeypatch):
+    from types import SimpleNamespace
+
     from docking.applets import identity
     from docking.applets.camshield import meta as camera_meta
 
-    monkeypatch.setattr(identity.sys, "platform", "freebsd15")
+    monkeypatch.setattr(
+        identity, "host_services", lambda: SimpleNamespace(platform_name="freebsd15")
+    )
     assert bluetooth_meta.available_on_host
     assert camera_meta.available_on_host
-    monkeypatch.setattr(identity.sys, "platform", "openbsd7")
+    monkeypatch.setattr(
+        identity, "host_services", lambda: SimpleNamespace(platform_name="openbsd7")
+    )
     assert not bluetooth_meta.available_on_host
     assert camera_meta.available_on_host
 
@@ -50,7 +62,11 @@ def test_shared_applet_starts_without_networkmanager_and_keeps_preferences(monke
         "network_interfaces",
         lambda: [bsd.NetworkInterface("vio0", "192.0.2.1", True, 1000, 2000)],
     )
-    applet = NetworkApplet(48, Config())
+    applet = NetworkApplet(
+        48,
+        Config(),
+        platform_services=make_applet_platform(backends=BsdAppletBackendFactories()),
+    )
     applet.save_prefs = MagicMock()
     try:
         applet.start(notify=lambda: None)

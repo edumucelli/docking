@@ -5,11 +5,11 @@ from types import SimpleNamespace
 import pytest
 
 from docking.platform import environment
-from docking.platform.applications import bsd
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
-    ProcessIdentityService,
 )
+from docking.platform.applications.implementations.bsd import process as bsd
+from tests.platform_factories import make_process_identity
 
 
 def test_process_disappearing_does_not_abort_tracking(monkeypatch):
@@ -36,7 +36,9 @@ def test_identity_uses_native_process_readers_without_proc(monkeypatch, tmp_path
     monkeypatch.setattr(environment, "is_bsd", lambda: True)
     monkeypatch.setattr(bsd, "process_executable", lambda pid: executable)
     monkeypatch.setattr(bsd, "process_script", lambda pid: "program.py")
-    result = ProcessIdentityService(LaunchProvenanceStore()).identity_for_pid(42)
+    result = make_process_identity(
+        LaunchProvenanceStore(), backend=bsd.BsdProcessBackend()
+    ).identity_for_pid(42)
     assert result is not None
     assert result.executable_path == executable
     assert result.script_basename == "program.py"

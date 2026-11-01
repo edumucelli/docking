@@ -5,11 +5,11 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from . import entries as desktop_entries
+from . import executable as desktop_entries
+from .backend import ExecutableRegistrationBackend
 from .constants import DESKTOP_SUFFIX, FALLBACK_ICON, GNOME_APP_PREFIX
 from .identity import ProcessIdentity, ProcessIdentityService
 from .registry import ApplicationRegistry
@@ -128,10 +128,16 @@ _GENERIC_BUNDLE_ROOTS = frozenset(
 
 def _application_executable_path(application: ApplicationInfo) -> Path | None:
     """Resolve the application's current executable target."""
-    return desktop_entries.executable_path_from_exec_line(application.exec_line)
+    # Re-read desktop Exec targets so symlink changes remain observable. Native
+    # catalogs can provide a canonical path without an Exec command at all.
+    return (
+        desktop_entries.executable_path_from_exec_line(application.exec_line)
+        or application.executable_path
+    )
 
 
 def _executable_paths_conflict(
+    registrations: ExecutableRegistrationBackend,
     launcher_path: Path | None,
     runtime_path: Path | None,
 ) -> bool:
@@ -140,14 +146,17 @@ def _executable_paths_conflict(
         return False
     if (
         launcher_path.name.casefold() == runtime_path.name.casefold()
-        and _is_native_executable(launcher_path)
-        and _is_native_executable(runtime_path)
+        and registrations.is_native_executable(launcher_path)
+        and registrations.is_native_executable(runtime_path)
     ):
         return True
-    return _sibling_bundle_launchers_conflict(launcher_path, runtime_path)
+    return _sibling_bundle_launchers_conflict(
+        registrations, launcher_path, runtime_path
+    )
 
 
 def _sibling_bundle_launchers_conflict(
+    registrations: ExecutableRegistrationBackend,
     launcher_path: Path,
     runtime_path: Path,
 ) -> bool:
@@ -163,7 +172,7 @@ def _sibling_bundle_launchers_conflict(
         and runtime_root is not None
         and launcher_root != runtime_root
         and launcher_root.parent == runtime_root.parent
-        and _is_native_executable(runtime_path)
+        and registrations.is_native_executable(runtime_path)
     )
 
 
@@ -179,24 +188,15 @@ def _specific_bundle_root(path: Path) -> Path | None:
     return root
 
 
-@lru_cache(maxsize=512)
-def _is_native_executable(path: Path) -> bool:
-    """Return whether *path* currently has the Linux ELF signature."""
-    try:
-        with path.open("rb") as handle:
-            return handle.read(4) == b"\x7fELF"
-    except OSError:
-        return False
-
-
 def _launcher_path_compatibility(
+    registrations: ExecutableRegistrationBackend,
     launcher_path: Path | None,
     runtime_path: Path | None,
 ) -> int:
     """Score launchers that can legitimately replace themselves at runtime."""
     if launcher_path is None or runtime_path is None:
         return 0
-    return 1 if not _is_native_executable(launcher_path) else 0
+    return 1 if not registrations.is_native_executable(launcher_path) else 0
 
 
 class AppIdMatcher:
@@ -208,10 +208,12 @@ class AppIdMatcher:
         process_identity_service: ProcessIdentityService,
         *,
         cache_missed_desktop_ids: bool = False,
+        allow_unlisted_executables: bool = False,
     ) -> None:
         self._registry = registry
         self._process_identity_service = process_identity_service
         self._cache_missed_desktop_ids = cache_missed_desktop_ids
+        self._allow_unlisted_executables = allow_unlisted_executables
         self._visible_aliases: dict[str, list[_VisibleAppIdentity]] = {}
         self._missed_candidates: set[str] = set()
         self._registry_generation = self._registry.generation
@@ -310,6 +312,31 @@ class AppIdMatcher:
             process=process,
             application_ids=application_ids,
         )
+        if (
+            match is None
+            and self._allow_unlisted_executables
+            and process is not None
+            and process.executable_path is not None
+            and app_id.casefold() == process.executable_path.stem.casefold()
+            and self._registry.registrations.is_native_executable(
+                process.executable_path
+            )
+        ):
+            # Some native programs have no catalog entry or installed alias.
+            # A basename supplied by the backend can still identify their
+            # exact executable; declared hosted-app IDs keep normal matching.
+            match = self._runtime_match(
+                executable_path=process.executable_path,
+                source=None,
+                name=process.executable_path.stem,
+                icon_name="",
+                wm_class=app_id,
+                raw_app_id=app_id,
+                instance_hint=instance_hint,
+                process=process,
+                process_id=process_id,
+                method=MatchMethod.RUNTIME_EXECUTABLE,
+            )
         return ApplicationMatchAttempt(
             match=match,
             pid=process.pid if process is not None else _evidence_pid(process_id),
@@ -611,7 +638,7 @@ class AppIdMatcher:
             return
         self._registry_generation = generation
         self._missed_candidates.clear()
-        _is_native_executable.cache_clear()
+        self._registry.registrations.clear_cache()
 
     def _match_visible_alias(
         self,
@@ -651,13 +678,16 @@ class AppIdMatcher:
             enumerate(matches),
             key=lambda indexed: (
                 _launcher_path_compatibility(
+                    self._registry.registrations,
                     indexed[1].executable_path,
                     executable_path,
                 ),
                 indexed[0],
             ),
         )[1]
-        if _executable_paths_conflict(selected.executable_path, executable_path):
+        if _executable_paths_conflict(
+            self._registry.registrations, selected.executable_path, executable_path
+        ):
             assert executable_path is not None
             return self._runtime_match(
                 executable_path=executable_path,
@@ -744,6 +774,7 @@ class AppIdMatcher:
             enumerate(resolved_candidates),
             key=lambda indexed: (
                 _launcher_path_compatibility(
+                    self._registry.registrations,
                     indexed[1][1],
                     executable_path,
                 ),
@@ -751,7 +782,9 @@ class AppIdMatcher:
             ),
         )[1]
         application, selected_path = selected
-        if _executable_paths_conflict(selected_path, executable_path):
+        if _executable_paths_conflict(
+            self._registry.registrations, selected_path, executable_path
+        ):
             assert executable_path is not None
             return self._runtime_match(
                 executable_path=executable_path,
@@ -786,8 +819,10 @@ class AppIdMatcher:
         instance_hint: str | None,
         process: ProcessIdentity | None,
         process_id: int | None,
+        method: MatchMethod = MatchMethod.RUNTIME_PATH_SPLIT,
     ) -> ApplicationMatch:
         application = _runtime_application(
+            registrations=self._registry.registrations,
             executable_path=executable_path,
             source=source,
             name=name,
@@ -797,7 +832,7 @@ class AppIdMatcher:
         return self._application_match(
             desktop_id=application.desktop_id,
             application=application,
-            method=MatchMethod.RUNTIME_PATH_SPLIT,
+            method=method,
             raw_app_id=raw_app_id,
             instance_hint=instance_hint,
             process=process,
@@ -906,6 +941,7 @@ class AppIdMatcher:
 
 def _runtime_application(
     *,
+    registrations: ExecutableRegistrationBackend,
     executable_path: Path,
     source: ApplicationInfo | None,
     name: str,
@@ -913,7 +949,7 @@ def _runtime_application(
     wm_class: str,
 ) -> ApplicationInfo:
     """Create deterministic canonical metadata for a path-split process."""
-    desktop_id = desktop_entries.generated_desktop_id_for_path(executable_path)
+    desktop_id = registrations.generated_id(executable_path)
     display_name = (
         name
         or (source.name if source is not None else "")
@@ -930,7 +966,7 @@ def _runtime_application(
     aliases = tuple(
         dict.fromkeys(
             (
-                *desktop_entries.match_aliases(
+                *registrations.match_aliases(
                     desktop_id,
                     runtime_wm_class,
                     exec_line,

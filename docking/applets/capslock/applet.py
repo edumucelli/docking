@@ -20,18 +20,19 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.capslock import meta
 from docking.applets.capslock.render import render_icon
 from docking.applets.capslock.state import (
     POLL_INTERVAL_S,
     LockKeyState,
     menu_label,
-    query_lock_state,
     tooltip_text,
 )
 from docking.applets.menu import disabled_menu_item, menu_sections
@@ -44,17 +45,27 @@ if TYPE_CHECKING:
 log = with_context(get_logger(name="capslock"), applet_id=meta.id)
 
 
-class CapslockApplet(Applet):
+class CapslockApplet(PlatformServicesApplet):
     """Show Caps Lock and Num Lock state for keyboards without LEDs."""
 
     id = meta.id
     name = _("Caps Lock")
     icon_name = "input-keyboard"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
-        self._state: LockKeyState = query_lock_state()
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
+        self._backend = self._platform.backends.capslock()
+        self._state: LockKeyState = self._backend.get_state()
         self._timer_id: int = 0
-        super().__init__(icon_size=icon_size, config=config)
+        super().__init__(
+            icon_size=icon_size, config=config, platform_services=platform_services
+        )
         self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -99,12 +110,12 @@ class CapslockApplet(Applet):
         return menu_sections(status=status, refresh=[refresh], gtk=Gtk)
 
     def _refresh_now(self) -> None:
-        self._state = query_lock_state()
+        self._state = self._backend.get_state()
         self.present()
 
     def _tick(self) -> bool:
         old_state = self._state
-        self._state = query_lock_state()
+        self._state = self._backend.get_state()
         if self._state != old_state:
             self.present()
         return True

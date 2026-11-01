@@ -5,22 +5,23 @@ import gi
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf
 
-from docking.applets.webapp.applet import STARTUP_DELAY_S as STARTUP_DELAY_S
-from docking.applets.webapp.applet import GLib as GLib
 from docking.applets.webapp.applet import WebAppApplet
 from docking.applets.whatsapp import meta
-from docking.applets.whatsapp.browser import WhatsAppBrowser
 from docking.applets.whatsapp.render import render_icon
-from docking.applets.whatsapp.state import WHATSAPP_WEB_URL, WhatsAppState, tooltip_text
+from docking.applets.whatsapp.state import (
+    PROFILE,
+    WHATSAPP_WEB_URL,
+    WhatsAppState,
+    tooltip_text,
+)
 from docking.i18n import _
-from docking.platform import targets as targets
 
 
 class WhatsAppApplet(WebAppApplet):
     id = meta.id
     name = _("WhatsApp")
     icon_name = "phone-symbolic"
-    browser_factory = WhatsAppBrowser
+    profile = PROFILE
     state_factory = WhatsAppState
     web_url = WHATSAPP_WEB_URL
     open_label = _("Open WhatsApp")

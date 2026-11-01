@@ -2,28 +2,38 @@
 
 from types import SimpleNamespace
 
-import docking.applets.session.applet as session_applet_mod
-import docking.applets.session.state as session_state_mod
+import docking.applets.session.implementations.unix.actions as session_unix_mod
 from docking.applets.session.applet import SessionApplet
-from docking.applets.session.state import _ACTIONS, lock_screen
+from docking.applets.session.implementations.linux.backend import LinuxSessionBackend
+from docking.applets.session.state import _ACTIONS
 from docking.core.config import Config
+from tests.platform_factories import (
+    TestAppletBackendFactories,
+    make_applet_platform,
+)
 
 
 class TestSessionApplet:
     def test_creates_with_icon(self):
-        applet = SessionApplet(48, config=Config())
+        applet = SessionApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         assert applet.item.icon is not None
         assert applet.item.name == "Session"
 
     def test_icon_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = SessionApplet(size, config=Config())
+            applet = SessionApplet(
+                size, config=Config(), platform_services=make_applet_platform()
+            )
             pixbuf = applet.create_icon(size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
 
     def test_menu_has_all_actions(self):
-        applet = SessionApplet(48, config=Config())
+        applet = SessionApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         items = applet.get_menu_items()
         labels = [mi.get_label() for mi in items]
         assert labels == [
@@ -41,63 +51,57 @@ class TestSessionApplet:
         assert "Shut Down" in labels
         assert "Suspend" in labels
 
-    def test_left_click_locks_screen(self, monkeypatch):
-        calls: list[str] = []
-        monkeypatch.setattr(
-            session_applet_mod,
-            "lock_screen",
-            lambda: calls.append("lock") or True,
+    def test_left_click_and_menu_dispatch_semantic_actions(self, monkeypatch):
+        calls = []
+        backend = SimpleNamespace(
+            available_actions=lambda: frozenset(
+                {"lock", "suspend", "logout", "reboot", "poweroff"}
+            ),
+            perform=lambda action: calls.append(action) or True,
+            stop=lambda: calls.append("stop"),
         )
-        applet = SessionApplet(48, config=Config())
+        monkeypatch.setattr(
+            TestAppletBackendFactories, "session", staticmethod(lambda: backend)
+        )
+        applet = SessionApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         applet.on_clicked()
-        assert calls == ["lock"]
-
-    def test_lock_menu_item_uses_lock_helper(self, monkeypatch):
-        class _FakeMenuItem:
-            def __init__(self, label: str = "") -> None:
-                self._label = label
-                self._signals: dict[str, tuple[object, tuple[object, ...]]] = {}
-
-            def get_label(self) -> str:
-                return self._label
-
-            def connect(self, signal: str, callback, *args) -> None:
-                self._signals[signal] = (callback, args)
-
-            def activate(self) -> None:
-                callback, args = self._signals["activate"]
-                callback(None, *args)
-
-        monkeypatch.setattr(
-            session_applet_mod,
-            "Gtk",
-            SimpleNamespace(MenuItem=_FakeMenuItem),
-        )
-
-        calls: list[str] = []
-        monkeypatch.setattr(
-            session_applet_mod,
-            "lock_screen",
-            lambda: calls.append("lock") or True,
-        )
-        monkeypatch.setattr(
-            session_applet_mod,
-            "_run",
-            lambda **kwargs: calls.append("run"),
-        )
-
-        applet = SessionApplet(48, config=Config())
         items = applet.get_menu_items()
-        items[0].activate()
-        items[1].activate()
-        assert calls == ["lock", "run"]
+        for item in items:
+            if item.get_label():
+                callback, args = item._signals["activate"][0]
+                callback(item, *args)
+        applet.stop()
+        assert calls == [
+            "lock",
+            "lock",
+            "suspend",
+            "logout",
+            "reboot",
+            "poweroff",
+            "stop",
+        ]
+
+    def test_menu_disables_unavailable_actions(self, monkeypatch):
+        backend = SimpleNamespace(
+            available_actions=lambda: frozenset({"lock", "logout"})
+        )
+        monkeypatch.setattr(
+            TestAppletBackendFactories, "session", staticmethod(lambda: backend)
+        )
+        applet = SessionApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
+        rows = [r for r in applet.get_menu_items() if r.get_label()]
+        assert [r.get_sensitive() for r in rows] == [True, False, True, False, False]
 
 
-class TestSessionState:
+class TestUnixSessionBackend:
     def test_lock_screen_prefers_screensaver_dbus(self, monkeypatch):
         monkeypatch.delenv("XDG_SESSION_ID", raising=False)
         monkeypatch.setattr(
-            session_state_mod.shutil,
+            session_unix_mod.shutil,
             "which",
             lambda cmd: "/usr/bin/gdbus" if cmd == "gdbus" else None,
         )
@@ -109,9 +113,9 @@ class TestSessionState:
             seen.append(list(cmd))
             return SimpleNamespace(returncode=0, stderr="")
 
-        monkeypatch.setattr(session_state_mod.subprocess, "run", fake_run)
+        monkeypatch.setattr(session_unix_mod.subprocess, "run", fake_run)
 
-        assert lock_screen() is True
+        assert LinuxSessionBackend().perform("lock") is True
         assert seen == [
             [
                 "/usr/bin/gdbus",
@@ -129,7 +133,7 @@ class TestSessionState:
     def test_lock_screen_prefers_explicit_session_id(self, monkeypatch):
         monkeypatch.setenv("XDG_SESSION_ID", "2")
         monkeypatch.setattr(
-            session_state_mod.shutil,
+            session_unix_mod.shutil,
             "which",
             lambda cmd: f"/usr/bin/{cmd}" if cmd in {"loginctl"} else None,
         )
@@ -141,15 +145,15 @@ class TestSessionState:
             seen.append(list(cmd))
             return SimpleNamespace(returncode=0, stderr="")
 
-        monkeypatch.setattr(session_state_mod.subprocess, "run", fake_run)
+        monkeypatch.setattr(session_unix_mod.subprocess, "run", fake_run)
 
-        assert lock_screen() is True
+        assert LinuxSessionBackend().perform("lock") is True
         assert seen == [["loginctl", "lock-session", "2"]]
 
     def test_lock_screen_falls_back_to_screensaver(self, monkeypatch):
         monkeypatch.delenv("XDG_SESSION_ID", raising=False)
         monkeypatch.setattr(
-            session_state_mod.shutil,
+            session_unix_mod.shutil,
             "which",
             lambda cmd: (
                 f"/usr/bin/{cmd}"
@@ -167,30 +171,30 @@ class TestSessionState:
                 return SimpleNamespace(returncode=1, stderr="no session")
             return SimpleNamespace(returncode=0, stderr="")
 
-        monkeypatch.setattr(session_state_mod.subprocess, "run", fake_run)
+        monkeypatch.setattr(session_unix_mod.subprocess, "run", fake_run)
 
-        assert lock_screen() is True
+        assert LinuxSessionBackend().perform("lock") is True
         assert seen == [["mate-screensaver-command", "-l"]]
 
     def test_lock_screen_returns_false_when_commands_missing_or_fail(self, monkeypatch):
         monkeypatch.delenv("XDG_SESSION_ID", raising=False)
-        monkeypatch.setattr(session_state_mod.shutil, "which", lambda _cmd: None)
+        monkeypatch.setattr(session_unix_mod.shutil, "which", lambda _cmd: None)
 
-        assert lock_screen() is False
+        assert LinuxSessionBackend().perform("lock") is False
 
-        monkeypatch.setattr(session_state_mod.shutil, "which", lambda _cmd: "/bin/x")
+        monkeypatch.setattr(session_unix_mod.shutil, "which", lambda _cmd: "/bin/x")
 
         def fail_run(cmd, capture_output, text, timeout, check):
             _ = (cmd, capture_output, text, timeout, check)
             return SimpleNamespace(returncode=1, stderr="no")
 
-        monkeypatch.setattr(session_state_mod.subprocess, "run", fail_run)
-        assert lock_screen() is False
+        monkeypatch.setattr(session_unix_mod.subprocess, "run", fail_run)
+        assert LinuxSessionBackend().perform("lock") is False
 
     def test_lock_screen_continues_after_oserror(self, monkeypatch):
         monkeypatch.delenv("XDG_SESSION_ID", raising=False)
         monkeypatch.setattr(
-            session_state_mod.shutil,
+            session_unix_mod.shutil,
             "which",
             lambda cmd: (
                 f"/usr/bin/{cmd}" if cmd in {"loginctl", "xdg-screensaver"} else None
@@ -205,19 +209,19 @@ class TestSessionState:
                 raise OSError("missing display")
             return SimpleNamespace(returncode=0, stderr="")
 
-        monkeypatch.setattr(session_state_mod.subprocess, "run", fake_run)
+        monkeypatch.setattr(session_unix_mod.subprocess, "run", fake_run)
 
-        assert lock_screen() is True
+        assert LinuxSessionBackend().perform("lock") is True
         assert seen == [["xdg-screensaver", "lock"], ["loginctl", "lock-session"]]
 
     def test_lock_screen_uses_host_commands_in_flatpak(self, monkeypatch):
         monkeypatch.setenv("XDG_SESSION_ID", "2")
         monkeypatch.setattr(
-            session_state_mod.flatpak,
+            session_unix_mod.flatpak,
             "spawn_path",
             lambda **_: "/usr/bin/flatpak-spawn",
         )
-        monkeypatch.setattr(session_state_mod.shutil, "which", lambda _cmd: None)
+        monkeypatch.setattr(session_unix_mod.shutil, "which", lambda _cmd: None)
         seen: list[list[str]] = []
 
         def fake_run(cmd, capture_output, text, timeout, check):
@@ -227,9 +231,9 @@ class TestSessionState:
                 return SimpleNamespace(returncode=0, stderr="")
             return SimpleNamespace(returncode=1, stderr="missing")
 
-        monkeypatch.setattr(session_state_mod.subprocess, "run", fake_run)
+        monkeypatch.setattr(session_unix_mod.subprocess, "run", fake_run)
 
-        assert lock_screen() is True
+        assert LinuxSessionBackend().perform("lock") is True
         assert seen[0] == [
             "/usr/bin/flatpak-spawn",
             "--host",
@@ -265,34 +269,34 @@ class TestSessionState:
     def test_run_logs_popen_failure(self, monkeypatch):
         launched: list[list[str]] = []
         monkeypatch.setattr(
-            session_state_mod.subprocess,
+            session_unix_mod.subprocess,
             "Popen",
             lambda cmd, **_kwargs: launched.append(list(cmd)),
         )
-        session_state_mod._run(action="suspend")
+        LinuxSessionBackend().perform("suspend")
         assert launched == [["systemctl", "suspend"]]
 
         monkeypatch.setattr(
-            session_state_mod.subprocess,
+            session_unix_mod.subprocess,
             "Popen",
             lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("boom")),
         )
-        session_state_mod._run(action="suspend")
+        LinuxSessionBackend().perform("suspend")
 
     def test_run_uses_host_command_in_flatpak(self, monkeypatch):
         launched: list[list[str]] = []
         monkeypatch.setattr(
-            session_state_mod.flatpak,
+            session_unix_mod.flatpak,
             "spawn_path",
             lambda **_: "/usr/bin/flatpak-spawn",
         )
         monkeypatch.setattr(
-            session_state_mod.subprocess,
+            session_unix_mod.subprocess,
             "Popen",
             lambda cmd, **_kwargs: launched.append(list(cmd)),
         )
 
-        session_state_mod._run(action="suspend")
+        LinuxSessionBackend().perform("suspend")
 
         assert launched == [
             [

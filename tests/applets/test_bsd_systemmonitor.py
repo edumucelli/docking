@@ -4,8 +4,8 @@ from collections import namedtuple
 from pathlib import Path
 from types import SimpleNamespace
 
-from docking.applets.systemmonitor import bsd
-from docking.applets.trash import bsd as trash_backend
+from docking.applets.systemmonitor.implementations.bsd import backend as bsd
+from docking.platform.host.implementations.bsd import mounts as trash_backend
 
 
 def test_cpu_uses_cumulative_native_times_without_sleeping(monkeypatch):

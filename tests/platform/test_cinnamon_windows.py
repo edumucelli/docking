@@ -80,6 +80,18 @@ def test_snapshot_matching_excludes_own_dock_and_taskbar_ineligible_windows():
     assert snapshot.can_preview
 
 
+def test_menu_removal_uses_native_window_identity_with_an_xwayland_dock(monkeypatch):
+    from docking.platform import environment
+
+    monkeypatch.setattr(environment, "is_x11_backend", lambda: True)
+    service, _client, _model = _service(_row())
+    service.refresh()
+    native_id = service.list_windows("firefox.desktop")[0].id
+
+    assert service.defer_menu_row_removal(native_id)
+    assert not service.defer_menu_row_removal(WindowId.x11(7))
+
+
 def test_inactive_and_minimized_apps_activate_mru_without_launching():
     service, client, _ = _service(_row(2, minimized=True), _row(1))
     assert service.toggle_focus("firefox.desktop") is ActionResult.OK

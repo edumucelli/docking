@@ -24,7 +24,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gtk
 
 from docking.log import get_logger
-from docking.platform.backends.base import MonitorSnapshot, Rect, Size
+from docking.platform.backends.base import MonitorSnapshot, Rect, Size, SurfaceService
 
 log = get_logger("display")
 
@@ -188,12 +188,21 @@ def clamp_popup(
     )
 
 
-def popup_workarea(popup: Gtk.Window, anchor_x: float, anchor_y: float) -> Rect:
+def popup_workarea(
+    popup: Gtk.Window,
+    anchor_x: float,
+    anchor_y: float,
+    *,
+    surface_service: SurfaceService | None = None,
+) -> Rect:
     """Logical bounds of the anchor monitor, excluding external panels when known.
 
     Select from the icon, not the proposed popup origin: an overflowing popup
     can start on another monitor. Do not infer panel geometry on Wayland; use
     GDK's workarea when the surface backend cannot distinguish reservations.
+    An explicit surface uses monitor_workarea(), including the dock's own
+    reservation when fitting an independent palette into the usable desktop.
+    Otherwise, use the transient parent's external_workarea().
     """
     display = popup.get_display()
     monitor = display.get_monitor_at_point(int(anchor_x), int(anchor_y))
@@ -204,8 +213,10 @@ def popup_workarea(popup: Gtk.Window, anchor_x: float, anchor_y: float) -> Rect:
     bounds = Rect(geometry.x, geometry.y, geometry.width, geometry.height)
     workarea = monitor.get_workarea()
     area = Rect(workarea.x, workarea.y, workarea.width, workarea.height)
-    parent = popup.get_transient_for()
-    surface = window_surface_service(parent) if parent is not None else None
+    surface = surface_service
+    if surface is None:
+        parent = popup.get_transient_for()
+        surface = window_surface_service(parent) if parent is not None else None
     if surface is not None:
         index = next(
             (
@@ -215,17 +226,20 @@ def popup_workarea(popup: Gtk.Window, anchor_x: float, anchor_y: float) -> Rect:
             ),
             0,
         )
-        external = surface.external_workarea(
-            MonitorSnapshot(
-                index=index,
-                geometry=bounds,
-                workarea=area,
-                scale=monitor.get_scale_factor(),
-                primary=monitor == display.get_primary_monitor(),
-            )
+        snapshot = MonitorSnapshot(
+            index=index,
+            geometry=bounds,
+            workarea=area,
+            scale=monitor.get_scale_factor(),
+            primary=monitor == display.get_primary_monitor(),
         )
-        if external is not None:
-            area = external
+        resolved = (
+            surface.monitor_workarea(snapshot)
+            if surface_service is not None
+            else surface.external_workarea(snapshot)
+        )
+        if resolved is not None:
+            area = resolved
     left, top = max(bounds.x, area.x), max(bounds.y, area.y)
     right, bottom = min(bounds.right, area.right), min(bounds.bottom, area.bottom)
     if right <= left or bottom <= top:

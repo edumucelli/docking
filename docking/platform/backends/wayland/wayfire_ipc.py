@@ -1093,7 +1093,7 @@ class WayfireWindowPickService(WindowPickService):
         return record.pid if record.pid and record.pid > 0 else None
 
     def kill(self, window_id: WindowId) -> ActionResult:
-        from docking.applets.windowkiller.state import kill_pid
+        from docking.platform.backends.unix.processes import kill_pid
 
         pid = self.pid_for(window_id)
         if pid is None:

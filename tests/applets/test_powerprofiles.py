@@ -5,17 +5,21 @@ from __future__ import annotations
 import subprocess
 from dataclasses import replace
 
+import pytest
+
 import docking.applets.powerprofiles.applet as powerprofiles_applet_mod
-import docking.applets.powerprofiles.state as powerprofiles_state_mod
+import docking.applets.powerprofiles.implementations.unix.backend as powerprofiles_linux_mod
 from docking.applets.powerprofiles.applet import PowerProfilesApplet
-from docking.applets.powerprofiles.render import create_power_profiles_icon
-from docking.applets.powerprofiles.state import (
-    NullPowerProfilesBackend,
+from docking.applets.powerprofiles.backend import NullPowerProfilesBackend
+from docking.applets.powerprofiles.implementations.unix.backend import (
     PowerProfilesBackend,
-    PowerProfilesState,
     TlpBackend,
     TunedBackend,
     detect_backend,
+)
+from docking.applets.powerprofiles.render import create_power_profiles_icon
+from docking.applets.powerprofiles.state import (
+    PowerProfilesState,
     normalize_profile,
     order_profiles,
     profile_label,
@@ -23,6 +27,7 @@ from docking.applets.powerprofiles.state import (
     unavailable_state,
 )
 from docking.core.config import Config
+from tests.platform_factories import TestAppletBackendFactories, make_applet_platform
 
 
 def _state(**overrides: object) -> PowerProfilesState:
@@ -124,7 +129,7 @@ class TestPowerProfilesBackend:
                 raise Exception("dbus fail")
 
         backend._dbus_proxy = _Proxy()
-        monkeypatch.setattr(powerprofiles_state_mod.GLib, "Error", Exception)
+        monkeypatch.setattr(powerprofiles_linux_mod.GLib, "Error", Exception)
         assert backend._has_service_owner() is False
 
     def test_get_all_properties_returns_none_without_bus(self):
@@ -174,7 +179,7 @@ class TestPowerProfilesBackend:
                 raise Exception("boom")
 
         backend._bus = _Bus()
-        monkeypatch.setattr(powerprofiles_state_mod.GLib, "Error", Exception)
+        monkeypatch.setattr(powerprofiles_linux_mod.GLib, "Error", Exception)
         assert (
             backend._set_property(
                 interface="i",
@@ -207,9 +212,14 @@ class TestPowerProfilesBackend:
 
 
 class TestFallbackBackends:
+    @pytest.fixture(autouse=True)
+    def no_live_ppd_bus(self, monkeypatch):
+        # Detection tests stub snapshots; they must not open a real system bus.
+        monkeypatch.setattr(PowerProfilesBackend, "__init__", lambda self: None)
+
     def test_detect_backend_prefers_ppd(self, monkeypatch):
         monkeypatch.setattr(
-            powerprofiles_state_mod.PowerProfilesBackend,
+            powerprofiles_linux_mod.PowerProfilesBackend,
             "get_state",
             lambda self: _state(),
         )
@@ -218,15 +228,15 @@ class TestFallbackBackends:
 
     def test_detect_backend_falls_back_to_tuned(self, monkeypatch):
         monkeypatch.setattr(
-            powerprofiles_state_mod.PowerProfilesBackend,
+            powerprofiles_linux_mod.PowerProfilesBackend,
             "get_state",
             lambda self: unavailable_state(),
         )
         monkeypatch.setattr(
-            powerprofiles_state_mod, "_has_command", lambda cmd: cmd == "tuned-adm"
+            powerprofiles_linux_mod, "_has_command", lambda cmd: cmd == "tuned-adm"
         )
         monkeypatch.setattr(
-            powerprofiles_state_mod.TunedBackend,
+            powerprofiles_linux_mod.TunedBackend,
             "get_state",
             lambda self: _state(
                 active_profile="balanced",
@@ -238,17 +248,17 @@ class TestFallbackBackends:
 
     def test_detect_backend_falls_back_to_tlp(self, monkeypatch):
         monkeypatch.setattr(
-            powerprofiles_state_mod.PowerProfilesBackend,
+            powerprofiles_linux_mod.PowerProfilesBackend,
             "get_state",
             lambda self: unavailable_state(),
         )
         monkeypatch.setattr(
-            powerprofiles_state_mod,
+            powerprofiles_linux_mod,
             "_has_command",
             lambda cmd: cmd in {"tlp", "tlp-stat"},
         )
         monkeypatch.setattr(
-            powerprofiles_state_mod.TlpBackend,
+            powerprofiles_linux_mod.TlpBackend,
             "get_state",
             lambda self: _state(
                 active_profile="power-saver",
@@ -260,11 +270,11 @@ class TestFallbackBackends:
 
     def test_detect_backend_returns_null_when_none_available(self, monkeypatch):
         monkeypatch.setattr(
-            powerprofiles_state_mod.PowerProfilesBackend,
+            powerprofiles_linux_mod.PowerProfilesBackend,
             "get_state",
             lambda self: unavailable_state(),
         )
-        monkeypatch.setattr(powerprofiles_state_mod, "_has_command", lambda cmd: False)
+        monkeypatch.setattr(powerprofiles_linux_mod, "_has_command", lambda cmd: False)
         backend = detect_backend()
         assert isinstance(backend, NullPowerProfilesBackend)
 
@@ -291,9 +301,9 @@ class TestFallbackBackends:
                 )
             return None
 
-        monkeypatch.setattr(powerprofiles_state_mod, "_run", fake_run)
+        monkeypatch.setattr(powerprofiles_linux_mod, "_run", fake_run)
         monkeypatch.setattr(
-            powerprofiles_state_mod, "_has_command", lambda cmd: cmd == "tuned-adm"
+            powerprofiles_linux_mod, "_has_command", lambda cmd: cmd == "tuned-adm"
         )
         state = backend.get_state()
         assert state.available is True
@@ -303,12 +313,12 @@ class TestFallbackBackends:
     def test_tlp_backend_maps_mode(self, monkeypatch):
         backend = TlpBackend()
         monkeypatch.setattr(
-            powerprofiles_state_mod,
+            powerprofiles_linux_mod,
             "_has_command",
             lambda cmd: cmd in {"tlp", "tlp-stat"},
         )
         monkeypatch.setattr(
-            powerprofiles_state_mod,
+            powerprofiles_linux_mod,
             "_run",
             lambda cmd, timeout_s=2.5: (
                 "Mode = battery\n" if cmd == ["tlp-stat", "-s"] else ""
@@ -320,14 +330,14 @@ class TestFallbackBackends:
 
     def test_tuned_backend_unavailable_without_binary(self, monkeypatch):
         backend = TunedBackend()
-        monkeypatch.setattr(powerprofiles_state_mod, "_has_command", lambda _cmd: False)
+        monkeypatch.setattr(powerprofiles_linux_mod, "_has_command", lambda _cmd: False)
         state = backend.get_state()
         assert state.available is False
         assert "tuned-adm not available" in state.error
 
     def test_tuned_backend_unavailable_when_no_supported_profiles(self, monkeypatch):
         backend = TunedBackend()
-        monkeypatch.setattr(powerprofiles_state_mod, "_has_command", lambda _cmd: True)
+        monkeypatch.setattr(powerprofiles_linux_mod, "_has_command", lambda _cmd: True)
         monkeypatch.setattr(backend, "_active_profile_name", lambda: "")
         monkeypatch.setattr(backend, "_available_profile_names", lambda: ("custom",))
         state = backend.get_state()
@@ -336,7 +346,7 @@ class TestFallbackBackends:
 
     def test_tuned_backend_defaults_active_to_first_profile(self, monkeypatch):
         backend = TunedBackend()
-        monkeypatch.setattr(powerprofiles_state_mod, "_has_command", lambda _cmd: True)
+        monkeypatch.setattr(powerprofiles_linux_mod, "_has_command", lambda _cmd: True)
         monkeypatch.setattr(backend, "_active_profile_name", lambda: "")
         monkeypatch.setattr(
             backend, "_available_profile_names", lambda: ("balanced", "powersave")
@@ -367,7 +377,7 @@ class TestFallbackBackends:
             lambda canonical, available_profiles: "balanced",
         )
         monkeypatch.setattr(
-            powerprofiles_state_mod,
+            powerprofiles_linux_mod,
             "_run",
             lambda cmd, timeout_s=4.0: "",
         )
@@ -376,7 +386,7 @@ class TestFallbackBackends:
     def test_tuned_active_profile_name_and_available_names_parsers(self, monkeypatch):
         backend = TunedBackend()
         monkeypatch.setattr(
-            powerprofiles_state_mod,
+            powerprofiles_linux_mod,
             "_run",
             lambda cmd, timeout_s=3.0: (
                 "noise\n"
@@ -422,23 +432,23 @@ class TestFallbackBackends:
 
     def test_tlp_backend_unavailable_when_commands_absent(self, monkeypatch):
         backend = TlpBackend()
-        monkeypatch.setattr(powerprofiles_state_mod, "_has_command", lambda _cmd: False)
+        monkeypatch.setattr(powerprofiles_linux_mod, "_has_command", lambda _cmd: False)
         state = backend.get_state()
         assert state.available is False
         assert "tlp not available" in state.error
 
     def test_tlp_backend_detects_other_status_variants(self, monkeypatch):
         backend = TlpBackend()
-        monkeypatch.setattr(powerprofiles_state_mod, "_has_command", lambda _cmd: True)
+        monkeypatch.setattr(powerprofiles_linux_mod, "_has_command", lambda _cmd: True)
         monkeypatch.setattr(
-            powerprofiles_state_mod,
+            powerprofiles_linux_mod,
             "_run",
             lambda cmd, timeout_s=3.0: "Power source = AC\n",
         )
         assert backend.get_state().active_profile == "performance"
 
         monkeypatch.setattr(
-            powerprofiles_state_mod,
+            powerprofiles_linux_mod,
             "_run",
             lambda cmd, timeout_s=3.0: "unknown status\n",
         )
@@ -454,7 +464,7 @@ class TestFallbackBackends:
                 return None
             return ""
 
-        monkeypatch.setattr(powerprofiles_state_mod, "_run", fake_run)
+        monkeypatch.setattr(powerprofiles_linux_mod, "_run", fake_run)
         assert backend.set_active_profile("power-saver") is True
         assert backend.set_active_profile("balanced") is True
         assert backend.set_active_profile("performance") is False
@@ -470,6 +480,9 @@ class _StubBackend:
     def get_state(self) -> PowerProfilesState:
         return self.state
 
+    def stop(self) -> None:
+        pass
+
     def set_active_profile(self, profile: str) -> bool:
         self.set_calls.append(profile)
         self.state = replace(self.state, active_profile=profile)
@@ -481,8 +494,14 @@ def _make_applet(
     state: PowerProfilesState,
 ) -> tuple[PowerProfilesApplet, _StubBackend]:
     backend = _StubBackend(state=state)
-    monkeypatch.setattr(powerprofiles_applet_mod, "detect_backend", lambda: backend)
-    applet = PowerProfilesApplet(48, config=Config())
+    monkeypatch.setattr(
+        TestAppletBackendFactories,
+        "powerprofiles",
+        staticmethod(lambda: backend),
+    )
+    applet = PowerProfilesApplet(
+        48, config=Config(), platform_services=make_applet_platform()
+    )
     return applet, backend
 
 
@@ -615,10 +634,6 @@ class TestPowerProfilesApplet:
         )
         applet.start(notify=lambda: None)
         assert applet._poll_id == 77
-        applet.stop()
-        assert applet._poll_id == 0
-        assert removed == [77]
-
         calls: list[str] = []
 
         def fake_run_guarded(*, key, name, fn, on_result=None, on_error=None):
@@ -633,6 +648,11 @@ class TestPowerProfilesApplet:
         assert applet._tick() is True
         assert calls == ["poll"]
         assert applet._poll_worker() == backend.get_state()
+        applet.stop()
+        assert applet._poll_id == 0
+        assert removed == [77]
+        assert applet._tick() is False
+        assert calls == ["poll"]
 
     def test_on_clicked_handles_unknown_active_profile(self, monkeypatch):
         applet, backend = _make_applet(
@@ -681,6 +701,30 @@ class TestPowerProfilesApplet:
         assert applet._set_in_progress is False
         assert "Failed to set Performance" in applet._action_error
 
+    def test_stopped_applet_ignores_old_replies_and_cannot_launch_pending_write(
+        self, monkeypatch
+    ):
+        from unittest.mock import Mock
+
+        applet, backend = _make_applet(monkeypatch, _state())
+        backend.stop = Mock()
+        applet.present = Mock()
+        applet._pending_profile = "power-saver"
+        applet.stop()
+        assert (
+            applet._on_set_result(
+                "performance", True, _state(active_profile="performance")
+            )
+            is False
+        )
+        assert applet._on_set_error("performance", RuntimeError()) is False
+        assert applet._on_poll_result(_state(active_profile="performance")) is False
+        applet._set_profile_async(profile="power-saver")
+        assert applet._state.active_profile == "balanced"
+        assert not backend.set_calls
+        backend.stop.assert_called_once_with()
+        applet.present.assert_not_called()
+
 
 class TestPowerProfilesStateHelpers:
     def test_run_helper_branches(self, monkeypatch):
@@ -690,33 +734,33 @@ class TestPowerProfilesStateHelpers:
                 self.stdout = out
 
         monkeypatch.setattr(
-            powerprofiles_state_mod.subprocess,
+            powerprofiles_linux_mod.subprocess,
             "run",
             lambda *args, **kwargs: _Proc(0, "ok"),
         )
-        assert powerprofiles_state_mod._run(["echo"]) == "ok"
+        assert powerprofiles_linux_mod._run(["echo"]) == "ok"
 
         monkeypatch.setattr(
-            powerprofiles_state_mod.subprocess,
+            powerprofiles_linux_mod.subprocess,
             "run",
             lambda *args, **kwargs: _Proc(1, "nope"),
         )
-        assert powerprofiles_state_mod._run(["echo"]) is None
+        assert powerprofiles_linux_mod._run(["echo"]) is None
 
         def raise_timeout(*args, **kwargs):
             raise subprocess.TimeoutExpired(cmd="x", timeout=1)
 
-        monkeypatch.setattr(powerprofiles_state_mod.subprocess, "run", raise_timeout)
-        assert powerprofiles_state_mod._run(["echo"]) is None
+        monkeypatch.setattr(powerprofiles_linux_mod.subprocess, "run", raise_timeout)
+        assert powerprofiles_linux_mod._run(["echo"]) is None
 
     def test_has_command_and_supported_profiles(self, monkeypatch):
-        monkeypatch.setattr(powerprofiles_state_mod.shutil, "which", lambda cmd: None)
-        assert powerprofiles_state_mod._has_command("x") is False
+        monkeypatch.setattr(powerprofiles_linux_mod.shutil, "which", lambda cmd: None)
+        assert powerprofiles_linux_mod._has_command("x") is False
         monkeypatch.setattr(
-            powerprofiles_state_mod.shutil, "which", lambda cmd: "/bin/x"
+            powerprofiles_linux_mod.shutil, "which", lambda cmd: "/bin/x"
         )
-        assert powerprofiles_state_mod._has_command("x") is True
-        assert powerprofiles_state_mod._supported_profiles() == (
+        assert powerprofiles_linux_mod._has_command("x") is True
+        assert powerprofiles_linux_mod._supported_profiles() == (
             "power-saver",
             "balanced",
             "performance",
@@ -734,14 +778,14 @@ class TestPowerProfilesStateHelpers:
             def unpack(self):
                 raise RuntimeError("bad")
 
-        unpacked = powerprofiles_state_mod._unpack(
+        unpacked = powerprofiles_linux_mod._unpack(
             {"k": _Variant([_Variant("v"), 2]), "t": (_Variant("x"),)}
         )
         assert unpacked == {"k": ["v", 2], "t": ("x",)}
         broken = _BrokenVariant()
-        assert powerprofiles_state_mod._unpack(broken) is broken
-        assert powerprofiles_state_mod._as_str(None) == ""
-        assert powerprofiles_state_mod._as_str(_Variant("hello")) == "hello"
+        assert powerprofiles_linux_mod._unpack(broken) is broken
+        assert powerprofiles_linux_mod._as_str(None) == ""
+        assert powerprofiles_linux_mod._as_str(_Variant("hello")) == "hello"
 
 
 class TestPowerProfilesRender:

@@ -199,6 +199,7 @@ class DockInputController:
             hovered_id=hovered_id,
             drop_target_id=drop_target,
             cursor_main=cursor_main_axis,
+            input_region_alpha=window.surface_service.input_region_alpha,
         )
         window.renderer.draw(
             cr,
@@ -407,6 +408,11 @@ class DockInputController:
                 cursor_x=event.x,
                 cursor_y=event.y,
             )
+            item = None if force_background else frame.item_at_point(event.x, event.y)
+            if item is not None and is_applet(desktop_id=item.desktop_id):
+                applet = window.model.get_applet(item.desktop_id)
+                if applet is not None:
+                    applet.set_popup_anchor(window.popup_anchor_for_item(item, frame))
             self._interactions.show_context_menu(
                 event=event,
                 cursor_main=cursor_main,
@@ -568,6 +574,10 @@ class DockInputController:
         )
         if frame.cursor_rect.contains(event.x, event.y):
             window.interaction.on_effective_enter()
+            # A native crossing can arrive without a following motion event.
+            # Resolve the item now, so a stationary pointer gets its tooltip.
+            cursor_main = event.x if is_horizontal(pos=window.config.pos) else event.y
+            window.hover.update(cursor_main, frame=frame)
         return True
 
     def _on_model_changed(self) -> None:

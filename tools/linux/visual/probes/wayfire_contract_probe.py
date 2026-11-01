@@ -75,7 +75,15 @@ desktop_path.write_text(
     "[Desktop Entry]\nType=Application\nName=Wayfire contract fixture\n"
     "Exec=true\nStartupWMClass=lab-wayfire-contract\nIcon=utilities-terminal\n"
 )
-registry = ApplicationRegistry()
+from docking.platform.composition.selection import platform_provider
+
+provider = platform_provider()
+sources = provider.application_sources()
+registry = ApplicationRegistry(
+    catalog_backend=sources.catalog,
+    association_backend=sources.associations,
+    registration_backend=sources.registrations,
+)
 assert registry.refresh()
 model = SimpleNamespace(
     visible_items=lambda: [
@@ -88,7 +96,9 @@ model = SimpleNamespace(
 windows = WayfireWindowService(
     model=model,
     application_registry=registry,
-    process_identity_service=ProcessIdentityService(LaunchProvenanceStore()),
+    process_identity_service=ProcessIdentityService(
+        LaunchProvenanceStore(), backend=provider.processes()
+    ),
     client=client,
     config=Config(current_workspace_only=True),
 )

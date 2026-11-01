@@ -160,9 +160,15 @@ from typing import TYPE_CHECKING
 import gi
 
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, DockItem
+from docking.core.paths import local_path_from_uri_or_path
 from docking.core.position import Position, is_horizontal
 from docking.log import get_logger
-from docking.platform.applications import entries as desktop_entries
+from docking.platform.applications.constants import DESKTOP_SUFFIX
+from docking.platform.applications.drag import (
+    APPLICATION_DRAG_INFO,
+    APPLICATION_DRAG_MIME,
+    application_id_from_drag,
+)
 from docking.ui.display import get_pointer_position, window_screen_position
 from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
 from docking.ui.poof import show_poof
@@ -196,6 +202,9 @@ _DOCK_ITEM_TARGET = Gtk.TargetEntry.new(
     "dock-item-index", Gtk.TargetFlags.SAME_WIDGET, 0
 )
 _URI_TARGET = Gtk.TargetEntry.new("text/uri-list", 0, 1)
+_APPLICATION_TARGET = Gtk.TargetEntry.new(
+    APPLICATION_DRAG_MIME, Gtk.TargetFlags.SAME_APP, APPLICATION_DRAG_INFO
+)
 
 
 class DnDHandler:
@@ -290,7 +299,7 @@ class DnDHandler:
         )
         da.drag_dest_set(
             Gtk.DestDefaults(0),
-            [_DOCK_ITEM_TARGET, _URI_TARGET],
+            [_DOCK_ITEM_TARGET, _APPLICATION_TARGET, _URI_TARGET],
             Gdk.DragAction.MOVE | Gdk.DragAction.COPY,
         )
 
@@ -317,6 +326,9 @@ class DnDHandler:
         frame = self._geometry_builder.build_frame()
         self._drag_from = self.drag_index = -1
         self._dragged_item = None
+        # A preceding external applet drop has no source drag-end callback.
+        # Its successful drop must not suppress this new drag-off gesture.
+        self._drop_committed = False
         self._begin_drag_autohide()
         # Each internal reorder starts inside the dock. The drag-off removal
         # path must earn this flag through drag-leave during this drag cycle.
@@ -410,6 +422,13 @@ class DnDHandler:
                 y=float(y),
                 accepted_kinds=(APP_KIND, APPLET_KIND),
             )
+            # An application ID pins a launcher; it is not a file to open or
+            # send to a drop-aware applet such as Trash.
+            if any(
+                target.name() == APPLICATION_DRAG_MIME
+                for target in context.list_targets()
+            ):
+                item = None
             if item is not None and item.kind == APPLET_KIND:
                 applet = self._model.get_applet(item.desktop_id)
                 if applet is None or not applet.accepts_drop_uris():
@@ -504,12 +523,47 @@ class DnDHandler:
 
         # External drop -- process URIs
         insert_at = max(0, self.drop_insert_index)
+        application = None
+        uris = []
+        if _info == APPLICATION_DRAG_INFO:
+            desktop_id = application_id_from_drag(selection.get_data())
+            application = (
+                self._application_registry.get(desktop_id) if desktop_id else None
+            )
+        else:
+            uris = selection.get_uris()
+            if not uris:
+                text = selection.get_text()
+                if text:
+                    uris = [line.strip() for line in text.splitlines() if line.strip()]
+            # A native file source has no GTK source widget, so its private
+            # SAME_APP target may be unavailable. Its prepared export still
+            # identifies the application; preserve application-pin semantics
+            # before routing ordinary files to applets or launchers.
+            if uris and len(uris) == 1:
+                path = local_path_from_uri_or_path(uris[0])
+                if path is not None:
+                    application = self._application_registry.resolve_by_export_file(
+                        path
+                    )
+        if _info == APPLICATION_DRAG_INFO or application is not None:
+            added = bool(
+                application is not None
+                and application.visible
+                and self._model.insert_pinned_application(
+                    desktop_id=application.desktop_id, index=insert_at
+                )
+            )
+            if added:
+                self._renderer.slide_offsets.clear()
+                self._renderer.prev_positions.clear()
+            self.drop_insert_index = -1
+            self.drop_target_id = ""
+            self._drop_committed = False
+            self._reconcile_autohide_after_drag(reason="drag-data-received")
+            Gtk.drag_finish(context, added, False, time)
+            return
         log.debug(f"drag-data-received: external drop, insert_at={insert_at}")
-        uris = selection.get_uris()
-        if not uris:
-            text = selection.get_text()
-            if text:
-                uris = [line.strip() for line in text.splitlines() if line.strip()]
 
         # Check if dropped onto an applet that handles file/URI drops.
         applet_drop = self._try_drop_on_applet(x=x, y=y, uris=uris)
@@ -781,10 +835,9 @@ class DnDHandler:
         """Resolve and insert one external URI through the owning model boundary."""
         icon_size = self._config.scaled_icon_size
         application = self._resolve_desktop_application(uri)
-        desktop_path = desktop_entries.local_path_from_uri_or_path(uri)
+        desktop_path = local_path_from_uri_or_path(uri)
         is_desktop_target = (
-            desktop_path is not None
-            and desktop_path.suffix == desktop_entries.DESKTOP_SUFFIX
+            desktop_path is not None and desktop_path.suffix == DESKTOP_SUFFIX
         )
         log.debug(
             "_insert_pinned_uri: uri=%s desktop_id=%s",
@@ -801,7 +854,7 @@ class DnDHandler:
                 index=index,
             )
         if is_desktop_target:
-            desktop_id = desktop_entries.desktop_id_from_uri_or_path(uri)
+            desktop_id = self._application_registry.registrations.desktop_id(uri)
             if desktop_id is not None:
                 log.debug(
                     "_insert_pinned_uri: resolve returned None for %s",
@@ -812,16 +865,12 @@ class DnDHandler:
         if not self._prepare_appimage_for_generation(uri):
             return False
 
-        generated = desktop_entries.create_desktop_entry_for_executable(uri)
-        if generated is not None:
-            self._application_registry.refresh()
-            application = self._application_registry.get(generated.desktop_id)
-            if application is None:
-                log.debug(
-                    "_insert_pinned_uri: generated desktop entry did not resolve: %s",
-                    generated.desktop_id,
-                )
-                return False
+        try:
+            application = self._application_registry.register_executable(uri)
+        except OSError as exc:
+            log.warning("Could not resolve executable drop: %s", exc)
+            return False
+        if application is not None:
             log.debug(
                 "_insert_pinned_uri: generated application desktop_id=%s",
                 application.desktop_id,
@@ -852,26 +901,28 @@ class DnDHandler:
         if exact is not None:
             return exact
 
-        path = desktop_entries.local_path_from_uri_or_path(target)
-        if path is None or path.suffix != desktop_entries.DESKTOP_SUFFIX:
+        path = local_path_from_uri_or_path(target)
+        if path is None or path.suffix != DESKTOP_SUFFIX:
             return None
 
         application = self._application_registry.resolve_by_desktop_file(path)
         if application is not None:
             return application
 
-        desktop_id = desktop_entries.desktop_id_from_uri_or_path(target)
+        desktop_id = self._application_registry.registrations.desktop_id(target)
         if desktop_id is None:
             return None
         return self._application_registry.get(desktop_id)
 
     def _prepare_appimage_for_generation(self, uri: str) -> bool:
-        appimage = desktop_entries.appimage_path_needing_executable_permission(uri)
+        appimage = self._application_registry.registrations.appimage_needing_permission(
+            uri
+        )
         if appimage is None:
             return True
         if not self._confirm_make_appimage_executable(appimage):
             return False
-        return desktop_entries.make_user_executable(appimage)
+        return self._application_registry.registrations.make_executable(appimage)
 
     def _confirm_make_appimage_executable(self, path: Path) -> bool:
         dialog = Gtk.MessageDialog(

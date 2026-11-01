@@ -5,11 +5,16 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from docking.applets.camshield import bsd, helper
-from docking.applets.camshield.backend import create_backend
+import tests.platform_factories as test_platform
+from docking.applets.camshield.implementations.bsd import backend as bsd
+from docking.applets.camshield.implementations.unix import helper
+from tests.platform_factories import TestAppletBackendFactories, make_applet_platform
+
+create_backend = bsd.BsdCamshieldBackend
 from docking.applets.camshield.state import CameraHolder, CamshieldState, build_tooltip
 from docking.platform import environment
 
@@ -112,7 +117,11 @@ def test_freebsd_lock_refuses_to_destroy_an_unsaved_acl(monkeypatch, tmp_path):
     device.touch()
     device.chmod(0o660)
     with pytest.raises(OSError, match="ACL"):
-        helper.lock_devices(dev_root=tmp_path, state_dir=tmp_path / "state")
+        helper.lock_devices(
+            dev_root=tmp_path,
+            state_dir=tmp_path / "state",
+            backend=bsd.BsdCamshieldBackend(),
+        )
     assert device.stat().st_mode & 0o777 == 0o660
 
 
@@ -127,8 +136,20 @@ def test_freebsd_device_filesystem_without_acls_uses_mode_recovery(
     device = tmp_path / "video0"
     device.touch()
     device.chmod(0o640)
-    assert helper.lock_devices(dev_root=tmp_path, state_dir=tmp_path / "state") == 0
-    assert helper.unlock_devices(state_dir=tmp_path / "state") == 0
+    assert (
+        helper.lock_devices(
+            dev_root=tmp_path,
+            state_dir=tmp_path / "state",
+            backend=bsd.BsdCamshieldBackend(),
+        )
+        == 0
+    )
+    assert (
+        helper.unlock_devices(
+            state_dir=tmp_path / "state", backend=bsd.BsdCamshieldBackend()
+        )
+        == 0
+    )
     assert device.stat().st_mode & 0o777 == 0o640
 
 
@@ -145,7 +166,10 @@ def test_freebsd_failed_acl_restore_retains_recovery_data(monkeypatch, tmp_path)
         state={str(device): helper.DeviceSnapshot(device, 0o660, acl)},
         state_dir=tmp_path,
     )
-    assert helper.unlock_devices(state_dir=tmp_path) == 1
+    assert (
+        helper.unlock_devices(state_dir=tmp_path, backend=bsd.BsdCamshieldBackend())
+        == 1
+    )
     assert str(device) in helper._read_state(state_dir=tmp_path)
 
 
@@ -166,17 +190,21 @@ def test_camera_reads_run_off_gtk_and_old_replies_are_ignored(monkeypatch):
         def __init__(self, **kwargs):
             pass
 
-        def run_guarded(self, *, key, name, fn, on_result):
+        def run_guarded(self, *, key, name, fn, on_result, **kwargs):
             tasks.append((fn, on_result))
             return True
 
     monkeypatch.setattr(camera, "BackgroundWorker", Worker)
-    monkeypatch.setattr(
-        camera,
-        "probe_camera_state",
-        lambda: reads.append(True) or CamshieldState(True, True),
+    backend = SimpleNamespace(
+        get_state=lambda: reads.append(True) or CamshieldState(True, True),
+        stop=lambda: None,
     )
-    applet = camera.CamshieldApplet(48, Config())
+    monkeypatch.setattr(
+        TestAppletBackendFactories, "camshield", staticmethod(lambda: backend)
+    )
+    applet = camera.CamshieldApplet(
+        48, Config(), platform_services=make_applet_platform()
+    )
     assert not reads
     applet.stop()
     read, publish = tasks.pop()
@@ -187,17 +215,21 @@ def test_camera_reads_run_off_gtk_and_old_replies_are_ignored(monkeypatch):
 def test_interrupted_repeated_lock_preserves_the_original_recovery_record(
     monkeypatch, tmp_path
 ):
-    from docking.applets.camshield.linux import LinuxCamshieldBackend
-
     monkeypatch.setattr(helper.os, "geteuid", lambda: 0)
     monkeypatch.setattr(helper, "DEV_ROOT", tmp_path)
-    monkeypatch.setattr(helper, "create_backend", LinuxCamshieldBackend)
     monkeypatch.setattr(helper.shutil, "which", lambda name: None)
     device = tmp_path / "video0"
     device.touch()
     device.chmod(0o640)
     state_dir = tmp_path / "state"
-    assert helper.lock_devices(dev_root=tmp_path, state_dir=state_dir) == 0
+    assert (
+        helper.lock_devices(
+            dev_root=tmp_path,
+            state_dir=state_dir,
+            backend=test_platform.camera_control(),
+        )
+        == 0
+    )
     original = (state_dir / helper.STATE_FILE.name).read_bytes()
     with monkeypatch.context() as failure:
         failure.setattr(
@@ -206,9 +238,18 @@ def test_interrupted_repeated_lock_preserves_the_original_recovery_record(
             lambda *args: (_ for _ in ()).throw(OSError("interrupted")),
         )
         with pytest.raises(OSError):
-            helper.lock_devices(dev_root=tmp_path, state_dir=state_dir)
+            helper.lock_devices(
+                dev_root=tmp_path,
+                state_dir=state_dir,
+                backend=test_platform.camera_control(),
+            )
     assert (state_dir / helper.STATE_FILE.name).read_bytes() == original
-    assert helper.unlock_devices(state_dir=state_dir) == 0
+    assert (
+        helper.unlock_devices(
+            state_dir=state_dir, backend=test_platform.camera_control()
+        )
+        == 0
+    )
     assert device.stat().st_mode & 0o777 == 0o640
 
 
@@ -222,7 +263,11 @@ def test_corrupt_recovery_record_is_not_overwritten_by_lock(monkeypatch, tmp_pat
     record = state_dir / helper.STATE_FILE.name
     record.write_text("{")
     with pytest.raises(OSError, match="recovery"):
-        helper.lock_devices(dev_root=tmp_path, state_dir=state_dir)
+        helper.lock_devices(
+            dev_root=tmp_path,
+            state_dir=state_dir,
+            backend=test_platform.camera_control(),
+        )
     assert record.read_text() == "{"
     assert device.stat().st_mode & 0o777 == 0o640
 
@@ -254,7 +299,11 @@ def test_invalid_device_snapshot_cannot_replace_recovery_data(
     original = json.dumps({"version": 1, "devices": {str(device): snapshot}})
     record.write_text(original)
     with pytest.raises(OSError, match="recovery"):
-        helper.lock_devices(dev_root=tmp_path, state_dir=state_dir)
+        helper.lock_devices(
+            dev_root=tmp_path,
+            state_dir=state_dir,
+            backend=test_platform.camera_control(),
+        )
     assert record.read_text() == original
     assert device.stat().st_mode & 0o777 == 0
 
@@ -312,9 +361,21 @@ def test_actual_freebsd_permission_and_acl_roundtrip(monkeypatch, tmp_path):
     device.touch()
     device.chmod(0o640)
     state_dir = tmp_path / "state"
-    assert helper.lock_devices(dev_root=tmp_path, state_dir=state_dir) == 0
+    assert (
+        helper.lock_devices(
+            dev_root=tmp_path,
+            state_dir=state_dir,
+            backend=test_platform.camera_control(),
+        )
+        == 0
+    )
     assert device.stat().st_mode & 0o777 == 0
-    assert helper.unlock_devices(state_dir=state_dir) == 0
+    assert (
+        helper.unlock_devices(
+            state_dir=state_dir, backend=test_platform.camera_control()
+        )
+        == 0
+    )
     assert device.stat().st_mode & 0o777 == 0o640
 
 

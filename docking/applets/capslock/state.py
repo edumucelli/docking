@@ -11,23 +11,15 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Keyboard lock indicator detection for Caps Lock applet."""
+"""Keyboard lock state and presentation for Caps Lock applet."""
 
 from __future__ import annotations
 
-import re
-import shutil
-import subprocess
 from dataclasses import dataclass
 
 from docking.i18n import _
 
 POLL_INTERVAL_S = 1
-
-_INDICATOR_RE = re.compile(
-    r"\b(?P<index>\d+):\s*(?P<name>Caps Lock|Num Lock):\s*(?P<state>on|off)\b",
-    re.IGNORECASE,
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,43 +29,6 @@ class LockKeyState:
     available: bool
     caps_lock: bool = False
     num_lock: bool = False
-
-
-def query_lock_state() -> LockKeyState:
-    """Query Caps/Num lock state via X11 ``xset q``."""
-    if shutil.which("xset") is None:
-        return LockKeyState(available=False)
-
-    try:
-        completed = subprocess.run(
-            ["xset", "q"],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=1.0,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return LockKeyState(available=False)
-
-    if completed.returncode != 0:
-        return LockKeyState(available=False)
-    return parse_xset_query(completed.stdout)
-
-
-def parse_xset_query(output: str) -> LockKeyState:
-    """Parse ``xset q`` output for Caps Lock and Num Lock indicators."""
-    values: dict[str, bool] = {}
-    for match in _INDICATOR_RE.finditer(output):
-        name = match.group("name").lower()
-        values[name] = match.group("state").lower() == "on"
-
-    if "caps lock" not in values or "num lock" not in values:
-        return LockKeyState(available=False)
-    return LockKeyState(
-        available=True,
-        caps_lock=values["caps lock"],
-        num_lock=values["num lock"],
-    )
 
 
 def state_label(state: LockKeyState) -> str:

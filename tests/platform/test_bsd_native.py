@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from docking.applets.network import bsd as network_bsd
-from docking.applets.systemmonitor import bsd as system_bsd
-from docking.applets.trash import backend as trash_backend
+from docking.applets.network.implementations.bsd import backend as network_bsd
+from docking.applets.systemmonitor.implementations.bsd import backend as system_bsd
+from docking.applets.trash.implementations.unix import backend as trash_backend
 from docking.platform import environment
 
 pytestmark = pytest.mark.skipif(
