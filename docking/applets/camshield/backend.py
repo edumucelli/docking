@@ -1,18 +1,34 @@
-"""Camera privacy operations used by the applet."""
-
-from __future__ import annotations
+"""Camera state and explicit user actions shared by platform implementations."""
 
 from abc import ABC, abstractmethod
 
-from .state import CamshieldState
+from docking.applets.camshield.state import CamshieldState
 
 
 class CamshieldBackend(ABC):
     @abstractmethod
-    def probe(self) -> CamshieldState: ...
+    def get_state(self) -> CamshieldState: ...
+
     @abstractmethod
-    def helper_available(self) -> bool: ...
+    def controls_available(self) -> bool: ...
+
+    def lock_available(self) -> bool:
+        return self.controls_available()
+
+    def unlock_available(self) -> bool:
+        return self.controls_available()
+
     @abstractmethod
-    def perform(self, action: str) -> bool:
-        """Return whether the native action ran and requires a fresh probe."""
-        ...
+    def lock(self) -> bool: ...
+
+    @abstractmethod
+    def unlock(self) -> bool: ...
+
+    @abstractmethod
+    def stop(self) -> None: ...
+
+    def settings_available(self) -> bool:
+        return False
+
+    def open_settings(self) -> bool:
+        return False

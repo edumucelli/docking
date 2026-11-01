@@ -60,3 +60,7 @@ class LinuxSessionBackend(SessionBackend, SessionCommands):
         from ..unix.actions import lock_screen, perform
 
         return lock_screen(self) if action == "lock" else perform(self, action=action)
+
+    def stop(self) -> None:
+        # Commands complete synchronously; no resources remain owned here.
+        pass

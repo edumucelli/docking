@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 import gi
@@ -30,14 +29,16 @@ from gi.repository import GLib, Gtk
 from docking.applets.base import PlatformServicesApplet
 from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.notifications import meta
-from docking.applets.worker import BackgroundWorker
+from docking.applets.worker import SerialWorker
 from docking.core.math import clamp_index, clamp_int
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
-from .backend import NotificationsBackend
 from .render import create_notifications_icon
 from .state import (
+    HISTORY_LIMIT,
+    NotificationEntry,
+    NotificationsSnapshot,
     NotificationsState,
     tooltip_text,
 )
@@ -49,19 +50,11 @@ log = with_context(get_logger(name="notifications"), applet_id=meta.id)
 
 POLL_INTERVAL_S = 2
 ACTIVITY_WINDOW_S = 8
-HISTORY_LIMIT = 40
 TOOLTIP_APP_LIMIT = 36
 TOOLTIP_SUMMARY_LIMIT = 72
 TOOLTIP_BODY_LIMIT = 96
 MAX_HISTORY_BADGE_COUNT = 99
 ELLIPSIS_RESERVED_CHARS = 3
-
-
-@dataclass(frozen=True, slots=True)
-class NotificationEntry:
-    app_name: str
-    summary: str
-    body: str
 
 
 class NotificationsApplet(PlatformServicesApplet):
@@ -79,23 +72,26 @@ class NotificationsApplet(PlatformServicesApplet):
         platform_services: AppletPlatformServices,
     ) -> None:
         self._platform = platform_services
-        self._native = platform_services.backends.notifications()
-        self._backend: NotificationsBackend = self._native.detect_backend()
-        self._state: NotificationsState = self._backend.get_state()
+        self._backend = self._platform.backends.notifications()
+        self._state = NotificationsState()
+        self._stopped = False
+        self._lifetime = 0
+        self._generation = 0
+        self._pending_target: bool | None = None
+        self._pending = False
+        self._loading = True
+        self._error = False
         self._timer_id: int = 0
         self._activity_until_monotonic: float = 0.0
         self._activity_clear_id: int = 0
         self._history: list[NotificationEntry] = []
         self._history_index: int = 0
-        self._worker = BackgroundWorker()
-        self._activity_monitor = self._native.activity_monitor(
-            on_event=self._on_notification_event,
-            on_activity=self._on_notification_activity,
-        )
+        self._worker = SerialWorker(on_close=self._backend.close)
         super().__init__(
             icon_size=icon_size, config=config, platform_services=platform_services
         )
         self.present()
+        self._tick()
 
     def create_icon(self, size: int):
         return create_notifications_icon(
@@ -108,6 +104,12 @@ class NotificationsApplet(PlatformServicesApplet):
 
     def refresh_tooltip(self) -> None:
         lines = [tooltip_text(self._state)]
+        if self._loading or self._pending:
+            lines.append(_("Loading..."))
+        elif self._error:
+            lines.append(_("Could not update notifications"))
+        if self._state.access_required:
+            lines.append(_("Notification history requires access in Windows Settings"))
         current = self._current_notification_lines()
         if current:
             lines.append("")
@@ -115,28 +117,45 @@ class NotificationsApplet(PlatformServicesApplet):
         self.item.name = "\n".join(lines)
 
     def start(self, notify: Callable[[], None]) -> None:
+        if self._stopped:
+            self._backend = self._platform.backends.notifications()
+            self._worker = SerialWorker(on_close=self._backend.close)
+            self._stopped = False
+            self._loading = True
+            self._tick()
         super().start(notify=notify)
         self._timer_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)
-        self._start_activity_monitor()
 
     def stop(self) -> None:
+        if self._stopped:
+            return
+        self._stopped = True
+        self._lifetime += 1
+        self._pending = False
+        self._pending_target = None
+        self._backend.stop()
+        self._worker.stop()
         if self._activity_clear_id:
             GLib.source_remove(self._activity_clear_id)
             self._activity_clear_id = 0
-        self._stop_activity_monitor()
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
         super().stop()
 
     def on_clicked(self) -> None:
-        if not self._state.available:
+        if self._stopped:
             return
-        target = not self._state.paused
-        if self._backend.set_paused(target):
-            self._state = replace(self._state, paused=target)
-            self.present()
-            self._refresh_now()
+        if not self._state.available:
+            self._tick()
+            return
+        if self._state.can_pause and self._state.paused_known:
+            current = (
+                self._pending_target
+                if self._pending_target is not None
+                else self._state.paused
+            )
+            self._set_paused(not current)
 
     def on_scroll(self, direction_up: bool) -> None:
         if not self._history:
@@ -151,6 +170,7 @@ class NotificationsApplet(PlatformServicesApplet):
 
         dnd = Gtk.CheckMenuItem(label=_("Do Not Disturb"))
         dnd.set_active(self._state.paused)
+        dnd.set_sensitive(self._state.can_pause and self._state.paused_known)
         dnd.connect("toggled", self._on_toggle_dnd)
 
         status: list[Gtk.MenuItem] = []
@@ -166,7 +186,7 @@ class NotificationsApplet(PlatformServicesApplet):
         clear_history.connect("activate", lambda _w: self._on_clear_history())
         destructive = [clear_history]
 
-        if self._backend.supports_clear:
+        if self._state.can_clear:
             clear = Gtk.MenuItem(label=_("Clear Notifications"))
             clear.connect("activate", lambda _w: self._on_clear())
             destructive.append(clear)
@@ -175,18 +195,20 @@ class NotificationsApplet(PlatformServicesApplet):
 
     def _on_toggle_dnd(self, widget: Gtk.CheckMenuItem) -> None:
         target = widget.get_active()
-        if target == self._state.paused:
+        if target != self._state.paused and self._state.can_pause:
+            self._set_paused(target)
+
+    def _set_paused(self, paused: bool) -> None:
+        if self._stopped:
             return
-        if self._backend.set_paused(target):
-            self._state = replace(self._state, paused=target)
-            self.present()
-            self._refresh_now()
-            return
-        widget.set_active(self._state.paused)
+        backend = self._backend
+        self._pending_target = paused
+        self._request(lambda: backend.set_paused(paused))
 
     def _on_clear(self) -> None:
-        if self._backend.clear_notifications():
-            self._refresh_now()
+        if self._state.can_clear:
+            backend, state = self._backend, self._state
+            self._request(lambda: backend.clear_notifications(state))
 
     def _on_clear_history(self) -> None:
         if not self._history:
@@ -195,28 +217,87 @@ class NotificationsApplet(PlatformServicesApplet):
         self._history_index = 0
         self.present()
 
+    def _current(self, lifetime: int) -> bool:
+        return not self._stopped and lifetime == self._lifetime
+
+    def _request(self, action: Callable[[], bool]) -> None:
+        if self._stopped:
+            return
+        self._generation += 1
+        generation, lifetime, backend = self._generation, self._lifetime, self._backend
+        self._pending = True
+        self.present()
+
+        def request() -> tuple[NotificationsSnapshot, bool]:
+            if not self._current(lifetime):
+                return NotificationsSnapshot(), False
+            success = action()
+            return backend.poll(), success
+
+        self._worker.run(
+            name="notifications-action",
+            fn=request,
+            on_result=lambda result: self._deliver(
+                result[0], generation, lifetime, result[1]
+            ),
+            on_error=lambda _error: self._failed(generation, lifetime),
+        )
+
     def _tick(self) -> bool:
+        if self._stopped:
+            return False
+        generation, lifetime, backend = self._generation, self._lifetime, self._backend
         self._worker.run_guarded(
             key="poll",
             name="notifications-poll",
-            fn=self._poll_worker,
-            on_result=self._on_poll_result,
+            fn=lambda: (
+                backend.poll() if self._current(lifetime) else NotificationsSnapshot()
+            ),
+            on_result=lambda result: self._deliver(result, generation, lifetime),
+            on_error=lambda _error: self._failed(generation, lifetime),
         )
         return True
 
-    def _poll_worker(self) -> NotificationsState:
-        if not self._state.available:
-            self._backend = self._native.detect_backend()
-        return self._backend.get_state()
+    def _deliver(
+        self,
+        snapshot: NotificationsSnapshot,
+        generation: int,
+        lifetime: int,
+        success: bool = True,
+    ) -> bool:
+        if not self._current(lifetime):
+            return False
+        # A control can supersede state, but events already drained on that
+        # earlier read still belong to this lifetime and must not disappear.
+        for entry in snapshot.events:
+            if entry is None:
+                self._on_notification_activity()
+            else:
+                self._on_notification_event(entry.app_name, entry.summary, entry.body)
+        if generation == self._generation:
+            self._loading = False
+            self._error = not success
+            self._pending = False
+            self._pending_target = None
+            self._on_poll_result(snapshot.state)
+            self.present()
+        return False
+
+    def _failed(self, generation: int, lifetime: int) -> bool:
+        if self._current(lifetime) and generation == self._generation:
+            self._loading = False
+            self._pending = False
+            self._pending_target = None
+            self._error = True
+            self._state = NotificationsState()
+            self.present()
+        return False
 
     def _on_poll_result(self, state: NotificationsState) -> bool:
         if state != self._state:
             self._state = state
             self.present()
         return False
-
-    def _refresh_now(self) -> None:
-        self._on_poll_result(self._poll_worker())
 
     def _show_activity_badge(self) -> bool:
         return (
@@ -280,9 +361,3 @@ class NotificationsApplet(PlatformServicesApplet):
         if len(normalized) <= limit:
             return normalized
         return normalized[: max(1, limit - ELLIPSIS_RESERVED_CHARS)].rstrip() + "..."
-
-    def _start_activity_monitor(self) -> None:
-        self._activity_monitor.start()
-
-    def _stop_activity_monitor(self) -> None:
-        self._activity_monitor.stop()

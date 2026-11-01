@@ -47,7 +47,9 @@ def navigation_target(uri: str | None) -> NavigationTarget:
 def tooltip_text(state: WebAppState) -> str:
     """Build the concise applet tooltip for the current browser state."""
     if state.phase is BrowserPhase.UNAVAILABLE:
-        return _("WhatsApp: WebKitGTK is not installed")
+        if state.error:
+            return _("WhatsApp: {error}").format(error=state.error)
+        return _("WhatsApp: browser is unavailable")
     if state.phase is BrowserPhase.STARTING:
         return _("WhatsApp: loading...")
     if state.phase is BrowserPhase.LOGIN_REQUIRED:

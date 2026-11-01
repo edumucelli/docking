@@ -60,17 +60,17 @@ def replace_session(
     session_id: str,
     model_usage: dict[str, aiusage_state.ModelUsage],
 ) -> None:
-    """Atomically replace a session's usage in Docking preferences."""
+    """Replace one session while serializing concurrent hook writers."""
     if not model_usage:
         return
 
     path = config_path()
     ensure_parent_dir(path)
 
-    fd = os.open(str(path), os.O_RDWR | os.O_CREAT, 0o644)
+    fd = os.open(str(path), os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o644)
     try:
-        with host_services().writer_lock(fd):
-            with os.fdopen(os.dup(fd), "r") as handle:
+        with host_services().writer_lock(fd, path=path):
+            with os.fdopen(os.dup(fd), "r", encoding="utf-8") as handle:
                 try:
                     config = json.load(handle)
                 except (json.JSONDecodeError, ValueError) as exc:
@@ -96,6 +96,7 @@ def replace_session(
             data = json.dumps(config, indent=2) + "\n"
             os.lseek(fd, 0, os.SEEK_SET)
             os.ftruncate(fd, 0)
-            os.write(fd, data.encode("utf-8"))
+            with os.fdopen(os.dup(fd), "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(data)
     finally:
         os.close(fd)

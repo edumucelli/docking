@@ -1,26 +1,39 @@
-"""Unix native operations extracted without changing fallback policy."""
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+"""Unix notification settings and bounded D-Bus activity monitoring."""
 
 from __future__ import annotations
 
+import json
 import subprocess
-from collections.abc import Callable
+import threading
 
-from docking.applets.notifications.backend import (
-    NotificationsOperations as NotificationsOperationsBase,
-)
-from docking.platform.environment import flatpak
-
-from ...backend import NotificationsBackend
-from ...state import (
-    _GNOME_SCHEMA,
-    _GNOME_SHOW_BANNERS_KEY,
+from docking.applets.notifications import meta
+from docking.applets.notifications.backend import NotificationsBackend
+from docking.applets.notifications.state import (
+    NotificationsSnapshot,
     NotificationsState,
-    _parse_bool,
-    _parse_pending_count,
-    log,
     unavailable_state,
 )
+from docking.log import get_logger, with_context
+from docking.platform.environment import flatpak
+
 from .activity import UnixNotificationActivityMonitor
+
+log = with_context(get_logger(name="notifications"), applet_id=meta.id)
+_GNOME_SCHEMA = "org.gnome.desktop.notifications"
+_GNOME_SHOW_BANNERS_KEY = "show-banners"
 
 
 def _run_direct(cmd: list[str], timeout_s: float = 2.0) -> str | None:
@@ -51,7 +64,41 @@ def _run(cmd: list[str], timeout_s: float = 2.0) -> str | None:
     return _run_direct(cmd, timeout_s=timeout_s)
 
 
-class DunstBackend(NotificationsBackend):
+def _parse_bool(value: str | None) -> bool | None:
+    if value is None:
+        return None
+    lowered = value.strip().lower()
+    if lowered in {"true", "1", "yes", "on"}:
+        return True
+    if lowered in {"false", "0", "no", "off"}:
+        return False
+    return None
+
+
+def _parse_pending_count(value: str | None) -> int | None:
+    if value is None:
+        return None
+    stripped = value.strip()
+    if not stripped:
+        return None
+
+    if stripped.isdigit():
+        return int(stripped)
+
+    try:
+        payload = json.loads(stripped)
+    except json.JSONDecodeError as exc:
+        log.debug("Failed to parse pending notification count %r: %s", stripped, exc)
+        return None
+
+    if isinstance(payload, dict):
+        waiting = payload.get("waiting")
+        if isinstance(waiting, int):
+            return max(0, waiting)
+    return None
+
+
+class DunstBackend:
     """Backend for dunstctl."""
 
     name = "dunstctl"
@@ -72,6 +119,9 @@ class DunstBackend(NotificationsBackend):
             paused=paused,
             pending=pending or 0,
             pending_known=pending is not None,
+            paused_known=True,
+            can_pause=True,
+            can_clear=True,
         )
 
     def set_paused(self, paused: bool) -> bool:
@@ -82,7 +132,7 @@ class DunstBackend(NotificationsBackend):
         return _run(["dunstctl", "history-clear"]) is not None
 
 
-class GnomeBackend(NotificationsBackend):
+class GnomeBackend:
     """Backend for GNOME notification settings via gsettings."""
 
     name = "gnome"
@@ -100,6 +150,8 @@ class GnomeBackend(NotificationsBackend):
             paused=not show_banners,
             pending=0,
             pending_known=False,
+            paused_known=True,
+            can_pause=True,
         )
 
     def set_paused(self, paused: bool) -> bool:
@@ -121,7 +173,7 @@ class GnomeBackend(NotificationsBackend):
         return False
 
 
-class NullBackend(NotificationsBackend):
+class NullBackend:
     """Unavailable backend."""
 
     name = "none"
@@ -138,7 +190,7 @@ class NullBackend(NotificationsBackend):
         return False
 
 
-def detect_backend() -> NotificationsBackend:
+def detect_backend() -> DunstBackend | GnomeBackend | NullBackend:
     """Detect the best available notification backend."""
     if flatpak.host_command_available("dunstctl"):
         backend = DunstBackend()
@@ -151,16 +203,33 @@ def detect_backend() -> NotificationsBackend:
     return NullBackend()
 
 
-class NotificationsOperations(NotificationsOperationsBase):
-    def detect_backend(self) -> NotificationsBackend:
-        return detect_backend()
+class LinuxNotificationsBackend(NotificationsBackend):
+    def __init__(self) -> None:
+        self._backend: DunstBackend | GnomeBackend | NullBackend = NullBackend()
+        self._monitor = UnixNotificationActivityMonitor()
+        self._stopped = threading.Event()
+        self._started = False
 
-    def activity_monitor(
-        self,
-        *,
-        on_event: Callable[[str, str, str], bool | None],
-        on_activity: Callable[[], bool | None],
-    ) -> UnixNotificationActivityMonitor:
-        return UnixNotificationActivityMonitor(
-            on_event=on_event, on_activity=on_activity
-        )
+    def poll(self) -> NotificationsSnapshot:
+        if self._stopped.is_set():
+            return NotificationsSnapshot()
+        if not self._started:
+            self._monitor.start()
+            self._started = True
+        state = self._backend.get_state()
+        if not state.available:
+            self._backend = detect_backend()
+            state = self._backend.get_state()
+        return NotificationsSnapshot(state, self._monitor.drain())
+
+    def set_paused(self, paused: bool) -> bool:
+        return not self._stopped.is_set() and self._backend.set_paused(paused)
+
+    def clear_notifications(self, state: NotificationsState) -> bool:
+        return not self._stopped.is_set() and self._backend.clear_notifications()
+
+    def stop(self) -> None:
+        self._stopped.set()
+
+    def close(self) -> None:
+        self._monitor.stop()

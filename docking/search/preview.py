@@ -144,7 +144,12 @@ def preview_local_target(
         return SearchPreview(title=title, body=str(path), kind="file")
     if b"\0" in payload:
         return SearchPreview(title=title, body=str(path), kind="binary")
-    body = payload.decode("utf-8", errors="replace").strip()
+    body = (
+        payload.decode("utf-8", errors="replace")
+        .replace("\r\n", "\n")
+        .replace("\r", "\n")
+        .strip()
+    )
     suffix = path.suffix.casefold()
     if suffix in {".md", ".markdown"}:
         return SearchPreview(

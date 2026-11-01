@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -14,10 +15,34 @@ if TYPE_CHECKING:
 class BluetoothCapabilities:
     trust: bool = True
     remove_pairing: bool = True
+    power: bool = True
+    discovery: bool = True
+    connect: bool = True
+    disconnect: bool = True
+    pair: bool = True
+    connect_label: str | None = None
+    disconnect_label: str | None = None
+
+
+class BluetoothAction(Enum):
+    SEND_FILES = "send_files"
+    DEVICES = "devices"
+    ADAPTERS = "adapters"
+    LOCAL_SERVICES = "local_services"
 
 
 class BluetoothBackend(ABC):
     capabilities = BluetoothCapabilities()
+
+    def device_capabilities(self, device_path: str) -> BluetoothCapabilities:
+        """Read controls from published state, without device IO on GTK."""
+        return self.capabilities
+
+    def desktop_actions(self) -> tuple[BluetoothAction, ...]:
+        return ()
+
+    def open_desktop_action(self, action: BluetoothAction) -> bool:
+        return False
 
     @abstractmethod
     def close(self) -> None:

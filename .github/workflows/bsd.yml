@@ -65,6 +65,7 @@ jobs:
             python_suffix=$(python3 -c 'import sys; print(str(sys.version_info.major) + str(sys.version_info.minor))')
             pkg install -y "py${python_suffix}-pygobject" "py${python_suffix}-pycairo" \
               "py${python_suffix}-pytest" "py${python_suffix}-psutil" "py${python_suffix}-pip" \
+              "py${python_suffix}-numpy" \
               gtk3 libwnck3 libXtst libXScrnSaver xfce4-wm xorg-vfbserver dbus dejavu gettext-tools polkit xterm
           run: |
             sh tools/bsd/visual/vm-run.sh artifacts/bsd-visual/freebsd
@@ -76,7 +77,7 @@ jobs:
           sync: rsync
           copyback: true
           prepare: |
-            pkg_add py3-gobject3 py3-cairo py3-test py3-psutil py3-pip gtk+3 libwnck3 xfwm4 dbus gettext-tools polkit
+            pkg_add py3-gobject3 py3-cairo py3-test py3-psutil py3-pip py3-numpy gtk+3 libwnck3 xfwm4 dbus gettext-tools polkit
           run: |
             export PATH="/usr/local/bin:/usr/X11R6/bin:$PATH"
             sh tools/bsd/visual/vm-run.sh artifacts/bsd-visual/openbsd

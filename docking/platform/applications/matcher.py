@@ -128,7 +128,12 @@ _GENERIC_BUNDLE_ROOTS = frozenset(
 
 def _application_executable_path(application: ApplicationInfo) -> Path | None:
     """Resolve the application's current executable target."""
-    return desktop_entries.executable_path_from_exec_line(application.exec_line)
+    # Re-read desktop Exec targets so symlink changes remain observable. Native
+    # catalogs can provide a canonical path without an Exec command at all.
+    return (
+        desktop_entries.executable_path_from_exec_line(application.exec_line)
+        or application.executable_path
+    )
 
 
 def _executable_paths_conflict(
@@ -203,10 +208,12 @@ class AppIdMatcher:
         process_identity_service: ProcessIdentityService,
         *,
         cache_missed_desktop_ids: bool = False,
+        allow_unlisted_executables: bool = False,
     ) -> None:
         self._registry = registry
         self._process_identity_service = process_identity_service
         self._cache_missed_desktop_ids = cache_missed_desktop_ids
+        self._allow_unlisted_executables = allow_unlisted_executables
         self._visible_aliases: dict[str, list[_VisibleAppIdentity]] = {}
         self._missed_candidates: set[str] = set()
         self._registry_generation = self._registry.generation
@@ -305,6 +312,31 @@ class AppIdMatcher:
             process=process,
             application_ids=application_ids,
         )
+        if (
+            match is None
+            and self._allow_unlisted_executables
+            and process is not None
+            and process.executable_path is not None
+            and app_id.casefold() == process.executable_path.stem.casefold()
+            and self._registry.registrations.is_native_executable(
+                process.executable_path
+            )
+        ):
+            # Some native programs have no catalog entry or installed alias.
+            # A basename supplied by the backend can still identify their
+            # exact executable; declared hosted-app IDs keep normal matching.
+            match = self._runtime_match(
+                executable_path=process.executable_path,
+                source=None,
+                name=process.executable_path.stem,
+                icon_name="",
+                wm_class=app_id,
+                raw_app_id=app_id,
+                instance_hint=instance_hint,
+                process=process,
+                process_id=process_id,
+                method=MatchMethod.RUNTIME_EXECUTABLE,
+            )
         return ApplicationMatchAttempt(
             match=match,
             pid=process.pid if process is not None else _evidence_pid(process_id),
@@ -787,6 +819,7 @@ class AppIdMatcher:
         instance_hint: str | None,
         process: ProcessIdentity | None,
         process_id: int | None,
+        method: MatchMethod = MatchMethod.RUNTIME_PATH_SPLIT,
     ) -> ApplicationMatch:
         application = _runtime_application(
             registrations=self._registry.registrations,
@@ -799,7 +832,7 @@ class AppIdMatcher:
         return self._application_match(
             desktop_id=application.desktop_id,
             application=application,
-            method=MatchMethod.RUNTIME_PATH_SPLIT,
+            method=method,
             raw_app_id=raw_app_id,
             instance_hint=instance_hint,
             process=process,

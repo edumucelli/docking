@@ -14,9 +14,8 @@ itself is the stable identity and canonical deduplication key.
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from pathlib import Path
-from urllib.parse import unquote, urlparse
 
+from docking.core.paths import is_explicit_path, local_path_from_uri_or_path
 from docking.i18n import _
 from docking.platform.targets import TargetService
 from docking.search.coordinator import SearchRequest
@@ -111,15 +110,12 @@ class PathSearchProvider:
         if parts[1] == "open":
             return self._target_service.open_target(parts[0])
         if parts[1] == "copy":
-            parsed = urlparse(parts[0])
+            path = local_path_from_uri_or_path(parts[0])
+            value = str(path) if path is not None else parts[0]
             try:
-                value = (
-                    unquote(parsed.path, errors="strict")
-                    if parsed.scheme == "file"
-                    else parts[0]
-                )
-            except UnicodeDecodeError:
-                # A URI preserves filename bytes that clipboard text cannot represent.
+                value.encode("utf-8", errors="strict")
+            except UnicodeEncodeError:
+                # Clipboard text cannot represent POSIX surrogateescaped bytes.
                 value = parts[0]
             self._copy_text(value)
             return True
@@ -131,14 +127,7 @@ def _path_target(
     *,
     normalize: Callable[[str], str | None],
 ) -> str | None:
-    if text.startswith("file://"):
-        return normalize(text)
-    if not text.startswith(("/", "~/", "./", "../")):
-        return None
-    path = Path(text).expanduser()
-    if not path.exists():
-        return None
-    return normalize(str(path))
+    return normalize(text) if is_explicit_path(text) else None
 
 
 __all__ = ["PathSearchProvider"]

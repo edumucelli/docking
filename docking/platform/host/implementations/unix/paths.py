@@ -20,6 +20,12 @@ from pathlib import Path
 from urllib.parse import unquote_to_bytes, urlparse
 
 
+def is_explicit_path(target: str) -> bool:
+    return target.startswith(("/", "~/", "./", "../")) or target.lower().startswith(
+        "file:"
+    )
+
+
 def local_path_from_uri_or_path(target: str) -> Path | None:
     """Decode a local file URI or expand a plain path safely."""
     if not target:

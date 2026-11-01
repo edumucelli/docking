@@ -9,15 +9,18 @@ from typing import ClassVar
 from unittest.mock import MagicMock
 
 import docking.applets.notifications.applet as notifications_applet_mod
-import docking.applets.notifications.implementations.unix.activity as native_activity
-import docking.applets.notifications.implementations.unix.backend as native_notifications
-import docking.applets.notifications.state as notifications_state_mod
+import docking.applets.notifications.implementations.unix.activity as activity_mod
+import docking.applets.notifications.implementations.unix.backend as notifications_state_mod
+import docking.applets.notifications.state as pure_state
 from docking.applets.notifications.applet import (
     HISTORY_LIMIT,
     NotificationEntry,
     NotificationsApplet,
 )
 from docking.applets.notifications.backend import NotificationsBackend
+from docking.applets.notifications.implementations.unix.activity import (
+    UnixNotificationActivityMonitor as ActivityMonitor,
+)
 from docking.applets.notifications.implementations.unix.backend import (
     DunstBackend,
     GnomeBackend,
@@ -26,12 +29,14 @@ from docking.applets.notifications.implementations.unix.backend import (
 )
 from docking.applets.notifications.render import create_notifications_icon
 from docking.applets.notifications.state import (
+    NotificationsSnapshot,
     NotificationsState,
     tooltip_text,
     unavailable_state,
 )
 from docking.core.config import Config
-from tests.platform_factories import make_applet_platform
+from tests.applets.inline_worker import InlineSerialWorker
+from tests.platform_factories import TestAppletBackendFactories, make_applet_platform
 
 
 def _state(**overrides: object) -> NotificationsState:
@@ -41,12 +46,11 @@ def _state(**overrides: object) -> NotificationsState:
         paused=False,
         pending=3,
         pending_known=True,
+        paused_known=True,
+        can_pause=True,
+        can_clear=True,
     )
-    values = {
-        field: getattr(base, field) for field in NotificationsState.__dataclass_fields__
-    }
-    values.update(overrides)
-    return NotificationsState(**values)
+    return replace(base, **overrides)
 
 
 class TestTooltipText:
@@ -84,13 +88,10 @@ class TestStateParsing:
         assert notifications_state_mod._parse_pending_count("[]") is None
 
     def test_pending_badge_count(self):
-        assert notifications_state_mod.pending_badge_count(unavailable_state()) == 0
-        assert (
-            notifications_state_mod.pending_badge_count(_state(pending_known=False))
-            == 0
-        )
-        assert notifications_state_mod.pending_badge_count(_state(pending=4)) == 4
-        assert notifications_state_mod.pending_badge_count(_state(pending=999)) == 99
+        assert pure_state.pending_badge_count(unavailable_state()) == 0
+        assert pure_state.pending_badge_count(_state(pending_known=False)) == 0
+        assert pure_state.pending_badge_count(_state(pending=4)) == 4
+        assert pure_state.pending_badge_count(_state(pending=999)) == 99
 
     def test_run_and_has_command_helpers(self, monkeypatch):
         class _Proc:
@@ -99,33 +100,33 @@ class TestStateParsing:
                 self.stdout = out
 
         monkeypatch.setattr(
-            native_notifications.flatpak,
+            notifications_state_mod.flatpak,
             "spawn_path",
             lambda **_: None,
         )
         monkeypatch.setattr(
-            native_notifications.subprocess,
+            notifications_state_mod.subprocess,
             "run",
             lambda *args, **kwargs: _Proc(0, "ok\n"),
         )
-        assert native_notifications._run(["echo"]) == "ok"
+        assert notifications_state_mod._run(["echo"]) == "ok"
 
         monkeypatch.setattr(
-            native_notifications.subprocess,
+            notifications_state_mod.subprocess,
             "run",
             lambda *args, **kwargs: _Proc(1, "no"),
         )
-        assert native_notifications._run(["echo"]) is None
+        assert notifications_state_mod._run(["echo"]) is None
 
         def fail_run(*args, **kwargs):
             raise subprocess.TimeoutExpired(cmd="x", timeout=1)
 
         monkeypatch.setattr(
-            native_notifications.subprocess,
+            notifications_state_mod.subprocess,
             "run",
             fail_run,
         )
-        assert native_notifications._run(["echo"]) is None
+        assert notifications_state_mod._run(["echo"]) is None
 
     def test_run_prefers_host_command_in_flatpak(self, monkeypatch):
         class _Proc:
@@ -139,18 +140,19 @@ class TestStateParsing:
             return _Proc()
 
         monkeypatch.setattr(
-            native_notifications.flatpak,
+            notifications_state_mod.flatpak,
             "spawn_path",
             lambda **_: "/usr/bin/flatpak-spawn",
         )
         monkeypatch.setattr(
-            native_notifications.subprocess,
+            notifications_state_mod.subprocess,
             "run",
             fake_run,
         )
 
         assert (
-            native_notifications._run(["gsettings", "get", "schema", "key"]) == "false"
+            notifications_state_mod._run(["gsettings", "get", "schema", "key"])
+            == "false"
         )
         assert calls == [
             [
@@ -182,7 +184,7 @@ class TestStateParsing:
             return table.get(tuple(cmd))
 
         monkeypatch.setattr(
-            native_notifications,
+            notifications_state_mod,
             "_run",
             fake_run,
         )
@@ -203,7 +205,7 @@ class TestStateParsing:
             return table.get(tuple(cmd))
 
         monkeypatch.setattr(
-            native_notifications,
+            notifications_state_mod,
             "_run",
             fake_run,
         )
@@ -215,7 +217,7 @@ class TestStateParsing:
 
     def test_gnome_backend_get_state(self, monkeypatch):
         monkeypatch.setattr(
-            native_notifications,
+            notifications_state_mod,
             "_run",
             lambda cmd, timeout_s=2.0: (
                 "false"
@@ -230,7 +232,7 @@ class TestStateParsing:
 
     def test_backend_command_methods_and_null_backend(self, monkeypatch):
         monkeypatch.setattr(
-            native_notifications,
+            notifications_state_mod,
             "_run",
             lambda cmd, timeout_s=2.0: "",
         )
@@ -245,7 +247,7 @@ class TestStateParsing:
 
     def test_gnome_and_dunst_unavailable_paths(self, monkeypatch):
         monkeypatch.setattr(
-            native_notifications,
+            notifications_state_mod,
             "_run",
             lambda cmd, timeout_s=2.0: "maybe" if cmd[0] == "dunstctl" else None,
         )
@@ -256,12 +258,12 @@ class TestStateParsing:
 class TestBackendDetection:
     def test_detect_backend_prefers_dunst(self, monkeypatch):
         monkeypatch.setattr(
-            native_notifications.flatpak,
+            notifications_state_mod.flatpak,
             "host_command_available",
             lambda cmd: cmd in {"dunstctl", "gsettings"},
         )
         monkeypatch.setattr(
-            native_notifications.DunstBackend,
+            notifications_state_mod.DunstBackend,
             "get_state",
             lambda self: _state(),
         )
@@ -270,17 +272,17 @@ class TestBackendDetection:
 
     def test_detect_backend_falls_back_to_gnome(self, monkeypatch):
         monkeypatch.setattr(
-            native_notifications.flatpak,
+            notifications_state_mod.flatpak,
             "host_command_available",
             lambda cmd: True,
         )
         monkeypatch.setattr(
-            native_notifications.DunstBackend,
+            notifications_state_mod.DunstBackend,
             "get_state",
             lambda self: unavailable_state(),
         )
         monkeypatch.setattr(
-            native_notifications.GnomeBackend,
+            notifications_state_mod.GnomeBackend,
             "get_state",
             lambda self: _state(backend="gnome", pending_known=False),
         )
@@ -289,7 +291,7 @@ class TestBackendDetection:
 
     def test_detect_backend_returns_null_when_none_available(self, monkeypatch):
         monkeypatch.setattr(
-            native_notifications.flatpak,
+            notifications_state_mod.flatpak,
             "host_command_available",
             lambda cmd: False,
         )
@@ -313,14 +315,23 @@ class _StubBackend(NotificationsBackend):
         return self._supports_clear
 
     def get_state(self) -> NotificationsState:
-        return self._state
+        return replace(self._state, can_clear=self.supports_clear)
+
+    def poll(self) -> NotificationsSnapshot:
+        return NotificationsSnapshot(self.get_state())
+
+    def stop(self) -> None:
+        return
+
+    def close(self) -> None:
+        return
 
     def set_paused(self, paused: bool) -> bool:
         self.set_paused_calls.append(paused)
         self._state = replace(self._state, paused=paused)
         return True
 
-    def clear_notifications(self) -> bool:
+    def clear_notifications(self, state: NotificationsState) -> bool:
         self.clear_calls += 1
         self._state = replace(self._state, pending=0)
         return True
@@ -333,10 +344,9 @@ def _make_applet(
 ) -> tuple[NotificationsApplet, _StubBackend]:
     backend = _StubBackend(state=state, supports_clear=supports_clear)
     monkeypatch.setattr(
-        native_notifications,
-        "detect_backend",
-        lambda: backend,
+        TestAppletBackendFactories, "notifications", staticmethod(lambda: backend)
     )
+    monkeypatch.setattr(notifications_applet_mod, "SerialWorker", InlineSerialWorker)
     return NotificationsApplet(
         48, config=Config(), platform_services=make_applet_platform()
     ), backend
@@ -362,7 +372,8 @@ class TestNotificationsApplet:
         backend2.set_paused = lambda paused: False  # type: ignore[method-assign]
         applet2.present = MagicMock()
         applet2.on_clicked()
-        applet2.present.assert_not_called()
+        assert applet2._state.paused is False
+        assert applet2._error is True
 
     def test_unavailable_menu(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, unavailable_state())
@@ -499,17 +510,10 @@ class TestNotificationsApplet:
 
     def test_extract_monitor_string(self):
         assert (
-            native_activity.UnixNotificationActivityMonitor._extract_monitor_string(
-                '   string "Docking test"'
-            )
+            ActivityMonitor._extract_monitor_string('   string "Docking test"')
             == "Docking test"
         )
-        assert (
-            native_activity.UnixNotificationActivityMonitor._extract_monitor_string(
-                "   int32 2000"
-            )
-            is None
-        )
+        assert ActivityMonitor._extract_monitor_string("   int32 2000") is None
 
     def test_scroll_iterates_notification_history(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state(pending_known=False))
@@ -538,246 +542,38 @@ class TestNotificationsApplet:
         applet.on_scroll(direction_up=False)
         assert applet._history_index == 1
 
-    def test_start_stop_tick_and_toggle_dnd(self, monkeypatch):
+    def test_start_stop_removes_timers_and_ignores_late_poll(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())
-        started: list[str] = []
-        removed: list[int] = []
-        applet._start_activity_monitor = lambda: started.append("monitor")  # type: ignore[assignment]
-        applet._stop_activity_monitor = lambda: started.append("stop-monitor")  # type: ignore[assignment]
+        removed = []
         monkeypatch.setattr(
-            notifications_applet_mod.GLib,
-            "timeout_add_seconds",
-            lambda sec, cb: 10,
+            notifications_applet_mod.GLib, "timeout_add_seconds", lambda *args: 10
         )
         monkeypatch.setattr(
             notifications_applet_mod.GLib,
             "source_remove",
-            lambda source_id: removed.append(source_id),
+            lambda source: removed.append(source),
         )
-        applet.start(notify=lambda: None)
-        assert applet._timer_id == 10
-        assert started == ["monitor"]
-
+        applet.start(lambda: None)
         applet._activity_clear_id = 12
         applet.stop()
-        assert applet._timer_id == 0
-        assert applet._activity_clear_id == 0
-        assert started[-1] == "stop-monitor"
         assert removed == [12, 10]
+        assert applet._tick() is False
+        applet.present = MagicMock()
+        applet._deliver(NotificationsSnapshot(_state()), 0, 0)
+        applet.present.assert_not_called()
 
-        def fake_run_guarded(*, key, name, fn, on_result=None, on_error=None):
-            _ = key, name, on_error
-            result = fn()
-            if on_result is not None:
-                on_result(result)
-            return True
-
-        applet._worker.run_guarded = fake_run_guarded  # type: ignore[method-assign]
-        applet._poll_worker = lambda: started.append("poll") or _state()  # type: ignore[assignment]
-        assert applet._tick() is True
-        assert "poll" in started
-
-        class _Widget:
-            def __init__(self, active: bool):
-                self._active = active
-                self.last_set: bool | None = None
-
-            def get_active(self):
-                return self._active
-
-            def set_active(self, value: bool):
-                self.last_set = value
-
-        applet._state = _state(paused=True)
-        applet._on_toggle_dnd(_Widget(active=True))
-        widget = _Widget(active=False)
-        applet._backend.set_paused = lambda paused: False  # type: ignore[method-assign]
-        applet._on_toggle_dnd(widget)
-        assert widget.last_set is True
-
-    def test_poll_worker_refresh_and_activity_expired(self, monkeypatch):
-        applet, backend = _make_applet(monkeypatch, _state(available=False))
-        monkeypatch.setattr(
-            native_notifications,
-            "detect_backend",
-            lambda: backend,
-        )
-        assert applet._poll_worker() == backend.get_state()
-
-        applet._state = _state(available=True, pending_known=False)
+    def test_activity_expired(self, monkeypatch):
+        applet, _backend = _make_applet(monkeypatch, _state(pending_known=False))
         applet._activity_until_monotonic = float("inf")
         applet.present = MagicMock()
         assert applet._on_activity_expired() is False
         applet.present.assert_not_called()
-
         applet._activity_until_monotonic = 0.0
         assert applet._on_activity_expired() is False
         applet.present.assert_called_once()
 
-    def test_activity_monitor_start_and_stop_paths(self, monkeypatch, caplog):
+    def test_tooltip_helpers(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())
-        monitor = applet._activity_monitor
-        monitor._activity_monitor_proc = object()  # type: ignore[assignment]
-        monitor.start()
-
-        monitor._activity_monitor_proc = None
-        monkeypatch.setattr(native_activity.shutil, "which", lambda cmd: None)
-        with caplog.at_level(logging.WARNING, logger="docking.notifications"):
-            monitor.start()
-        assert "dbus-monitor not found" in caplog.text
-
-        monkeypatch.setattr(
-            native_activity.shutil,
-            "which",
-            lambda cmd: "/usr/bin/dbus-monitor",
-        )
-
-        def raise_popen(*args, **kwargs):
-            raise OSError("missing")
-
-        monkeypatch.setattr(native_activity.subprocess, "Popen", raise_popen)
-        caplog.clear()
-        with caplog.at_level(logging.WARNING, logger="docking.notifications"):
-            monitor.start()
-        assert monitor._activity_monitor_proc is None
-        assert "Failed to start dbus-monitor" in caplog.text
-
-        class _Proc:
-            def __init__(self):
-                self.stdout = []
-                self.killed = False
-                self.terminated = False
-
-            def terminate(self):
-                self.terminated = True
-
-            def wait(self, timeout=0.0):
-                raise subprocess.TimeoutExpired(cmd="x", timeout=timeout)
-
-            def kill(self):
-                self.killed = True
-
-        class _Thread:
-            def __init__(self, target, daemon=True):
-                self._target = target
-                self.started = False
-
-            def start(self):
-                self.started = True
-
-        monkeypatch.setattr(native_activity.threading, "Thread", _Thread)
-        proc = _Proc()
-        monkeypatch.setattr(native_activity.subprocess, "Popen", lambda *a, **k: proc)
-        monitor.start()
-        assert monitor._activity_monitor_proc is proc
-        monitor.stop()
-        assert proc.terminated is True
-        assert proc.killed is True
-
-        class _ProcOSError:
-            def terminate(self):
-                raise OSError("boom")
-
-            def wait(self, timeout=0.0):
-                return None
-
-        monitor._activity_monitor_proc = _ProcOSError()  # type: ignore[assignment]
-        monitor.stop()
-
-    def test_activity_monitor_uses_host_dbus_monitor_in_flatpak(self, monkeypatch):
-        applet, _backend = _make_applet(monkeypatch, _state())
-        monitor = applet._activity_monitor
-        monkeypatch.setattr(native_activity, "is_flatpak", lambda: True)
-        monkeypatch.setattr(
-            native_activity.flatpak,
-            "spawn_path",
-            lambda **_: "/usr/bin/flatpak-spawn",
-        )
-
-        command = monitor._activity_monitor_command()
-
-        assert command is not None
-        assert command[:3] == ["/usr/bin/flatpak-spawn", "--host", "env"]
-        assert "dbus-monitor --session" in command[-1]
-        assert native_activity.HOST_MONITOR_PID_PREFIX in command[-1]
-
-    def test_stop_activity_monitor_kills_host_monitor_pid(self, monkeypatch):
-        applet, _backend = _make_applet(monkeypatch, _state())
-        monitor = applet._activity_monitor
-        monitor._activity_monitor_host_pid = "12345"
-        run_calls: list[list[str]] = []
-
-        class _Proc:
-            def __init__(self):
-                self.terminated = False
-
-            def terminate(self):
-                self.terminated = True
-
-            def wait(self, timeout=0.0):
-                return None
-
-        proc = _Proc()
-        monitor._activity_monitor_proc = proc  # type: ignore[assignment]
-        monkeypatch.setattr(
-            native_activity.flatpak,
-            "spawn_path",
-            lambda **_: "/usr/bin/flatpak-spawn",
-        )
-        monkeypatch.setattr(
-            native_activity.subprocess,
-            "run",
-            lambda cmd, **kwargs: run_calls.append(cmd),
-        )
-
-        monitor.stop()
-
-        assert run_calls == [["/usr/bin/flatpak-spawn", "--host", "kill", "12345"]]
-        assert proc.terminated is True
-        assert monitor._activity_monitor_host_pid is None
-
-    def test_activity_monitor_worker_and_tooltip_helpers(self, monkeypatch, caplog):
-        applet, _backend = _make_applet(monkeypatch, _state())
-        monitor = applet._activity_monitor
-        idle_calls: list[tuple[object, ...]] = []
-        monkeypatch.setattr(
-            notifications_applet_mod.GLib,
-            "idle_add",
-            lambda *args: idle_calls.append(args),
-        )
-
-        class _Proc:
-            stdout: ClassVar = [
-                f"{native_activity.HOST_MONITOR_PID_PREFIX}321\n",
-                "signal member=Notify\n",
-                '   string "Mail"\n',
-                '   string "Icon"\n',
-                '   string "Subject"\n',
-                '   string "Body"\n',
-                "   array [\n",
-                "signal member=Notify\n",
-                '   string "OnlyApp"\n',
-                "   int32 1\n",
-            ]
-
-        monitor._activity_monitor_proc = _Proc()
-        monitor._activity_monitor_worker()
-        assert monitor._activity_monitor_host_pid == "321"
-        assert any(call[0] == applet._on_notification_event for call in idle_calls)
-        assert any(call[0] == applet._on_notification_activity for call in idle_calls)
-
-        class _BrokenStdout:
-            def __iter__(self):
-                raise RuntimeError("boom")
-
-        class _BrokenProc:
-            stdout = _BrokenStdout()
-
-        monitor._activity_monitor_proc = _BrokenProc()
-        with caplog.at_level(logging.WARNING, logger="docking.notifications"):
-            monitor._activity_monitor_worker()
-        assert "Notification activity monitor stopped unexpectedly" in caplog.text
-
         applet._history = [
             NotificationEntry(app_name="App", summary="Title", body="Body"),
             NotificationEntry(app_name="", summary="", body=""),
@@ -805,6 +601,162 @@ class TestNotificationsApplet:
         for i in range(HISTORY_LIMIT + 5):
             applet._on_notification_event("App", f"S{i}", "Body")
         assert len(applet._history) == HISTORY_LIMIT
+
+
+class TestActivityMonitor:
+    def test_activity_monitor_start_and_stop_paths(self, monkeypatch, caplog):
+        applet = ActivityMonitor()
+        applet._activity_monitor_proc = object()  # type: ignore[assignment]
+        applet.start()
+
+        applet._activity_monitor_proc = None
+        monkeypatch.setattr(activity_mod.shutil, "which", lambda cmd: None)
+        with caplog.at_level(logging.WARNING, logger="docking.notifications"):
+            applet.start()
+        assert "dbus-monitor not found" in caplog.text
+
+        monkeypatch.setattr(
+            activity_mod.shutil,
+            "which",
+            lambda cmd: "/usr/bin/dbus-monitor",
+        )
+
+        def raise_popen(*args, **kwargs):
+            raise OSError("missing")
+
+        monkeypatch.setattr(activity_mod.subprocess, "Popen", raise_popen)
+        caplog.clear()
+        with caplog.at_level(logging.WARNING, logger="docking.notifications"):
+            applet.start()
+        assert applet._activity_monitor_proc is None
+        assert "Failed to start dbus-monitor" in caplog.text
+
+        class _Proc:
+            def __init__(self):
+                self.stdout = []
+                self.killed = False
+                self.terminated = False
+
+            def terminate(self):
+                self.terminated = True
+
+            def wait(self, timeout=0.0):
+                if not self.killed:
+                    raise subprocess.TimeoutExpired(cmd="x", timeout=timeout)
+
+            def kill(self):
+                self.killed = True
+
+        class _Thread:
+            def __init__(self, target, daemon=True):
+                self._target = target
+                self.started = False
+
+            def start(self):
+                self.started = True
+
+        monkeypatch.setattr(activity_mod.threading, "Thread", _Thread)
+        proc = _Proc()
+        monkeypatch.setattr(activity_mod.subprocess, "Popen", lambda *a, **k: proc)
+        applet.start()
+        assert applet._activity_monitor_proc is proc
+        applet.stop()
+        assert proc.terminated is True
+        assert proc.killed is True
+
+        class _ProcOSError:
+            def terminate(self):
+                raise OSError("boom")
+
+            def wait(self, timeout=0.0):
+                return None
+
+        applet._activity_monitor_proc = _ProcOSError()  # type: ignore[assignment]
+        applet.stop()
+
+    def test_activity_monitor_uses_host_dbus_monitor_in_flatpak(self, monkeypatch):
+        applet = ActivityMonitor()
+        monkeypatch.setattr(activity_mod, "is_flatpak", lambda: True)
+        monkeypatch.setattr(
+            activity_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
+        )
+
+        command = applet._activity_monitor_command()
+
+        assert command is not None
+        assert command[:3] == ["/usr/bin/flatpak-spawn", "--host", "env"]
+        assert "dbus-monitor --session" in command[-1]
+        assert activity_mod.HOST_MONITOR_PID_PREFIX in command[-1]
+
+    def test_stop_activity_monitor_kills_host_monitor_pid(self, monkeypatch):
+        applet = ActivityMonitor()
+        applet._activity_monitor_host_pid = "12345"
+        run_calls: list[list[str]] = []
+
+        class _Proc:
+            def __init__(self):
+                self.terminated = False
+
+            def terminate(self):
+                self.terminated = True
+
+            def wait(self, timeout=0.0):
+                return None
+
+        proc = _Proc()
+        applet._activity_monitor_proc = proc  # type: ignore[assignment]
+        monkeypatch.setattr(
+            activity_mod.flatpak,
+            "spawn_path",
+            lambda **_: "/usr/bin/flatpak-spawn",
+        )
+        monkeypatch.setattr(
+            activity_mod.subprocess,
+            "run",
+            lambda cmd, **kwargs: run_calls.append(cmd),
+        )
+
+        applet.stop()
+
+        assert run_calls == [["/usr/bin/flatpak-spawn", "--host", "kill", "12345"]]
+        assert proc.terminated is True
+        assert applet._activity_monitor_host_pid is None
+
+    def test_activity_monitor_worker_and_tooltip_helpers(self, monkeypatch, caplog):
+        applet = ActivityMonitor()
+
+        class _Proc:
+            stdout: ClassVar = [
+                f"{activity_mod.HOST_MONITOR_PID_PREFIX}321\n",
+                "signal member=Notify\n",
+                '   string "Mail"\n',
+                '   string "Icon"\n',
+                '   string "Subject"\n',
+                '   string "Body"\n',
+                "   array [\n",
+                "signal member=Notify\n",
+                '   string "OnlyApp"\n',
+                "   int32 1\n",
+            ]
+
+        applet._activity_monitor_proc = _Proc()
+        applet._activity_monitor_worker()
+        assert applet._activity_monitor_host_pid == "321"
+        assert applet.drain() == (NotificationEntry("Mail", "Subject", "Body"), None)
+
+        class _BrokenStdout:
+            def __iter__(self):
+                raise OSError("boom")
+
+        class _BrokenProc:
+            stdout = _BrokenStdout()
+
+        applet._activity_monitor_proc = _BrokenProc()
+        with caplog.at_level(logging.WARNING, logger="docking.notifications"):
+            applet._activity_monitor_worker()
+        assert "Notification activity monitor stopped unexpectedly" in caplog.text
 
 
 class TestNotificationsRender:

@@ -1,13 +1,21 @@
-"""Unix native operations extracted without changing fallback policy."""
-
-from __future__ import annotations
+"""Sound settings launchers shared by Linux and BSD implementations."""
 
 import shutil
 import subprocess
 
-from docking.applets.volume.operations import VolumeOperations as VolumeOperationsBase
+from docking.applets.volume.backend import VolumeSettings
+from docking.log import get_logger, with_context
 
-from ...state import _VOLUME_SETTINGS_COMMANDS, log
+log = with_context(get_logger("volume.desktop_settings"))
+
+_VOLUME_SETTINGS_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("gnome-control-center", "sound"),
+    ("mate-volume-control",),
+    ("xfce4-mixer-settings",),
+    ("pavucontrol",),
+    ("kcmshell6", "kcm_pulseaudio"),
+    ("kcmshell5", "kcm_pulseaudio"),
+)
 
 
 def volume_settings_command() -> list[str] | None:
@@ -33,9 +41,6 @@ def open_volume_settings() -> bool:
     return True
 
 
-class VolumeOperations(VolumeOperationsBase):
-    def volume_settings_command(self) -> list[str] | None:
-        return volume_settings_command()
-
-    def open_volume_settings(self) -> bool:
-        return open_volume_settings()
+SETTINGS = VolumeSettings(
+    lambda: volume_settings_command() is not None, open_volume_settings
+)

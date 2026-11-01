@@ -14,7 +14,6 @@ from docking.applets.battery.implementations.unix.upower import (
 )
 from docking.applets.battery.peripherals import PeripheralBattery
 from docking.applets.battery.state import (
-    BAT_BASE,
     BatteryState,
     _positive_delta,
     _seconds_from_rate,
@@ -25,6 +24,7 @@ from docking.log import get_logger
 from ..unix.upower import _upower_seconds_remaining
 
 log = get_logger("battery.linux")
+BAT_BASE = Path("/sys/class/power_supply")
 
 
 def read_battery(bat_name: str = "BAT0", base: Path = BAT_BASE) -> BatteryState | None:

@@ -17,32 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from docking.applets.bluetooth import meta
 from docking.i18n import _
-from docking.log import get_logger, with_context
-
-log = with_context(get_logger(name="bluetooth"), applet_id=meta.id)
-
-_SEND_FILES_COMMANDS: tuple[tuple[str, ...], ...] = (
-    ("blueman-sendto",),
-    ("bluetooth-sendto",),
-    ("gnome-bluetooth-sendto",),
-)
-_DEVICES_COMMANDS: tuple[tuple[str, ...], ...] = (
-    ("blueman-manager",),
-    ("gnome-control-center", "bluetooth"),
-    ("mate-bluetooth-properties",),
-    ("kcmshell6", "kcm_bluetooth"),
-    ("kcmshell5", "kcm_bluetooth"),
-)
-_ADAPTERS_COMMANDS: tuple[tuple[str, ...], ...] = (
-    ("blueman-adapters",),
-    ("gnome-control-center", "bluetooth"),
-    ("mate-bluetooth-properties",),
-    ("kcmshell6", "kcm_bluetooth"),
-    ("kcmshell5", "kcm_bluetooth"),
-)
-_LOCAL_SERVICES_COMMANDS: tuple[tuple[str, ...], ...] = (("blueman-services",),)
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,9 +25,10 @@ class BluetoothAdapterState:
     path: str
     name: str
     alias: str
-    powered: bool
+    powered: bool | None
     discovering: bool
     address: str
+    power_controllable: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +44,7 @@ class BluetoothDeviceState:
     connected: bool
     battery_percent: int | None
     rssi: int | None
+    connection_owned: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,7 +94,13 @@ def build_tooltip(state: BluetoothState, active_adapter_path: str) -> str:
     if adapter is None:
         return _("Bluetooth: No adapter/service")
 
-    powered = _("On") if adapter.powered else _("Off")
+    powered = (
+        _("Unknown")
+        if adapter.powered is None
+        else _("On")
+        if adapter.powered
+        else _("Off")
+    )
     paired = [d for d in state.devices if d.adapter_path == adapter.path and d.paired]
     connected = [
         d for d in state.devices if d.adapter_path == adapter.path and d.connected

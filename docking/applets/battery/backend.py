@@ -11,6 +11,8 @@ if TYPE_CHECKING:
 
 
 class BatteryBackend(ABC):
+    """Battery readings and actions independent of OS APIs and device paths."""
+
     @abstractmethod
     def read_battery(self) -> BatteryState | None: ...
     @abstractmethod

@@ -207,7 +207,7 @@ def create_desktop_entry_for_executable(
     *,
     startup_wm_class: str = "",
 ) -> GeneratedDesktopEntry | None:
-    """Create or update a generated desktop entry for a launchable local file."""
+    """Create a Unix desktop entry for a launchable local file."""
     path = _local_executable_path(target)
     if path is None:
         return None

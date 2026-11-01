@@ -17,7 +17,12 @@ from gi.repository import GLib
 from docking.log import get_logger, with_context
 
 from . import handle_adapters as discovery
-from .associations import AssociationKey, AssociationResolution, AssociationStatus
+from .associations import (
+    AssociationKey,
+    AssociationRead,
+    AssociationResolution,
+    AssociationStatus,
+)
 from .backend import (
     ApplicationAssociationBackend,
     ApplicationCatalogBackend,
@@ -43,6 +48,7 @@ log = with_context(get_logger(name="application_registry"))
 @dataclass(frozen=True, slots=True)
 class _RegistryState:
     generation: int
+    initial_discovery_pending: bool
     directories: tuple[Path, ...]
     handle_epoch: int
     applications_by_id: Mapping[str, ApplicationInfo]
@@ -60,6 +66,7 @@ class _RegistryState:
 def _empty_state() -> _RegistryState:
     return _RegistryState(
         generation=0,
+        initial_discovery_pending=False,
         directories=(),
         handle_epoch=0,
         applications_by_id=MappingProxyType({}),
@@ -97,8 +104,12 @@ class ApplicationRegistry:
         self._cancel_timeout = GLib.source_remove
         self._debounce_ms = DEFAULT_DEBOUNCE_MS
 
-        self._state = _empty_state()
+        self._state = replace(
+            _empty_state(),
+            initial_discovery_pending=catalog_backend.initial_discovery_pending,
+        )
         self._loaded = False
+        self._association_revision = association_backend.revision
         self._listeners: list[RegistryListener] = []
         self._started = False
         self._lifecycle_token = 0
@@ -111,6 +122,10 @@ class ApplicationRegistry:
     def generation(self) -> int:
         """Return the current immutable generation number."""
         return self._state.generation
+
+    @property
+    def initial_discovery_pending(self) -> bool:
+        return self._state.initial_discovery_pending
 
     def diagnostic_snapshot(self) -> ApplicationDiscoveryDiagnostic:
         """Read discovery evidence without consulting Gio or scanning directories."""
@@ -169,6 +184,17 @@ class ApplicationRegistry:
                 return application
         return None
 
+    def resolve_by_export_file(self, path: Path) -> ApplicationInfo | None:
+        """Read a prepared launcher's canonical identity without filesystem IO."""
+        return next(
+            (
+                app
+                for app in self._state.applications_by_id.values()
+                if app.export_file == path
+            ),
+            None,
+        )
+
     def subscribe(self, callback: RegistryListener) -> Callable[[], None]:
         """Register a listener and return an idempotent unsubscribe."""
         if callback not in self._listeners:
@@ -207,7 +233,6 @@ class ApplicationRegistry:
                 generation=current.generation + 1,
                 diagnostic=replace(built.diagnostic, generation=current.generation + 1),
             )
-            self._notify_listeners()
         else:
             self._state = replace(
                 current,
@@ -219,10 +244,33 @@ class ApplicationRegistry:
                 diagnostic=replace(built.diagnostic, generation=current.generation),
             )
         self._content_gio_handles.clear()
+        revision = self._associations.revision
+        association_changed = revision != self._association_revision
+        self._association_revision = revision
+        if changed or association_changed:
+            self._notify_listeners()
 
         if self._started:
             self._monitor.sync(self._state.diagnostic.steam_directories)
         return changed
+
+    def register_executable(
+        self, target: str | Path, *, startup_wm_class: str = ""
+    ) -> ApplicationInfo | None:
+        """Resolve a persisted launcher, or reject a non-executable with None.
+
+        An unresolvable saved launcher raises OSError so callers cannot
+        reinterpret a catalog failure as an ordinary file pin.
+        """
+        entry = self._registrations.register(target, startup_wm_class=startup_wm_class)
+        if entry is None:
+            return None
+        self._catalog.invalidate()
+        self.refresh()
+        application = self.get(entry.desktop_id)
+        if application is None:
+            raise OSError("Persisted executable launcher could not be resolved")
+        return application
 
     def start(self) -> None:
         """Start monitors and synchronously populate the registry."""
@@ -243,114 +291,82 @@ class ApplicationRegistry:
         self._cancel_pending_refresh()
         self._monitor.stop()
 
-    def default_for_content_type(
-        self,
-        content_type: str,
-    ) -> AssociationResolution:
-        """Resolve the desktop's default handler on the calling main thread."""
+    def default_for_content_type(self, content_type: str) -> AssociationResolution:
         read = self._associations.read(AssociationKey("default", content_type))
+        if read.status is not AssociationStatus.READY or read.application_id:
+            return self._association_resolution(read)
         handle = read.handles[0] if read.handles else None
-        return AssociationResolution(
-            read.status, listing=self._application_for_content_type_result(handle)
+        application = (
+            self._registered_application_for_content_type_result(handle)
+            if handle is not None
+            else None
         )
-
-    def _default_listing_for_content_type(
-        self,
-        content_type: str,
-    ) -> ApplicationInfo | TransientApplicationInfo | None:
-        """Return a launchable default handler with any Gio handle retained."""
-        read = self._associations.read(AssociationKey("default", content_type))
-        if read.status is not AssociationStatus.READY:
-            self._association_status = read.status
-        return self._listing_for_content_type_result(
-            read.handles[0] if read.handles else None
-        )
-
-    def _recommended_listings_for_content_type(
-        self,
-        content_type: str,
-    ) -> tuple[ApplicationInfo | TransientApplicationInfo, ...]:
-        """Return visible recommended handlers with private Gio handles retained."""
-        return self._listings_for_content_type(
-            content_type=content_type,
-            lookup_name="get_recommended_for_type",
-            action="recommended_listings_for_content_type",
-        )
-
-    def _all_listings_for_content_type(
-        self,
-        content_type: str,
-    ) -> tuple[ApplicationInfo | TransientApplicationInfo, ...]:
-        """Return every visible handler with private Gio handles retained."""
-        return self._listings_for_content_type(
-            content_type=content_type,
-            lookup_name="get_all_for_type",
-            action="all_listings_for_content_type",
-        )
+        if application is None:
+            application = self._listing_for_content_type_result(handle)
+        return AssociationResolution(AssociationStatus.READY, application)
 
     def preferred_listing_for_content_types(
-        self,
-        content_types: Iterable[str],
+        self, content_types: Iterable[str]
     ) -> AssociationResolution:
-        """Select a visible handler using desktop association precedence.
-
-        Defaults are considered for every content type first, followed by
-        recommended handlers for every type, and finally the complete handler
-        lists. This preserves the established media-launcher fallback order while
-        keeping Gio association policy inside the registry.
-        """
-        self._association_status = AssociationStatus.READY
-        ordered_types = tuple(content_types)
-        for content_type in ordered_types:
-            listing = self._default_listing_for_content_type(content_type)
-            if listing is not None:
-                return AssociationResolution(AssociationStatus.READY, listing=listing)
-        for lookup in (
-            self._recommended_listings_for_content_type,
-            self._all_listings_for_content_type,
-        ):
-            for content_type in ordered_types:
-                listings = lookup(content_type)
-                if listings:
-                    return AssociationResolution(
-                        AssociationStatus.READY, listing=listings[0]
-                    )
-        return AssociationResolution(self._association_status)
-
-    def _listings_for_content_type(
-        self,
-        *,
-        content_type: str,
-        lookup_name: str,
-        action: str,
-    ) -> tuple[ApplicationInfo | TransientApplicationInfo, ...]:
-        """Convert one Gio association result into canonical visible listings."""
-        key = AssociationKey(
-            "recommended" if lookup_name == "get_recommended_for_type" else "all",
-            content_type,
+        """Preserve default/recommended/all precedence over accepted facts."""
+        types = tuple(dict.fromkeys(content_types))
+        keys = tuple(
+            AssociationKey(kind, content_type)
+            for kind in ("default", "recommended", "all")
+            for content_type in types
         )
-        read = self._associations.read(key)
-        if read.status is not AssociationStatus.READY:
-            self._association_status = read.status
-        app_infos = read.handles
+        unavailable = False
+        for _key, read in self._associations.reads(keys):
+            if read.status is AssociationStatus.PENDING:
+                return AssociationResolution(AssociationStatus.PENDING)
+            if read.status is AssociationStatus.UNAVAILABLE:
+                unavailable = True
+                continue
+            result = self._association_resolution(read)
+            if result.listing is not None:
+                return result
+            unavailable |= result.status is AssociationStatus.UNAVAILABLE
+        return AssociationResolution(
+            AssociationStatus.UNAVAILABLE if unavailable else AssociationStatus.READY
+        )
 
+    def _association_resolution(self, read: AssociationRead) -> AssociationResolution:
+        if read.status is not AssociationStatus.READY:
+            return AssociationResolution(read.status)
+        if read.application_id:
+            application = self.get(read.application_id)
+            if application is None or not application.visible:
+                return AssociationResolution(AssociationStatus.UNAVAILABLE)
+            return AssociationResolution(AssociationStatus.READY, application)
+        listings = self._association_listings(read.handles)
+        return AssociationResolution(
+            AssociationStatus.READY, listings[0] if listings else None
+        )
+
+    def _association_listings(
+        self, app_infos: Iterable[object]
+    ) -> tuple[ApplicationInfo | TransientApplicationInfo, ...]:
+        """Materialize accepted opaque handles only on the registry's GTK thread."""
         result: list[ApplicationInfo | TransientApplicationInfo] = []
         seen_registered: set[str] = set()
         seen_unregistered: set[tuple[str, object]] = set()
         retained_count = 0
         retained_limit = max(1, MAX_CONTENT_HANDLER_TOKENS)
-        for app_info in app_infos or ():
+        for app_info in app_infos:
             if not self._associations.visible(app_info):
                 continue
+            desktop_id = discovery.desktop_id(app_info)
             registered = self._registered_application_for_content_type_result(app_info)
             if registered is not None:
-                if not registered.visible or registered.desktop_id in seen_registered:
+                if registered.desktop_id in seen_registered:
                     continue
-                seen_registered.add(registered.desktop_id)
-                result.append(registered)
-                continue
+                if registered.visible:
+                    seen_registered.add(registered.desktop_id)
+                    result.append(registered)
+                    continue
+                if not self._associations.association_only(registered):
+                    continue
 
-            desktop_id = discovery.desktop_id(app_info)
             identity: tuple[str, object] = (
                 ("desktop-id", desktop_id) if desktop_id else ("object", id(app_info))
             )
@@ -449,6 +465,7 @@ class ApplicationRegistry:
         )
         return replace(
             state,
+            initial_discovery_pending=result.initial_discovery_pending,
             steam_apps=MappingProxyType(steam_apps),
             steam_installs=tuple(
                 (game.install_dir, game.app_id) for game in steam.games
@@ -462,12 +479,6 @@ class ApplicationRegistry:
                 steam_issues=steam.issues,
             ),
         )
-
-    def _application_for_content_type_result(
-        self,
-        app_info: object | None,
-    ) -> ApplicationInfo | None:
-        return self._associations.application(self, app_info)
 
     def _registered_application_for_content_type_result(
         self,
@@ -536,6 +547,7 @@ class ApplicationRegistry:
 
 def _state_content(state: _RegistryState) -> tuple[object, ...]:
     return (
+        state.initial_discovery_pending,
         state.applications_by_id,
         state.visible,
         state.wm_class_index,
@@ -597,6 +609,7 @@ def _build_state(
 
     return _RegistryState(
         generation=0,
+        initial_discovery_pending=False,
         steam_apps=MappingProxyType({}),
         steam_installs=(),
         directories=directories,

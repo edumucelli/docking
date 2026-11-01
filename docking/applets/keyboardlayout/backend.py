@@ -1,26 +1,39 @@
-"""Typed native operations used by this applet."""
-
-from __future__ import annotations
+"""Input-source contract shared by the platform implementations."""
 
 from abc import ABC, abstractmethod
 
-from .state import (
-    LayoutBackend,
-)
+from docking.applets.keyboardlayout.state import LayoutState
 
 
-class KeyboardlayoutOperations(ABC):
-    @abstractmethod
-    def keyboard_settings_command(self) -> list[str] | None: ...
+class LayoutBackend(ABC):
+    name: str
 
     @abstractmethod
-    def current_layout_command(self, layout_code: str) -> list[str] | None: ...
+    def is_available(self) -> bool: ...
 
     @abstractmethod
-    def open_keyboard_settings(self) -> bool: ...
+    def query(self) -> LayoutState: ...
 
     @abstractmethod
-    def show_current_layout(self, layout_code: str) -> bool: ...
+    def switch(self, layout_code: str, *, context: str = "") -> None:
+        """Request a source for the input context that produced the snapshot."""
+        ...
 
-    @abstractmethod
-    def detect_backend(self) -> LayoutBackend: ...
+    def prepare_interaction(self, state: LayoutState) -> LayoutState:
+        """Refresh the input context before a menu can temporarily take focus."""
+        return state
+
+    def settings_available(self) -> bool:
+        return False
+
+    def viewer_available(self, layout_code: str) -> bool:
+        return False
+
+    def open_settings(self) -> bool:
+        return False
+
+    def show_layout(self, layout_code: str) -> bool:
+        return False
+
+    def stop(self) -> None:
+        return

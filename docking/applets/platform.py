@@ -10,19 +10,18 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from docking.applets.battery.backend import BatteryBackend
     from docking.applets.bluetooth.backend import BluetoothBackend
-    from docking.applets.bluetooth.operations import BluetoothOperations
-    from docking.applets.brightness.backend import BrightnessOperations
+    from docking.applets.brightness.backend import BrightnessBackend
     from docking.applets.caffeine.inhibit import Inhibitor
     from docking.applets.camshield.backend import CamshieldBackend
-    from docking.applets.capslock.backend import CapslockOperations
-    from docking.applets.keyboardlayout.backend import KeyboardlayoutOperations
-    from docking.applets.micshield.backend import MicshieldOperations
+    from docking.applets.capslock.backend import LockKeyBackend
+    from docking.applets.keyboardlayout.backend import LayoutBackend
+    from docking.applets.micshield.backend import MicShieldBackend
     from docking.applets.music.backend import MusicBackend
     from docking.applets.network.backend import NetworkBackend
-    from docking.applets.network.operations import NetworkOperations
-    from docking.applets.notifications.backend import NotificationsOperations
-    from docking.applets.powerprofiles.backend import PowerprofilesOperations
-    from docking.applets.screenshot.backend import ScreenshotOperations
+    from docking.applets.notifications.backend import NotificationsBackend
+    from docking.applets.popup import PopupAnchor
+    from docking.applets.powerprofiles.backend import PowerProfilesControlBackend
+    from docking.applets.screenshot.backend import ScreenshotBackend
     from docking.applets.session.backend import SessionBackend
     from docking.applets.systemmonitor.backend import SystemMonitorBackend
     from docking.applets.systemmonitor.gpu import GpuSource
@@ -30,9 +29,9 @@ if TYPE_CHECKING:
     from docking.applets.thermals.backend import ThermalsBackend
     from docking.applets.trash.backend import TrashBackend
     from docking.applets.volume.backend import VolumeBackend
-    from docking.applets.volume.operations import VolumeOperations
     from docking.applets.webapp.backend import BrowserFactory
     from docking.platform.tray.service import TrayService
+    from docking.platform.tray.state import TrayState
 
 
 class AppletBackendFactories(ABC):
@@ -55,25 +54,19 @@ class AppletBackendFactories(ABC):
     @abstractmethod
     def music(self) -> MusicBackend: ...
     @abstractmethod
-    def capslock(self) -> CapslockOperations: ...
+    def capslock(self) -> LockKeyBackend: ...
     @abstractmethod
-    def brightness(self) -> BrightnessOperations: ...
+    def brightness(self) -> BrightnessBackend: ...
     @abstractmethod
-    def keyboardlayout(self) -> KeyboardlayoutOperations: ...
+    def keyboardlayout(self) -> LayoutBackend: ...
     @abstractmethod
-    def notifications(self) -> NotificationsOperations: ...
+    def notifications(self) -> NotificationsBackend: ...
     @abstractmethod
-    def powerprofiles(self) -> PowerprofilesOperations: ...
+    def powerprofiles(self) -> PowerProfilesControlBackend: ...
     @abstractmethod
-    def screenshot(self) -> ScreenshotOperations: ...
+    def screenshot(self) -> ScreenshotBackend: ...
     @abstractmethod
-    def bluetooth_desktop(self) -> BluetoothOperations: ...
-    @abstractmethod
-    def network_settings(self) -> NetworkOperations: ...
-    @abstractmethod
-    def volume_settings(self) -> VolumeOperations: ...
-    @abstractmethod
-    def micshield(self) -> MicshieldOperations: ...
+    def micshield(self) -> MicShieldBackend: ...
     @abstractmethod
     def session(self) -> SessionBackend: ...
     @abstractmethod
@@ -84,7 +77,13 @@ class AppletBackendFactories(ABC):
     def browser(self) -> BrowserFactory: ...
     @abstractmethod
     def tray_presentation(
-        self, *, icon_size: int, on_changed: Callable[[], None]
+        self,
+        *,
+        icon_size: int,
+        changed: Callable[[], None],
+        state: Callable[[], TrayState],
+        anchor: Callable[[], PopupAnchor | None],
+        refresh: Callable[[], None],
     ) -> TrayPresentation: ...
 
 

@@ -1,17 +1,13 @@
-"""Shared GTK/WebKit host for isolated, persistent web-app sessions."""
+"""Unix WebKit runtime for the shared persistent web-app contract."""
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from contextlib import suppress
 from functools import cache
 from importlib import import_module
-from pathlib import Path
 from typing import Any
 
 import gi
-
-from docking.applets.webapp.backend import BrowserBackend
 
 gi.require_version("Gdk", "3.0")
 gi.require_version("Gio", "2.0")
@@ -19,23 +15,30 @@ gi.require_version("GLib", "2.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gio, GLib, Gtk
 
+from docking.applets.webapp.backend import (
+    BadgeCallback,
+    BrowserBackend,
+    BrowserProfile,
+    ClearCallback,
+    NotificationCallback,
+    PhaseCallback,
+    TitleCallback,
+    error_message,
+    session_directories,
+    unique_download_path,
+)
 from docking.applets.webapp.bridge import (
-    BridgeEvent,
     parse_bridge_message,
 )
+from docking.applets.webapp.implementations.unix.notifications import DesktopNotifier
 from docking.applets.webapp.state import (
     BrowserPhase,
     NavigationTarget,
     navigation_target,
 )
-from docking.core.paths import ensure_dir
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform import targets
-from docking.platform.environment.xdg import docking_cache_dir, docking_data_dir
-
-from ...profile import BrowserProfile
-from .notifications import DesktopNotifier
 
 log = get_logger("webapp.browser")
 
@@ -45,43 +48,9 @@ MIN_WINDOW_WIDTH = 640
 MIN_WINDOW_HEIGHT = 480
 RECOVERY_DELAY_MS = 1500
 
-PhaseCallback = Callable[[BrowserPhase, str], None]
-TitleCallback = Callable[[str], None]
-BadgeCallback = Callable[[int | None, bool], None]
-NotificationCallback = Callable[[], None]
-ClearCallback = Callable[[bool, str], None]
-
-
-def _session_directories(session_name: str = "whatsapp") -> tuple[Path, Path]:
-    data_dir = ensure_dir(docking_data_dir() / session_name)
-    cache_dir = ensure_dir(docking_cache_dir() / session_name)
-    for directory in (data_dir, cache_dir):
-        with suppress(OSError):
-            directory.chmod(0o700)
-    return data_dir, cache_dir
-
-
-def _unique_download_path(suggested_filename: str) -> Path:
-    raw_name = Path(suggested_filename or "download").name
-    filename = raw_name if raw_name not in {"", ".", ".."} else "download"
-    special_dir = GLib.get_user_special_dir(GLib.UserDirectory.DIRECTORY_DOWNLOAD)
-    downloads = ensure_dir(
-        Path(special_dir) if special_dir else Path.home() / "Downloads"
-    )
-    candidate = downloads / filename
-    if not candidate.exists():
-        return candidate
-    stem = candidate.stem or "download"
-    suffix = candidate.suffix
-    for index in range(1, 10_000):
-        alternative = downloads / f"{stem} ({index}){suffix}"
-        if not alternative.exists():
-            return alternative
-    return downloads / f"{stem}-{GLib.get_monotonic_time()}{suffix}"
-
 
 class WebKitUnavailableError(RuntimeError):
-    """Raised when neither supported WebKitGTK namespace is installed."""
+    """No supported WebKitGTK runtime is installed."""
 
 
 @cache
@@ -119,34 +88,29 @@ class WebAppBrowser(BrowserBackend):
         on_notification: NotificationCallback,
         on_attention_cleared: NotificationCallback,
     ) -> None:
-        self.profile = profile
-        self._on_phase = on_phase
-        self._on_title = on_title
-        self._on_badge = on_badge
-        self._on_notification = on_notification
-        self._on_attention_cleared = on_attention_cleared
+        super().__init__(
+            profile=profile,
+            on_phase=on_phase,
+            on_title=on_title,
+            on_badge=on_badge,
+            on_notification=on_notification,
+            on_attention_cleared=on_attention_cleared,
+        )
         self._webkit: Any | None = None
         self._manager: Any | None = None
         self._content_manager: Any | None = None
         self._context: Any | None = None
         self._view: Any | None = None
         self._window: Gtk.Window | None = None
-        self._phase = BrowserPhase.STOPPED
         self._started = False
         self._generation = 0
         self._clear_cancellable: Gio.Cancellable | None = None
         self._recovery_source_id = 0
-        self._last_bridge_badge: tuple[int | None, bool] | None = None
-        self._last_bridge_status: tuple[bool, str] | None = None
         self._notifier = DesktopNotifier(
             service_name=self.profile.name,
             on_activate=self._activate_notification,
             on_shown=self._on_notification,
         )
-
-    @property
-    def phase(self) -> BrowserPhase:
-        return self._phase
 
     @property
     def visible(self) -> bool:
@@ -203,7 +167,7 @@ class WebAppBrowser(BrowserBackend):
                 (on_complete, self._generation),
             )
         except Exception as exc:
-            message = _error_message(exc)
+            message = error_message(exc)
             self._set_phase(BrowserPhase.ERROR, message)
             on_complete(False, message)
 
@@ -239,7 +203,7 @@ class WebAppBrowser(BrowserBackend):
             return True
         try:
             self._webkit = load_webkit()
-            data_dir, cache_dir = _session_directories(self.profile.session_name)
+            data_dir, cache_dir = session_directories(self.profile.session_name)
             manager = self._webkit.WebsiteDataManager(
                 base_data_directory=str(data_dir),
                 base_cache_directory=str(cache_dir),
@@ -300,7 +264,7 @@ class WebAppBrowser(BrowserBackend):
             self._set_phase(BrowserPhase.UNAVAILABLE, str(exc))
             return False
         except Exception as exc:
-            message = _error_message(exc)
+            message = error_message(exc)
             log.warning("Could not start web app: %s", message, exc_info=True)
             self._set_phase(BrowserPhase.ERROR, message)
             return False
@@ -361,12 +325,6 @@ class WebAppBrowser(BrowserBackend):
         if callable(developer_extras):
             developer_extras(False)
 
-    def _set_phase(self, phase: BrowserPhase, error: str = "") -> None:
-        if phase == self._phase and not error:
-            return
-        self._phase = phase
-        self._on_phase(phase, error)
-
     def _on_window_delete(self, window: Gtk.Window, _event: object) -> bool:
         window.hide()
         return True
@@ -404,29 +362,7 @@ class WebAppBrowser(BrowserBackend):
         if event is None:
             log.debug("Rejected invalid web app page bridge message")
             return
-        if event.kind == "badge":
-            current = (event.badge_count, event.badge_visible)
-            if current != self._last_bridge_badge:
-                self._last_bridge_badge = current
-                self._on_badge(event.badge_count, event.badge_visible)
-            return
-        self._apply_status_event(event)
-
-    def _apply_status_event(self, event: BridgeEvent) -> None:
-        if event.online is None:
-            return
-        current = (event.online, event.auth)
-        if current == self._last_bridge_status:
-            return
-        self._last_bridge_status = current
-        if not event.online:
-            self._set_phase(BrowserPhase.OFFLINE)
-        elif event.auth == "login_required":
-            self._set_phase(BrowserPhase.LOGIN_REQUIRED)
-        elif event.auth == "ready":
-            self._set_phase(BrowserPhase.READY)
-        else:
-            self._set_phase(BrowserPhase.SYNCING)
+        self._apply_bridge_event(event)
 
     def _on_load_failed(
         self,
@@ -435,7 +371,7 @@ class WebAppBrowser(BrowserBackend):
         _uri: str,
         error: Exception,
     ) -> bool:
-        message = _error_message(error)
+        message = error_message(error)
         self._set_phase(BrowserPhase.ERROR, message)
         return False
 
@@ -558,7 +494,7 @@ class WebAppBrowser(BrowserBackend):
             "failed",
             lambda _download, error: log.warning(
                 "web app download failed: %s",
-                _error_message(error),
+                error_message(error),
             ),
         )
 
@@ -567,7 +503,7 @@ class WebAppBrowser(BrowserBackend):
         download: Any,
         suggested_filename: str,
     ) -> bool:
-        destination = _unique_download_path(suggested_filename)
+        destination = unique_download_path(suggested_filename)
         download.set_destination(destination.as_uri())
         return True
 
@@ -584,7 +520,7 @@ class WebAppBrowser(BrowserBackend):
             if generation != self._generation or manager is not self._manager:
                 return
             self._clear_cancellable = None
-            message = _error_message(exc)
+            message = error_message(exc)
             self._set_phase(BrowserPhase.ERROR, message)
             on_complete(False, message)
             return
@@ -628,8 +564,3 @@ class WebAppBrowser(BrowserBackend):
 
 def _open_external_uri(uri: str) -> None:
     targets.open_target(uri)
-
-
-def _error_message(error: object) -> str:
-    message = str(error).strip().splitlines()[0] if str(error).strip() else ""
-    return message[:160] or _("unknown browser error")

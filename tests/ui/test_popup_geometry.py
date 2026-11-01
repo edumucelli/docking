@@ -62,6 +62,28 @@ def test_anchor_monitor_uses_external_area_in_logical_coordinates():
     assert snapshot.primary is False
 
 
+@pytest.mark.parametrize(
+    "workarea,expected",
+    [
+        (Rect(-1280, 28, 1280, 650), Rect(-1280, 28, 1280, 650)),
+        # An explicit surface without native bounds keeps GDK's workarea;
+        # it must not switch to the parent's larger external workarea.
+        (None, Rect(-1280, 28, 1280, 719)),
+        (Rect(0, 0, 10, 10), Rect(-1280, 0, 1280, 800)),
+    ],
+)
+def test_explicit_surface_keeps_owned_reservations_and_fallbacks(workarea, expected):
+    popup, parent_surface = _popup(external=Rect(-1280, 0, 1280, 800))
+    surface = MagicMock(spec=SurfaceService)
+    surface.monitor_workarea.return_value = workarea
+    assert popup_workarea(popup, -1240, 760, surface_service=surface) == expected
+    snapshot = surface.monitor_workarea.call_args.args[0]
+    assert snapshot.index == 1 and snapshot.scale == 2 and not snapshot.primary
+    surface.monitor_workarea.assert_called_once()
+    surface.external_workarea.assert_not_called()
+    parent_surface.external_workarea.assert_not_called()
+
+
 @pytest.mark.parametrize("relative", [False, True])
 def test_missing_external_reservations_fall_back_to_gdk_workarea(relative):
     popup, _ = _popup(relative=relative)

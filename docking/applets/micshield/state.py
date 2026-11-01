@@ -11,39 +11,23 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Microphone mute and privacy-state helpers.
-
-Mic Shield mirrors Cam Shield's user-facing idea, but the implementation has
-to live at the audio-server layer.  Camera apps usually hold ``/dev/video*``
-directly, so Cam Shield can inspect process file descriptors.  Microphone apps
-usually capture through PulseAudio or PipeWire, so the process holding
-``/dev/snd/*`` is often only the audio server.  ``pactl`` exposes the useful
-view: real input-source mute state and current source-output capture streams.
-"""
+"""Microphone values and presentation shared by platform backends."""
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
 from docking.i18n import _
-from docking.log import get_logger, with_context
-
-log = with_context(get_logger(name="micshield.state"))
 
 DEFAULT_POLL_INTERVAL_S = 2
 MAX_TOOLTIP_STREAMS = 6
-PACTL_BIN = "pactl"
-
-_SOURCE_OUTPUT_RE = re.compile(r"^Source Output #(?P<id>\d+)\s*$")
-_PROPERTY_RE = re.compile(r"^\s*(?P<key>[-.\w]+)\s*=\s*(?P<value>.*)\s*$")
 
 
 @dataclass(frozen=True, slots=True)
 class MicStream:
     """One active microphone capture stream reported by the audio server."""
 
-    stream_id: int
+    stream_id: int | str
     command: str
     pid: int | None = None
     name: str = ""
@@ -54,74 +38,27 @@ class MicShieldState:
     """Current microphone privacy state."""
 
     available: bool
-    muted: bool
-    active: bool
+    muted: bool | None
+    active: bool | None
     streams: tuple[MicStream, ...] = ()
-
-
-def parse_source_mute(*, output: str) -> bool | None:
-    """Parse ``pactl get-source-mute`` output."""
-    text = output.lower()
-    if "yes" in text:
-        return True
-    if "no" in text:
-        return False
-    return None
-
-
-def parse_input_sources(*, output: str) -> tuple[str, ...]:
-    """Parse ``pactl list sources short`` and drop output monitor sources."""
-    names: list[str] = []
-    for line in output.splitlines():
-        parts = line.split()
-        if len(parts) < 2:
-            continue
-        name = parts[1]
-        if name.endswith(".monitor") or ".monitor." in name:
-            continue
-        names.append(name)
-    return tuple(names)
-
-
-def parse_source_outputs(
-    *, output: str, include_corked: bool = False
-) -> tuple[MicStream, ...]:
-    """Parse active capture streams from ``pactl list source-outputs``.
-
-    Corked streams are included when applying mute changes to connected clients.
-    Missing ``Corked`` is treated as active for older pactl output.
-    """
-    streams: list[MicStream] = []
-    for stream_id, lines in _source_output_blocks(output=output):
-        props = _parse_properties(lines=lines)
-        corked = _parse_corked(lines=lines)
-        if corked is True and not include_corked:
-            continue
-        command = (
-            props.get("application.name")
-            or props.get("application.process.binary")
-            or props.get("media.name")
-            or _("Unknown")
-        )
-        streams.append(
-            MicStream(
-                stream_id=stream_id,
-                command=command,
-                pid=_parse_pid(props.get("application.process.id")),
-                name=props.get("media.name", ""),
-            )
-        )
-    return tuple(streams)
+    error: bool = False
 
 
 def build_tooltip(state: MicShieldState) -> str:
     """Build compact tooltip text."""
     lines = [_("Mic Shield")]
     if not state.available:
-        lines.append(_("No microphone source found"))
+        lines.append(
+            _("Microphone state unavailable")
+            if state.error
+            else _("No microphone source found")
+        )
         return "\n".join(lines)
 
-    lines.append(_("Microphone muted") if state.muted else _("Microphone unmuted"))
+    lines.append(mute_status(state))
+    if state.active is None:
+        lines.append(_("Microphone activity unknown"))
+        return "\n".join(lines)
     if not state.active:
         lines.append(_("Microphone idle"))
         return "\n".join(lines)
@@ -145,64 +82,7 @@ def stream_label(stream: MicStream) -> str:
     )
 
 
-def _source_output_blocks(*, output: str) -> tuple[tuple[int, tuple[str, ...]], ...]:
-    blocks: list[tuple[int, tuple[str, ...]]] = []
-    current_id: int | None = None
-    current_lines: list[str] = []
-    for line in output.splitlines():
-        match = _SOURCE_OUTPUT_RE.match(line.strip())
-        if match:
-            if current_id is not None:
-                blocks.append((current_id, tuple(current_lines)))
-            current_id = int(match.group("id"))
-            current_lines = []
-            continue
-        if current_id is not None:
-            current_lines.append(line)
-    if current_id is not None:
-        blocks.append((current_id, tuple(current_lines)))
-    return tuple(blocks)
-
-
-def _parse_properties(*, lines: tuple[str, ...]) -> dict[str, str]:
-    properties: dict[str, str] = {}
-    in_properties = False
-    for line in lines:
-        if line.strip() == "Properties:":
-            in_properties = True
-            continue
-        if not in_properties:
-            continue
-        match = _PROPERTY_RE.match(line)
-        if not match:
-            continue
-        properties[match.group("key")] = _unquote_property(match.group("value"))
-    return properties
-
-
-def _parse_corked(*, lines: tuple[str, ...]) -> bool | None:
-    for line in lines:
-        stripped = line.strip().lower()
-        if not stripped.startswith("corked:"):
-            continue
-        if "yes" in stripped:
-            return True
-        if "no" in stripped:
-            return False
-    return None
-
-
-def _parse_pid(value: str | None) -> int | None:
-    if not value:
-        return None
-    try:
-        return int(value)
-    except ValueError:
-        return None
-
-
-def _unquote_property(value: str) -> str:
-    stripped = value.strip()
-    if len(stripped) >= 2 and stripped[0] == stripped[-1] == '"':
-        return stripped[1:-1]
-    return stripped
+def mute_status(state: MicShieldState) -> str:
+    if state.muted is None:
+        return _("Microphone mute state unknown")
+    return _("Microphone muted") if state.muted else _("Microphone unmuted")

@@ -346,6 +346,54 @@ class WindowService(Service):
 class SurfaceService(Service):
     """Dock surface role, screen reservation, and platform edge integration."""
 
+    def popups_require_managed_windows(self) -> bool:
+        """Use GTK toplevels when temporary windows cannot receive keyboard focus."""
+        return False
+
+    def prepare_menu_popup(self, menu: object) -> None:
+        """Prepare any platform-specific keyboard focus for a root menu."""
+
+    def restore_popup_focus(
+        self,
+        window: object,
+        claim: Callable[[], bool],
+        *,
+        validate: Callable[[], bool],
+    ) -> bool:
+        """Restore an owned popup only after claiming a current provider request.
+
+        Called on the GTK thread. Implementations must invoke ``claim`` at the
+        final focus boundary, before mapping, presenting or foregrounding the
+        popup. Recheck ``validate`` after mapping, immediately before focusing.
+        Return False without showing it when the claim is rejected.
+        """
+        return False
+
+    def prepare_file_drag_source(
+        self,
+        widget: object,
+        *,
+        application_id: str,
+        data: tuple[tuple[str, bytes], ...],
+    ) -> bool:
+        """Own a prepared file drag, or return False to use GTK's default source."""
+        return False
+
+    def prepare_capture_overlay(self, overlay: object) -> None:
+        """Prepare focus and shutdown handling for an owned input-capture surface."""
+
+    def capture_source_window(self) -> WindowSnapshot | None:
+        """Return the window which was active before an owned menu took focus."""
+        return None
+
+    def screen_rectangle(self, window: object, rect: Rect) -> Rect | None:
+        """Map a GTK client rectangle into the platform's desktop coordinates.
+
+        Called on the GTK thread. Return None when this backend does not publish
+        native screen geometry.
+        """
+        return None
+
     def set_pointer_leave_handler(self, callback: Callable[[], None] | None) -> None:
         """Register an optional compositor fallback for missing GTK exit events."""
 
@@ -397,6 +445,11 @@ class SurfaceService(Service):
     @abstractmethod
     def set_blur_region(self, rect: Rect | None) -> None:
         """Set or clear a compositor blur hint, if supported."""
+
+    @property
+    def input_region_alpha(self) -> float:
+        """Minimum rendered alpha needed where hit testing follows pixel alpha."""
+        return 0.0
 
     @property
     def compositor_sizes_main_axis(self) -> bool:
@@ -452,6 +505,10 @@ class SurfaceService(Service):
         logical = rect.device_to_logical(window.get_scale_factor())
         window.move(logical.x, logical.y)
         window.resize(logical.width, logical.height)
+
+    def monitor_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
+        """Current logical work area, including this dock's screen reservation."""
+        return monitor.workarea or monitor.geometry
 
     def external_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
         """Return monitor space excluding other edge-reserving surfaces.
@@ -557,7 +614,7 @@ class ScreenCaptureService(Service):
 
     @abstractmethod
     def pick_color(self, *, x: int, y: int) -> tuple[int, int, int] | None:
-        """Pick a screen color in RGB byte values."""
+        """Pick RGB bytes at GTK logical root coordinates (ignored when interactive)."""
 
 
 class IdleService(Service):

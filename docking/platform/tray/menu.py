@@ -1,4 +1,4 @@
-"""Neutral tray menu values and actions."""
+"""Transport-independent tray menu trees and explicit menu operations."""
 
 from __future__ import annotations
 
@@ -7,9 +7,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
-class DBusMenuItem:
-    """One menu item from a DBusMenu layout tree."""
-
+class TrayMenuItem:
     item_id: int
     label: str
     enabled: bool = True
@@ -19,7 +17,7 @@ class DBusMenuItem:
     icon_data: bytes = b""
     toggle_type: str = ""
     toggle_state: int = -1
-    children: tuple[DBusMenuItem, ...] = ()
+    children: tuple[TrayMenuItem, ...] = ()
 
     @property
     def is_separator(self) -> bool:
@@ -27,17 +25,15 @@ class DBusMenuItem:
 
 
 @dataclass(frozen=True, slots=True)
-class DBusMenuLayout:
-    """Parsed DBusMenu layout."""
-
+class TrayMenuLayout:
     revision: int
-    root: DBusMenuItem
+    root: TrayMenuItem
 
 
 class TrayMenuClient(ABC):
     @abstractmethod
-    def get_layout(self) -> DBusMenuLayout | None: ...
+    def about_to_show(self, item_id: int = 0) -> bool: ...
     @abstractmethod
-    def about_to_show(self, item_id: int) -> bool: ...
+    def get_layout(self) -> TrayMenuLayout | None: ...
     @abstractmethod
-    def event(self, item_id: int, event_id: str = "clicked") -> bool: ...
+    def event(self, item_id: int) -> bool: ...

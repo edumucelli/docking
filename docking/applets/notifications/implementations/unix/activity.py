@@ -6,36 +6,36 @@ import shlex
 import shutil
 import subprocess
 import threading
-from collections.abc import Callable
+from contextlib import suppress
+from queue import Empty, Full, Queue
 
-import gi
-
-from docking.applets.notifications.backend import NotificationActivityMonitor
-
-gi.require_version("GLib", "2.0")
-from gi.repository import GLib
-
+from docking.applets.notifications.state import NotificationEntry
 from docking.log import get_logger, with_context
 from docking.platform.environment import flatpak, is_flatpak
 
 log = with_context(get_logger(name="notifications"), component="activity")
+
 ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S = 0.4
 NOTIFICATION_MONITOR_RULE = "interface='org.freedesktop.Notifications',member='Notify'"
 HOST_MONITOR_PID_PREFIX = "__DOCKING_HOST_DBUS_MONITOR_PID="
 
 
-class UnixNotificationActivityMonitor(NotificationActivityMonitor):
-    def __init__(
-        self,
-        *,
-        on_event: Callable[[str, str, str], bool | None],
-        on_activity: Callable[[], bool | None],
-    ) -> None:
-        self._on_event = on_event
-        self._on_activity = on_activity
+class UnixNotificationActivityMonitor:
+    def __init__(self):
         self._activity_monitor_proc: subprocess.Popen[str] | None = None
         self._activity_monitor_thread: threading.Thread | None = None
         self._activity_monitor_host_pid: str | None = None
+        self._events: Queue[NotificationEntry | None] = Queue(maxsize=128)
+        self._closing = threading.Event()
+        self._monitor_lock = threading.Lock()
+
+    def drain(self) -> tuple[NotificationEntry | None, ...]:
+        events = []
+        while True:
+            try:
+                events.append(self._events.get_nowait())
+            except Empty:
+                return tuple(events)
 
     def start(self) -> None:
         if self._activity_monitor_proc is not None:
@@ -92,8 +92,10 @@ class UnixNotificationActivityMonitor(NotificationActivityMonitor):
     def stop(self) -> None:
         proc = self._activity_monitor_proc
         self._activity_monitor_proc = None
-        host_pid = self._activity_monitor_host_pid
-        self._activity_monitor_host_pid = None
+        with self._monitor_lock:
+            self._closing.set()
+            host_pid = self._activity_monitor_host_pid
+            self._activity_monitor_host_pid = None
         if proc is None:
             return
         if host_pid is not None:
@@ -103,12 +105,18 @@ class UnixNotificationActivityMonitor(NotificationActivityMonitor):
             proc.wait(timeout=ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S)
         except subprocess.TimeoutExpired as exc:
             log.debug("dbus-monitor did not exit cleanly, forcing kill: %s", exc)
-            proc.kill()
+            try:
+                proc.kill()
+                proc.wait(timeout=ACTIVITY_MONITOR_TERMINATE_TIMEOUT_S)
+            except (OSError, subprocess.TimeoutExpired) as kill_error:
+                log.warning("Could not reap dbus-monitor: %s", kill_error)
         except OSError as exc:
             log.debug("Failed to stop dbus-monitor cleanly: %s", exc)
             return
 
     def _stop_host_activity_monitor(self, pid: str) -> None:
+        if not pid.isdecimal() or int(pid) <= 0:
+            return
         command = flatpak.host_command(["kill", pid], sanitize_env=False)
         if command is None:
             return
@@ -134,9 +142,13 @@ class UnixNotificationActivityMonitor(NotificationActivityMonitor):
                 if line.startswith(HOST_MONITOR_PID_PREFIX):
                     # Store the host-side pid so stop() can kill the actual
                     # dbus-monitor, not just the flatpak-spawn wrapper.
-                    self._activity_monitor_host_pid = line[
-                        len(HOST_MONITOR_PID_PREFIX) :
-                    ].strip()
+                    pid = line[len(HOST_MONITOR_PID_PREFIX) :].strip()
+                    with self._monitor_lock:
+                        closing = self._closing.is_set()
+                        if not closing:
+                            self._activity_monitor_host_pid = pid
+                    if closing:
+                        self._stop_host_activity_monitor(pid)
                     continue
                 if "member=Notify" in line:
                     capture_notify = True
@@ -155,16 +167,11 @@ class UnixNotificationActivityMonitor(NotificationActivityMonitor):
                         app_name = notify_strings[0]
                         summary = notify_strings[2]
                         body = notify_strings[3]
-                        GLib.idle_add(
-                            self._on_event,
-                            app_name,
-                            summary,
-                            body,
-                        )
+                        self._record(NotificationEntry(app_name, summary, body))
                     else:
-                        GLib.idle_add(self._on_activity)
+                        self._record(None)
                     capture_notify = False
-        except Exception as exc:
+        except (OSError, UnicodeError) as exc:
             log.bind(action="activity_monitor").warning(
                 "Notification activity monitor stopped unexpectedly: %s", exc
             )
@@ -177,3 +184,12 @@ class UnixNotificationActivityMonitor(NotificationActivityMonitor):
         if not stripped.startswith(prefix) or not stripped.endswith('"'):
             return None
         return stripped[len(prefix) : -1].replace('\\"', '"')
+
+    def _record(self, entry: NotificationEntry | None) -> None:
+        try:
+            self._events.put_nowait(entry)
+        except Full:
+            # Keep the most recent activity, bounded even when GTK is stalled.
+            with suppress(Empty):
+                self._events.get_nowait()
+            self._events.put_nowait(entry)

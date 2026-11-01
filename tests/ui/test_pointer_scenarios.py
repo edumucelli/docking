@@ -175,6 +175,7 @@ class _ScenarioHarness:
         self.application_registry = MagicMock()
         self.application_registry.get.return_value = None
         self.application_registry.resolve_by_desktop_file.return_value = None
+        self.application_registry.resolve_by_export_file.return_value = None
         self.application_launcher = MagicMock()
         self.icon_loader = MagicMock()
         self.target_service = MagicMock()

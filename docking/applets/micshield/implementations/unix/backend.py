@@ -1,24 +1,35 @@
-"""Unix microphone capture and mute operations."""
+# Author: Eduardo Mucelli Rezende Oliveira
+# E-mail: edumucelli@gmail.com
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+
+"""Linux/PulseAudio microphone sources, stream inspection and mute controls."""
 
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
+import threading
 
-from docking.applets.micshield.backend import (
-    MicshieldOperations as MicshieldOperationsBase,
-)
+from docking.applets.micshield.backend import MicShieldBackend
+from docking.applets.micshield.state import MicShieldState, MicStream
+from docking.i18n import _
+from docking.log import get_logger, with_context
 
-from ...state import (
-    PACTL_BIN,
-    MicShieldState,
-    MicStream,
-    log,
-    parse_input_sources,
-    parse_source_mute,
-    parse_source_outputs,
-)
+log = with_context(get_logger("micshield.linux"))
+PACTL_BIN = "pactl"
+_SOURCE_OUTPUT_RE = re.compile(r"^Source Output #(?P<id>\d+)\s*$")
+_PROPERTY_RE = re.compile(r"^\s*(?P<key>[-.\w]+)\s*=\s*(?P<value>.*)\s*$")
 
 
 def probe_mic_state() -> MicShieldState:
@@ -114,6 +125,61 @@ def _source_outputs(*, include_corked: bool) -> tuple[MicStream, ...]:
     return parse_source_outputs(output=out or "", include_corked=include_corked)
 
 
+def parse_source_mute(*, output: str) -> bool | None:
+    """Parse ``pactl get-source-mute`` output."""
+    text = output.lower()
+    if "yes" in text:
+        return True
+    if "no" in text:
+        return False
+    return None
+
+
+def parse_input_sources(*, output: str) -> tuple[str, ...]:
+    """Parse ``pactl list sources short`` and drop output monitor sources."""
+    names: list[str] = []
+    for line in output.splitlines():
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        name = parts[1]
+        if name.endswith(".monitor") or ".monitor." in name:
+            continue
+        names.append(name)
+    return tuple(names)
+
+
+def parse_source_outputs(
+    *, output: str, include_corked: bool = False
+) -> tuple[MicStream, ...]:
+    """Parse active capture streams from ``pactl list source-outputs``.
+
+    Corked streams are included when applying mute changes to connected clients.
+    Missing ``Corked`` is treated as active for older pactl output.
+    """
+    streams: list[MicStream] = []
+    for stream_id, lines in _source_output_blocks(output=output):
+        props = _parse_properties(lines=lines)
+        corked = _parse_corked(lines=lines)
+        if corked is True and not include_corked:
+            continue
+        command = (
+            props.get("application.name")
+            or props.get("application.process.binary")
+            or props.get("media.name")
+            or _("Unknown")
+        )
+        streams.append(
+            MicStream(
+                stream_id=stream_id,
+                command=command,
+                pid=_parse_pid(props.get("application.process.id")),
+                name=props.get("media.name", ""),
+            )
+        )
+    return tuple(streams)
+
+
 def _source_mute_states(*, source_names: tuple[str, ...]) -> tuple[bool | None, ...]:
     names = source_names or ("@DEFAULT_SOURCE@",)
     states: list[bool | None] = []
@@ -152,18 +218,94 @@ def _run(*, cmd: list[str], action: str) -> str | None:
     return result.stdout
 
 
-class MicshieldOperations(MicshieldOperationsBase):
-    def probe_mic_state(self) -> MicShieldState:
-        return probe_mic_state()
+def _source_output_blocks(*, output: str) -> tuple[tuple[int, tuple[str, ...]], ...]:
+    blocks: list[tuple[int, tuple[str, ...]]] = []
+    current_id: int | None = None
+    current_lines: list[str] = []
+    for line in output.splitlines():
+        match = _SOURCE_OUTPUT_RE.match(line.strip())
+        if match:
+            if current_id is not None:
+                blocks.append((current_id, tuple(current_lines)))
+            current_id = int(match.group("id"))
+            current_lines = []
+            continue
+        if current_id is not None:
+            current_lines.append(line)
+    if current_id is not None:
+        blocks.append((current_id, tuple(current_lines)))
+    return tuple(blocks)
 
-    def toggle_mic_mute(self) -> bool:
-        return toggle_mic_mute()
 
-    def set_mic_muted(self, *, muted: bool) -> bool:
-        return set_mic_muted(muted=muted)
+def _parse_properties(*, lines: tuple[str, ...]) -> dict[str, str]:
+    properties: dict[str, str] = {}
+    in_properties = False
+    for line in lines:
+        if line.strip() == "Properties:":
+            in_properties = True
+            continue
+        if not in_properties:
+            continue
+        match = _PROPERTY_RE.match(line)
+        if not match:
+            continue
+        properties[match.group("key")] = _unquote_property(match.group("value"))
+    return properties
 
-    def input_source_names(self) -> tuple[str, ...]:
-        return input_source_names()
 
-    def active_source_outputs(self) -> tuple[MicStream, ...]:
-        return active_source_outputs()
+def _parse_corked(*, lines: tuple[str, ...]) -> bool | None:
+    for line in lines:
+        stripped = line.strip().lower()
+        if not stripped.startswith("corked:"):
+            continue
+        if "yes" in stripped:
+            return True
+        if "no" in stripped:
+            return False
+    return None
+
+
+def _parse_pid(value: str | None) -> int | None:
+    if not value:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _unquote_property(value: str) -> str:
+    stripped = value.strip()
+    if len(stripped) >= 2 and stripped[0] == stripped[-1] == '"':
+        return stripped[1:-1]
+    return stripped
+
+
+class LinuxMicShieldBackend(MicShieldBackend):
+    def __init__(self) -> None:
+        self._lock = threading.RLock()
+        self._stopped = threading.Event()
+
+    def stop(self) -> None:
+        self._stopped.set()
+
+    def get_state(self) -> MicShieldState:
+        with self._lock:
+            return (
+                MicShieldState(False, False, False)
+                if self._stopped.is_set()
+                else probe_mic_state()
+            )
+
+    def set_muted(self, muted: bool) -> bool:
+        with self._lock:
+            if self._stopped.is_set():
+                return False
+            accepted = set_mic_muted(muted=muted)
+            state = self.get_state()
+            return accepted and state.available and state.muted is muted
+
+    def toggle_muted(self) -> bool:
+        with self._lock:
+            state = self.get_state()
+            return self.set_muted(not state.muted) if state.available else False

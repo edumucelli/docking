@@ -8,6 +8,17 @@ from collections.abc import Callable
 from .global_shortcuts import ActivationCallback, GlobalShortcutService, StatusCallback
 
 
+class WindowFocus(ABC):
+    @abstractmethod
+    def before_present(self) -> None: ...
+
+    @abstractmethod
+    def after_present(self, *, title: str, visible: Callable[[], bool]) -> None: ...
+
+    @abstractmethod
+    def cancel(self) -> None: ...
+
+
 class ShortcutFallback(ABC):
     """Controller-facing lifecycle contract for a non-portal shortcut."""
 
@@ -35,6 +46,17 @@ class ShortcutFallback(ABC):
 
 
 class SearchIntegration(ABC):
+    @property
+    @abstractmethod
+    def opaque_action_panel(self) -> bool:
+        """Whether the native popup requires an opaque action overlay."""
+        ...
+
+    @abstractmethod
+    def create_focus(self) -> WindowFocus | None:
+        """Create a per-window focus controller on GTK, or leave focus to GTK."""
+        ...
+
     @abstractmethod
     def primary(
         self,
@@ -43,6 +65,9 @@ class SearchIntegration(ABC):
         preferred_trigger: str,
         on_activated: ActivationCallback,
         on_status_changed: StatusCallback,
+        trigger_description: str,
+        schedule_idle: Callable[..., int],
+        remove_source: Callable[[int], bool],
     ) -> GlobalShortcutService: ...
     @abstractmethod
     def fallback(

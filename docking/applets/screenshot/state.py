@@ -11,54 +11,51 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""State and command helpers for screenshot applet."""
+"""Pure screenshot modes and owned pixel results."""
 
-from __future__ import annotations
-
-from typing import Literal, NamedTuple
-
-
-class Tool(NamedTuple):
-    """A screenshot backend with per-mode command templates."""
-
-    command: str
-    full: list[str]
-    window: list[str]
-    region: list[str]
-    backend: str = "cli"
-
+from dataclasses import dataclass
+from typing import Literal
 
 Mode = Literal["full", "window", "region"]
 
-_PORTAL_TOOL = Tool(
-    command="gdbus",
-    full=[],
-    window=[],
-    region=[],
-    backend="portal",
-)
-_PORTAL_DEST = "org.freedesktop.portal.Desktop"
-_PORTAL_PATH = "/org/freedesktop/portal/desktop"
-_PORTAL_INTERFACE = "org.freedesktop.portal.Screenshot"
-_PORTAL_METHOD = f"{_PORTAL_INTERFACE}.Screenshot"
+
+@dataclass(frozen=True)
+class SelectedRegion:
+    """GTK logical coordinates retain subpixel positions on scaled displays."""
+
+    x: float
+    y: float
+    width: float
+    height: float
+
+    @property
+    def right(self) -> float:
+        return self.x + self.width
+
+    @property
+    def bottom(self) -> float:
+        return self.y + self.height
 
 
-_TOOLS: tuple[Tool, ...] = (
-    Tool(
-        command="cosmic-screenshot",
-        full=["--interactive=false"],
-        window=["--interactive=true"],
-        region=["--interactive=true"],
-    ),
-    Tool(command="mate-screenshot", full=[], window=["-w"], region=["-a"]),
-    Tool(command="gnome-screenshot", full=[], window=["-w"], region=["-a"]),
-    Tool(command="xfce4-screenshooter", full=["-f"], window=["-w"], region=["-r"]),
-    Tool(
-        command="spectacle",
-        full=["--fullscreen"],
-        window=["--activewindow"],
-        region=["--region"],
-    ),
-    Tool(command="flameshot", full=["full"], window=["gui"], region=["gui"]),
-    Tool(command="scrot", full=[], window=["-u"], region=["-s"]),
-)
+@dataclass(frozen=True)
+class ScreenshotImage:
+    pixels: bytes
+    width: int
+    height: int
+    alpha: bool = False
+
+    def __post_init__(self) -> None:
+        channels = 4 if self.alpha else 3
+        if (
+            not 0 < self.width <= 32768
+            or not 0 < self.height <= 32768
+            or self.width * self.height * channels > 128 * 1024 * 1024
+            or len(self.pixels) != self.width * self.height * channels
+        ):
+            raise ValueError("Invalid screenshot pixels")
+
+
+@dataclass(frozen=True)
+class ScreenshotResult:
+    accepted: bool
+    image: ScreenshotImage | None = None

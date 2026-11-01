@@ -35,6 +35,9 @@ class RecentApplicationsConfig(Protocol):
 class ApplicationResolver(Protocol):
     """Read-only registry surface used by recent-application policy."""
 
+    @property
+    def initial_discovery_pending(self) -> bool: ...
+
     def get(self, desktop_id: str) -> ApplicationInfo | None: ...
 
 
@@ -139,7 +142,7 @@ class RecentApplications:
                 record.desktop_id in pinned
                 or record.desktop_id in seen
                 or record.last_closed < cutoff
-                or not self._is_resolvable(record.desktop_id)
+                or not self._is_resolvable(record.desktop_id, allow_pending=True)
             ):
                 continue
             seen.add(record.desktop_id)
@@ -266,12 +269,11 @@ class RecentApplications:
     def _retention_cutoff(self) -> float:
         return self._clock() - (self._persistence.retention_days * 86400)
 
-    def _is_resolvable(self, desktop_id: str) -> bool:
+    def _is_resolvable(self, desktop_id: str, *, allow_pending: bool = False) -> bool:
         application = self._registry.get(desktop_id)
-        return (
-            application is not None
-            and application.origin is not ApplicationOrigin.RUNTIME
-        )
+        if application is None:
+            return allow_pending and self._registry.initial_discovery_pending
+        return application.origin is not ApplicationOrigin.RUNTIME
 
 
 __all__ = [

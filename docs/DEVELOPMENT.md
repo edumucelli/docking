@@ -58,12 +58,22 @@ DOCKING_LOG_LEVEL=DEBUG python run.py
 # Run all tests
 pytest tests/ -v
 
+# Run the no-GI smoke suite in a separate process
+pytest tests/smoke/test_python314_smoke.py -q
+
 # Run specific module
 pytest tests/applets/test_clock.py -v
 
 # Coverage report
 pytest tests/ -v --cov=docking --cov-report=term-missing
 ```
+
+Run the smoke command separately: imports cached during full-suite collection
+can hide incomplete smoke fixtures.
+
+CI also checks pull requests targeting prerequisite branches, so stacked changes
+receive the same checks before their base reaches master. Release jobs remain
+restricted to master.
 
 For the GUI/integration-oriented slice under a headless X11 session:
 

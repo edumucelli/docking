@@ -1,12 +1,12 @@
-"""Typed native operations used by this applet."""
-
-from __future__ import annotations
+"""Keyboard lock indicators shared by the platform implementations."""
 
 from abc import ABC, abstractmethod
 
-from .state import LockKeyState
+from docking.applets.capslock.state import LockKeyState
 
 
-class CapslockOperations(ABC):
+class LockKeyBackend(ABC):
     @abstractmethod
-    def query_lock_state(self) -> LockKeyState: ...
+    def get_state(self) -> LockKeyState:
+        """Read Caps Lock and Num Lock toggle indicators without changing them."""
+        ...

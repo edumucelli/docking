@@ -1,24 +1,27 @@
-"""Microphone operations contract."""
-
-from __future__ import annotations
+"""Microphone state and explicit mute controls shared by platform backends."""
 
 from abc import ABC, abstractmethod
 
-from .state import MicShieldState, MicStream
+from docking.applets.micshield.state import MicShieldState
 
 
-class MicshieldOperations(ABC):
+class MicShieldBackend(ABC):
     @abstractmethod
-    def probe_mic_state(self) -> MicShieldState: ...
-
-    @abstractmethod
-    def toggle_mic_mute(self) -> bool: ...
+    def get_state(self) -> MicShieldState: ...
 
     @abstractmethod
-    def set_mic_muted(self, *, muted: bool) -> bool: ...
+    def set_muted(self, muted: bool) -> bool:
+        """Change every current microphone input; success requires readback."""
+        ...
 
     @abstractmethod
-    def input_source_names(self) -> tuple[str, ...]: ...
+    def toggle_muted(self) -> bool: ...
 
     @abstractmethod
-    def active_source_outputs(self) -> tuple[MicStream, ...]: ...
+    def stop(self) -> None: ...
+
+    def settings_available(self) -> bool:
+        return False
+
+    def open_settings(self) -> bool:
+        return False

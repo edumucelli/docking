@@ -6,13 +6,12 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from docking.applets.aiusage.hooks import UsageHooks
     from docking.applets.platform import AppletBackendFactories
     from docking.core.config import Config
     from docking.platform.applications.backend import (
-        ApplicationAssociationBackend,
-        ApplicationCatalogBackend,
         ApplicationLaunchBackend,
-        ExecutableRegistrationBackend,
+        ApplicationSources,
         ProcessBackend,
     )
     from docking.platform.applications.identity import ProcessIdentityService
@@ -26,13 +25,11 @@ if TYPE_CHECKING:
 
 class PlatformProvider(ABC):
     @abstractmethod
+    def usage_hooks(self) -> UsageHooks: ...
+    @abstractmethod
     def applet_backends(self) -> AppletBackendFactories: ...
     @abstractmethod
-    def catalog(self) -> ApplicationCatalogBackend: ...
-    @abstractmethod
-    def associations(self) -> ApplicationAssociationBackend: ...
-    @abstractmethod
-    def registrations(self) -> ExecutableRegistrationBackend: ...
+    def application_sources(self) -> ApplicationSources: ...
     @abstractmethod
     def launches(self) -> ApplicationLaunchBackend: ...
     @abstractmethod

@@ -1,21 +1,35 @@
-"""Unix native operations extracted without changing fallback policy."""
+"""Bluetooth desktop tools used by Linux and BSD implementations."""
 
 from __future__ import annotations
 
 import shutil
 import subprocess
 
-from docking.applets.bluetooth.operations import (
-    BluetoothOperations as BluetoothOperationsBase,
-)
+from docking.applets.bluetooth.backend import BluetoothAction
+from docking.log import get_logger
 
-from ...state import (
-    _ADAPTERS_COMMANDS,
-    _DEVICES_COMMANDS,
-    _LOCAL_SERVICES_COMMANDS,
-    _SEND_FILES_COMMANDS,
-    log,
+log = get_logger("bluetooth.unix_desktop")
+
+_SEND_FILES_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("blueman-sendto",),
+    ("bluetooth-sendto",),
+    ("gnome-bluetooth-sendto",),
 )
+_DEVICES_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("blueman-manager",),
+    ("gnome-control-center", "bluetooth"),
+    ("mate-bluetooth-properties",),
+    ("kcmshell6", "kcm_bluetooth"),
+    ("kcmshell5", "kcm_bluetooth"),
+)
+_ADAPTERS_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("blueman-adapters",),
+    ("gnome-control-center", "bluetooth"),
+    ("mate-bluetooth-properties",),
+    ("kcmshell6", "kcm_bluetooth"),
+    ("kcmshell5", "kcm_bluetooth"),
+)
+_LOCAL_SERVICES_COMMANDS: tuple[tuple[str, ...], ...] = (("blueman-services",),)
 
 
 def send_files_command() -> list[str] | None:
@@ -81,27 +95,18 @@ def _open_command(*, cmd: list[str] | None, action: str) -> bool:
     return True
 
 
-class BluetoothOperations(BluetoothOperationsBase):
-    def send_files_command(self) -> list[str] | None:
-        return send_files_command()
+def desktop_actions() -> tuple[BluetoothAction, ...]:
+    return tuple(action for action, query in _COMMANDS.items() if query() is not None)
 
-    def devices_command(self) -> list[str] | None:
-        return devices_command()
 
-    def adapters_command(self) -> list[str] | None:
-        return adapters_command()
+def open_desktop_action(action: BluetoothAction) -> bool:
+    query = _COMMANDS.get(action)
+    return _open_command(cmd=query(), action=action.value) if query else False
 
-    def local_services_command(self) -> list[str] | None:
-        return local_services_command()
 
-    def open_send_files(self) -> bool:
-        return open_send_files()
-
-    def open_devices(self) -> bool:
-        return open_devices()
-
-    def open_adapters(self) -> bool:
-        return open_adapters()
-
-    def open_local_services(self) -> bool:
-        return open_local_services()
+_COMMANDS = {
+    BluetoothAction.SEND_FILES: send_files_command,
+    BluetoothAction.DEVICES: devices_command,
+    BluetoothAction.ADAPTERS: adapters_command,
+    BluetoothAction.LOCAL_SERVICES: local_services_command,
+}

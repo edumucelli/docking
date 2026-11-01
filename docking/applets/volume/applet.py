@@ -34,7 +34,11 @@ from docking.i18n import _
 from docking.log import get_logger, with_context
 
 from .render import create_volume_icon
-from .state import STEP, VolumeState, _volume_icon_name
+from .state import (
+    STEP,
+    VolumeState,
+    _volume_icon_name,
+)
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -57,9 +61,8 @@ class VolumeApplet(PlatformServicesApplet):
         platform_services: AppletPlatformServices,
     ) -> None:
         self._platform = platform_services
-        self._native = platform_services.backends.volume_settings()
         self._backend = self._platform.backends.volume()
-        if not self._backend:
+        if not self._backend.controls:
             log.bind(action="detect_backend").warning(
                 "No audio backend found",
             )
@@ -105,23 +108,23 @@ class VolumeApplet(PlatformServicesApplet):
 
     def on_clicked(self) -> None:
         """Toggle mute on left-click."""
-        if self._backend:
+        if self._backend.controls:
             self._poll_generation += 1
-            self._backend.toggle_mute()
+            self._backend.controls.toggle_mute()
             self._poll()
             self._update_tooltip()
             self.present()
 
     def on_scroll(self, direction_up: bool) -> None:
         """Adjust volume ±5% on scroll."""
-        if not self._backend:
+        if not self._backend.controls:
             return
         self._poll_generation += 1
         if direction_up:
             new = min(100, self._volume + STEP)
         else:
             new = max(0, self._volume - STEP)
-        self._backend.set_volume(new)
+        self._backend.controls.set_volume(new)
         self._poll()
         self._update_tooltip()
         self.present()
@@ -132,11 +135,10 @@ class VolumeApplet(PlatformServicesApplet):
         show.connect("toggled", self._on_toggle_level)
 
         settings: list[Gtk.MenuItem] = []
-        cmd = self._native.volume_settings_command()
-        if cmd is not None:
+        if self._backend.settings.available():
             volume_settings = Gtk.MenuItem(label=_("Volume Settings"))
             volume_settings.connect(
-                "activate", lambda _widget: self._native.open_volume_settings()
+                "activate", lambda _widget: self._backend.settings.open()
             )
             settings.append(volume_settings)
         return menu_sections(display=[show], settings=settings, gtk=Gtk)
@@ -148,22 +150,22 @@ class VolumeApplet(PlatformServicesApplet):
 
     def _poll(self) -> None:
         """Read current volume state from backend."""
-        if not self._backend:
+        if not self._backend.controls:
             return
-        state = self._backend.get_state()
+        state = self._backend.controls.get_state()
         if state is not None:
             self._volume = state.volume
             self._muted = state.muted
 
     def _tick(self) -> bool:
         """Periodic poll - fetch state in background thread."""
-        if not self._backend:
+        if not self._backend.controls:
             return True
         generation = self._poll_generation
         self._worker.run_guarded(
             key="volume-poll",
             name="volume-poll",
-            fn=self._backend.get_state,
+            fn=self._backend.controls.get_state,
             on_result=lambda state: self._on_poll_result(state, generation=generation),
         )
         return True

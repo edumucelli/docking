@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -34,9 +35,21 @@ def _content_handler_is_visible(app_info: object) -> bool:
 
 
 class UnixApplicationAssociationBackend(ApplicationAssociationBackend):
+    @property
+    def revision(self) -> int:
+        return 0
+
+    def reads(
+        self, keys: tuple[AssociationKey, ...]
+    ) -> Iterable[tuple[AssociationKey, AssociationRead]]:
+        return ((key, self._read(key)) for key in keys)
+
+    def association_only(self, application: ApplicationInfo) -> bool:
+        return False
+
     visible = staticmethod(_content_handler_is_visible)
 
-    def read(self, key: AssociationKey) -> AssociationRead:
+    def _read(self, key: AssociationKey) -> AssociationRead:
         try:
             if key.lookup in {"default", "name"}:
                 handle = Gio.AppInfo.get_default_for_type(key.content_type, False)
@@ -62,33 +75,6 @@ class UnixApplicationAssociationBackend(ApplicationAssociationBackend):
             else:
                 message.debug("Failed to read application association: %s", exc)
             return AssociationRead(AssociationStatus.UNAVAILABLE)
-
-    def application(
-        self,
-        registry: ApplicationRegistry,
-        app_info: object | None,
-    ) -> ApplicationInfo | None:
-        if app_info is None:
-            return None
-        registered = self.registered(registry, app_info)
-        if registered is not None:
-            return registered
-
-        desktop_id = handles.desktop_id(app_info)
-        filename = handles.source_text(handles.safe_call(app_info, "get_filename"))
-        path = Path(filename).expanduser() if filename else None
-
-        if not desktop_id:
-            return None
-        facts = discovery.file_facts(path) if path is not None else None
-        if facts is not None and (not facts.is_application or facts.hidden):
-            return None
-        return discovery.application_from_gio(
-            desktop_id=desktop_id,
-            app_info=app_info,
-            fallback_path=path,
-            fallback_facts=facts,
-        )
 
     def registered(
         self,

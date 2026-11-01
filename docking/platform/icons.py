@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
 from typing import NamedTuple, cast
@@ -19,6 +20,10 @@ from docking.platform.applications.constants import FALLBACK_ICON, GNOME_APP_PRE
 from docking.platform.applications.executable import normalized_exec_basename
 from docking.platform.applications.projections import dock_icon_name
 from docking.platform.applications.types import ApplicationInfo
+from docking.platform.desktop.base import (
+    ApplicationIconSource,
+    DesktopServices,
+)
 from docking.platform.desktop.selection import desktop_services
 
 FILE_ICON_CACHE_MAX_ENTRIES = 256
@@ -43,13 +48,22 @@ def fallback_file_icon_name(*, is_dir: bool) -> str:
 
 
 def _host_icon_file_candidates(icon_name: str) -> list[Path]:
-    icon_path = Path(icon_name)
-    if not icon_path.is_absolute():
+    icon_path = (
+        local_path_from_uri_or_path(icon_name)
+        if icon_name.lower().startswith("file:")
+        else Path(icon_name)
+    )
+    if icon_path is None or not icon_path.is_absolute():
         return []
+    if icon_path.drive:
+        # Drive and UNC paths have no POSIX host-filesystem counterpart.
+        return [icon_path]
 
     candidates = [icon_path]
     host_root = str(HOST_FILESYSTEM_ROOT)
-    if not str(icon_path).startswith(f"{host_root}{os.sep}"):
+    if HOST_FILESYSTEM_ROOT is not None and not str(icon_path).startswith(
+        f"{host_root}{os.sep}"
+    ):
         candidates.append(HOST_FILESYSTEM_ROOT / str(icon_path).lstrip(os.sep))
     return candidates
 
@@ -97,11 +111,75 @@ def _normalize_file_target_for_icon(target: str) -> str | None:
 class IconLoader:
     """Load and cache desktop, theme, GIcon, and file thumbnail icons."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        desktop_service: DesktopServices | None = None,
+    ) -> None:
+        self._desktop_service = desktop_service
         self._icon_cache: dict[tuple[str, int], GdkPixbuf.Pixbuf | None] = {}
         self._file_icon_cache: dict[
             tuple[str, int, int, int], GdkPixbuf.Pixbuf | None
         ] = {}
+        self._application_icon_source: ApplicationIconSource | None = None
+        self._icon_source_selected = False
+        self._listeners: list[Callable[[str], None]] = []
+
+    def subscribe(self, callback: Callable[[str], None]) -> Callable[[], None]:
+        """Notify GTK consumers when a native application icon becomes ready."""
+        self._listeners.append(callback)
+
+        def unsubscribe() -> None:
+            if callback in self._listeners:
+                self._listeners.remove(callback)
+
+        return unsubscribe
+
+    def stop(self) -> None:
+        self._listeners.clear()
+        if self._application_icon_source is not None:
+            self._application_icon_source.stop()
+
+    def _native_icon_ready(self, desktop_id: str) -> None:
+        for key in tuple(self._icon_cache):
+            if key[0] == f"native:{desktop_id}" or key[0].startswith(
+                f"desktop:{desktop_id}:"
+            ):
+                del self._icon_cache[key]
+        for callback in tuple(self._listeners):
+            callback(desktop_id)
+
+    def _source_application_icon(
+        self, info: ApplicationInfo, size: int
+    ) -> GdkPixbuf.Pixbuf | None:
+        if not self._icon_source_selected:
+            desktop = self._desktop_service
+            self._application_icon_source = (
+                desktop.create_icon_source(self._native_icon_ready)
+                if desktop is not None
+                else None
+            )
+            self._icon_source_selected = True
+        if self._application_icon_source is None:
+            return None
+        image = self._application_icon_source.get(info, size)
+        if image is None:
+            return None
+        key = (f"native:{info.desktop_id}", size)
+        if key not in self._icon_cache:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_bytes(
+                GLib.Bytes.new(image.pixels),
+                GdkPixbuf.Colorspace.RGB,
+                True,
+                8,
+                image.width,
+                image.height,
+                image.width * 4,
+            )
+            if image.width != size or image.height != size:
+                pixbuf = pixbuf.scale_simple(size, size, GdkPixbuf.InterpType.BILINEAR)
+            self._icon_cache[key] = pixbuf
+        return self._icon_cache[key]
 
     def load_icon(self, icon_name: str, size: int) -> GdkPixbuf.Pixbuf | None:
         """Load an icon by name at the given size, with caching."""
@@ -130,8 +208,17 @@ class IconLoader:
         self,
         info: ApplicationInfo,
         size: int,
+        *,
+        gicon: Gio.Icon | None = None,
     ) -> GdkPixbuf.Pixbuf | None:
         """Load an application icon from canonical metadata with fallbacks."""
+        source_icon = self._source_application_icon(info, size)
+        if source_icon is not None:
+            return source_icon
+        if gicon is not None:
+            retained = self.load_gicon(gicon=gicon, size=size)
+            if retained is not None:
+                return retained
         desktop_id = info.desktop_id
         icon_name = dock_icon_name(info)
         exec_line = info.exec_line
@@ -175,7 +262,10 @@ class IconLoader:
         """Load a pixbuf directly from a Gio.Icon when available."""
         if gicon is None:
             return None
-        cache_key = (f"gicon:{gicon.to_string()}", size)
+        serialized = gicon.to_string()
+        if serialized is None:
+            return self._try_load_gicon(gicon=gicon, size=size)
+        cache_key = (f"gicon:{serialized}", size)
         if cache_key in self._icon_cache:
             return self._icon_cache[cache_key]
 
@@ -212,7 +302,11 @@ class IconLoader:
         thumbnail_size: int | None = None,
     ) -> FileIconInfo:
         """Resolve an icon while preserving successful thumbnail provenance."""
-        if not is_dir and content_type.lower().startswith("image/"):
+        # Gio reports MIME types on Unix and registry extension types on Win32.
+        mime_type = content_type
+        if mime_type and "/" not in mime_type:
+            mime_type = Gio.content_type_get_mime_type(mime_type) or ""
+        if not is_dir and mime_type.lower().startswith("image/"):
             uri = _normalize_file_target_for_icon(target)
             if uri is not None:
                 path = local_path_from_uri_or_path(uri)

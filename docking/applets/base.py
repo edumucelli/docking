@@ -467,6 +467,11 @@ class Applet(ABC):
         """Handle left-click (default: no-op)."""
         return
 
+    @property
+    def popup_visible(self) -> bool:
+        """Whether this applet's interactive popup should suppress its tooltip."""
+        return False
+
     def stack_content(self, icon_size: int) -> StackContent | None:
         """Return reusable stack content, or None for normal click handling."""
         _ = icon_size

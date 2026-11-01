@@ -18,7 +18,7 @@ from gi.repository import GLib
 from docking.log import get_logger, with_context
 from docking.platform.environment import flatpak, is_flatpak
 
-from ...backend import LaunchResult
+from ...backend import ApplicationHandleSource, LaunchResult
 from ...types import ApplicationInfo, ApplicationLocation
 from . import entries as desktop_entries
 from .desktop_launch import DesktopExecLauncher
@@ -35,7 +35,11 @@ class NativeApplicationHandle(Protocol):
 class UnixApplicationLaunchBackend(DesktopExecLauncher, ApplicationLaunchBackend):
     """Launch registry-selected applications without publishing Gio handles."""
 
-    def launch(self, application: ApplicationInfo) -> LaunchResult:
+    def launch(
+        self,
+        application: ApplicationInfo,
+        handle: ApplicationHandleSource | None = None,
+    ) -> LaunchResult:
         """Launch a selected desktop application through its direct Exec line."""
         return self._launch_exec_line(
             application=application,
@@ -44,7 +48,10 @@ class UnixApplicationLaunchBackend(DesktopExecLauncher, ApplicationLaunchBackend
         )
 
     def launch_action(
-        self, application: ApplicationInfo, action_id: str, handle: object | None
+        self,
+        application: ApplicationInfo,
+        action_id: str,
+        handle: ApplicationHandleSource,
     ) -> LaunchResult:
         """Launch a source-aware desktop action."""
 
@@ -59,10 +66,10 @@ class UnixApplicationLaunchBackend(DesktopExecLauncher, ApplicationLaunchBackend
         if (
             application.location is ApplicationLocation.SANDBOX
             and application.has_gio_source
-            and handle is not None
+            and (source := handle()) is not None
         ):
             try:
-                cast(NativeApplicationHandle, handle).launch_action(action_id, None)
+                cast(NativeApplicationHandle, source).launch_action(action_id, None)
             except GLib.Error as exc:
                 log.bind(
                     desktop_id=application.desktop_id, action="launch_action"
@@ -88,7 +95,10 @@ class UnixApplicationLaunchBackend(DesktopExecLauncher, ApplicationLaunchBackend
         )
 
     def launch_app_uris(
-        self, application: ApplicationInfo, uris: Iterable[str], handle: object | None
+        self,
+        application: ApplicationInfo,
+        uris: Iterable[str],
+        handle: ApplicationHandleSource,
     ) -> LaunchResult:
         """Open a URI list with one specifically selected application."""
         launchable = list(uris)
@@ -103,10 +113,11 @@ class UnixApplicationLaunchBackend(DesktopExecLauncher, ApplicationLaunchBackend
 
         if not application.has_gio_source:
             return LaunchResult(False)
-        if handle is None:
+        source = handle()
+        if source is None:
             return LaunchResult(False)
         try:
-            cast(NativeApplicationHandle, handle).launch_uris(launchable, None)
+            cast(NativeApplicationHandle, source).launch_uris(launchable, None)
         except GLib.Error as exc:
             log.bind(
                 desktop_id=application.desktop_id, action="launch_app_uris"

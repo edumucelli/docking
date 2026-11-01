@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from docking.search.services.platform import SearchIntegration
+from docking.search.services.platform import SearchIntegration, WindowFocus
 
 from ...global_shortcuts import (
     ActivationCallback,
@@ -17,6 +17,13 @@ from .x11_shortcuts import X11GlobalShortcutService, is_x11_session
 
 
 class UnixSearchIntegration(SearchIntegration):
+    @property
+    def opaque_action_panel(self) -> bool:
+        return False
+
+    def create_focus(self) -> WindowFocus | None:
+        return None
+
     def primary(
         self,
         *,
@@ -24,6 +31,9 @@ class UnixSearchIntegration(SearchIntegration):
         preferred_trigger: str,
         on_activated: ActivationCallback,
         on_status_changed: StatusCallback,
+        trigger_description: str,
+        schedule_idle: Callable[..., int],
+        remove_source: Callable[[int], bool],
     ) -> GlobalShortcutService:
         return GlobalShortcutsService(
             app_id=app_id,

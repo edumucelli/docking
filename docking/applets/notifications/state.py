@@ -11,24 +11,15 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""State and backend helpers for the Notifications applet."""
+"""Pure notification status, history and presentation values."""
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 
-from docking.applets.notifications import meta
 from docking.i18n import _
-from docking.log import get_logger, with_context
 
-log = with_context(
-    get_logger(name="notifications"),
-    applet_id=meta.id,
-)
-
-_GNOME_SCHEMA = "org.gnome.desktop.notifications"
-_GNOME_SHOW_BANNERS_KEY = "show-banners"
+HISTORY_LIMIT = 40
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +31,11 @@ class NotificationsState:
     paused: bool = False
     pending: int = 0
     pending_known: bool = False
+    paused_known: bool = False
+    can_pause: bool = False
+    can_clear: bool = False
+    access_required: bool = False
+    revision: str = ""
 
 
 def unavailable_state() -> NotificationsState:
@@ -67,35 +63,14 @@ def pending_badge_count(state: NotificationsState) -> int:
     return max(0, min(99, state.pending))
 
 
-def _parse_bool(value: str | None) -> bool | None:
-    if value is None:
-        return None
-    lowered = value.strip().lower()
-    if lowered in {"true", "1", "yes", "on"}:
-        return True
-    if lowered in {"false", "0", "no", "off"}:
-        return False
-    return None
+@dataclass(frozen=True, slots=True)
+class NotificationEntry:
+    app_name: str
+    summary: str
+    body: str
 
 
-def _parse_pending_count(value: str | None) -> int | None:
-    if value is None:
-        return None
-    stripped = value.strip()
-    if not stripped:
-        return None
-
-    if stripped.isdigit():
-        return int(stripped)
-
-    try:
-        payload = json.loads(stripped)
-    except json.JSONDecodeError as exc:
-        log.debug("Failed to parse pending notification count %r: %s", stripped, exc)
-        return None
-
-    if isinstance(payload, dict):
-        waiting = payload.get("waiting")
-        if isinstance(waiting, int):
-            return max(0, waiting)
-    return None
+@dataclass(frozen=True, slots=True)
+class NotificationsSnapshot:
+    state: NotificationsState = NotificationsState()
+    events: tuple[NotificationEntry | None, ...] = ()

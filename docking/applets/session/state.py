@@ -11,7 +11,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""State and command helpers for session applet."""
+"""Shared presentation state for the Session applet."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ log = with_context(get_logger(name="session"), applet_id=meta.id)
 
 
 class SessionAction(NamedTuple):
-    """A session/power action with its shell command."""
+    """A semantic session or power action with its display label."""
 
     label: str
     action: str

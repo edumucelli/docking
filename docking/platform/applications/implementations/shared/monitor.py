@@ -16,7 +16,7 @@ from gi.repository import Gio, GLib
 
 from docking.log import get_logger, with_context
 
-from . import discovery
+from ...handle_adapters import unique_paths
 
 log = with_context(get_logger(name="application_registry"))
 
@@ -26,7 +26,7 @@ def _monitor_directory(path: Path) -> object:
     return file.monitor_directory(Gio.FileMonitorFlags.NONE, None)
 
 
-class UnixCatalogMonitor(CatalogMonitor):
+class GioCatalogMonitor(CatalogMonitor):
     def __init__(
         self, changed: Callable[[], None], directories: Callable[[], Iterable[Path]]
     ) -> None:
@@ -78,7 +78,7 @@ class UnixCatalogMonitor(CatalogMonitor):
 
     def _sync_directory_monitors(self) -> None:
         try:
-            wanted = set(discovery.unique_paths(self._desktop_directories_source()))
+            wanted = set(unique_paths(self._desktop_directories_source()))
             wanted.update(self._extra_directories)
         except Exception as exc:
             log.bind(action="list_desktop_directories").warning(

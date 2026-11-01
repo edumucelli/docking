@@ -11,17 +11,27 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Pure state helpers for Brightness applet -- no GTK dependency."""
+"""Platform-independent brightness state and presentation helpers."""
 
-from __future__ import annotations
+import math
+from dataclasses import dataclass
 
-from pathlib import Path
 
-from docking.log import get_logger
+@dataclass(frozen=True)
+class BrightnessState:
+    level: float | None = None
+    # Opaque display identity returned by the backend. Writes must name the
+    # same target so a queued scroll cannot reach a different primary monitor.
+    target: str = ""
+    # Empty means continuous control. Discrete devices report their usable
+    # levels so a small scroll can advance even on coarse backlight hardware.
+    levels: tuple[float, ...] = ()
 
-log = get_logger(name="brightness.state")
-
-_BACKLIGHT_DIR = Path("/sys/class/backlight")
+    @property
+    def available(self) -> bool:
+        return (
+            bool(self.target) and self.level is not None and math.isfinite(self.level)
+        )
 
 
 def brightness_icon_name(brightness: float) -> str:

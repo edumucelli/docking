@@ -172,6 +172,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("Pango", "1.0")
 from gi.repository import Gdk, GLib, Gtk, Pango
 
+from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.core.position import Position
 from docking.i18n import _
 from docking.log import get_logger
@@ -360,6 +361,12 @@ class TooltipManager:
 
         if not item or not item.name:
             return
+
+        if is_applet(desktop_id=item.desktop_id):
+            applet = self._model.get_applet(item.desktop_id)
+            if applet is not None and applet.popup_visible is True:
+                self.hide()
+                return
 
         if geometry is None:
             return

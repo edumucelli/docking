@@ -41,10 +41,22 @@ class EmptyTrayBackend(TrayBackend):
     def get_state(self):
         return unavailable_state()
 
-    def activate(self, identifier):
+    def set_geometry(self, bounds):
+        pass
+
+    def pointer(self, identifier, *, point=None, anchor=None):
         return False
 
-    def context_menu(self, identifier):
+    def set_focus_handler(self, handler):
+        pass
+
+    def double_click(self, identifier, *, anchor=None):
+        return False
+
+    def activate(self, identifier, *, anchor=None, keyboard=False):
+        return False
+
+    def context_menu(self, identifier, *, anchor=None, keyboard=False):
         return False
 
     def menu_client(self, identifier):
@@ -191,3 +203,12 @@ def make_tray_service(*, backend=None, worker=None, backend_factory=None, interv
         interval_s=interval_s,
         worker_factory=lambda *, on_close, logger: OwnedTestWorker(owner, on_close),
     )
+
+
+def make_icon_loader():
+    from docking.platform.desktop.implementations.unix.backend import (
+        UnixDesktopServices,
+    )
+    from docking.platform.icons import IconLoader
+
+    return IconLoader(desktop_service=UnixDesktopServices())

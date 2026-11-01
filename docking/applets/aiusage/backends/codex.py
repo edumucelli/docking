@@ -26,6 +26,7 @@ from docking.applets.aiusage.backends.base import ProviderSessions
 from docking.applets.aiusage.state import ModelUsage, Provider
 from docking.applets.aiusage.store import replace_session
 from docking.log import get_logger, with_context
+from docking.platform.composition.selection import platform_provider
 from docking.platform.host.selection import host_services
 
 log = with_context(get_logger(name="aiusage.codex"))
@@ -64,10 +65,18 @@ def register_hook() -> None:
         host_services().hook_argv(root, sys.executable, "codex"), ensure_ascii=False
     )
 
-    notify_match = re.search(r"^notify\s*=\s*\[.*?\]", content, re.MULTILINE)
+    notify_match = re.search(
+        r"""^notify\s*=\s*\[(?:"(?:\\.|[^"\\])*"|'[^']*'|[^\]"'])*\]""",
+        content,
+        re.MULTILINE,
+    )
     if notify_match:
         existing = notify_match.group(0)
-        if "PYTHONPATH" in existing and "docking.applets.aiusage.hook" in existing:
+        if (
+            platform_provider()
+            .usage_hooks()
+            .codex_notify_is_current(existing, our_toml)
+        ):
             return
         if "codex-sync" in existing:
             log.bind(action="register_codex_hook").info(
