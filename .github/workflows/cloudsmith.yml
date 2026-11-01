@@ -70,7 +70,7 @@ jobs:
           python3 packaging/cloudsmith/publish.py --version "$version" --directory incoming --validate-only
 
       - name: Authenticate with Cloudsmith using OIDC
-        uses: cloudsmith-io/cloudsmith-cli-action@69e169e2ad9bc9a1599c2dff464061a00fe9f8ba # v3
+        uses: cloudsmith-io/cloudsmith-cli-action@92b1383b22bbd36d804b858f273abcdf4d349f6b # v3
         with:
           cli-version: '1.27.0'
           oidc-namespace: ${{ vars.CLOUDSMITH_WORKSPACE }}
@@ -147,7 +147,7 @@ jobs:
             --version "$version" --directory incoming --validate-only
 
       - name: Authenticate with Cloudsmith using OIDC
-        uses: cloudsmith-io/cloudsmith-cli-action@69e169e2ad9bc9a1599c2dff464061a00fe9f8ba # v3
+        uses: cloudsmith-io/cloudsmith-cli-action@92b1383b22bbd36d804b858f273abcdf4d349f6b # v3
         with:
           cli-version: '1.27.0'
           oidc-namespace: ${{ vars.CLOUDSMITH_WORKSPACE }}
