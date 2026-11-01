@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from docking.platform.backends.base import PlacementRequest
+from docking.platform.backends.base import PlacementRequest, Rect
 
 
 def apply_dock_hints(window: object) -> None:
@@ -28,3 +28,13 @@ def place_window(window: object, request: PlacementRequest) -> None:
     window.set_size_request(request.size.width, request.size.height)
     window.resize(request.size.width, request.size.height)
     window.move(request.x, request.y)
+
+
+def logical_screen_rectangle(window: object, rect: Rect) -> Rect | None:
+    native = window.get_window()
+    if native is None or not window.get_mapped():
+        return None
+    success, x, y = native.get_origin()
+    if not success:
+        return None
+    return Rect(x + rect.x, y + rect.y, rect.width, rect.height)

@@ -787,7 +787,7 @@ def test_window_preview_cache_rejects_closed_and_reused_process_identity(monkeyp
     from dataclasses import replace
 
     controller, _window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
-    window_id = WindowId(DisplayServer.X11, 100)
+    window_id = WindowId(DisplayServer.WINDOWS, 100)
     snapshot = WindowSnapshot(
         id=window_id, desktop_id="fixture", pid=101, can_preview=True
     )

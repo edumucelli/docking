@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import shlex
 from pathlib import Path
+from typing import Literal
 
 from docking.platform.commands import desktop_exec_argv
 
@@ -99,3 +100,18 @@ def wine_executable_aliases(exec_line: str) -> list[str]:
         aliases.append(basename)
         aliases.append(basename[:-4])
     return list(dict.fromkeys(alias for alias in aliases if alias))
+
+
+def executable_format(path: Path) -> Literal["elf", "pe"] | None:
+    """Read bounded image headers without executing a prospective launcher."""
+    try:
+        with path.open("rb") as stream:
+            header = stream.read(64)
+            if header[:4] == b"\x7fELF":
+                return "elf"
+            if len(header) < 64 or header[:2] != b"MZ":
+                return None
+            stream.seek(int.from_bytes(header[0x3C:0x40], "little"))
+            return "pe" if stream.read(4) == b"PE\0\0" else None
+    except OSError:
+        return None

@@ -288,3 +288,28 @@ def test_serial_worker_stop_before_first_job_finalizes_once():
     worker.stop()
     assert len(calls) == 1
     assert calls[0] != threading.get_ident()
+
+
+def test_native_consumers_do_not_import_concrete_windows_session_services():
+    paths = list((ROOT / "docking/applets").rglob("*.py"))
+    paths += list((ROOT / "docking/search").rglob("*.py"))
+    paths += list((ROOT / "docking/platform/native/windows").glob("*.py"))
+    paths += [ROOT / "docking/platform/backends/windows/surface.py"]
+    for path in paths:
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.ImportFrom):
+                modules = (node.module or "",)
+            elif isinstance(node, ast.Import):
+                modules = tuple(alias.name for alias in node.names)
+            elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+                modules = (node.value,)
+            else:
+                continue
+            assert not any(
+                name.startswith("docking.platform.backends.windows") for name in modules
+            ), path
+            if path.name == "surface.py":
+                assert not any(
+                    name.startswith("docking.platform.applications.implementations")
+                    for name in modules
+                ), path

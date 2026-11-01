@@ -10,7 +10,12 @@ from .base import PlatformProvider
 
 @cache
 def platform_provider() -> PlatformProvider:
-    if host_services().family is HostFamily.BSD:
+    family = host_services().family
+    if family is HostFamily.WINDOWS:
+        from .windows import WindowsPlatformProvider
+
+        return WindowsPlatformProvider()
+    if family is HostFamily.BSD:
         from .bsd import BsdPlatformProvider
 
         return BsdPlatformProvider()

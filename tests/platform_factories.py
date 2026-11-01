@@ -205,6 +205,35 @@ def make_tray_service(*, backend=None, worker=None, backend_factory=None, interv
     )
 
 
+def make_windows_application_registry(
+    *, application_source=None, registration_backend=None
+):
+    """Compose the Windows catalog and associations around one owned lookup."""
+    from docking.platform.applications.implementations.windows.associations import (
+        WindowsApplicationAssociationBackend,
+    )
+    from docking.platform.applications.implementations.windows.catalog import (
+        WindowsApplicationCatalogBackend,
+    )
+    from docking.platform.applications.implementations.windows.registration import (
+        WindowsExecutableRegistration,
+    )
+
+    registrations = (
+        registration_backend
+        if registration_backend is not None
+        else WindowsExecutableRegistration()
+    )
+    catalog = WindowsApplicationCatalogBackend(
+        registrations, application_source=application_source
+    )
+    return ApplicationRegistry(
+        catalog_backend=catalog,
+        association_backend=WindowsApplicationAssociationBackend(catalog.lookup),
+        registration_backend=registrations,
+    )
+
+
 def make_icon_loader():
     from docking.platform.desktop.implementations.unix.backend import (
         UnixDesktopServices,

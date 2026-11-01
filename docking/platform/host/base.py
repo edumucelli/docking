@@ -11,6 +11,7 @@ from pathlib import Path
 class HostFamily(Enum):
     LINUX = "linux"
     BSD = "bsd"
+    WINDOWS = "windows"
 
 
 class HostServices(ABC):

@@ -8,6 +8,7 @@ Use these inspected revisions as reference points:
 
 - **Merged Phase 1:** `094e50a4540d2432476a3691f7399407204b09a5` (PR #480).
 - **Unix prerequisite completion base:** `25649297791f40959c76af888fc2a808b106387a`.
+- **Merged Phase 2 prerequisite:** [PR #490](https://github.com/edumucelli/docking/pull/490), master commit `65016d3ea99f1e9f5682ad779570d42b67393b05` (the reviewed `7b8f50d6` tree).
 - **Pre-refactor master reference:** `39a066846b8f719c343c2cccc645d7d504f0db52`.
 - **Windows PR:** `2b0bbd9462987678a781905c5fde7d41103e5386`.
 
@@ -110,7 +111,7 @@ docking/
 │   │       ├── unix/
 │   │       │   └── {catalog,associations,discovery,entries,
 │   │       │        launch,desktop_launch,registration,flatpak,steam}.py
-│   │       ├── shared/monitor.py  # Gio catalog observer
+│   │       ├── shared/monitor.py  # Gio observer used by both catalogs
 │   │       ├── linux/process.py
 │   │       ├── bsd/process.py
 │   │       └── windows/
@@ -631,20 +632,24 @@ the earlier extraction details as follows; these are Phase 1 responsibilities.
 | `applets/{webapp,telegram,whatsapp}/` | Keep browser callbacks, collision handling, session values, and common errors at the WebApp root; keep WebKitGTK/storage/native notification work in Unix. Preserve profile directories, cookies, notification routing, and disconnect behavior; do not restore import-only wrappers. |
 | `applets/aiusage/{hooks,hook_runner,store,backends/*,implementations/unix/hooks}.py` | Separate headless registration policy from provider schemas and host locking/argv. Preserve Unix hook commands, legacy Codex recognition, Claude event registration, and data files without importing GTK. |
 | `applets/{session,trash,ambient,deskpresence,colorpicker,windowkiller}/` | Migrate consumers to the common session/state/backend capabilities while preserving existing native commands and unsupported results. Remove obsolete root-native helpers after callers move; leave the unrelated Window Killer `state.py` module unchanged. |
-| `platform/tray/{backend,state,menu,service,notifications}.py`, `implementations/unix/{backend,status_notifier,dbusmenu}.py` | Translate SNI/DBusMenu records into neutral tray values. Preserve watcher/proxy/menu behavior, three-second polling, overlay notifications, menu ordering, and master's `(0, 0)` SNI activation/context-menu coordinates; adding native anchor support must not change Unix call arguments. Serialize predecessor close and successor reads on workers; reject obsolete timers, commands, and focus deliveries. |
+| `platform/tray/{backend,state,menu,service,notifications}.py`, `implementations/unix/{backend,status_notifier,dbusmenu}.py` | Translate SNI/DBusMenu records into neutral tray values. Preserve watcher/proxy/menu behavior, three-second polling, overlay notifications, menu ordering, and master's `(0, 0)` SNI activation/context-menu coordinates. Serialize predecessor close and successor reads on workers; reject obsolete timers, commands, and focus deliveries. |
 | `applets/systemtray/{applet,state,presentation,implementations/unix/*}.py`, `applets/popup.py` | Move legacy XEmbed ownership, take-over/release UI, positioning, and errors into the Unix presentation. The applet borrows its construction-time shared tray service and does not replace or stop it when late services arrive. |
 | `search/{controller,intents,preview,providers/*,services/*,ui/*}.py` | Consume focus, shortcut, path, artwork, and presentation capabilities. Unix keeps portal plus X11 fallback, no native focus adapter, and `opaque_action_panel=False`; its existing transparent GTK styling remains. `providers/windows.py` means searched desktop windows and remains shared. |
 | `ui/{display,dnd,dock_window,factory,hover,input_controller,menu,preview,renderer,runtime,tooltip}.py` | Route geometry, drag, modifier, preview, placement, and focus policy through capabilities rather than OS probes. Keep default Unix behavior and subscription/timer teardown. |
 | `tests/`, `features/steps/folder_thumbnail_steps.py`, `tools/linux/visual/probes/wayfire_contract_probe.py` | Migrate callers and patch locations together. Keep generic/Unix assertions on the prerequisite branch and Windows-native cases on #481. Ensure the prerequisite suite collects with Windows implementations absent. Keep isolated no-GI smoke runs separate from normal collection. |
 | `.github/workflows/bsd.yml`, `docking/locale/` | Carry the BSD NumPy test dependency and shared camera/microphone translations with their Unix changes. Regenerate the prerequisite POT from its own source tree; Windows-only messages belong to Phase 2. |
 
-The standalone prerequisite must contain no Windows implementations, native
+The standalone prerequisite contains no Windows implementations, native
 helpers, package/build changes, OS-routing branches, or Windows acceptance tools.
-After it is committed, merge it into the integration branch without rewriting
-published history and base #481 on that prerequisite. The resulting Phase 2
-diff must contain no Unix/Linux/BSD runtime-adapter changes. Preserve the tested
-integration implementation while splitting mixed test files; the split must not
-drop Windows assertions from the final combined tree.
+It landed in #490 as master commit `65016d3e`, whose tree matches the reviewed
+`7b8f50d6` prerequisite. The Windows branch merges that master commit without
+rewriting its published history, so #481 can target master cleanly after the
+squash merge.
+
+#481 remains the Windows integration PR for review. Its Phase 2 diff must contain
+no Unix/Linux/BSD runtime-adapter changes. Preserve the tested implementation and
+all Windows assertions when reconciling mixed files with master. Do not merge
+this PR automatically.
 
 ### Phase 1 import and test migration
 
@@ -747,6 +752,65 @@ Start from the completed, accepted Phase 1 master.
 Do not resolve conflicts by taking either branch’s entire shared file. Do not cherry-pick a large Windows commit and discard conflicting sections without tracing their behavior.
 
 The following inventories cover the runtime module groups changed in the inspected PR. A listed native helper may require only dependency adaptation and verification; it does not require a rewrite.
+
+### Refinements confirmed while implementing Phase 2
+
+These build on the Phase 1 completion in #490. Shared contracts and Unix adapter
+migrations belong to that prerequisite; Phase 2 supplies the Windows implementations
+and composition against those completed interfaces.
+
+- `applications/backend.py` remains the single owner of backend ABCs and their
+  result records. `ApplicationSources` composes a fresh catalog, association
+  reader, and executable-registration strategy. Every call to a provider creates
+  a separate graph. `app.py` passes these three capabilities to the registry.
+  Windows associations share exactly the lookup owned by that graph's catalog.
+- `applications/implementations/shared/monitor.py` owns `GioCatalogMonitor`, used
+  by both Unix and Windows. Windows adds its native observer in its catalog
+  adapter. Observe before requesting worker reads; invalidate for native/Gio
+  changes, but only queue a registry refresh after worker publication. Reject
+  callbacks and read completions from previous observer lifetimes.
+- `DiscoveryResult.initial_discovery_pending` carries catalog readiness into the
+  immutable registry snapshot. Failed refreshes preserve the last published
+  readiness and handles. Association revisions can notify consumers even if
+  visible catalog metadata is unchanged. Unix ordered reads remain lazy;
+  Windows remembers all requested association keys on its single worker.
+- `ApplicationHandleSource` supplies lazy private launch handles to native launch
+  strategies. A selected Windows shell/document target must never consult Gio,
+  including after native failure. Unix resolves handles only for operations that
+  actually use Gio. Do not add fallback selection to `ApplicationLauncher`.
+- The richer applet APIs replace the earlier separate Bluetooth desktop,
+  Network settings, and Volume settings operation factories. Each applet receives
+  one domain backend/bundle from `AppletBackendFactories`; native actions and
+  readers share the same ownership. Keep public owned contracts nominal ABCs;
+  external-handle views and callable factory/resolver protocols remain structural.
+- `webapp/backend.py` owns common browser callback policy and the shared session,
+  download collision, and error helpers needed by both engines. Keep WebKitGTK
+  operations in its Unix backend and Windows engines/companion in their native
+  packages. There are no root `browser.py`, `storage.py`, or notification forwarding
+  modules; Telegram and WhatsApp keep their profiles in their own `state.py`.
+- `aiusage/hooks.py` declares the headless registration-policy ABC; native policies
+  live under `aiusage/implementations/{unix,windows}/hooks.py`. Claude/Codex keep
+  provider file/schema policy and request the selected headless policy. Locking
+  and hook argv remain host operations; there are no forwarding helper modules.
+- `ApplicationDragSource` in `applications/backend.py` is supplied to the Windows
+  surface by session composition. The surface owns its lazy lifetime, prepare,
+  and stop calls and never imports concrete application implementations.
+  `platform/native/windows/process.py` owns executable-path observation shared
+  by application identity, camera holders, tray ownership, and media audio session matching.
+  `WindowObservation` and `WindowsWindowTarget` in `native/windows/capture.py`
+  define the shared native observation boundary. Composition supplies its factory
+  to screenshot capture and media audio; neither imports the session implementation.
+- A tray-service successor waits for its predecessor's native close on its own
+  worker, never on GTK. Commands and timers carry service-generation guards.
+  The System Tray applet and overlay bridge borrow the construction-time shared
+  service; late `AppletServices` delivery cannot replace or stop it.
+- `tools/windows/visual/application_graph.py` composes registries after installed
+  candidate selection. One-shot tools own start/stop and wait for real published
+  readiness while pumping the main context. Preserve passive catalog timing,
+  exact module provenance, DLL paths, candidate hashes, and release evidence.
+- Search integration exposes the opaque-action-panel presentation capability.
+  Windows retains its opaque overlay; Unix retains its existing GTK styling.
+  Do not infer this policy from the presence of a focus adapter.
 
 ## 2.2 Bootstrap, host, and common runtime modules
 
@@ -1128,6 +1192,11 @@ For each applet below, source filenames are relative to `applets/<name>/` in the
 For the PR's Unix files, reconcile into the Phase 1 destinations: `unix_desktop.py` → `implementations/unix/desktop.py`; `unix_{client,control,devices}.py` → that applet's `implementations/unix/{client,control,devices}.py`; desktop settings, UPower, PulseAudio, and browser notifications follow the explicit Phase 1 applet rows. Never restore flat `linux.py` files for an implementation already classified as Unix.
 
 Shared applet values, renderers, browser profile/storage/bridge logic, Search UI, and GTK popup workflows retain their domain-root paths. `aiusage/backends/{claude,codex,...}.py` remain provider adapters; their directory does not become an OS package. `search/providers/windows.py` remains the neutral window-search provider and must not be moved into the Windows implementation tree.
+
+The common Gio observer already lives in the Phase 1
+`applications/implementations/shared/monitor.py`; Windows reuses it unchanged. Executable observation extracted
+from the PR's application-process strategy becomes `platform/native/windows/process.py`;
+application-specific script/Steam identity stays in its application adapter.
 
 ### Resource, entry-point, and regression checks for the moves
 

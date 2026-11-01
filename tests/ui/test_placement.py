@@ -247,6 +247,36 @@ class TestPlacementControllerLifecycle:
 
 
 class TestPlacementControllerGeometry:
+    @pytest.mark.parametrize("position", list(Position))
+    @pytest.mark.parametrize("icon_size", [48, 64])
+    def test_windows_resize_stays_above_explorer_taskbar(self, position, icon_size):
+        from docking.platform.backends.windows.surface import WindowsSurfaceService
+
+        geometry = SimpleNamespace(x=0, y=0, width=1280, height=800)
+        workarea = SimpleNamespace(x=0, y=0, width=1280, height=752)
+        monitor = _fake_monitor(geometry=geometry, workarea=workarea)
+        display = SimpleNamespace(
+            get_n_monitors=lambda: 1,
+            get_primary_monitor=lambda: monitor,
+            get_monitor=lambda _idx: monitor,
+        )
+        window = _make_window(get_display=lambda: display)
+        window.config.pos = position
+        window.config.icon_size = icon_size
+        window.surface_service.external_workarea.side_effect = (
+            WindowsSurfaceService().external_workarea
+        )
+        controller = _make_controller(window)
+        controller.update_barrier = MagicMock()
+
+        controller.position_dock()
+
+        request = window.surface_service.position_or_anchor.call_args.args[0]
+        assert request.x >= workarea.x
+        assert request.y >= workarea.y
+        assert request.x + request.size.width <= workarea.x + workarea.width
+        assert request.y + request.size.height <= workarea.y + workarea.height
+
     @pytest.mark.parametrize(
         ("position", "expected_move", "expected_size"),
         [

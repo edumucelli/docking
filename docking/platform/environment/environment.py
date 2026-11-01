@@ -70,6 +70,7 @@ class Desktop(enum.Flag):
     MIRIWAY = enum.auto()
     DEEPIN = enum.auto()
     GAMESCOPE = enum.auto()
+    WINDOWS = enum.auto()
 
     @property
     def uses_monitor_geometry(self) -> bool:
@@ -145,6 +146,8 @@ def detect_desktop() -> Desktop:
     Checks XDG_SESSION_DESKTOP, XDG_CURRENT_DESKTOP, DESKTOP_SESSION
     in that order (matching Plank Reloaded's priority).
     """
+    if is_windows():
+        return Desktop.WINDOWS
     for var in ("XDG_SESSION_DESKTOP", "XDG_CURRENT_DESKTOP", "DESKTOP_SESSION"):
         value = os.environ.get(var, "")
         if value:
@@ -160,6 +163,11 @@ def detect_desktop() -> Desktop:
 def is_bsd() -> bool:
     """Return True on the supported FreeBSD and OpenBSD operating systems."""
     return sys.platform.startswith(("freebsd", "openbsd"))
+
+
+def is_windows() -> bool:
+    """Return True for native Windows Python, including MSYS2 UCRT64."""
+    return sys.platform == "win32"
 
 
 def is_wayland_session() -> bool:

@@ -1668,5 +1668,35 @@
     "pt": "Idioma",
     "fr": "Langue",
     "es": "Idioma"
+  },
+  "Install Docking": {
+    "pt": "Instalar o Docking",
+    "fr": "Installer Docking",
+    "es": "Instalar Docking"
+  },
+  "Choose a Linux package below, follow the BSD guides, or try the Windows 11 x64 preview.": {
+    "pt": "Escolha um pacote Linux abaixo, siga os guias BSD ou experimente a pré-visualização para Windows 11 x64.",
+    "fr": "Choisissez un paquet Linux ci-dessous, suivez les guides BSD ou essayez la préversion pour Windows 11 x64.",
+    "es": "Elige un paquete Linux a continuación, sigue las guías de BSD o prueba la vista previa para Windows 11 x64."
+  },
+  "Windows 11 x64 preview": {
+    "pt": "Pré-visualização para Windows 11 x64",
+    "fr": "Préversion pour Windows 11 x64",
+    "es": "Vista previa para Windows 11 x64"
+  },
+  "Windows-enabled releases include a per-user installer and portable ZIP with Python and GTK included. Previews are unsigned; signing is deferred. Download the package and SHA256SUMS-windows from the same release, verify the checksum, and close Docking before updating.": {
+    "pt": "As versões com suporte para Windows incluem um instalador por utilizador e um ficheiro ZIP portátil com Python e GTK incluídos. As pré-visualizações não são assinadas; a assinatura fica para uma fase posterior. Descarregue o pacote e SHA256SUMS-windows da mesma versão, verifique a soma de verificação e feche o Docking antes de atualizar.",
+    "fr": "Les versions compatibles avec Windows comprennent un programme d’installation par utilisateur et une archive ZIP portable incluant Python et GTK. Les préversions ne sont pas signées ; la signature est prévue ultérieurement. Téléchargez le paquet et SHA256SUMS-windows depuis la même version, vérifiez la somme de contrôle et fermez Docking avant la mise à jour.",
+    "es": "Las versiones compatibles con Windows incluyen un instalador por usuario y un ZIP portátil con Python y GTK incluidos. Las versiones preliminares no están firmadas; la firma se ha aplazado. Descarga el paquete y SHA256SUMS-windows de la misma versión, verifica la suma de comprobación y cierra Docking antes de actualizar."
+  },
+  "Windows release downloads": {
+    "pt": "Transferências para Windows",
+    "fr": "Téléchargements pour Windows",
+    "es": "Descargas para Windows"
+  },
+  "Install and update instructions": {
+    "pt": "Instruções de instalação e atualização",
+    "fr": "Instructions d’installation et de mise à jour",
+    "es": "Instrucciones de instalación y actualización"
   }
 }

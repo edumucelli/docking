@@ -648,6 +648,23 @@ class TestBrightnessApplet:
         applet._tick()
         applet.present.assert_not_called()
 
+    def test_backend_selection_keeps_platform_imports_out_of_state(self):
+        from docking.applets.brightness.implementations.unix.backend import (
+            UnixBrightnessBackend,
+        )
+        from docking.applets.brightness.implementations.windows.backend import (
+            WindowsBrightnessBackend,
+        )
+        from docking.platform.composition.linux import LinuxAppletBackendFactories
+        from docking.platform.composition.windows import WindowsAppletBackendFactories
+
+        assert isinstance(
+            WindowsAppletBackendFactories().brightness(), WindowsBrightnessBackend
+        )
+        assert isinstance(
+            LinuxAppletBackendFactories().brightness(), UnixBrightnessBackend
+        )
+
 
 def test_unix_poll_preserves_read_failure_and_small_change_behavior(monkeypatch):
     levels = iter((0.5, None, 0.505, 0.8))

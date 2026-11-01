@@ -2811,7 +2811,7 @@ def test_asynchronous_menu_thumbnail_updates_after_mapping_and_cleans_timer(
     monkeypatch.setattr(menu_mod.GLib, "timeout_add", schedule)
     monkeypatch.setattr(menu_mod.GLib, "source_remove", removed.append)
     handler._watch_window_thumbnail(
-        row, image, WindowId(DisplayServer.X11, 100), previous
+        row, image, WindowId(DisplayServer.WINDOWS, 100), previous
     )
     assert not captured
     row.emit("map")

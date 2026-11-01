@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from docking.search.services.implementations.unix import platform as unix_platform
+from docking.search.services.implementations.windows import platform as windows_platform
 
 
 def callbacks():
@@ -19,6 +20,38 @@ def callbacks():
         "schedule_idle": MagicMock(),
         "remove_source": MagicMock(),
     }
+
+
+def test_windows_uses_native_services_without_importing_x11(monkeypatch):
+    from docking.search.services.implementations.windows import focus as windows_focus
+
+    native, focus = MagicMock(), MagicMock()
+    integration = windows_platform.WindowsSearchIntegration()
+    assert integration.opaque_action_panel is True
+    monkeypatch.setattr(windows_platform, "WindowsGlobalShortcutsService", native)
+    monkeypatch.setattr(windows_focus, "WindowsSearchFocus", focus)
+    monkeypatch.setitem(
+        sys.modules, "docking.search.services.implementations.unix.x11_shortcuts", None
+    )
+    portal = MagicMock(side_effect=AssertionError("Unexpected portal construction"))
+    monkeypatch.setattr(unix_platform, "GlobalShortcutsService", portal)
+    arguments = callbacks()
+    assert (
+        integration.primary(app_id="org.docking.fixture", **arguments)
+        is native.return_value
+    )
+    native.assert_called_once_with(**arguments)
+    assert integration.create_focus() is focus.return_value
+    focus.assert_called_once_with()
+    assert (
+        integration.fallback(
+            shortcut=arguments["preferred_trigger"],
+            on_activated=MagicMock(),
+            schedule_idle=arguments["schedule_idle"],
+        )
+        is None
+    )
+    portal.assert_not_called()
 
 
 @pytest.mark.parametrize("x11", [False, True])

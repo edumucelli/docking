@@ -183,3 +183,26 @@ def test_unix_directory_name_retains_direct_platform_behavior(monkeypatch):
         AssociationStatus.READY, name="Owned Files"
     )
     getter.assert_called_once_with("inode/directory", False)
+
+
+def test_worker_hidden_id_filters_an_association_absent_from_normal_catalog():
+    result = registry()
+    handler = GioApplicationFake(
+        "Hidden.Association", name="Hidden", commandline="hidden"
+    )
+    from docking.platform.applications.implementations.windows.associations import (
+        WindowsApplicationAssociationBackend,
+    )
+
+    lookup = SimpleNamespace(
+        hidden_ids=frozenset(("Hidden.Association",)),
+        applications=(),
+        association_revision=0,
+        association_reads=lambda keys: tuple(
+            (key, AssociationRead(AssociationStatus.READY, (handler,))) for key in keys
+        ),
+    )
+    result._associations = WindowsApplicationAssociationBackend(lookup)
+    assert result.default_for_content_type("owned/type").listing is None
+    assert result.preferred_listing_for_content_types(("owned/type",)).listing is None
+    assert result._content_gio_handles == {}

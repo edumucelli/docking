@@ -1042,6 +1042,50 @@ class TestUnlistedExecutablePolicy:
         matcher = AppIdMatcher(_registry(), identities)
         assert matcher.match_result(executable.stem, process_id=42) is None
 
+    def test_opted_in_backend_matches_valid_image_without_catalog_alias(self, unlisted):
+        executable, identities = unlisted
+        from docking.platform.applications.implementations.windows.registration import (
+            WindowsExecutableRegistration,
+        )
+
+        registry = _registry()
+        registry.registrations = WindowsExecutableRegistration()
+        matcher = AppIdMatcher(registry, identities, allow_unlisted_executables=True)
+        match = matcher.match_result(executable.stem.lower(), process_id=42)
+        assert match is not None
+        assert match.application.origin is ApplicationOrigin.RUNTIME
+        assert match.application.executable_path == executable
+        assert match.application.name == executable.stem
+        assert match.evidence.method is MatchMethod.RUNTIME_EXECUTABLE
+        assert match.evidence.pid == 42
+        assert match.evidence.executable_path == executable
+
+    @pytest.mark.parametrize("contents", [b"MZ", b"#!/bin/sh\n", b""])
+    def test_unlisted_script_or_invalid_image_is_not_promoted(self, unlisted, contents):
+        executable, identities = unlisted
+        executable.write_bytes(contents)
+        from docking.platform.applications.implementations.windows.registration import (
+            WindowsExecutableRegistration,
+        )
+
+        registry = _registry()
+        registry.registrations = WindowsExecutableRegistration()
+        matcher = AppIdMatcher(registry, identities, allow_unlisted_executables=True)
+        assert matcher.match_result(executable.stem, process_id=42) is None
+
+    def test_declared_hosted_application_id_is_not_replaced_by_host_binary(
+        self, unlisted
+    ):
+        _executable, identities = unlisted
+        from docking.platform.applications.implementations.windows.registration import (
+            WindowsExecutableRegistration,
+        )
+
+        registry = _registry()
+        registry.registrations = WindowsExecutableRegistration()
+        matcher = AppIdMatcher(registry, identities, allow_unlisted_executables=True)
+        assert matcher.match_result("Vendor.HostedApp!Document", process_id=42) is None
+
     def test_catalog_match_keeps_priority_over_unlisted_executable(self, unlisted):
         executable, identities = unlisted
         installed = _application("portable.desktop", wm_class=executable.stem)

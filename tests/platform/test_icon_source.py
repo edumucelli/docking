@@ -8,6 +8,10 @@ from unittest.mock import Mock
 
 from docking.platform import icons
 from docking.platform.desktop.base import DesktopServices
+from docking.platform.desktop.implementations.windows import icons as windows_icons
+from docking.platform.desktop.implementations.windows.backend import (
+    WindowsDesktopServices,
+)
 from tests.platform.application_fakes import application
 
 
@@ -26,6 +30,14 @@ def test_no_optional_source_keeps_gio_fallback_and_selects_only_once(monkeypatch
         )
     desktop.create_icon_source.assert_called_once_with(loader._native_icon_ready)
     loader.stop()
+
+
+def test_windows_factory_passes_readiness_to_its_provider(monkeypatch):
+    ready, provider = Mock(), Mock()
+    create = Mock(return_value=provider)
+    monkeypatch.setattr(windows_icons, "WindowsIconCache", create)
+    assert WindowsDesktopServices().create_icon_source(ready) is provider
+    create.assert_called_once_with(ready)
 
 
 def test_unix_factory_never_imports_gtk_or_windows_implementation():

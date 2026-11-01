@@ -105,6 +105,15 @@ class LaunchedProcessHandle(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class LaunchOutcome:
+    """Native activation result, retaining only an owned process handle."""
+
+    started: bool
+    process: LaunchedProcessHandle | None = None
+    executable_path: Path | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class LaunchedProcess:
     process: LaunchedProcessHandle
     executable_path: Path | None
@@ -188,6 +197,22 @@ class ProcessBackend(ABC):
     def sandbox_app_id(self, pid: int) -> str | None: ...
     @abstractmethod
     def steam_app_id(self, pid: int) -> str | None: ...
+
+
+class ApplicationDragSource(ABC):
+    """Native export lifecycle supplied to a session surface by composition."""
+
+    @abstractmethod
+    def prepare(
+        self,
+        widget: object,
+        *,
+        application_id: str,
+        data: tuple[tuple[str, bytes], ...],
+    ) -> None: ...
+
+    @abstractmethod
+    def stop(self) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)

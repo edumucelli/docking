@@ -141,7 +141,7 @@ class TestVolumeIconName:
 class TestDetectBackend:
     @pytest.fixture(autouse=True)
     def unix_environment(self, monkeypatch):
-
+        monkeypatch.setattr(environment, "is_windows", lambda: False)
         monkeypatch.setattr(environment, "is_bsd", lambda: False)
 
     def test_returns_first_available(self):
