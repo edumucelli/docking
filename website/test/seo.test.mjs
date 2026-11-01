@@ -60,7 +60,10 @@ for (const [lang, route] of Object.entries(languages)) {
     assert.ok(cards.every((card) => !attribute(card, "hidden")));
     const englishCommands = byTag(parse(source), "pre").map(text);
     assert.deepEqual(byTag(document, "pre").map(text), englishCommands, "installation commands must remain unchanged");
-    assert.ok(!html.includes("cdn.tailwindcss.com"));
+    const scriptSources = byTag(document, "script")
+      .map((node) => attribute(node, "src")?.value)
+      .filter(Boolean);
+    assert.deepEqual(scriptSources, ["/app.js"], "load only the local application script");
     const image = byTag(document, "img").find((node) => attribute(node, "src")?.value === "/hero.gif");
     assert.equal(attribute(image, "fetchpriority").value, "high");
     assert.equal(attribute(image, "width").value, "960");
