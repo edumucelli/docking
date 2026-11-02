@@ -148,7 +148,7 @@ It also requires both complete 40-case native tray API matrices and both GTK
 interaction profiles under `artifacts/windows/tray/`. The installed backend and
 GTK reports must match the ZIP's wheel checksum and record successful physical
 input, focus routing and cleanup. Captures remain labeled as not visually
-reviewed. See [native tray acceptance](../../docs/WINDOWS_TRAY_ACCEPTANCE.md).
+reviewed. See [native tray acceptance](../../docs/WINDOWS.md#native-windows-tray-acceptance).
 The mandatory Windows 11 input job downloads the exact wheel built by the
 Server job. Its installed files are compared with every shipped `docking/*`
 wheel entry before input acceptance. The workstation profile requires all twelve
