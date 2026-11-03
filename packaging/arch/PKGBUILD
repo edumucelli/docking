@@ -44,17 +44,10 @@ package() {
   rm -rf "${pkgdir}/usr/lib/docking/python"/*.dist-info
   rm -rf "${pkgdir}/usr/lib/docking/python"/bin
 
-  install -d "${pkgdir}/usr/lib/docking/vendor"
-  python -m pip install --no-compile \
-    --target "${pkgdir}/usr/lib/docking/vendor" \
-    openmeteo-requests requests-cache retry-requests
-  rm -rf "${pkgdir}/usr/lib/docking/vendor"/*.dist-info
-  rm -rf "${pkgdir}/usr/lib/docking/vendor"/bin
-
   install -Dm755 /dev/stdin "${pkgdir}/usr/bin/docking" << 'EOF'
 #!/bin/sh
 set -eu
-export PYTHONPATH="/usr/lib/docking/python:/usr/lib/docking/vendor${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="/usr/lib/docking/python${PYTHONPATH:+:$PYTHONPATH}"
 exec /usr/bin/python3 -m docking.launcher "$@"
 EOF
 

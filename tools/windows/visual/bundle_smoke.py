@@ -152,14 +152,12 @@ try:
     assert message is not None and message.type == Gst.MessageType.EOS
 finally:
     pipeline.set_state(Gst.State.NULL)
-modules = ("docking", "gi", "cairo", "numpy", "PIL.Image", "psutil",
-           "openmeteo_requests", "requests_cache", "retry_requests")
+modules = ("docking", "gi", "cairo", "numpy", "PIL.Image", "psutil")
 print("Importing Python runtime dependencies", flush=True)
 for name in modules:
     module = importlib.import_module(name)
     assert Path(module.__file__).resolve().is_relative_to(root), name
-import certifi
-ssl.create_default_context(cafile=certifi.where())
+assert ssl.create_default_context().get_ca_certs(), "Bundled TLS has no trust anchors"
 from docking.applets import get_applet_catalog, load_applet_class
 print("Discovering applets", flush=True)
 catalog = get_applet_catalog()

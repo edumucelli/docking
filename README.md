@@ -149,6 +149,7 @@ preferences, update intervals, and integration requirements.
 | [Applets](docs/APPLETS.md) | Built-in catalog and applet preferences |
 | [Themes](docs/THEMES.md) | Theme gallery and custom JSON themes |
 | [Development](docs/DEVELOPMENT.md) | Source setup, tests, and contribution workflow |
+| [Dependency Analysis](docs/DEPENDENCY_ANALYSIS.md) | Package usage, footprint, and replacement tradeoffs |
 | [Custom Applets](docs/APPLET_DEVELOPMENT.md) | Metadata, lifecycle, and implementation examples |
 | [Translations](docs/TRANSLATIONS.md) | Locale catalogs and gettext workflows |
 | [D-Bus Remote Control](docs/DBUS.md) | Item inspection and control API |

@@ -37,8 +37,6 @@ try {
         if ($attempt -eq 1) { throw "GTK/Python dependency installation failed" }
         Start-Sleep -Seconds 5
     }
-    & C:\msys64\ucrt64\bin\python.exe -m pip install --break-system-packages "openmeteo-requests>=1.2,<1.5" requests-cache retry-requests
-    if ($LASTEXITCODE -ne 0) { throw "Docking Python dependency installation failed" }
     # Build the complete registry during setup. The first native plugin scan
     # can take several minutes; subsequent Ambient imports use the cache.
     Write-Output "Preparing the native GStreamer registry..."

@@ -226,10 +226,8 @@ jobs:
           if ($install.ExitCode -ne 0) { throw "WSL package installation failed: $($install.ExitCode)" }
           & $wsl --version
           if ($LASTEXITCODE -ne 0) { throw 'WSL package readback failed' }
-      - name: Install Python dependencies and compile translations
+      - name: Compile translations and configure GTK
         run: |
-          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
-          python -m pip install --break-system-packages 'openmeteo-requests>=1.2,<1.5' requests-cache retry-requests
           bash tools/i18n.sh --compile
           echo "PYGI_DLL_PATH=$(cygpath -w /ucrt64/bin)" >> "$GITHUB_ENV"
       - name: Download the exact Server candidate wheel

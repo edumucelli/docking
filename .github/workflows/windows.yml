@@ -56,10 +56,8 @@ jobs:
             mingw-w64-ucrt-x86_64-gst-plugins-base
             mingw-w64-ucrt-x86_64-gst-plugins-good
             mingw-w64-ucrt-x86_64-gst-plugins-bad
-      - name: Install Python dependencies and compile translations
+      - name: Compile translations and install the source build
         run: |
-          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
-          python -m pip install --break-system-packages 'openmeteo-requests>=1.2,<1.5' requests-cache retry-requests
           bash tools/i18n.sh --compile
           python -m pip install --break-system-packages --no-deps --no-build-isolation -e .
           echo "PYGI_DLL_PATH=$(cygpath -w /ucrt64/bin)" >> "$GITHUB_ENV"

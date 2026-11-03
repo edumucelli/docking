@@ -42,7 +42,6 @@ and NSIS.
 From a UCRT64 shell at the repository root:
 
 ```sh
-python -m pip install --break-system-packages 'openmeteo-requests>=1.2,<1.5' requests-cache retry-requests
 bash tools/i18n.sh --compile
 python -m pip install --break-system-packages --no-deps --no-build-isolation -e .
 python -m tools.windows.ci --stage preflight
