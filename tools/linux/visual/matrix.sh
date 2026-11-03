@@ -73,7 +73,7 @@ DOCKERFILE_PATH="$LAB_DIR/$DOCKERFILE"
 # magnitude larger than sway's, so a single image would make the fast lanes slow.
 IMAGE="${DOCKING_LAB_IMAGE:-$LAB_IMAGE_BASE:$COMPOSITOR}"
 
-# Prefer the project venv: it carries Pillow/numpy/scikit-image from the dev extra.
+# Prefer the project venv: it carries Pillow/NumPy from the dev extra.
 if [ -x "$REPO_DIR/.venv/bin/python" ]; then
     PYTHON="$REPO_DIR/.venv/bin/python"
 else

@@ -17,7 +17,7 @@ packaging simplicity as additional benefits.
 
 The baseline is commit `5834db0e`, inspected on 2026-11-03 using the available
 Linux Python 3.11 environment. The tables retain those measurements after the
-weather replacement so that before and after comparisons remain meaningful.
+replacements so that before and after comparisons remain meaningful.
 
 - Python payload sizes count installed distribution files, excluding bytecode
   caches and distribution metadata. They include compiled code and data files.
@@ -239,7 +239,7 @@ These packages normally do not ship as application runtime requirements.
 
 | Direct package | Version measured | Own payload | Docking usage | Decision |
 |---|---|---|---|---|
-| scikit-image | 0.26.0 | 28.2 MiB | Exactly two functions, SSIM and PSNR | Strong replacement candidate |
+| scikit-image | 0.26.0 | 28.2 MiB | Exactly two functions, SSIM and PSNR | Replaced with the selected upstream paths |
 | Pillow | 12.1.1 | 18.4 MiB | Seven test/tool files; loading, conversion, cropping, drawing and differences | Possible later reduction |
 | pytest | 9.0.2 | 1.26 MiB | 226 importing files; fixtures, parametrization and test execution | Keep |
 | pytest-cov | 7.0.0 | 34.3 KiB | Coverage integration and CI thresholds | Keep |
@@ -251,9 +251,9 @@ These packages normally do not ship as application runtime requirements.
 
 ### Visual metrics
 
-[`tests/visual/support.py`](../tests/visual/support.py) calls only
+At the baseline, [`tests/visual/support.py`](../tests/visual/support.py) called only
 `peak_signal_noise_ratio` and `structural_similarity` from scikit-image. The
-dependency chain includes:
+dependency chain included:
 
 | Package | Own payload | Relevance |
 |---|---|---|
@@ -266,16 +266,43 @@ dependency chain includes:
 | Pillow | 18.4 MiB | Independently used by Docking |
 | packaging | 254 KiB | Also required by other development tools |
 
-A narrow SSIM/PSNR implementation retaining NumPy and Pillow could remove
+The internal SSIM/PSNR implementation retains NumPy and Pillow and removes
 scikit-image, SciPy, NetworkX, ImageIO, tifffile, and lazy-loader: approximately
-145.8 MiB. NumPy would become an explicit development dependency.
+145.8 MiB of baseline development payload. NumPy is now an explicit development
+dependency. This does not reduce the installed dock's runtime dependencies.
 
-PSNR is straightforward. SSIM must preserve per-channel processing, its
-seven-pixel window, sample covariance, border cropping, and floating-point
-behavior. Copying the existing function unchanged would retain SciPy. A narrow
-replacement should be compared against scikit-image over existing baselines and
-generated images, particularly around pass/fail thresholds, and benchmarked.
-[scikit-image metrics documentation](https://scikit-image.org/docs/stable/api/skimage.metrics.html).
+[`tests/visual/metrics.py`](../tests/visual/metrics.py) adapts scikit-image 0.26.0's
+SSIM and PSNR code for the float32 RGB/RGBA configuration Docking uses. The SSIM
+source is also unchanged in scikit-image 0.25.2. The port retains per-channel
+processing, a seven-pixel window, sample covariance, border cropping, and
+floating-point operation order. Its NumPy implementation of SciPy 1.17.1's
+rolling-sum filter preserves float64 accumulators and float32 output after each
+axis. Unused Gaussian, gradient, dimensionality, and data-range options are not
+copied. Including the two BSD license notices in its header, the port is 149
+lines and 6,685 bytes. Code, licenses, frozen upstream values, and their tests
+total 13,823 bytes before packaging differences.
+
+Comparison against scikit-image 0.26.0/SciPy 1.17.1 produced exactly equal SSIM
+and PSNR values for 189 pairs: 117 generated cases and perturbations of all 72
+tracked offscreen/compositor baselines. These include flat regions, minimum
+windows, RGB/RGBA channels, and 3,840-pixel-wide images. No acceptance decisions
+changed. Frozen reference results cover both sides of each existing SSIM/PSNR
+threshold, and an isolated import-blocking test exercises comparisons without
+any of the six removed distributions. All 41 metric tests pass on NumPy 1.24.4
+and 2.4.4. Baseline images and thresholds remain
+unchanged. The source links and update procedure are documented in
+[visual compositor testing](VISUAL_COMPOSITOR_TESTING.md#layer-2--pixels).
+
+Local SSIM timing medians over five warmed calls on Python 3.11/NumPy 2.4.4 were:
+
+| RGBA crop (width × height) | scikit-image/SciPy | Internal port |
+|---|---|---|
+| 512 × 64 | 14.1 ms | 22.4 ms |
+| 1,920 × 120 | 96.5 ms | 128.5 ms |
+| 3,840 × 120 | 233.4 ms | 262.4 ms |
+
+The port exchanges a modest comparison-time increase for removing the compiled
+SciPy stack. These are local measurements, not performance guarantees.
 
 Pillow's PNG-oriented operations could later use existing Cairo/GdkPixbuf
 facilities, with attention to alpha handling and the independence of visual
@@ -351,7 +378,7 @@ external dependency separately.
 | Priority | Change | Gross baseline reduction | Maintenance transferred |
 |---|---|---|---|
 | 1 | Replace the weather stack; implemented | 21 runtime distributions; 13.72 MiB; 189,716 Python lines | Endpoint parsing, persistent cache and bounded retries |
-| 2 | Replace selected SSIM/PSNR behavior, retain NumPy/Pillow | 6 development distributions; 145.8 MiB | Numerical implementation and compatibility tests |
+| 2 | Replace selected SSIM/PSNR behavior, retain NumPy/Pillow; implemented | 6 development distributions; 145.8 MiB | Numerical implementation and compatibility tests |
 | 3 | Replace Tailwind with maintained CSS | 73 npm package instances; 11.60 MiB | Style rules and visual verification |
 | 4 | Make WebKit installation optional | Potentially large baseline native reduction | Packaging choices; selected browser feature still requires WebKit |
 | 5 | Consider replacing Pillow in test tooling | Up to 18.4 MiB once its other consumers are addressed | Image operations and pixel correctness |
