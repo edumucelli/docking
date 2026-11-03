@@ -3,7 +3,7 @@ set -eu
 
 PYTHON_VERSION="$(/usr/bin/python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 PYWAYLAND_VENDOR="/usr/lib/docking/vendor-python${PYTHON_VERSION}"
-PYTHONPATH_PREFIX="/usr/lib/docking/python:/usr/lib/docking/vendor"
+PYTHONPATH_PREFIX="/usr/lib/docking/python"
 if [ -d "${PYWAYLAND_VENDOR}" ]; then
     PYTHONPATH_PREFIX="${PYWAYLAND_VENDOR}:${PYTHONPATH_PREFIX}"
 fi

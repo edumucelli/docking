@@ -1,5 +1,5 @@
 Name:           docking
-Version:        %{?pkg_version}%{!?pkg_version:2.28.0}
+Version:        %{?pkg_version}%{!?pkg_version:2.28.1}
 # One artifact serves every RPM distribution, so a build-host dist tag would
 # misrepresent it on Fedora and openSUSE alike.
 Release:        1
@@ -58,12 +58,6 @@ python3 -m pip install --no-compile --no-deps \
 rm -rf %{buildroot}/usr/lib/docking/python/*.dist-info
 rm -rf %{buildroot}/usr/lib/docking/python/bin
 
-mkdir -p %{buildroot}/usr/lib/docking/vendor
-python3 -m pip install --no-compile --target %{buildroot}/usr/lib/docking/vendor \
-  openmeteo-requests requests-cache retry-requests
-rm -rf %{buildroot}/usr/lib/docking/vendor/*.dist-info
-rm -rf %{buildroot}/usr/lib/docking/vendor/bin
-
 py_minor="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 mkdir -p "%{buildroot}/usr/lib/docking/vendor-python${py_minor}"
 # PyWayland wheels bundle renamed libffi/Wayland libraries whose versioned
@@ -85,7 +79,7 @@ install -Dm755 /dev/stdin %{buildroot}/usr/bin/docking << 'EOF'
 set -eu
 PYTHON_VERSION="$(/usr/bin/python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 PYWAYLAND_VENDOR="/usr/lib/docking/vendor-python${PYTHON_VERSION}"
-PYTHONPATH_PREFIX="/usr/lib/docking/python:/usr/lib/docking/vendor"
+PYTHONPATH_PREFIX="/usr/lib/docking/python"
 if [ -d "${PYWAYLAND_VENDOR}" ]; then
   PYTHONPATH_PREFIX="${PYWAYLAND_VENDOR}:${PYTHONPATH_PREFIX}"
 fi
@@ -138,7 +132,6 @@ fi
 /usr/bin/docking
 /usr/bin/docking-camshield-helper
 /usr/lib/docking/python
-/usr/lib/docking/vendor
 /usr/lib/docking/vendor-python*
 /usr/lib/docking/refresh-desktop-caches
 /usr/share/applications/org.docking.Docking.desktop
@@ -147,6 +140,9 @@ fi
 /usr/share/icons/hicolor
 
 %changelog
+* Mon Nov 02 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.28.1-1
+- Release 2.28.1.
+
 * Sun Oct 25 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.28.0-1
 - Release 2.28.0.
 

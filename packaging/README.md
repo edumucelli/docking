@@ -66,9 +66,8 @@ docking
 - **Application code**: installed to `/usr/lib/docking/python/` and loaded via the
   `/usr/bin/docking` wrapper so the package stays compatible across supported
   Python 3 minors on the same architecture.
-- **Vendored deps**: all pip dependencies go to `/usr/lib/docking/vendor/` to avoid
-  file conflicts with Ubuntu's python3-* packages. The entrypoint adds this path to
-  `sys.path` at startup.
+- **Weather**: HTTP, JSON parsing, retries, and persistent caching use the Python
+  standard library; no separate weather packages are installed.
 - **Assets**: theme JSON files, clock SVG layers, and weather city database are
   declared as package data in `pyproject.toml`. Installed to
   `/usr/lib/docking/python/docking/assets/`.
@@ -267,7 +266,8 @@ Notes:
 - Build script: `packaging/rpm/build.sh`
 - The RPM is architecture-specific because the packaged vendored Python wheels can include native binaries.
 - CI builds the RPM on both x86_64 and ARM64 runners and publishes both variants.
-- Python API dependencies used by weather are vendored under `/usr/lib/docking/vendor`.
+- Weather uses the Python standard library. PyWayland fallbacks are installed
+  under `/usr/lib/docking/vendor-pythonX.Y/`.
 - `Requires` in the spec serve Fedora and openSUSE from one artifact, so the
   names that differ between them are written as RPM boolean dependencies, such as
   `(gtk3 or typelib-1_0-Gtk-3_0)`.
