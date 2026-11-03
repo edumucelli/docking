@@ -47,6 +47,9 @@ _ACTIONS = frozenset(
         "owner-window",
     )
 )
+# Match the owned Forms input editor: CLR/window startup has its own budget,
+# independent of the 15-second command acknowledgement deadline.
+_STARTUP_TIMEOUT_SECONDS = 30
 
 
 @dataclass(frozen=True)
@@ -174,7 +177,7 @@ class NativeProvider:
             "schema": 1,
             "startup_stage": "not-started",
             "cleanup_stage": "not-started",
-            "readiness_timeout_s": 15,
+            "readiness_timeout_s": _STARTUP_TIMEOUT_SECONDS,
             "close_timeout_s": 10,
             "terminate_timeout_s": 5,
         }
@@ -253,11 +256,18 @@ class NativeProvider:
             )
             self._lifecycle["startup_stage"] = "readiness"
             self._save_lifecycle()
-            state = self.wait(lambda value: value["stage"] == "ready", "become ready")
+            state = self.wait(
+                lambda value: value["stage"] == "ready",
+                "become ready",
+                seconds=_STARTUP_TIMEOUT_SECONDS,
+            )
             assert state["pid"] == self.process.pid
             for field in ("bits", "encoding", "size", "version"):
                 assert state[field] == self.configuration[field]
             self._lifecycle["startup_stage"] = "ready"
+            self._lifecycle["ready_elapsed_ms"] = round(
+                (time.monotonic() - self._started) * 1000
+            )
             self._save_lifecycle()
             return self
         except BaseException as error:

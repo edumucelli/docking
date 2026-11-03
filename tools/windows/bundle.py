@@ -15,6 +15,7 @@ import struct
 import subprocess
 import sys
 import sysconfig
+import time
 import urllib.request
 import uuid
 import zipfile
@@ -182,6 +183,25 @@ def staging_directory(parent: Path, prefix: str) -> Iterator[Path]:
                 else:
                     _unlink_stage_file(path)
             stage.rmdir()
+
+
+def move_stage(source: Path, destination: Path) -> None:
+    """Publish an owned stage after short-lived Windows readers release it."""
+    deadline = time.monotonic() + 5
+    while True:
+        try:
+            source.rename(destination)
+            return
+        except PermissionError as error:
+            if sys.platform != "win32" or error.winerror not in (5, 32):
+                raise
+            # A native child has exited, but another reader can still deny
+            # delete sharing on its files. Keep the destination and permissions
+            # intact; an occupied target or persistent denial remains an error.
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or destination.exists():
+                raise
+            time.sleep(min(0.05, remaining))
 
 
 def payload_root(root: Path) -> Path:
@@ -395,7 +415,7 @@ def extract_bundle(archive_path: Path, destination: Path) -> Path:
         staging_directory(destination.parent, "docking-extract-") as stage,
     ):
         verify_archive(archive, stage)
-        stage.rename(destination)
+        move_stage(stage, destination)
     return requested
 
 
@@ -563,7 +583,7 @@ def build(
         (stage / "files.sha256.json").write_text(
             json.dumps(inventory, indent=2) + "\n", encoding="utf-8"
         )
-        stage.rename(output)
+        move_stage(stage, output)
     print(f"Built Docking {version}: {output}", flush=True)
 
 

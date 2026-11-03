@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import ctypes as c
 import os
+import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
@@ -20,6 +21,45 @@ from tools.windows.visual.input_environment import bind
 
 _P, _U, _B = c.c_void_p, c.c_uint32, c.c_int32
 _T = TypeVar("_T")
+
+
+@contextmanager
+def owned_foreground(
+    window: int, journal: dict[str, object]
+) -> Iterator[dict[str, object]]:
+    """Keep an already focused local fixture's physical keys out of other apps.
+
+    Only the composition exercise uses this scope. Shortcut activation and
+    focus recovery remain ordinary desktop interactions. Windows still permits
+    real user clicks and Alt to change foreground; no lost keys are retried.
+    """
+    user = c.WinDLL("user32", use_last_error=True)
+    owner = _U()
+    thread = bind(user, "GetWindowThreadProcessId", _U, _P, c.POINTER(_U))(
+        window, c.byref(owner)
+    )
+    foreground = bind(user, "GetForegroundWindow", _P)
+    if not thread or owner.value != os.getpid() or foreground() != window:
+        raise RuntimeError("Composition fixture does not own foreground")
+    lock = bind(user, "LockSetForegroundWindow", _B, _U)
+    journal.update(window=window, acquired=False, released=False)
+    if not lock(1):  # LSFW_LOCK; prevents unrelated SetForegroundWindow calls.
+        raise c.WinError(c.get_last_error())
+    journal.update(acquired=True, started_ns=time.monotonic_ns())
+    failure: BaseException | None = None
+    try:
+        if foreground() != window:
+            raise RuntimeError("Composition fixture lost foreground during setup")
+        yield journal
+    except BaseException as error:
+        failure = error
+        raise
+    finally:
+        journal.update(released=bool(lock(2)), finished_ns=time.monotonic_ns())
+        if not journal["released"]:
+            journal["release_error"] = c.get_last_error()
+            if failure is None:
+                raise c.WinError(c.get_last_error())
 
 
 class _Dispatch(Protocol):

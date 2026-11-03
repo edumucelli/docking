@@ -1,6 +1,7 @@
 """Owned IME setup must restore mode, preserve identity and bound foreign sends."""
 
 import ctypes
+import os
 import subprocess
 import sys
 import threading
@@ -11,6 +12,115 @@ from unittest.mock import Mock
 import pytest
 
 from tools.windows.visual import input_fixture as fixture
+
+
+@pytest.fixture
+def foreground_api(monkeypatch):
+    state = {
+        "pid": os.getpid(),
+        "thread": 30,
+        "foreground": 10,
+        "acquire": True,
+        "release": True,
+        "calls": [],
+    }
+
+    def owner(_window, pid):
+        pid._obj.value = state["pid"]
+        return state["thread"]
+
+    def lock(code):
+        state["calls"].append(code)
+        return state["acquire"] if code == 1 else state["release"]
+
+    api = {
+        "GetWindowThreadProcessId": owner,
+        "GetForegroundWindow": lambda: state["foreground"],
+        "LockSetForegroundWindow": lock,
+    }
+    monkeypatch.setattr(ctypes, "WinDLL", Mock(), raising=False)
+    monkeypatch.setattr(ctypes, "get_last_error", lambda: 5, raising=False)
+    monkeypatch.setattr(
+        ctypes,
+        "WinError",
+        lambda _code: PermissionError("Foreground lock"),
+        raising=False,
+    )
+    monkeypatch.setattr(fixture, "bind", lambda _library, name, *_types: api[name])
+    return state
+
+
+def test_foreground_scope_unlocks_after_success(foreground_api):
+    journal = {}
+    with fixture.owned_foreground(10, journal):
+        assert journal["acquired"] and not journal["released"]
+        assert foreground_api["calls"] == [1]
+    assert foreground_api["calls"] == [1, 2] and journal["released"]
+    assert journal["started_ns"] <= journal["finished_ns"]
+
+
+@pytest.mark.parametrize("changed", ("pid", "thread", "foreground"))
+def test_foreground_scope_rejects_foreign_or_unfocused_targets(foreground_api, changed):
+    foreground_api[changed] = 0
+    with (
+        pytest.raises(RuntimeError, match="does not own foreground"),
+        fixture.owned_foreground(10, {}),
+    ):
+        pytest.fail("Invalid target must fail before locking")
+    assert not foreground_api["calls"]
+
+
+def test_foreground_scope_does_not_unlock_a_failed_acquisition(foreground_api):
+    foreground_api["acquire"] = False
+    journal = {}
+    with pytest.raises(PermissionError), fixture.owned_foreground(10, journal):
+        pytest.fail("Failed acquisition must not send input")
+    assert foreground_api["calls"] == [1] and not journal["acquired"]
+
+
+def test_foreground_scope_unlocks_if_target_changes_during_acquisition(
+    foreground_api, monkeypatch
+):
+    raw = fixture.bind
+    foreground = Mock(side_effect=[10, 20])
+    monkeypatch.setattr(
+        fixture,
+        "bind",
+        lambda library, name, *types: (
+            foreground if name == "GetForegroundWindow" else raw(library, name, *types)
+        ),
+    )
+    journal = {}
+    with (
+        pytest.raises(RuntimeError, match="lost foreground during setup"),
+        fixture.owned_foreground(10, journal),
+    ):
+        pytest.fail("Changed foreground must fail before input")
+    assert foreground_api["calls"] == [1, 2] and journal["released"]
+
+
+def test_foreground_unlock_failure_fails_a_successful_exercise(foreground_api):
+    foreground_api["release"] = False
+    journal = {}
+    with pytest.raises(PermissionError), fixture.owned_foreground(10, journal):
+        pass
+    assert foreground_api["calls"] == [1, 2] and journal["release_error"] == 5
+    assert not journal["released"]
+
+
+@pytest.mark.parametrize("failure", (AssertionError, KeyboardInterrupt))
+@pytest.mark.parametrize("released", (False, True))
+def test_foreground_scope_preserves_primary_failure_and_records_cleanup(
+    foreground_api, failure, released
+):
+    foreground_api["release"] = released
+    journal = {}
+    primary = failure("Original typing failure")
+    with pytest.raises(failure) as caught, fixture.owned_foreground(10, journal):
+        raise primary
+    assert caught.value is primary and foreground_api["calls"] == [1, 2]
+    assert journal["released"] is released
+    assert ("release_error" in journal) is not released
 
 
 class ModeAPI:

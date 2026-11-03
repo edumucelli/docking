@@ -7,6 +7,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import threading
 import zipfile
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import SimpleNamespace
@@ -22,6 +23,7 @@ from tools.windows.bundle import (
     extract_bundle,
     filesystem_path,
     install_wheel,
+    move_stage,
     native_path,
     read_packages,
     relative_package_file,
@@ -718,7 +720,7 @@ def test_pixbuf_cache_keeps_relative_modules_after_moving_extended_path_stage(
         # this test isolates the copied GdkPixbuf DLL's relocation behavior.
         write_pixbuf_cache(runtime)
         relocated = stage / "relocated"
-        runtime.rename(relocated)
+        move_stage(runtime, relocated)
         cache = relocated / "lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
         modules = [
             PureWindowsPath(json.loads(line))
@@ -727,3 +729,124 @@ def test_pixbuf_cache_keeps_relative_modules_after_moving_extended_path_stage(
         ]
         assert modules and all(not path.is_absolute() for path in modules)
         assert all((relocated / path).is_file() for path in modules)
+
+
+@pytest.mark.parametrize("code", (5, 32))
+def test_stage_move_waits_for_windows_sharing_without_changing_permissions(
+    tmp_path, monkeypatch, code
+):
+    source, destination = tmp_path / "stage", tmp_path / "published"
+    source.mkdir()
+    (source / "owned.txt").write_bytes(b"owned contents")
+    rename, now, failures = Path.rename, [0.0], []
+
+    def blocked(path, target):
+        if now[0] < 0.2:
+            error = PermissionError("Owned stage is in use")
+            error.winerror = code
+            failures.append(error)
+            raise error
+        return rename(path, target)
+
+    monkeypatch.setattr(bundle_tool, "sys", SimpleNamespace(platform="win32"))
+    monkeypatch.setattr(Path, "rename", blocked)
+    monkeypatch.setattr(bundle_tool.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(
+        bundle_tool.time, "sleep", lambda seconds: now.__setitem__(0, now[0] + seconds)
+    )
+    move_stage(source, destination)
+    assert failures and now[0] == pytest.approx(0.2)
+    assert not source.exists()
+    assert (destination / "owned.txt").read_bytes() == b"owned contents"
+
+
+@pytest.mark.parametrize(
+    "platform,code,occupied,elapsed",
+    (
+        ("win32", 5, False, 5),
+        ("win32", 5, True, 0),
+        ("win32", 13, False, 0),
+        ("linux", 5, False, 0),
+    ),
+)
+def test_stage_move_preserves_permanent_errors_and_existing_destinations(
+    tmp_path, monkeypatch, platform, code, occupied, elapsed
+):
+    source, destination = tmp_path / "stage", tmp_path / "published"
+    source.mkdir()
+    if occupied:
+        destination.mkdir()
+        (destination / "sentinel").write_bytes(b"keep")
+    now = [0.0]
+    error = PermissionError("Original publication error")
+    error.winerror = code
+
+    def denied(_source, _destination):
+        raise error
+
+    monkeypatch.setattr(bundle_tool, "sys", SimpleNamespace(platform=platform))
+    monkeypatch.setattr(Path, "rename", denied)
+    monkeypatch.setattr(bundle_tool.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(
+        bundle_tool.time, "sleep", lambda seconds: now.__setitem__(0, now[0] + seconds)
+    )
+    with pytest.raises(PermissionError) as caught:
+        move_stage(source, destination)
+    assert caught.value is error and now[0] == pytest.approx(elapsed)
+    assert source.is_dir()
+    if occupied:
+        assert (destination / "sentinel").read_bytes() == b"keep"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Native Windows file sharing")
+def test_stage_move_waits_for_an_owned_native_file_handle(tmp_path, monkeypatch):
+    import ctypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    create = kernel.CreateFileW
+    create.argtypes = (
+        ctypes.c_wchar_p,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+    )
+    create.restype = ctypes.c_void_p
+    kernel.CloseHandle.argtypes = (ctypes.c_void_p,)
+    with staging_directory(tmp_path, "sharing-") as stage:
+        source, destination = stage / "runtime", stage / "published"
+        source.mkdir()
+        child = source / "owned.txt"
+        child.write_bytes(b"owned contents")
+        handle = create(str(child), 0x80000000, 3, None, 3, 0x80, None)
+        assert handle != ctypes.c_void_p(-1).value
+        blocked, released, errors = threading.Event(), threading.Event(), []
+
+        def release():
+            blocked.wait(5)
+            kernel.CloseHandle(handle)
+            released.set()
+
+        rename = Path.rename
+
+        def observe(path, target):
+            try:
+                return rename(path, target)
+            except PermissionError as error:
+                errors.append(error.winerror)
+                blocked.set()
+                raise
+
+        monkeypatch.setattr(Path, "rename", observe)
+        worker = threading.Thread(target=release)
+        worker.start()
+        try:
+            move_stage(source, destination)
+        finally:
+            blocked.set()
+            worker.join(5)
+        assert not worker.is_alive() and released.is_set()
+        assert errors and set(errors) <= {5, 32}
+        assert (destination / "owned.txt").read_bytes() == b"owned contents"

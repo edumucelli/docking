@@ -562,7 +562,8 @@ def test_readiness_timeout_is_not_masked_by_absent_state_cleanup(tmp_path, monke
     error = TimeoutError("readiness deadline")
     client = NativeProvider(tmp_path / "provider.exe", tmp_path / "A", {})
 
-    def not_ready(*_args):
+    def not_ready(*_args, seconds):
+        assert seconds == 30
         raise error
 
     monkeypatch.setattr(client, "wait", not_ready)
@@ -571,11 +572,71 @@ def test_readiness_timeout_is_not_masked_by_absent_state_cleanup(tmp_path, monke
     assert failed.value is error and timeouts == [10]
     lifecycle = json.loads((client.directory / "provider-lifecycle.json").read_text())
     assert (
-        lifecycle["readiness_timeout_s"] == 15 and lifecycle["terminate_timeout_s"] == 5
+        lifecycle["readiness_timeout_s"] == 30 and lifecycle["terminate_timeout_s"] == 5
     )
     assert lifecycle["startup_error"]["type"] == "TimeoutError"
     assert lifecycle["cleanup_error"]["type"] == "RuntimeError"
     assert client._log.closed
+
+
+@pytest.mark.parametrize("ready_after", (20, None))
+def test_provider_startup_and_commands_have_separate_bounded_deadlines(
+    tmp_path, monkeypatch, ready_after
+):
+    from tools.windows.visual import tray_provider
+
+    now = [0.0]
+    directory = tmp_path / "A"
+    configuration = ProviderCase().configuration("A", "owned")
+    process = SimpleNamespace(pid=321, returncode=None)
+    process.poll = lambda: process.returncode
+
+    def sleep(seconds):
+        now[0] += seconds
+        if (
+            ready_after is not None
+            and now[0] >= ready_after
+            and not (directory / "state.json").exists()
+        ):
+            (directory / "state.json").write_text(
+                json.dumps(
+                    {
+                        **configuration,
+                        "pid": 321,
+                        "stage": "ready",
+                        "command_revision": 0,
+                    }
+                )
+            )
+
+    def close(*, timeout):
+        assert timeout == 10
+        assert (directory / "stop").exists()
+        process.returncode = 0
+        (directory / "state.json").write_text(
+            json.dumps({"stage": "closed", "registered": False})
+        )
+
+    process.wait = close
+    monkeypatch.setattr(tray_provider.time, "monotonic", lambda: now[0])
+    monkeypatch.setattr(tray_provider.time, "sleep", sleep)
+    monkeypatch.setattr(
+        tray_provider.subprocess, "Popen", lambda *_args, **_kwargs: process
+    )
+    client = NativeProvider(tmp_path / "provider.exe", directory, configuration)
+    if ready_after is None:
+        with pytest.raises(TimeoutError, match="become ready"):
+            client.__enter__()
+        assert now[0] == pytest.approx(30, abs=0.1)
+    else:
+        with client:
+            assert now[0] == pytest.approx(20)
+            lifecycle = json.loads((directory / "provider-lifecycle.json").read_text())
+            assert lifecycle["ready_elapsed_ms"] == 20_000
+            with pytest.raises(TimeoutError, match="acknowledge snapshot"):
+                client.command("snapshot")
+            assert now[0] == pytest.approx(35, abs=0.1)
+    assert client._log.closed and not client.forced_cleanup
 
 
 @pytest.mark.parametrize("registered", (False, True))

@@ -289,7 +289,7 @@ def main(monitor):
         target_modules,
         thread_snapshot,
     )
-    from tools.windows.visual.input_fixture import ime_conversion
+    from tools.windows.visual.input_fixture import ime_conversion, owned_foreground
     from tools.windows.visual.input_gtk import snapshot as gtk_input_snapshot
     from tools.windows.visual.input_requests import (
         CleanupJournal,
@@ -1137,6 +1137,12 @@ def main(monitor):
                             publish()
                             return
 
+                        mode_scope.enter_context(
+                            owned_foreground(
+                                mapped["hwnd"],
+                                attempt.setdefault("foreground_guard", {}),
+                            )
+                        )
                         attempt["ime_mode"] = {}
                         mode_scope.enter_context(
                             ime_conversion(
@@ -1246,7 +1252,7 @@ def main(monitor):
                         raise
                     finally:
                         try:
-                            mode_scope.close()
+                            mode_scope.__exit__(*sys.exc_info())
                         finally:
                             attempt["final_observation"] = observation()
                             publish()
