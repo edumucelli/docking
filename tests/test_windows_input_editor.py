@@ -298,7 +298,7 @@ def test_editor_build_keeps_source_and_flags_and_records_explicit_architecture(
     assert run.call_args.kwargs == {
         "check": True,
         "capture_output": True,
-        "timeout": 30,
+        "timeout": 120,
         "creationflags": 0x08000000 if platform == "win32" else 0,
     }
     assert run.call_args.args[0][-2:] == [
@@ -349,6 +349,26 @@ def test_compiler_failure_retains_stdout_stderr_and_redacts_command_paths(
     assert metadata["status"] == "failed" and metadata["returncode"] == 1
 
 
+def test_cold_editor_compiler_has_build_budget_and_elapsed_diagnostics(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("SYSTEMROOT", "C:/Windows")
+    monkeypatch.setattr(
+        mod, "time", SimpleNamespace(monotonic=Mock(side_effect=[100.0, 145.0]))
+    )
+
+    def cold_compile(command, **kwargs):
+        assert kwargs["timeout"] > 45
+        return subprocess.CompletedProcess(command, 0, b"", b"")
+
+    run = Mock(side_effect=cold_compile)
+    monkeypatch.setattr(mod.subprocess, "run", run)
+    mod.build_editor(tmp_path)
+    metadata = json.loads((tmp_path / "editor-build.json").read_text())
+    assert metadata["status"] == "success" and metadata["elapsed_ms"] == 45_000
+    assert run.call_count == 1
+
+
 def test_editor_compile_timeout_retains_partial_output_and_stays_fatal(
     tmp_path, monkeypatch
 ):
@@ -356,13 +376,16 @@ def test_editor_compile_timeout_retains_partial_output_and_stays_fatal(
 
     def timeout(command, **kwargs):
         raise subprocess.TimeoutExpired(
-            command, 30, output=b"partial stdout", stderr=b"partial stderr"
+            command,
+            kwargs["timeout"],
+            output=b"partial stdout",
+            stderr=b"partial stderr",
         )
 
     monkeypatch.setattr(mod.subprocess, "run", timeout)
     with pytest.raises(subprocess.TimeoutExpired) as error:
         mod.build_editor(tmp_path)
-    assert error.value.timeout == 30 and error.value.cmd == "<framework-csc>"
+    assert error.value.timeout == 120 and error.value.cmd == "<framework-csc>"
     log = (tmp_path / "editor-build.log").read_text()
     assert "partial stdout" in log and "partial stderr" in log
     metadata = json.loads((tmp_path / "editor-build.json").read_text())

@@ -8,6 +8,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import uuid
 from collections.abc import Callable
 from contextlib import ExitStack, contextmanager, nullcontext
@@ -19,6 +20,8 @@ from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_jso
 from tools.windows.visual.input_environment import bind
 
 _EDITOR_LOG_LIMIT = 16_384
+# A cold CLR/compiler startup on hosted Arm can exceed an interactive wait.
+_EDITOR_BUILD_TIMEOUT_S = 120
 
 
 class _FileTime(ctypes.Structure):
@@ -521,11 +524,12 @@ def build_editor(output: Path, *, bits: int = 32) -> Path:
         "source": source.name,
         "executable": executable.name,
         "log": "editor-build.log",
-        "timeout_s": 30,
+        "timeout_s": _EDITOR_BUILD_TIMEOUT_S,
         "compiler_framework": "Framework64",
     }
     metadata_path = output / "editor-build.json"
     write_shared_json(metadata_path, metadata)
+    started = time.monotonic()
     roots = {
         output: "<owned-build>",
         compiler.parent: "<framework>",
@@ -567,6 +571,7 @@ def build_editor(output: Path, *, bits: int = 32) -> Path:
         metadata.update(
             status=status,
             returncode=returncode,
+            elapsed_ms=round((time.monotonic() - started) * 1000),
             output_truncated=len(encoded) > _EDITOR_LOG_LIMIT,
         )
         if errno is not None:
@@ -582,7 +587,7 @@ def build_editor(output: Path, *, bits: int = 32) -> Path:
             _editor_command(compiler, source, executable, bits=bits),
             check=True,
             capture_output=True,
-            timeout=30,
+            timeout=_EDITOR_BUILD_TIMEOUT_S,
             creationflags=0x08000000 if sys.platform == "win32" else 0,
         )
     except subprocess.CalledProcessError as error:

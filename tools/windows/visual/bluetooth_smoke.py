@@ -7,11 +7,13 @@ and policy states are explicit injected fixtures; no physical radios are changed
 from __future__ import annotations
 
 import argparse
+import ctypes
 import json
 import os
 import sys
 import threading
 import time
+from ctypes import wintypes
 from dataclasses import asdict, replace
 from pathlib import Path
 
@@ -273,18 +275,39 @@ def main():
             )
 
             def point():
-                frame = shared["ui"].window.geometry.build_frame(main_cursor=-1.0)
+                window = shared["ui"].window
+                frame = window.geometry.build_frame()
                 rect = next(
                     g.draw_rect
                     for g in frame.item_geometries
                     if g.item.desktop_id == "applet://bluetooth"
                 )
-                window = next(
+                bounds = next(
                     w for w in native.windows(os.getpid()) if w["hwnd"] == dock["hwnd"]
                 )
-                return window["rect"][0] + rect.x + rect.w / 2, window["rect"][
-                    1
-                ] + rect.y + rect.h / 2
+                scale = window.get_scale_factor()
+                return (
+                    bounds["rect"][0] + (rect.x + rect.w / 2) * scale,
+                    bounds["rect"][1] + (rect.y + rect.h / 2) * scale,
+                )
+
+            def pointer_target():
+                window = shared["ui"].window
+                cursor, bounds = wintypes.POINT(), wintypes.RECT()
+                assert native.user.GetCursorPos(ctypes.byref(cursor))
+                assert native.user.GetWindowRect(dock["hwnd"], ctypes.byref(bounds))
+                scale = window.get_scale_factor()
+                x, y = (cursor.x - bounds.left) / scale, (cursor.y - bounds.top) / scale
+                live = window.geometry.build_frame().item_at_point(x, y)
+                painted = window._current_or_build_geometry_frame().item_at_point(x, y)
+                hovered = window.hover.hovered_item
+                return {
+                    "point": [cursor.x, cursor.y],
+                    "live": live.desktop_id if live else None,
+                    "painted": painted.desktop_id if painted else None,
+                    "hovered": hovered.desktop_id if hovered else None,
+                    "window": native.window_at(cursor.x, cursor.y),
+                }
 
             def idle():
                 return call(
@@ -298,7 +321,32 @@ def main():
                 return call(lambda: applet._state)
 
             def menu():
-                native.click(*call(point), right=True)
+                attempt = {}
+                report.setdefault("menu_attempts", []).append(attempt)
+
+                def aim():
+                    target = call(point)
+                    assert native.user.SetCursorPos(*map(int, target))
+                    observed = attempt["target"] = call(pointer_target)
+                    if observed["window"] == dock["hwnd"] and all(
+                        observed[key] == "applet://bluetooth"
+                        for key in ("live", "painted", "hovered")
+                    ):
+                        return observed["point"]
+                    return None
+
+                target = native.wait_for(
+                    aim, "Bluetooth applet did not receive pointer"
+                )
+
+                def before_press():
+                    # A newly discovered running app can recenter the dock
+                    # during click's pointer-settle interval. Re-aim before
+                    # the single physical press, using live and painted hits.
+                    native.wait_for(aim, "Bluetooth applet moved before menu input")
+                    attempt["before_press"] = attempt["target"]
+
+                native.click(*target, right=True, before_press=before_press)
                 popup = native.wait_for(
                     lambda: call(lambda: Gtk.grab_get_current()),
                     "Bluetooth menu did not map",
@@ -424,6 +472,7 @@ def main():
             )
             popup, rows = menu()
             labels = [row["label"] for row in rows]
+            report["fixture_menu"] = rows
             assert (
                 "Continuous Discovery" in labels and "Recent Connections" not in labels
             )
@@ -435,7 +484,6 @@ def main():
             ]
             assert len(device_rows) == 2
             assert all(row["submenu"] and row["enabled"] for row in device_rows)
-            report["fixture_menu"] = rows
             capture("fixture-connected-menu")
             keyboard = next(
                 row["label"]
