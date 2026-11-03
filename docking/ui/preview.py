@@ -154,15 +154,15 @@ _CSS = b"""
     border: 1px solid rgba(100, 100, 100, 0.6);
     padding: 8px;
 }
-.preview-thumb {
+.preview-image {
     border-radius: 4px;
     border: 2px solid transparent;
-    padding: 2px;
+    padding: 0;
 }
 .preview-popup viewport {
     background-color: transparent;
 }
-.preview-thumb:hover {
+.preview-thumb:hover .preview-image {
     border-color: rgba(100, 180, 255, 0.8);
     background-color: rgba(100, 180, 255, 0.15);
 }
@@ -172,7 +172,7 @@ _CSS = b"""
     background-color: rgba(40, 40, 40, 0.55);
     border-radius: 3px;
     padding: 1px 4px;
-    margin-top: -4px;
+    margin-top: 2px;
 }
 """
 
@@ -422,6 +422,7 @@ class PreviewPopup(Gtk.Window):
 
         # Thumbnail image
         thumb_w, thumb_h = thumbnail_size(self._thumbnail_width())
+        vbox.set_size_request(thumb_w, -1)
         preview = self._preview_service.capture(
             window.id, width=thumb_w, height=thumb_h
         )
@@ -443,9 +444,14 @@ class PreviewPopup(Gtk.Window):
                 )
             )
             self._fallback_icons[window.id] = icon
-        image.set_size_request(thumb_w, thumb_h)
         self._thumbnail_images[window.id] = (image, thumb_w, thumb_h, preview)
-        vbox.pack_start(image, False, False, 0)
+        image_frame = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        image_frame.get_style_context().add_class("preview-image")
+        # Captures preserve their aspect ratio; frame their natural dimensions
+        # rather than reserving the full 4:3 capture bounds around the pixels.
+        image_frame.set_halign(Gtk.Align.CENTER)
+        image_frame.pack_start(image, False, False, 0)
+        vbox.pack_start(image_frame, False, False, 0)
 
         # Window title
         title = window.title

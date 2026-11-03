@@ -32,7 +32,7 @@ def test_visible_popup_displays_asynchronous_capture_when_it_arrives(preview):
     capture.asynchronous = True
     capture.capture.return_value = None
     preview.show(1)
-    image = preview.cards[0].get_child().get_children()[0]
+    image = preview.cards[0].get_child().get_children()[0].get_children()[0]
     assert image.get_pixbuf() is None
     pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 20, 10)
     pixbuf.fill(0xFF0000FF)
@@ -49,6 +49,43 @@ def test_visible_popup_displays_asynchronous_capture_when_it_arrives(preview):
         settle_gtk()
     assert capture.capture.call_count == calls
     assert preview.popup._preview_refresh_timer_id == 0
+
+
+@pytest.mark.parametrize("size", [(200, 150), (200, 106), (75, 150)])
+def test_thumbnail_highlight_touches_image_on_every_side(preview, size):
+    width, height = size
+    pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, width, height)
+    pixbuf.fill(0x4684DCFF)
+    preview.popup._preview_service.capture.return_value = PreviewImage(
+        pixbuf, width, height
+    )
+    preview.popup.set_thumbnail_outline_enabled(lambda: True)
+    preview.show(1)
+    card = preview.cards[0]
+    frame, label = card.get_child().get_children()
+    image = frame.get_children()[0]
+    event = Gdk.Event.new(Gdk.EventType.ENTER_NOTIFY)
+    card.emit("enter-notify-event", event)
+    settle_gtk()
+
+    style = frame.get_style_context()
+    border = style.get_border(style.get_state())
+    color = style.get_border_color(style.get_state())
+    assert (border.top, border.right, border.bottom, border.left) == (2, 2, 2, 2)
+    assert color.alpha > 0
+    x, y = image.translate_coordinates(frame, 0, 0)
+    assert x == 2 and y == 2
+    assert frame.get_allocated_width() - x - image.get_allocated_width() == 2
+    assert frame.get_allocated_height() - y - image.get_allocated_height() == 2
+    assert image.get_allocated_width() == width
+    assert image.get_allocated_height() == height
+    assert frame.get_allocated_width() == width + 4
+    assert frame.get_allocated_height() == height + 4
+    _, frame_y = frame.translate_coordinates(card, 0, 0)
+    _, label_y = label.translate_coordinates(card, 0, 0)
+    assert label_y >= frame_y + frame.get_allocated_height()
+    label_style = label.get_style_context()
+    assert label_style.get_border(label_style.get_state()).top == 0
 
 
 def test_synchronous_preview_does_not_add_capture_polling(preview):
