@@ -807,15 +807,48 @@ def main(monitor):
                     assert search_window() is None
                     # The same shortcut must resume after releasing physical right Alt.
                     open_search(0x45)
-                    native.key(0x41, control=True)
-                    native.key(0x08)
-                    native.scan(0x12, altgr=True)
-                    native.wait_for(
-                        lambda: (
-                            call(lambda: search.window.search_entry.get_text()) == "€"
-                        ),
-                        "Search did not preserve physical AltGr text",
+                    attempt["stage"] = "Search AltGr"
+                    entry = call(lambda: search.window.search_entry)
+                    window = search_window()
+                    assert window is not None
+                    readback = partial(
+                        _entry_input_readback,
+                        entry,
+                        current=lambda: search.window.search_entry,
+                        api=api,
+                        native=native,
+                        scans=(0x12,),
                     )
+                    trace = call(
+                        lambda: _EntryInputTrace(
+                            entry, attempt.setdefault("input_trace", {}), readback
+                        )
+                    )
+                    # Keep the shortcut/focus assertion above independent.
+                    with (
+                        fixture_cleanup(
+                            lambda: call(trace.close), attempt, "input-observer"
+                        ),
+                        owned_foreground(
+                            window["hwnd"], attempt.setdefault("foreground_guard", {})
+                        ),
+                    ):
+                        native.key(0x41, control=True)
+                        native.key(0x08)
+                        native.wait_for(
+                            lambda: (
+                                native.user.GetForegroundWindow() == window["hwnd"]
+                                and call(entry.has_focus)
+                            ),
+                            "Search did not own native and GTK focus before AltGr",
+                        )
+                        call(partial(trace.observe, "before-altgr"))
+                        native.scan(0x12, altgr=True)
+                        call(partial(trace.observe, "after-altgr"))
+                        native.wait_for(
+                            lambda: call(entry.get_text) == "€",
+                            "Search did not preserve physical AltGr text",
+                        )
                     assert search_window() is not None
 
                     def build_capture():

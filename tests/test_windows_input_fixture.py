@@ -104,8 +104,46 @@ def test_foreground_unlock_failure_fails_a_successful_exercise(foreground_api):
     journal = {}
     with pytest.raises(PermissionError), fixture.owned_foreground(10, journal):
         pass
-    assert foreground_api["calls"] == [1, 2] and journal["release_error"] == 5
+    assert foreground_api["calls"] == [1, 2, 1, 2] and journal["release_error"] == 5
     assert not journal["released"]
+
+
+@pytest.mark.parametrize("failure", (None, AssertionError, KeyboardInterrupt))
+def test_foreground_scope_cleans_up_after_alt_automatically_unlocks(
+    foreground_api, monkeypatch, failure
+):
+    raw = fixture.bind
+    lock = Mock(side_effect=(True, False, True, True))
+    monkeypatch.setattr(
+        fixture,
+        "bind",
+        lambda library, name, *types: (
+            lock if name == "LockSetForegroundWindow" else raw(library, name, *types)
+        ),
+    )
+    journal = {}
+
+    def exercise():
+        with fixture.owned_foreground(10, journal):
+            if failure is not None:
+                raise failure("Original typing failure")
+
+    if failure is None:
+        exercise()
+    else:
+        with pytest.raises(failure, match="Original typing failure"):
+            exercise()
+    assert journal["release_reacquired"] and journal["released"]
+    assert [call.args[0] for call in lock.call_args_list] == [1, 2, 1, 2]
+    assert "release_error" not in journal
+
+
+def test_foreground_scope_does_not_reacquire_a_foreign_foreground(foreground_api):
+    journal = {}
+    with pytest.raises(PermissionError), fixture.owned_foreground(10, journal):
+        foreground_api.update(release=False, foreground=20)
+    assert foreground_api["calls"] == [1, 2]
+    assert not journal["released"] and journal["release_error"] == 5
 
 
 @pytest.mark.parametrize("failure", (AssertionError, KeyboardInterrupt))
@@ -118,7 +156,8 @@ def test_foreground_scope_preserves_primary_failure_and_records_cleanup(
     primary = failure("Original typing failure")
     with pytest.raises(failure) as caught, fixture.owned_foreground(10, journal):
         raise primary
-    assert caught.value is primary and foreground_api["calls"] == [1, 2]
+    assert caught.value is primary
+    assert foreground_api["calls"] == ([1, 2] if released else [1, 2, 1, 2])
     assert journal["released"] is released
     assert ("release_error" in journal) is not released
 
