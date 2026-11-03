@@ -3,7 +3,7 @@
 # The container only PRODUCES evidence: screenshot PNGs and JSON probed from the
 # compositor. All comparison (geometry assertions, SSIM/PSNR against baselines)
 # runs on the host, where the imaging stack already exists in the dev extra.
-# That keeps this image free of Pillow/numpy/scikit-image.
+# That keeps this image free of Pillow/NumPy.
 #
 # Targets are separate rather than one image because the compositors differ
 # wildly in size -- Cinnamon alone pulls ~500 packages and ~1GB, which would make

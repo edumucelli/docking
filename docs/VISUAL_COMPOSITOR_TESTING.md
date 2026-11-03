@@ -365,7 +365,7 @@ bash tools/linux/visual/matrix.sh --compositor sway --case placement-bottom
 ```
 
 Requirements: `docker`, and the project venv (`.venv`) — the comparison runs on the host and
-uses Pillow/numpy/scikit-image from the `dev` extra.
+uses Pillow/NumPy from the `dev` extra.
 
 Artifacts land in `tools/linux/visual/evidence/<compositor>-<timestamp>/`:
 `<case>.png` (full output), `<case>.log` (Docking's log), `<case>.json` (probed geometry).
@@ -414,6 +414,24 @@ would follow the bug and hide it.
 Thresholds default to SSIM 0.985 / PSNR 30.0 (`LIVE_THRESHOLDS` in `compare.py`), looser than
 `tests/visual/support.py`'s 0.995/35.0, which is calibrated for bit-identical in-process
 rendering.
+
+The metrics in `tests/visual/metrics.py` adapt the float32 RGB/RGBA paths from
+[scikit-image 0.26.0 SSIM](https://github.com/scikit-image/scikit-image/blob/v0.26.0/skimage/metrics/_structural_similarity.py)
+and [PSNR](https://github.com/scikit-image/scikit-image/blob/v0.26.0/skimage/metrics/simple_metrics.py).
+The separable 7x7 uniform filter ports
+[SciPy 1.17.1's rolling-sum algorithm](https://github.com/scipy/scipy/blob/v1.17.1/scipy/ndimage/src/ni_filters.c)
+to NumPy, preserving reflect padding, double accumulators, and float32 output
+after each axis. SSIM retains sample covariance, three-pixel border cropping,
+float64 spatial means, and float32 channel averaging. The upstream BSD notices
+are retained beside the port.
+
+`tests/visual/metrics_reference.json` records upstream results for deterministic
+images, including alpha-only changes, flat regions, borders, the minimum window,
+and both sides of each SSIM/PSNR threshold. `tests/test_visual_metrics.py` checks
+these results without importing scikit-image or SciPy. When changing the port,
+compare against the upstream versions above before regenerating any reference
+values; keep visual baselines and acceptance thresholds independent of metric
+changes.
 
 ### Result vocabulary
 
