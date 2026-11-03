@@ -122,6 +122,39 @@ def air_quality_response():
     }
 
 
+@pytest.fixture
+def weather_server(weather_response, air_quality_response):
+    requests = []
+    responses = [
+        (500, {"error": True}),
+        (200, weather_response),
+        (200, air_quality_response),
+    ]
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            requests.append((self.path, self.headers["User-Agent"]))
+            status, response = responses.pop(0)
+            payload = json.dumps(response).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, _format, *_args):
+            pass
+
+    with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            yield f"http://127.0.0.1:{server.server_port}", requests
+        finally:
+            server.shutdown()
+            thread.join(timeout=5)
+
+
 def test_fetch_weather_success(isolate_weather, weather_response):
     isolate_weather.side_effect = None
     isolate_weather.return_value = weather_response
@@ -189,6 +222,28 @@ def test_missing_uv_is_optional(isolate_weather, air_quality_response):
     assert fetch_air_quality(1.0, 2.0).uv_index is None
 
 
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_nonfinite_optional_uv_is_cached_as_null(
+    isolate_weather, air_quality_response, value
+):
+    air_quality_response["current"]["uv_index"] = value
+    isolate_weather.side_effect = None
+    isolate_weather.return_value = air_quality_response
+    first = fetch_air_quality(1.0, 2.0)
+    assert first.uv_index is None
+    assert fetch_air_quality(1.0, 2.0) == first
+    assert isolate_weather.call_count == 1
+    path = next(weather_api_mod._CACHE_DIR.rglob("*.json"))
+    cached = json.loads(
+        path.read_text(), parse_constant=lambda _: pytest.fail("Nonstandard JSON")
+    )
+    assert cached["payload"]["current"] == {
+        **air_quality_response["current"],
+        "uv_index": None,
+    }
+    assert air_quality_response["current"]["uv_index"] is value
+
+
 @pytest.mark.parametrize("length", [0, 2])
 def test_coherent_shorter_forecast(isolate_weather, weather_response, length):
     weather_response["daily"] = {
@@ -206,6 +261,36 @@ def test_unknown_code_keeps_fallback(isolate_weather, weather_response):
     data = fetch_weather(1.0, 2.0)
     assert data.description == "Unknown"
     assert data.icon_name == "weather-few-clouds"
+
+
+@pytest.mark.parametrize("daily", [False, True])
+@pytest.mark.parametrize("value", [61.9, -0.1])
+def test_fractional_weather_code_is_rejected(
+    isolate_weather, weather_response, daily, value
+):
+    if daily:
+        weather_response["daily"]["weather_code"][0] = value
+    else:
+        weather_response["current"]["weather_code"] = value
+    isolate_weather.side_effect = None
+    isolate_weather.return_value = weather_response
+    assert fetch_weather(1.0, 2.0) is None
+    assert not list(weather_api_mod._CACHE_DIR.rglob("*.json"))
+
+
+@pytest.mark.parametrize("daily", [False, True])
+def test_integral_float_weather_codes_remain_valid(
+    isolate_weather, weather_response, daily
+):
+    if daily:
+        weather_response["daily"]["weather_code"][0] = 61.0
+    else:
+        weather_response["current"]["weather_code"] = 61.0
+    isolate_weather.side_effect = None
+    isolate_weather.return_value = weather_response
+    data = fetch_weather(1.0, 2.0)
+    assert data is not None
+    assert (data.daily[0].code if daily else data.weather_code) == 61
 
 
 @pytest.mark.parametrize("value", [None, "22.3", True, float("nan"), float("inf")])
@@ -280,6 +365,50 @@ def test_cache_keys_include_endpoint_and_coordinates(
     assert fetch_weather(1.0, 2.0) is not None
     assert fetch_air_quality(1.0, 2.0) is not None
     assert isolate_weather.call_count == 3
+
+
+def test_writing_cache_prunes_expired_entries_but_preserves_fresh_and_other_files(
+    isolate_weather, weather_response
+):
+    isolate_weather.side_effect = None
+    isolate_weather.return_value = weather_response
+    assert fetch_weather(1.0, 2.0) is not None
+    expired = next(weather_api_mod._CACHE_DIR.rglob("*.json"))
+    legacy = weather_api_mod._CACHE_DIR / "responses.sqlite"
+    legacy.write_bytes(b"old cache")
+    temporary = expired.parent / "temporary"
+    temporary.write_bytes(b"incomplete write")
+    weather_api_mod.time.time.return_value += 1
+    assert fetch_weather(1.0, 3.0) is not None
+    weather_api_mod.time.time.return_value += weather_api_mod.REFRESH_INTERVAL - 1
+    assert fetch_weather(1.0, 4.0) is not None
+    assert not expired.exists()
+    assert len(list(expired.parent.glob("*.json"))) == 2
+    assert legacy.read_bytes() == b"old cache"
+    assert temporary.read_bytes() == b"incomplete write"
+    assert fetch_weather(1.0, 3.0) is not None
+    assert isolate_weather.call_count == 3
+
+
+def test_cache_pruning_failure_does_not_lose_fresh_data(
+    monkeypatch, isolate_weather, weather_response
+):
+    isolate_weather.side_effect = None
+    isolate_weather.return_value = weather_response
+    assert fetch_weather(1.0, 2.0) is not None
+    expired = next(weather_api_mod._CACHE_DIR.rglob("*.json"))
+    weather_api_mod.time.time.return_value += weather_api_mod.REFRESH_INTERVAL
+    unlink = Path.unlink
+
+    def deny_expired(path, *args, **kwargs):
+        if path == expired:
+            raise PermissionError("read only")
+        return unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", deny_expired)
+    assert fetch_weather(1.0, 3.0).temperature == 22.3
+    assert expired.exists()
+    assert len(list(expired.parent.glob("*.json"))) == 2
 
 
 @pytest.mark.parametrize(
@@ -377,15 +506,29 @@ def test_retryable_http_error_recovers(isolate_weather, weather_response, code):
 
 
 @pytest.mark.parametrize("code", [413, 429, 503, 500])
-@pytest.mark.parametrize("header", ["3", "date"])
-def test_retry_after_is_honored(isolate_weather, weather_response, code, header):
+@pytest.mark.parametrize("header,delay", [("3", 3.0), ("60", 60.0), ("date", 3.0)])
+def test_retry_after_is_honored(isolate_weather, weather_response, code, header, delay):
     if header == "date":
         date = datetime.fromtimestamp(weather_api_mod.time.time() + 3, timezone.utc)
         header = format_datetime(date, usegmt=True)
     error, body = _http_error(code, header)
     isolate_weather.side_effect = [error, weather_response]
     assert fetch_weather(1.0, 2.0) is not None
-    weather_api_mod.time.sleep.assert_called_once_with(3.0)
+    weather_api_mod.time.sleep.assert_called_once_with(delay)
+    assert body.closed
+
+
+@pytest.mark.parametrize("code", [429, 503, 500])
+@pytest.mark.parametrize("header", ["61", "3600", "date"])
+def test_excessive_retry_after_fails_without_sleep(isolate_weather, code, header):
+    if header == "date":
+        date = datetime.fromtimestamp(weather_api_mod.time.time() + 61, timezone.utc)
+        header = format_datetime(date, usegmt=True)
+    error, body = _http_error(code, header)
+    isolate_weather.side_effect = error
+    assert fetch_weather(1.0, 2.0) is None
+    isolate_weather.assert_called_once()
+    weather_api_mod.time.sleep.assert_not_called()
     assert body.closed
 
 
@@ -438,55 +581,58 @@ def test_malformed_json_is_not_retried(isolate_weather):
     assert isolate_weather.call_count == 1
 
 
-def test_real_http_json_retry_and_cache(
-    monkeypatch, weather_response, air_quality_response
+@pytest.mark.parametrize(
+    "fetch,action",
+    [(fetch_weather, "fetch_weather"), (fetch_air_quality, "fetch_air_quality")],
+)
+@pytest.mark.parametrize(
+    "error,reason",
+    [
+        (TimeoutError("private request details"), "TimeoutError"),
+        (URLError(TimeoutError("private request details")), "TimeoutError"),
+        (ValueError("private response details"), "ValueError"),
+    ],
+)
+def test_fetch_logs_safe_failure_diagnostics(
+    isolate_weather, caplog, fetch, action, error, reason
 ):
-    requests = []
-    responses = [
-        (500, {"error": True}),
-        (200, weather_response),
-        (200, air_quality_response),
-    ]
+    isolate_weather.side_effect = error
+    assert fetch(1.0, 2.0) is None
+    record = caplog.records[-1]
+    assert reason in record.getMessage()
+    assert record.action == action
+    assert record.applet_id == "weather"
+    assert record.exc_info is None
+    assert "private" not in caplog.text
 
-    class Handler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            requests.append((self.path, self.headers["User-Agent"]))
-            status, response = responses.pop(0)
-            payload = json.dumps(response).encode("utf-8")
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(payload)))
-            self.end_headers()
-            self.wfile.write(payload)
 
-        def log_message(self, _format, *_args):
-            pass
+@pytest.mark.parametrize("fetch", [fetch_weather, fetch_air_quality])
+def test_fetch_logs_http_status_without_request_url(isolate_weather, caplog, fetch):
+    error, _ = _http_error(404)
+    isolate_weather.side_effect = error
+    assert fetch(1.0, 2.0) is None
+    assert "HTTP 404" in caplog.text
+    assert "https://" not in caplog.text
+    assert "latitude" not in caplog.text
 
-    with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
-        thread = Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        base = f"http://127.0.0.1:{server.server_port}"
-        monkeypatch.setattr(weather_api_mod, "_API_URL", base + "/forecast")
-        monkeypatch.setattr(weather_api_mod, "_AQI_URL", base + "/air-quality")
-        monkeypatch.setattr(weather_api_mod, "http_get_json", http_get_json)
-        try:
-            weather = fetch_weather(1.0, 2.0)
-            assert weather is not None and weather.temperature == 22.3
-            assert fetch_air_quality(1.0, 2.0).aqi == 37
-            assert fetch_weather(1.0, 2.0) == weather
-            assert len(requests) == 3
-            assert urlsplit(requests[0][0]).path == "/forecast"
-            assert urlsplit(requests[2][0]).path == "/air-quality"
-            assert all(
-                user_agent.startswith("DockingApplet/") for _, user_agent in requests
-            )
-        finally:
-            server.shutdown()
-            thread.join(timeout=5)
+
+def test_real_http_json_retry_and_cache(monkeypatch, weather_server):
+    base, requests = weather_server
+    monkeypatch.setattr(weather_api_mod, "_API_URL", base + "/forecast")
+    monkeypatch.setattr(weather_api_mod, "_AQI_URL", base + "/air-quality")
+    monkeypatch.setattr(weather_api_mod, "http_get_json", http_get_json)
+    weather = fetch_weather(1.0, 2.0)
+    assert weather is not None and weather.temperature == 22.3
+    assert fetch_air_quality(1.0, 2.0).aqi == 37
+    assert fetch_weather(1.0, 2.0) == weather
+    assert len(requests) == 3
+    assert urlsplit(requests[0][0]).path == "/forecast"
+    assert urlsplit(requests[2][0]).path == "/air-quality"
+    assert all(user_agent.startswith("DockingApplet/") for _, user_agent in requests)
 
 
 def test_weather_runs_without_old_dependencies_and_reuses_cache_in_new_process(
-    isolate_weather, weather_response
+    isolate_weather, weather_response, weather_server
 ):
     isolate_weather.side_effect = None
     isolate_weather.return_value = weather_response
@@ -515,6 +661,13 @@ api._CACHE_DIR = Path(sys.argv[2])
 api.time.time = lambda: 1710000000.0
 data = api.fetch_weather(1.0, 2.0)
 assert data is not None and data.temperature == 22.3
+api._CACHE_DIR = api._CACHE_DIR / 'cold'
+api._API_URL = sys.argv[3] + '/forecast'
+api._AQI_URL = sys.argv[3] + '/air-quality'
+data = api.fetch_weather(1.0, 2.0)
+assert data is not None and data.temperature == 22.3
+quality = api.fetch_air_quality(1.0, 2.0)
+assert quality is not None and quality.aqi == 37
 assert not blocked.intersection(sys.modules)
 print('weather cache and imports passed')
 """
@@ -526,6 +679,7 @@ print('weather cache and imports passed')
             script,
             str(root),
             str(weather_api_mod._CACHE_DIR),
+            weather_server[0],
         ],
         capture_output=True,
         text=True,
@@ -533,3 +687,4 @@ print('weather cache and imports passed')
         timeout=15,
     )
     assert result.stdout.strip() == "weather cache and imports passed"
+    assert len(weather_server[1]) == 3

@@ -31,8 +31,9 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from http.client import HTTPException
 from pathlib import Path
+from threading import Lock
 from typing import NamedTuple, TypeVar, cast
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 
 from docking.applets.http import http_get_json
@@ -48,9 +49,11 @@ log = with_context(get_logger(name="weather.api"), applet_id=meta.id)
 REFRESH_INTERVAL = 300  # 5 minutes
 API_RETRY_COUNT = 5
 API_RETRY_BACKOFF_FACTOR = 0.2
+API_RETRY_AFTER_MAX_S = 60
 API_TIMEOUT_S = 5
 
 _CACHE_DIR = docking_cache_dir() / "weather"
+_CACHE_WRITE_LOCK = Lock()
 
 _API_URL = "https://api.open-meteo.com/v1/forecast"
 _AQI_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
@@ -79,6 +82,13 @@ def _number(value: JsonValue) -> float:
     return number
 
 
+def _weather_code(value: JsonValue) -> int:
+    number = _number(value)
+    if not number.is_integer():
+        raise ValueError("Expected an integer WMO weather code")
+    return int(number)
+
+
 def _cache_path(url: str) -> Path:
     key = hashlib.sha256(url.encode("utf-8")).hexdigest()
     return _CACHE_DIR / "json-v1" / f"{key}.json"
@@ -96,6 +106,32 @@ def _read_cache(url: str) -> JsonObject | None:
     return None
 
 
+def _prune_cache(current: Path) -> None:
+    cutoff = time.time() - REFRESH_INTERVAL
+    with suppress(OSError):
+        for path in current.parent.glob("*.json"):
+            if path == current:
+                continue
+            try:
+                with path.open(encoding="utf-8") as handle:
+                    cached = _object(cast(JsonValue, json.load(handle)))
+                if _number(cached["fetched_at"]) <= cutoff:
+                    path.unlink(missing_ok=True)
+            except (OSError, ValueError, KeyError, TypeError, OverflowError):
+                continue
+
+
+def _cache_payload(payload: JsonObject) -> JsonObject:
+    # An unavailable optional UV reading must not prevent strict JSON caching
+    # of otherwise valid air-quality data. Keep the decoded response unchanged.
+    current = payload.get("current")
+    if isinstance(current, dict):
+        uv = current.get("uv_index")
+        if isinstance(uv, float) and not math.isfinite(uv):
+            return {**payload, "current": {**current, "uv_index": None}}
+    return payload
+
+
 def _write_cache(url: str, payload: JsonObject) -> None:
     temporary: Path | None = None
     try:
@@ -106,9 +142,14 @@ def _write_cache(url: str, payload: JsonObject) -> None:
         ) as handle:
             temporary = Path(handle.name)
             json.dump(
-                {"fetched_at": time.time(), "payload": payload}, handle, allow_nan=False
+                {"fetched_at": time.time(), "payload": _cache_payload(payload)},
+                handle,
+                allow_nan=False,
             )
-        temporary.replace(path)
+        # Serialize publication and pruning across concurrent worker threads.
+        with _CACHE_WRITE_LOCK:
+            temporary.replace(path)
+            _prune_cache(path)
     except (OSError, ValueError):
         log.debug("Weather response could not be cached")
     finally:
@@ -148,6 +189,8 @@ def _request_json(url: str) -> JsonObject:
                 if retries >= API_RETRY_COUNT or not retryable:
                     raise
                 retry_after = _retry_after(header)
+                if retry_after and retry_after > API_RETRY_AFTER_MAX_S:
+                    raise
             finally:
                 error.close()
         except (OSError, HTTPException):
@@ -180,6 +223,15 @@ def _fetch(
     result = parse(payload)
     _write_cache(url, payload)
     return result
+
+
+def _failure_reason(error: Exception) -> str:
+    # Raw exception messages and tracebacks can contain URLs with coordinates.
+    if isinstance(error, HTTPError):
+        return f"HTTP {error.code}"
+    if isinstance(error, URLError) and isinstance(error.reason, Exception):
+        return type(error.reason).__name__
+    return type(error).__name__
 
 
 # -- WMO weather code mapping ------------------------------------------------
@@ -263,7 +315,7 @@ class WeatherData(NamedTuple):
 def _parse_weather(payload: JsonObject) -> WeatherData:
     current = _object(payload["current"])
     temp = _number(current["temperature_2m"])
-    code = int(_number(current["weather_code"]))
+    code = _weather_code(current["weather_code"])
     daily_data = _object(payload["daily"])
     arrays = [
         _array(daily_data[key])
@@ -273,7 +325,7 @@ def _parse_weather(payload: JsonObject) -> WeatherData:
     for timestamp, day_code, high, low in zip(*arrays, strict=True):
         date = datetime.fromtimestamp(_number(timestamp), timezone.utc)
         day_name = date.strftime("%a")
-        day_code_int = int(_number(day_code))
+        day_code_int = _weather_code(day_code)
         daily.append(
             DailyForecast(
                 date=day_name,
@@ -309,8 +361,17 @@ def fetch_weather(lat: float, lng: float) -> WeatherData | None:
             },
             parse=_parse_weather,
         )
-    except (OSError, HTTPException, ValueError, KeyError, TypeError, OverflowError):
-        log.bind(action="fetch_weather").warning("Failed to fetch weather")
+    except (
+        OSError,
+        HTTPException,
+        ValueError,
+        KeyError,
+        TypeError,
+        OverflowError,
+    ) as error:
+        log.bind(action="fetch_weather").warning(
+            "Failed to fetch weather (%s)", _failure_reason(error)
+        )
         return None
 
 
@@ -357,8 +418,17 @@ def fetch_air_quality(lat: float, lng: float) -> AirQualityData | None:
             },
             parse=_parse_air_quality,
         )
-    except (OSError, HTTPException, ValueError, KeyError, TypeError, OverflowError):
-        log.bind(action="fetch_air_quality").warning("Failed to fetch air quality")
+    except (
+        OSError,
+        HTTPException,
+        ValueError,
+        KeyError,
+        TypeError,
+        OverflowError,
+    ) as error:
+        log.bind(action="fetch_air_quality").warning(
+            "Failed to fetch air quality (%s)", _failure_reason(error)
+        )
         return None
 
 

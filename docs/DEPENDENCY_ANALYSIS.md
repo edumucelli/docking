@@ -120,15 +120,22 @@ The cache persists validated responses for 300 seconds in hashed request files
 under the weather cache directory's `json-v1` subdirectory. Temporary files are
 unique, private, and replaced atomically. Corrupt, future-dated, expired, or
 invalid cached responses trigger a fresh request. Storage failures do not discard
-fresh network results. Old SQLite caches are left untouched and are not migrated.
+fresh network results. Successful writes prune expired JSON entries while
+preserving fresh entries and the newly written response; publication and pruning
+are serialized among worker threads. Old SQLite caches are left untouched and
+are not migrated. Non-finite optional UV readings are cached as JSON null without
+changing the decoded response or relaxing strict JSON serialization.
 
 The retry policy retains five retries after the initial attempt, a five-second
 timeout for each attempt, and backoff delays of 0, 0.4, 0.8, 1.6, and 3.2 seconds.
 HTTP 500, 502, and 504 are retryable; 413, 429, and 503 are retryable when they
-provide Retry-After. A positive valid Retry-After overrides backoff. Malformed
-JSON and required weather fields are not retried. Missing or invalid UV remains
+provide Retry-After. A positive valid Retry-After of at most 60 seconds overrides
+backoff; a longer delay fails the request without sleeping. Malformed JSON and
+required weather fields are not retried. WMO codes must be integral; unknown
+integral codes retain the fallback description. Missing or invalid UV remains
 optional. Expected network and response failures return None to the existing
-applet error handling.
+applet error handling. Logs identify exception classes and HTTP status while
+keeping request coordinates out of diagnostics.
 
 The replacement removes the weather requirements and their explicit packaging
 installations. Linux has no unconditional PyPI runtime requirements; BSD retains
@@ -144,17 +151,19 @@ reduction or a claim that packages were uninstalled from development machines.
 | Direct weather requirements | 3 | 0 |
 | Weather dependency chain | 21 distributions | 0 distributions |
 | External weather payload | 14,388,109 bytes | 0 bytes |
-| Weather API module | 9,447 bytes; 278 Python lines | 12,767 bytes; 381 Python lines |
+| Weather API module | 9,447 bytes; 278 Python lines | 14,987 bytes; 451 Python lines |
 
-The API module grows by 3,320 bytes and 103 lines. Subtracting that growth from
-the baseline external payload gives 14,384,789 fewer runtime payload bytes,
+The API module grows by 5,540 bytes and 173 lines. Subtracting that growth from
+the baseline external payload gives 14,382,569 fewer runtime payload bytes,
 approximately 13.72 MiB, before bytecode and other packaging differences. The
 existing shared HTTP helper requires no changes.
 
-Verification includes 8,741 passing default-suite tests, the seven isolated
+Verification includes the default test suite, the seven isolated
 no-GI smoke tests, 112 passing acceptance scenarios, and lint/format checks with
 the required Ruff 0.17.1, type checks, and dead-code checks. A controlled local
-HTTP server exercises JSON transport, HTTP failure recovery, and cache reuse;
+HTTP server exercises JSON transport, HTTP failure recovery, and cache reuse.
+A subprocess with the old dependency imports blocked covers both persistent
+cache hits and cold-cache requests for weather and air quality;
 live HTTPS requests to both Open-Meteo endpoints also succeed.
 
 The built wheel runs weather with site-packages disabled. Its metadata retains
