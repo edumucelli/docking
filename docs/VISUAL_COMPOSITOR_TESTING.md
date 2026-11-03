@@ -423,7 +423,7 @@ The separable 7x7 uniform filter ports
 to NumPy, preserving reflect padding, double accumulators, and float32 output
 after each axis. SSIM retains sample covariance, three-pixel border cropping,
 float64 spatial means, and float32 channel averaging. The upstream BSD notices
-are retained beside the port.
+are retained in the Python file's header.
 
 `tests/visual/metrics_reference.json` records upstream results for deterministic
 images, including alpha-only changes, flat regions, borders, the minimum window,

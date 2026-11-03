@@ -278,9 +278,9 @@ processing, a seven-pixel window, sample covariance, border cropping, and
 floating-point operation order. Its NumPy implementation of SciPy 1.17.1's
 rolling-sum filter preserves float64 accumulators and float32 output after each
 axis. Unused Gaussian, gradient, dimensionality, and data-range options are not
-copied. The port is 93 lines and 3,807 bytes; the two retained BSD notices add
-2,882 bytes. Code, licenses, frozen upstream values, and their tests total
-13,827 bytes before packaging differences.
+copied. Including the two BSD license notices in its header, the port is 149
+lines and 6,685 bytes. Code, licenses, frozen upstream values, and their tests
+total 13,823 bytes before packaging differences.
 
 Comparison against scikit-image 0.26.0/SciPy 1.17.1 produced exactly equal SSIM
 and PSNR values for 189 pairs: 117 generated cases and perturbations of all 72
