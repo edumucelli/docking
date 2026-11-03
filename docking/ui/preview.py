@@ -111,7 +111,7 @@ instead of pushing those concerns into the main renderer.
 from __future__ import annotations
 
 from collections.abc import Callable
-from functools import lru_cache
+from functools import lru_cache, partial
 from typing import TYPE_CHECKING, cast
 
 import gi
@@ -221,6 +221,7 @@ class PreviewPopup(Gtk.Window):
         self._pointer_inside_dock: Callable[[], bool] | None = None
         self._hide_timer_id: int = 0
         self._preview_refresh_timer_id: int = 0
+        self._relayout: Callable[[], None] | None = None
         self._thumbnail_images: dict[
             WindowId, tuple[Gtk.Image, int, int, PreviewImage | None]
         ] = {}
@@ -349,6 +350,27 @@ class PreviewPopup(Gtk.Window):
         self.add(scroller)
         scroller.show_all()
 
+        self._relayout = partial(
+            self._resize_popup, box, scroller, anchor_x, icon_w, anchor_y, position
+        )
+        self._relayout()
+        self.show_all()
+        if self._preview_service.asynchronous is True:
+            self._preview_refresh_timer_id = GLib.timeout_add(
+                PREVIEW_REFRESH_INTERVAL_MS, self._refresh_preview_images
+            )
+
+    def _resize_popup(
+        self,
+        box: Gtk.Box,
+        scroller: Gtk.ScrolledWindow,
+        anchor_x: float,
+        icon_w: float,
+        anchor_y: float,
+        position: Position,
+    ) -> None:
+        """Fit current content to the workarea and retain the dock icon anchor."""
+        horizontal = is_horizontal(pos=position)
         bounds = popup_workarea(
             self,
             anchor_x + (icon_w / 2 if horizontal else 0),
@@ -388,14 +410,8 @@ class PreviewPopup(Gtk.Window):
 
         self.resize(popup_width, popup_height)
         self.move(popup_pos.x, popup_pos.y)
-        self.show_all()
-        if self._preview_service.asynchronous is True:
-            self._preview_refresh_timer_id = GLib.timeout_add(
-                PREVIEW_REFRESH_INTERVAL_MS, self._refresh_preview_images
-            )
         log.debug(
-            "preview shown: windows=%s edge=%s bounds=%s target=%sx%s at=%s",
-            len(windows),
+            "preview resized: edge=%s bounds=%s target=%sx%s at=%s",
             position.value,
             bounds,
             popup_width,
@@ -614,6 +630,7 @@ class PreviewPopup(Gtk.Window):
         if not self.get_visible() or not self._thumbnail_images:
             self._preview_refresh_timer_id = 0
             return False
+        size_changed = False
         for window_id, (image, width, height, previous) in tuple(
             self._thumbnail_images.items()
         ):
@@ -621,9 +638,15 @@ class PreviewPopup(Gtk.Window):
                 window_id, width=width, height=height
             )
             if preview is not None and preview is not previous:
+                size_changed |= previous is None or (preview.width, preview.height) != (
+                    previous.width,
+                    previous.height,
+                )
                 image.set_from_pixbuf(cast(GdkPixbuf.Pixbuf, preview.image))
                 self._thumbnail_images[window_id] = (image, width, height, preview)
                 self._fallback_icons.pop(window_id, None)
+        if size_changed and self._relayout is not None:
+            self._relayout()
         return True
 
     def _fallback_icons_changed(self, desktop_id: str | None) -> None:
@@ -647,6 +670,7 @@ class PreviewPopup(Gtk.Window):
                     self._fallback_icons[window_id] = icon
 
     def _stop_preview_updates(self) -> None:
+        self._relayout = None
         if self._unsubscribe_icons is not None:
             self._unsubscribe_icons()
             self._unsubscribe_icons = None

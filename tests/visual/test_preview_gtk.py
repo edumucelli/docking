@@ -99,6 +99,45 @@ def test_synchronous_preview_does_not_add_capture_polling(preview):
     assert preview.popup._preview_refresh_timer_id == 0
 
 
+@pytest.mark.parametrize("position", list(Position))
+@pytest.mark.parametrize("bounds", [Rect(0, 0, 1280, 800), Rect(0, 0, 180, 140)])
+def test_asynchronous_capture_resizes_and_reanchors_popup(preview, position, bounds):
+    preview.bounds = bounds
+    capture = preview.popup._preview_service
+    capture.asynchronous = True
+    full_capture = capture.capture.return_value
+    preview.show(1, position)
+    expected_size = preview.popup.get_size()
+    expected_position = preview.popup.get_position()
+
+    capture.capture.return_value = None
+    preview.show(1, position)
+    fallback_height = preview.popup.get_size().height
+    capture.capture.return_value = full_capture
+    for _ in range(5):
+        settle_gtk()
+
+    assert preview.popup.get_size() == expected_size
+    assert preview.popup.get_position() == expected_position
+    assert preview.popup.get_size().height > fallback_height
+    preview.assert_bounded()
+    if bounds.width == 1280:
+        preview.assert_card_visible(0)
+        assert not preview.scroller.get_hscrollbar().get_child_visible()
+        assert not preview.scroller.get_vscrollbar().get_child_visible()
+
+    # A later change in window proportions must also shrink the popup.
+    pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, 200, 80)
+    pixbuf.fill(0x4684DCFF)
+    capture.capture.return_value = PreviewImage(pixbuf, 200, 80)
+    for _ in range(5):
+        settle_gtk()
+    assert preview.popup.get_size().height < expected_size.height
+    preview.assert_bounded()
+    frame = preview.cards[0].get_child().get_children()[0]
+    assert frame.get_allocated_height() == 84
+
+
 @pytest.fixture
 def preview_hover(preview):
     """Real hover/popup timers with only dock geometry and services simulated."""
