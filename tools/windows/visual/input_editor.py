@@ -429,13 +429,29 @@ using System.Runtime.InteropServices;
 public sealed class PauseForm : Form {
  [DllImport("user32.dll", CharSet=CharSet.Unicode)]
  static extern int RegisterWindowMessage(string name);
+ [DllImport("user32.dll", SetLastError=true)]
+ static extern bool LockSetForegroundWindow(uint code);
+ [DllImport("user32.dll")]
+ static extern IntPtr GetForegroundWindow();
  readonly int message=RegisterWindowMessage("Docking.OwnedInputFixture.Pause");
+ readonly int foreground=RegisterWindowMessage("Docking.OwnedInputFixture.Foreground");
  readonly EventWaitHandle gate;
  readonly string journal;
  public PauseForm(string name,string path) {
   gate=EventWaitHandle.OpenExisting(name);journal=path;
  }
  protected override void WndProc(ref Message m) {
+  if(m.Msg==foreground) {
+   uint code=(uint)m.WParam.ToInt64();
+   bool ok=false;
+   if(code==2 || (code==1 && GetForegroundWindow()==Handle)) {
+    ok=LockSetForegroundWindow(code);
+    if(!ok && code==2 && Marshal.GetLastWin32Error()==5 &&
+       GetForegroundWindow()==Handle && LockSetForegroundWindow(1))
+     ok=LockSetForegroundWindow(2);
+   }
+   m.Result=ok ? new IntPtr(1) : IntPtr.Zero;return;
+  }
   if(m.Msg==message) {
    File.WriteAllText(journal,"paused");gate.WaitOne(30000);return;
   }
@@ -735,6 +751,51 @@ class OwnedInputEditor:
             "pe_machine": f"0x{self._pe:04x}",
             "image_sha256": self._image_hash,
         }
+
+    def _foreground_request(self, window: dict, code: int) -> None:
+        self.verify_identity(window)
+        user = self.native.user
+        message = bind(
+            user, "RegisterWindowMessageW", ctypes.c_uint32, ctypes.c_wchar_p
+        )("Docking.OwnedInputFixture.Foreground")
+        if not message:
+            raise OSError("Owned editor foreground message did not register")
+        result = ctypes.c_size_t()
+        sent = bind(
+            user,
+            "SendMessageTimeoutW",
+            ctypes.c_ssize_t,
+            ctypes.c_void_p,
+            ctypes.c_uint32,
+            ctypes.c_size_t,
+            ctypes.c_ssize_t,
+            ctypes.c_uint32,
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_size_t),
+        )(window["hwnd"], message, code, 0, 0x23, 2000, ctypes.byref(result))
+        if not sent or result.value != 1:
+            raise RuntimeError("Owned editor did not acknowledge foreground protection")
+
+    @contextmanager
+    def foreground_guard(self, window: dict, journal: dict):
+        """Have the pinned editor protect its own already focused input window."""
+        journal.update(window=window["hwnd"], acquired=False, released=False)
+        self._foreground_request(window, 1)
+        journal["acquired"] = True
+        failure: BaseException | None = None
+        try:
+            yield journal
+        except BaseException as error:
+            failure = error
+            raise
+        finally:
+            try:
+                self._foreground_request(window, 2)
+                journal["released"] = True
+            except Exception as error:
+                journal["release_error"] = type(error).__name__
+                if failure is None:
+                    raise
 
     def activate_for_focus(self, window, journal) -> None:
         """Normally activate only this pinned child before physical test input."""

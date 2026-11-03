@@ -15,6 +15,81 @@ from tools.windows.visual import input_editor as mod
 
 
 @pytest.fixture
+def guarded_editor(tmp_path, monkeypatch):
+    editor = mod.OwnedInputEditor(
+        SimpleNamespace(user=object()),
+        tmp_path,
+        tmp_path / "input.txt",
+        bits=64,
+        machine=Mock(return_value=0x8664),
+    )
+    request = Mock()
+    monkeypatch.setattr(editor, "_foreground_request", request)
+    return editor, request
+
+
+def test_editor_foreground_guard_releases_after_input(guarded_editor):
+    editor, request = guarded_editor
+    window, journal = {"hwnd": 101}, {}
+    with editor.foreground_guard(window, journal):
+        assert journal["acquired"] and not journal["released"]
+    assert [call.args for call in request.call_args_list] == [(window, 1), (window, 2)]
+    assert journal["released"]
+
+
+def test_editor_foreground_guard_does_not_unlock_failed_acquisition(guarded_editor):
+    editor, request = guarded_editor
+    request.side_effect = RuntimeError("Fixture not foreground")
+    journal = {}
+    with pytest.raises(RuntimeError), editor.foreground_guard({"hwnd": 101}, journal):
+        pytest.fail("Input must not run without protection")
+    assert request.call_count == 1 and not journal["acquired"]
+
+
+@pytest.mark.parametrize("failure", (AssertionError, KeyboardInterrupt))
+@pytest.mark.parametrize("released", (False, True))
+def test_editor_foreground_guard_preserves_input_failure(
+    guarded_editor, failure, released
+):
+    editor, request = guarded_editor
+    if not released:
+        request.side_effect = [None, RuntimeError("Fixture did not release")]
+    primary, journal = failure("Original input failure"), {}
+    with (
+        pytest.raises(failure) as caught,
+        editor.foreground_guard({"hwnd": 101}, journal),
+    ):
+        raise primary
+    assert caught.value is primary and request.call_count == 2
+    assert journal["released"] is released
+
+
+def test_editor_foreground_guard_rejects_incomplete_cleanup(guarded_editor):
+    editor, request = guarded_editor
+    request.side_effect = [None, RuntimeError("Fixture did not release")]
+    journal = {}
+    with pytest.raises(RuntimeError), editor.foreground_guard({"hwnd": 101}, journal):
+        pass
+    assert not journal["released"] and journal["release_error"] == "RuntimeError"
+
+
+def test_editor_foreground_message_rejects_changed_identity(tmp_path, monkeypatch):
+    editor = mod.OwnedInputEditor(
+        SimpleNamespace(user=object()),
+        tmp_path,
+        tmp_path / "input.txt",
+        bits=64,
+        machine=Mock(),
+    )
+    monkeypatch.setattr(editor, "verify_identity", Mock(side_effect=AssertionError))
+    bind = Mock()
+    monkeypatch.setattr(mod, "bind", bind)
+    with pytest.raises(AssertionError):
+        editor._foreground_request({"hwnd": 101}, 1)
+    bind.assert_not_called()
+
+
+@pytest.fixture
 def focus_desktop():
     editor = {"hwnd": 101, "pid": 202, "rect": [65, 50, 585, 350]}
     foreground = [999]

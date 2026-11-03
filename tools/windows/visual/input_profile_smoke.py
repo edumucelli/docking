@@ -737,21 +737,31 @@ def main(monitor) -> None:
                                     reset=reset_classic,
                                 )
                             else:
-                                _collect_reference(
-                                    result=variant,
-                                    mode=ime_conversion(
-                                        window=context.window,
-                                        root=context.root,
-                                        pid=context.pid,
-                                        thread=context.thread,
-                                        journal=variant["ime_mode"],
-                                        readback=mode_readback,
-                                        conversion=VIETNAMESE_CONVERSION_MODE,
-                                    ),
-                                    exercise=exercise,
-                                    validate=validate_profile,
-                                    reset=reset_classic,
-                                )
+                                with ExitStack() as foreground_scope:
+                                    if owned_editor is not None:
+                                        foreground_scope.enter_context(
+                                            owned_editor.foreground_guard(
+                                                editor,
+                                                variant.setdefault(
+                                                    "foreground_guard", {}
+                                                ),
+                                            )
+                                        )
+                                    _collect_reference(
+                                        result=variant,
+                                        mode=ime_conversion(
+                                            window=context.window,
+                                            root=context.root,
+                                            pid=context.pid,
+                                            thread=context.thread,
+                                            journal=variant["ime_mode"],
+                                            readback=mode_readback,
+                                            conversion=VIETNAMESE_CONVERSION_MODE,
+                                        ),
+                                        exercise=exercise,
+                                        validate=validate_profile,
+                                        reset=reset_classic,
+                                    )
                         finally:
                             save()
                     profile_result["passed"] = all(

@@ -1063,6 +1063,7 @@ def main(monitor):
 
                 def exercise(profile, entry, window, mapped, attempt):
                     mode_scope = ExitStack()
+                    foreground_scope = ExitStack()
                     preedit = []
                     subscription = call(
                         lambda: entry.connect(
@@ -1170,12 +1171,15 @@ def main(monitor):
                             publish()
                             return
 
-                        mode_scope.enter_context(
-                            owned_foreground(
-                                mapped["hwnd"],
-                                attempt.setdefault("foreground_guard", {}),
-                            )
-                        )
+                        # Bind GTK's focused IM context to the selected profile
+                        # before configuring its native conversion mode.
+                        def bind_input_focus():
+                            window.set_focus(None)
+                            entry.grab_focus()
+
+                        call(bind_input_focus)
+                        native.wait_for(focused, "GTK did not rebind fixture IME focus")
+                        attempt["gtk_focus_rebound"] = True
                         attempt["ime_mode"] = {}
                         mode_scope.enter_context(
                             ime_conversion(
@@ -1190,6 +1194,27 @@ def main(monitor):
                             )
                         )
                         observe_input("after_mode_setup")
+                        foreground_scope.enter_context(
+                            owned_foreground(
+                                mapped["hwnd"],
+                                attempt.setdefault("foreground_guard", {}),
+                            )
+                        )
+                        input_trace = call(
+                            lambda: _EntryInputTrace(
+                                entry,
+                                attempt.setdefault("input_trace", {}),
+                                partial(
+                                    _entry_input_readback,
+                                    entry,
+                                    current=lambda: entry,
+                                    api=api,
+                                    native=native,
+                                    scans=(0x1E, 0x07),
+                                ),
+                            )
+                        )
+                        mode_scope.callback(lambda: call(input_trace.close))
                         attempt["profile_readback"] = applet._backend.query().active
                         attempt["foreground_hwnd"] = int(
                             native.user.GetForegroundWindow()
@@ -1200,6 +1225,17 @@ def main(monitor):
                         publish()
                         call(lambda: entry.set_text(""))
                         native.scan(0x1E)
+                        call(partial(input_trace.observe, "after-first-key"))
+                        native.wait_for(
+                            lambda: call(
+                                lambda: bool(
+                                    preedit
+                                    and preedit[-1] == "a"
+                                    and not entry.get_text()
+                                )
+                            ),
+                            "IME fixture did not start composing its first character",
+                        )
                         native.scan(
                             0x1E if profile.identifier == TELEX_IDENTIFIER else 0x07
                         )
@@ -1285,7 +1321,10 @@ def main(monitor):
                         raise
                     finally:
                         try:
-                            mode_scope.__exit__(*sys.exc_info())
+                            try:
+                                mode_scope.__exit__(*sys.exc_info())
+                            finally:
+                                foreground_scope.__exit__(*sys.exc_info())
                         finally:
                             attempt["final_observation"] = observation()
                             publish()
