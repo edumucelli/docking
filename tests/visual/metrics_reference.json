@@ -1,0 +1,98 @@
+{
+  "upstream": "scikit-image 0.26.0",
+  "numpy": "2.4.4",
+  "configuration": {
+    "channel_axis": -1,
+    "data_range": 255.0,
+    "dtype": "float32",
+    "win_size": 7,
+    "use_sample_covariance": true
+  },
+  "cases": [
+    {
+      "name": "identical",
+      "ssim": 1.0,
+      "psnr": null
+    },
+    {
+      "name": "black-white",
+      "ssim": 9.998999303206801e-05,
+      "psnr": 0.0
+    },
+    {
+      "name": "flat-offset",
+      "ssim": 0.9999682903289795,
+      "psnr": 48.1308036086791
+    },
+    {
+      "name": "low-variance",
+      "ssim": 0.9975910186767578,
+      "psnr": 55.820882318116844
+    },
+    {
+      "name": "alpha-only",
+      "ssim": 0.5036686658859253,
+      "psnr": 10.742016984230618
+    },
+    {
+      "name": "border-only",
+      "ssim": 0.9653490781784058,
+      "psnr": 14.805465535886622
+    },
+    {
+      "name": "center-impulse",
+      "ssim": 0.9976711273193359,
+      "psnr": 35.4921460422322
+    },
+    {
+      "name": "minimum-window",
+      "ssim": 0.9485275745391846,
+      "psnr": 20.806045425691373
+    },
+    {
+      "name": "complement",
+      "ssim": -0.985637903213501,
+      "psnr": 4.741235152844246
+    },
+    {
+      "name": "rgb",
+      "ssim": 0.6599807739257812,
+      "psnr": 12.12112070456795
+    },
+    {
+      "name": "threshold-4",
+      "ssim": 0.9985508322715759,
+      "psnr": 36.14180329898499
+    },
+    {
+      "name": "threshold-5",
+      "ssim": 0.9977428913116455,
+      "psnr": 34.21538463938119
+    },
+    {
+      "name": "threshold-7",
+      "ssim": 0.9956052303314209,
+      "psnr": 31.315841920512007
+    },
+    {
+      "name": "threshold-8",
+      "ssim": 0.9942792654037476,
+      "psnr": 30.16725765121905
+    },
+    {
+      "name": "threshold-9",
+      "ssim": 0.9927850365638733,
+      "psnr": 29.155636447469387
+    },
+    {
+      "name": "threshold-13",
+      "ssim": 0.9851752519607544,
+      "psnr": 26.009841961739046
+    },
+    {
+      "name": "threshold-14",
+      "ssim": 0.9828762412071228,
+      "psnr": 25.378063742033493
+    }
+  ]
+}
