@@ -1,11 +1,102 @@
 """Native input helpers distinguish a drag from a double click."""
 
+import ctypes
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 
 from tools.windows.visual import desktop_driver as mod
+
+
+@pytest.fixture
+def window_desktop():
+    desktop = mod.WindowsDesktop.__new__(mod.WindowsDesktop)
+    desktop._callback = lambda callback: callback
+    windows = {
+        100: {"pid": 10, "class": "OwnedEditor", "cloaked": 0, "visible": True},
+        200: {
+            "pid": 20,
+            "class": "Windows.UI.Core.CoreWindow",
+            "cloaked": 0,
+            "visible": True,
+        },
+    }
+
+    def owner(hwnd, output):
+        output._obj.value = windows[hwnd]["pid"]
+        return 1
+
+    def bounds(_hwnd, output):
+        output._obj.left, output._obj.top = 0, 0
+        output._obj.right, output._obj.bottom = 1280, 800
+        return 1
+
+    def attribute(hwnd, _kind, output, _size):
+        ctypes.cast(output, ctypes.POINTER(ctypes.c_uint32))[0] = windows[hwnd][
+            "cloaked"
+        ]
+        return 0
+
+    def find(parent, previous, native_class, title):
+        assert parent is None and native_class == "Windows.UI.Core.CoreWindow"
+        assert title is None
+        return 200 if not previous else 0
+
+    desktop.user = SimpleNamespace(
+        EnumWindows=Mock(side_effect=lambda callback, _: callback(100, 0)),
+        IsWindowVisible=Mock(side_effect=lambda hwnd: windows[hwnd]["visible"]),
+        GetWindowThreadProcessId=Mock(side_effect=owner),
+        GetWindowTextW=Mock(
+            side_effect=lambda _h, text, _s: setattr(text, "value", "")
+        ),
+        GetClassNameW=Mock(
+            side_effect=lambda hwnd, text, _s: setattr(
+                text, "value", windows[hwnd]["class"]
+            )
+        ),
+        GetWindowRect=Mock(side_effect=bounds),
+        FindWindowExW=Mock(side_effect=find),
+    )
+    desktop._dwm = SimpleNamespace(DwmGetWindowAttribute=Mock(side_effect=attribute))
+    return SimpleNamespace(desktop=desktop, windows=windows)
+
+
+def test_immersive_start_observation_does_not_depend_on_enumwindows(window_desktop):
+    d = window_desktop.desktop
+    assert d.windows(20) == []
+    d.user.FindWindowExW.assert_not_called()
+    assert [row["hwnd"] for row in d.windows(20, include_immersive=True)] == [200]
+    assert [row["hwnd"] for row in d.windows(10, include_immersive=True)] == [100]
+
+
+@pytest.mark.parametrize("changed", ("cloaked", "hidden", "foreign"))
+def test_immersive_observation_keeps_visibility_and_owner_filters(
+    window_desktop, changed
+):
+    f = window_desktop
+    key, value = {
+        "cloaked": ("cloaked", 2),
+        "hidden": ("visible", False),
+        "foreign": ("pid", 99),
+    }[changed]
+    f.windows[200][key] = value
+    assert f.desktop.windows(20, include_immersive=True) == []
+
+
+def test_immersive_frames_already_enumerated_are_not_duplicated(window_desktop):
+    d = window_desktop.desktop
+    d.user.EnumWindows.side_effect = lambda callback, _: callback(200, 0)
+    assert len(d.windows(20, include_immersive=True)) == 1
+
+
+def test_immersive_enumeration_rejects_cycles(window_desktop):
+    d = window_desktop.desktop
+    d.user.FindWindowExW.side_effect = None
+    d.user.FindWindowExW.return_value = 200
+    with pytest.raises(RuntimeError, match="cycled"):
+        d.windows(20, include_immersive=True)
 
 
 @pytest.mark.parametrize("encoding", ["utf-8", "utf-8-sig"])

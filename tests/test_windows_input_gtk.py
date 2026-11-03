@@ -9,6 +9,37 @@ import pytest
 from tools.windows.visual import input_gtk as mod
 
 
+@pytest.mark.parametrize("mapped", (True, False))
+def test_keymap_preparation_builds_mappings_for_the_composition_virtual_key(
+    monkeypatch, mapped
+):
+    window, display = Mock(), object()
+    window.get_display.return_value = display
+    keys = [
+        SimpleNamespace(group=2),
+        SimpleNamespace(group=0),
+        SimpleNamespace(group=2),
+    ]
+    keymap = Mock()
+    keymap.get_entries_for_keycode.return_value = (
+        mapped,
+        keys if mapped else None,
+        [],
+    )
+    get_keymap = Mock(return_value=keymap)
+    monkeypatch.setattr(
+        mod, "Gdk", SimpleNamespace(Keymap=SimpleNamespace(get_for_display=get_keymap))
+    )
+
+    assert mod.prepare_keymap(window) == {
+        "virtual_key": 0x41,
+        "groups": [0, 2] if mapped else [],
+    }
+    get_keymap.assert_called_once_with(display)
+    keymap.get_entries_for_keycode.assert_called_once_with(0x41)
+    assert [call[0] for call in window.mock_calls] == ["get_display"]
+
+
 @pytest.fixture
 def gtk_probe(monkeypatch, tmp_path):
     context = Mock()

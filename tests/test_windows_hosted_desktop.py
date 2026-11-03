@@ -147,7 +147,8 @@ def test_arbitrary_wwahost_is_never_treated_as_privacy_ui(family, error):
 
 
 @pytest.mark.parametrize("caption", ("Start", "Démarrer", "", "开始"))
-def test_start_escape_requires_exact_package_path_class_and_current_foreground(caption):
+@pytest.mark.parametrize("foreground", (100, 999))
+def test_start_close_requires_exact_package_path_and_class(caption, foreground):
     process = identity(
         "startmenuexperiencehost.exe",
         ROOT + "\\SystemApps\\" + hosted._START + r"\StartMenuExperienceHost.exe",
@@ -155,9 +156,9 @@ def test_start_escape_requires_exact_package_path_class_and_current_foreground(c
     )
     assert (
         hosted.action_for(
-            process, window(title=caption), root=ROOT, session=3, foreground=100
+            process, window(title=caption), root=ROOT, session=3, foreground=foreground
         )
-        == "escape"
+        == "close"
     )
     with pytest.raises(hosted.PreparationError):
         hosted.action_for(
@@ -167,7 +168,7 @@ def test_start_escape_requires_exact_package_path_class_and_current_foreground(c
             session=3,
             foreground=100,
         )
-    assert (
+    with pytest.raises(hosted.PreparationError, match="package"):
         hosted.action_for(
             replace(process, family=None),
             window(title="Unknown", **{"class": "Unrelated"}),
@@ -175,8 +176,6 @@ def test_start_escape_requires_exact_package_path_class_and_current_foreground(c
             session=3,
             foreground=999,
         )
-        is None
-    )
     assert (
         hosted.action_for(
             process, window(cloaked=True), root=ROOT, session=3, foreground=100
@@ -1133,7 +1132,7 @@ def test_startup_readiness_has_a_deadline_even_without_mutation_permission(monke
     assert journal["quiet_sweeps"] == 0
 
 
-def test_verified_visible_nonforeground_start_is_observed_as_blocking_but_untouched():
+def test_verified_visible_nonforeground_start_is_closed_without_keyboard_input():
     process = identity(
         "startmenuexperiencehost.exe",
         ROOT + "\\SystemApps\\" + hosted._START + r"\StartMenuExperienceHost.exe",
@@ -1157,8 +1156,10 @@ def test_verified_visible_nonforeground_start_is_observed_as_blocking_but_untouc
         ancestry=Mock(return_value={"limit": 4, "parents": []}),
     )
     journal = {"actions": []}
-    assert hosted.sweep(api, journal) == 0
-    api.perform.assert_not_called()
+    assert hosted.sweep(api, journal) == 1
+    api.perform.assert_called_once_with(
+        process, "close", window(), record=journal["actions"][0]
+    )
     assert journal["known_visible_blockers"] == [
         {"pid": 20, "hwnd": 100, "name": process.name}
     ]
@@ -1874,7 +1875,9 @@ def test_updater_stops_before_terminal_fallback_and_refreshes_closed_windows():
 @pytest.fixture
 def window_reader():
     api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
-    api.desktop = SimpleNamespace(windows=Mock(side_effect=lambda _pid: [window()]))
+    api.desktop = SimpleNamespace(
+        windows=Mock(side_effect=lambda _pid, **_kwargs: [window()])
+    )
     api.user = SimpleNamespace(
         IsWindow=Mock(return_value=1), IsIconic=Mock(return_value=0)
     )
@@ -1932,10 +1935,28 @@ def test_successful_live_dwm_and_iconic_reads_keep_actual_attributes(window_read
     api.dwm.DwmGetWindowAttribute.side_effect = attribute
     api.user.IsIconic.return_value = 1
     assert api.windows(20) == [window(cloaked=True, minimized=True)]
+    api.desktop.windows.assert_called_once_with(20, include_immersive=True)
 
 
-def test_performance_wm_close_accepts_window_destroyed_during_dwm_readback(
-    window_reader,
+@pytest.mark.parametrize(
+    "name,relative,family,native_class",
+    [
+        (
+            "systempropertiesperformance.exe",
+            r"System32\SystemPropertiesPerformance.exe",
+            None,
+            "#32770",
+        ),
+        (
+            "startmenuexperiencehost.exe",
+            "SystemApps\\" + hosted._START + r"\StartMenuExperienceHost.exe",
+            hosted._START,
+            "Windows.UI.Core.CoreWindow",
+        ),
+    ],
+)
+def test_verified_wm_close_accepts_window_destroyed_during_dwm_readback(
+    window_reader, name, relative, family, native_class
 ):
     api = window_reader
     api.root, api.session, api.foreground = ROOT, 3, lambda: 999
@@ -1943,7 +1964,9 @@ def test_performance_wm_close_accepts_window_destroyed_during_dwm_readback(
         WaitForSingleObject=Mock(return_value=258), GetProcessId=Mock(return_value=20)
     )
     state = SimpleNamespace(closing=False, alive=True)
-    api.desktop.windows.side_effect = lambda _pid: [window(**{"class": "#32770"})]
+    api.desktop.windows.side_effect = lambda _pid, **_kwargs: [
+        window(**{"class": native_class})
+    ]
     api.user.IsWindow.side_effect = lambda _hwnd: int(state.alive)
 
     def close(_hwnd, _message, _first, _second):
@@ -1963,13 +1986,42 @@ def test_performance_wm_close_accepts_window_destroyed_during_dwm_readback(
     api.user.PostMessageW = Mock(side_effect=close)
     api.dwm.DwmGetWindowAttribute.side_effect = attribute
     api.desktop.wait_for = wait_for
-    process = identity(
-        "systempropertiesperformance.exe",
-        ROOT + r"\System32\SystemPropertiesPerformance.exe",
+    api.desktop.key = Mock()
+    process = identity(name, ROOT + "\\" + relative, family)
+    assert (
+        api.perform(process, "close", window(**{"class": native_class})) == "dismissed"
     )
-    assert api.perform(process, "close", window(**{"class": "#32770"})) == "dismissed"
     api.user.PostMessageW.assert_called_once_with(100, 0x10, 0, 0)
+    api.desktop.key.assert_not_called()
     assert state.closing and not state.alive
+
+
+@pytest.mark.parametrize("native_class", ("Windows.UI.Core.CoreWindow", "Unrelated"))
+def test_start_dismissal_between_inventory_and_action_never_injects_input(
+    window_reader, native_class
+):
+    api = window_reader
+    api.root, api.session, api.foreground = ROOT, 3, lambda: 999
+    api.kernel = SimpleNamespace(
+        WaitForSingleObject=Mock(return_value=258), GetProcessId=Mock(return_value=20)
+    )
+    api.desktop.windows.side_effect = None
+    api.desktop.windows.return_value = []
+    api.desktop.key = Mock()
+    api.user.PostMessageW = Mock()
+    process = identity(
+        "startmenuexperiencehost.exe",
+        ROOT + "\\SystemApps\\" + hosted._START + r"\StartMenuExperienceHost.exe",
+        hosted._START,
+    )
+    previous = window(**{"class": native_class})
+    if native_class == "Windows.UI.Core.CoreWindow":
+        assert api.perform(process, "close", previous) == "already-dismissed"
+    else:
+        with pytest.raises(hosted.PreparationError, match="Unproven Start window"):
+            api.perform(process, "close", previous)
+    api.user.PostMessageW.assert_not_called()
+    api.desktop.key.assert_not_called()
 
 
 @pytest.mark.parametrize("stage", ("image", "creation"))

@@ -1,4 +1,4 @@
-"""Passive GTK input-module facts for owned native input acceptance widgets."""
+"""GTK fixture initialization and input-module facts for owned input widgets."""
 
 from __future__ import annotations
 
@@ -8,8 +8,9 @@ from pathlib import Path
 import gi
 
 gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
 gi.require_version("GObject", "2.0")
-from gi.repository import GObject, Gtk
+from gi.repository import Gdk, GObject, Gtk
 
 _PATH_ENVIRONMENT = (
     "GTK_IM_MODULE_FILE",
@@ -18,6 +19,21 @@ _PATH_ENVIRONMENT = (
     "GTK_DATA_PREFIX",
     "PYGI_DLL_PATH",
 )
+
+
+def prepare_keymap(window: Gtk.Window) -> dict:
+    """Build layout mappings on the GUI thread before configuring an IME.
+
+    GDK's Win32 keymap refresh temporarily activates uncached layouts. Finish
+    that work after profile activation and before configuring composition mode.
+    All fixture layouts provide the A virtual key used by the composition test.
+    """
+    keymap = Gdk.Keymap.get_for_display(window.get_display())
+    mapped, keys, _values = keymap.get_entries_for_keycode(0x41)
+    return {
+        "virtual_key": 0x41,
+        "groups": sorted({key.group for key in keys}) if mapped else [],
+    }
 
 
 def _path_facts(value: str | None) -> dict:

@@ -290,6 +290,7 @@ def main(monitor):
         thread_snapshot,
     )
     from tools.windows.visual.input_fixture import ime_conversion, owned_foreground
+    from tools.windows.visual.input_gtk import prepare_keymap
     from tools.windows.visual.input_gtk import snapshot as gtk_input_snapshot
     from tools.windows.visual.input_requests import (
         CleanupJournal,
@@ -1138,6 +1139,24 @@ def main(monitor):
                         native.wait_for(
                             focused, "Profile activation changed fixture focus"
                         )
+                        if args.coverage != "server-api":
+
+                            def keymap_ready():
+                                observed = call(lambda: prepare_keymap(window))
+                                expected = list(range(len(api.layouts())))
+                                observed["expected_groups"] = expected
+                                attempt["keymap"] = observed
+                                return (
+                                    observed
+                                    if expected
+                                    and set(expected).issubset(observed["groups"])
+                                    else None
+                                )
+
+                            native.wait_for(
+                                keymap_ready,
+                                "GTK keymap did not include the loaded fixture layouts",
+                            )
                         observe_input("after_activation")
                         context = api.foreground()
                         assert (

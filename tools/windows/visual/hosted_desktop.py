@@ -172,14 +172,12 @@ def action_for(identity, window, *, root, session, foreground):
             return "close"
         raise PreparationError("Unproven Performance Options window")
     if identity.name == "startmenuexperiencehost.exe":
-        if window["hwnd"] != foreground:
-            return None
         if identity.family != _START:
             raise PreparationError(
                 "Unproven Start package", identity.package_error or 13
             )
         if window["class"] == "Windows.UI.Core.CoreWindow":
-            return "escape"
+            return "close"
         raise PreparationError("Unproven Start window")
     if identity.name == "windowsterminal.exe" and identity.runner_terminal:
         if identity.family != _TERMINAL or identity.package_error:
@@ -820,7 +818,7 @@ class NativeDesktop:
     def windows(self, pid):
         rows = []
         is_window = bind(self.user, "IsWindow", _B, _P)
-        for row in self.desktop.windows(pid):
+        for row in self.desktop.windows(pid, include_immersive=True):
             if not is_window(row["hwnd"]):
                 continue
             cloaked = _U()
@@ -948,6 +946,20 @@ class NativeDesktop:
         )
         if (
             current is None
+            and action == "close"
+            and action_for(
+                identity,
+                window,
+                root=self.root,
+                session=self.session,
+                foreground=self.foreground(),
+            )
+            == action
+        ):
+            # Start can cloak itself between inventory and this readback.
+            return "already-dismissed"
+        if (
+            current is None
             or action_for(
                 identity,
                 current,
@@ -960,16 +972,12 @@ class NativeDesktop:
             raise PreparationError("First-login window identity changed")
         hwnd = current["hwnd"]
         command = None
-        if action == "escape":
-            if self.foreground() != hwnd:
-                raise PreparationError("Start foreground changed before Escape")
-            self.desktop.key(0x1B)
-        elif action == "close":
+        if action == "close":
             self.check(
                 bind(self.user, "PostMessageW", _B, _P, _U, c.c_size_t, c.c_ssize_t)(
                     hwnd, 0x10, 0, 0
                 ),
-                "Close Performance Options",
+                "Close first-login window",
             )
         else:
             if (
@@ -1218,14 +1226,7 @@ def sweep(api, journal, *, allow_pending_wsl=False):
                     window is not None
                     and not window["minimized"]
                     and not window["cloaked"]
-                    and (
-                        action is not None
-                        or (
-                            identity.name == "startmenuexperiencehost.exe"
-                            and identity.family == _START
-                            and window["class"] == "Windows.UI.Core.CoreWindow"
-                        )
-                    )
+                    and action is not None
                 ):
                     journal["known_visible_blockers"].append(
                         {

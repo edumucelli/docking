@@ -165,12 +165,15 @@ class WindowsDesktop:
         )
         self._dwm.DwmGetWindowAttribute.restype = ctypes.c_int32
 
-    def windows(self, pid=None, *, include_cloaked=False):
+    def windows(self, pid=None, *, include_cloaked=False, include_immersive=False):
         """Exclude DWM-cloaked retained UWP frames from desktop observations."""
         rows = []
+        seen = set()
 
-        @self._callback
         def visit(hwnd, _data):
+            if hwnd in seen:
+                return True
+            seen.add(hwnd)
             if self.user.IsWindowVisible(hwnd):
                 cloaked = ctypes.c_uint32()
                 if (
@@ -202,7 +205,33 @@ class WindowsDesktop:
                     )
             return True
 
-        self.user.EnumWindows(visit, 0)
+        self.user.EnumWindows(self._callback(visit), 0)
+        if include_immersive:
+            from docking.platform.native.windows.ffi import bind
+
+            # EnumWindows only covers desktop apps on Windows 8 and later.
+            # Hosted first-login Start UI also has an immersive CoreWindow.
+            find = bind(
+                self.user,
+                "FindWindowExW",
+                wintypes.HWND,
+                wintypes.HWND,
+                wintypes.HWND,
+                wintypes.LPCWSTR,
+                wintypes.LPCWSTR,
+            )
+            previous, searched = 0, set()
+            for _ in range(128):
+                hwnd = find(None, previous, "Windows.UI.Core.CoreWindow", None)
+                if not hwnd:
+                    break
+                if hwnd in searched:
+                    raise RuntimeError("Immersive window enumeration cycled")
+                searched.add(hwnd)
+                visit(hwnd, 0)
+                previous = hwnd
+            else:
+                raise RuntimeError("Immersive window enumeration exceeded its bound")
         return rows
 
     def explorer(self):
