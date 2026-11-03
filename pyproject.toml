@@ -10,9 +10,6 @@ requires-python = ">=3.10"
 license = {text = "GPL-3.0-or-later"}
 dependencies = [
     "psutil>=6.0; platform_system == 'FreeBSD' or platform_system == 'OpenBSD'",
-    "openmeteo-requests>=1.2",
-    "requests-cache>=1.0",
-    "retry-requests>=2.0",
 ]
 
 [project.scripts]
@@ -114,7 +111,6 @@ exclude = ["docking/platform/backends/wayland/protocols/"]
 [tool.ty.rules]
 unresolved-import = "ignore"  # gi/cairo lack type stubs
 unresolved-attribute = "ignore"  # gi.repository dynamic attrs
-# openmeteo-requests has incomplete type stubs
 invalid-argument-type = "warn"
 no-matching-overload = "warn"
 # Rules ty leaves off by default, turned on so the imprecision they describe
