@@ -510,8 +510,10 @@ def build_editor(output: Path, *, bits: int = 32) -> Path:
     output.mkdir(parents=True, exist_ok=True)
     source, executable = output / "editor.cs", output / f"editor{bits}.exe"
     source.write_text(_EDITOR_SOURCE, encoding="utf-8")
+    # Compiler host and output architecture are independent. All supported
+    # runtimes are 64-bit; avoid starting the x86 CLR under Arm emulation.
     compiler = (
-        Path(os.environ["SYSTEMROOT"]) / "Microsoft.NET/Framework/v4.0.30319/csc.exe"
+        Path(os.environ["SYSTEMROOT"]) / "Microsoft.NET/Framework64/v4.0.30319/csc.exe"
     )
     metadata: dict[str, object] = {
         "status": "running",
@@ -520,6 +522,7 @@ def build_editor(output: Path, *, bits: int = 32) -> Path:
         "executable": executable.name,
         "log": "editor-build.log",
         "timeout_s": 30,
+        "compiler_framework": "Framework64",
     }
     metadata_path = output / "editor-build.json"
     write_shared_json(metadata_path, metadata)

@@ -264,6 +264,11 @@ the privacy-experience policy. It restores that policy afterward and does not
 handle arbitrary user windows. Its cleanup policy must stay confined to
 disposable hosted runners.
 
+The Windows 11 hosted workflow first ensures the WSL package is installed,
+using a pinned ARM64 MSI when `wsl --version` fails. This prevents repeated
+inbox bootstrap prompts from interrupting physical input. It installs no Linux
+distribution or Windows optional features; WSL is not a Docking dependency.
+
 ### Feature probes
 
 Run as `python -m tools.windows.visual.<module> --output PATH`. Use `--help`

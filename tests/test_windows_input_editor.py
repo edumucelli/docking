@@ -305,6 +305,9 @@ def test_editor_build_keeps_source_and_flags_and_records_explicit_architecture(
         "/out:" + mod.command_path(executable),
         mod.command_path(tmp_path / "editor.cs"),
     ]
+    assert run.call_args.args[0][0] == (
+        r"C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+    )
     metadata = json.loads((tmp_path / "editor-build.json").read_text())
     assert metadata["status"] == "success" and metadata["returncode"] == 0
     assert metadata["platform"] == ("x86" if bits == 32 else "x64")
@@ -322,7 +325,7 @@ def test_compiler_failure_retains_stdout_stderr_and_redacts_command_paths(
     stderr = (
         mod.command_path(tmp_path / "editor32.exe")
         + " C:\\Users\\fixture-home\\Temp\\compiler.tmp"
-        + " \\\\owned-fixture\\share\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\csc.exe"
+        + " \\\\owned-fixture\\share\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe"
     )
 
     def fail(command, **kwargs):
