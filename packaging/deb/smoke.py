@@ -16,11 +16,10 @@ python_minor = f"{sys.version_info.major}.{sys.version_info.minor}"
 paths = [
     Path(f"/usr/lib/docking/vendor-python{python_minor}"),
     Path("/usr/lib/docking/python"),
-    Path("/usr/lib/docking/vendor"),
 ]
 sys.path[:0] = [str(path) for path in paths if path.is_dir()]
 
-for module in ("openmeteo_requests", "requests_cache", "retry_requests", "docking.app"):
+for module in ("docking.applets.weather.api", "docking.app"):
     imported = importlib.import_module(module)
     print(f"Imported {module} from {imported.__file__}")
 

@@ -13,26 +13,38 @@
 
 """Open-Meteo API client for weather applet.
 
-Uses openmeteo_requests with requests-cache and retry (5 attempts).
-Cache and poll interval share REFRESH_INTERVAL (5 min).
+Uses standard-library HTTP and JSON with up to five retries.
+Persistent response caching and polling share REFRESH_INTERVAL (5 min).
 All functions are pure data -- no GTK dependency.
 """
 
 from __future__ import annotations
 
+import hashlib
+import json
+import math
+import tempfile
+import time
+from collections.abc import Callable
+from contextlib import suppress
 from datetime import datetime, timezone
-from functools import lru_cache
-from typing import Any, NamedTuple, cast
+from email.utils import parsedate_to_datetime
+from http.client import HTTPException
+from pathlib import Path
+from typing import NamedTuple, TypeVar, cast
+from urllib.error import HTTPError
+from urllib.parse import urlencode
 
+from docking.applets.http import http_get_json
 from docking.applets.weather import meta
-from docking.core.paths import ensure_dir
+from docking.core.json_types import JsonObject, JsonValue
 from docking.log import get_logger, with_context
 from docking.platform.environment import docking_cache_dir
 
 log = with_context(get_logger(name="weather.api"), applet_id=meta.id)
 
 # How often weather data is refreshed (seconds). Used for both the
-# polling timer in the applet and the requests-cache expiry.
+# polling timer in the applet and the response cache expiry.
 REFRESH_INTERVAL = 300  # 5 minutes
 API_RETRY_COUNT = 5
 API_RETRY_BACKOFF_FACTOR = 0.2
@@ -42,6 +54,132 @@ _CACHE_DIR = docking_cache_dir() / "weather"
 
 _API_URL = "https://api.open-meteo.com/v1/forecast"
 _AQI_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
+
+_Data = TypeVar("_Data")
+
+
+def _object(value: JsonValue) -> JsonObject:
+    if not isinstance(value, dict):
+        raise ValueError("Expected a JSON object")
+    return value
+
+
+def _array(value: JsonValue) -> list[JsonValue]:
+    if not isinstance(value, list):
+        raise ValueError("Expected a JSON array")
+    return value
+
+
+def _number(value: JsonValue) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("Expected a numeric weather reading")
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("Expected a finite weather reading")
+    return number
+
+
+def _cache_path(url: str) -> Path:
+    key = hashlib.sha256(url.encode("utf-8")).hexdigest()
+    return _CACHE_DIR / "json-v1" / f"{key}.json"
+
+
+def _read_cache(url: str) -> JsonObject | None:
+    try:
+        with _cache_path(url).open(encoding="utf-8") as handle:
+            cached = _object(cast(JsonValue, json.load(handle)))
+        age = time.time() - _number(cached["fetched_at"])
+        if 0 <= age < REFRESH_INTERVAL:
+            return _object(cached["payload"])
+    except (OSError, ValueError, KeyError, TypeError, OverflowError):
+        pass
+    return None
+
+
+def _write_cache(url: str, payload: JsonObject) -> None:
+    temporary: Path | None = None
+    try:
+        path = _cache_path(url)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent, delete=False
+        ) as handle:
+            temporary = Path(handle.name)
+            json.dump(
+                {"fetched_at": time.time(), "payload": payload}, handle, allow_nan=False
+            )
+        temporary.replace(path)
+    except (OSError, ValueError):
+        log.debug("Weather response could not be cached")
+    finally:
+        if temporary is not None:
+            with suppress(OSError):
+                temporary.unlink(missing_ok=True)
+
+
+def _retry_after(value: str | None) -> float | None:
+    if not value:
+        return None
+    try:
+        if value.strip().isdigit():
+            seconds = float(value)
+        else:
+            date = parsedate_to_datetime(value)
+            if date.tzinfo is None:
+                date = date.replace(tzinfo=timezone.utc)
+            seconds = date.timestamp() - time.time()
+        return max(0.0, seconds) if math.isfinite(seconds) else None
+    except (ValueError, TypeError, OverflowError):
+        return None
+
+
+def _request_json(url: str) -> JsonObject:
+    retries = 0
+    while True:
+        retry_after: float | None = None
+        try:
+            return _object(cast(JsonValue, http_get_json(url, timeout=API_TIMEOUT_S)))
+        except HTTPError as error:
+            try:
+                header = error.headers.get("Retry-After")
+                retryable = error.code in (500, 502, 504) or (
+                    error.code in (413, 429, 503) and bool(header)
+                )
+                if retries >= API_RETRY_COUNT or not retryable:
+                    raise
+                retry_after = _retry_after(header)
+            finally:
+                error.close()
+        except (OSError, HTTPException):
+            if retries >= API_RETRY_COUNT:
+                raise
+        # Match the existing policy: no delay for the first retry, then
+        # exponential backoff. A positive Retry-After overrides backoff.
+        delay = retry_after or (
+            API_RETRY_BACKOFF_FACTOR * 2**retries if retries else 0.0
+        )
+        if delay:
+            time.sleep(delay)
+        retries += 1
+
+
+def _fetch(
+    endpoint: str,
+    params: dict[str, str | int | float],
+    parse: Callable[[JsonObject], _Data],
+) -> _Data:
+    query = urlencode({**params, "timezone": "GMT", "timeformat": "unixtime"})
+    url = f"{endpoint}?{query}"
+    cached = _read_cache(url)
+    if cached is not None:
+        try:
+            return parse(cached)
+        except (OSError, ValueError, KeyError, TypeError, OverflowError):
+            pass
+    payload = _request_json(url)
+    result = parse(payload)
+    _write_cache(url, payload)
+    return result
 
 
 # -- WMO weather code mapping ------------------------------------------------
@@ -122,26 +260,36 @@ class WeatherData(NamedTuple):
 # -- API client --------------------------------------------------------------
 
 
-@lru_cache(maxsize=1)
-def _get_client() -> Any:
-    """Return cached API client with retry and request caching."""
-    import openmeteo_requests
-    import requests_cache
-    from retry_requests import retry
-
-    ensure_dir(_CACHE_DIR)
-    cache_path = str(_CACHE_DIR / "responses")
-    # Three-layer stack: openmeteo_requests wraps retry_requests wraps
-    # requests_cache. Cache avoids redundant HTTP; retry handles failures.
-    cache_session = requests_cache.CachedSession(
-        cache_path, expire_after=REFRESH_INTERVAL
+def _parse_weather(payload: JsonObject) -> WeatherData:
+    current = _object(payload["current"])
+    temp = _number(current["temperature_2m"])
+    code = int(_number(current["weather_code"]))
+    daily_data = _object(payload["daily"])
+    arrays = [
+        _array(daily_data[key])
+        for key in ("time", "weather_code", "temperature_2m_max", "temperature_2m_min")
+    ]
+    daily: list[DailyForecast] = []
+    for timestamp, day_code, high, low in zip(*arrays, strict=True):
+        date = datetime.fromtimestamp(_number(timestamp), timezone.utc)
+        day_name = date.strftime("%a")
+        day_code_int = int(_number(day_code))
+        daily.append(
+            DailyForecast(
+                date=day_name,
+                code=day_code_int,
+                description=wmo_description(code=day_code_int),
+                temp_max=round(_number(high), 1),
+                temp_min=round(_number(low), 1),
+            )
+        )
+    return WeatherData(
+        temperature=round(temp, 1),
+        weather_code=code,
+        description=wmo_description(code=code),
+        icon_name=wmo_icon_name(code=code),
+        daily=daily,
     )
-    retry_session = retry(
-        cache_session,
-        retries=API_RETRY_COUNT,
-        backoff_factor=API_RETRY_BACKOFF_FACTOR,
-    )
-    return openmeteo_requests.Client(session=cast(Any, retry_session))
 
 
 def fetch_weather(lat: float, lng: float) -> WeatherData | None:
@@ -150,60 +298,19 @@ def fetch_weather(lat: float, lng: float) -> WeatherData | None:
     Returns None on any API/network error. Responses cached per REFRESH_INTERVAL.
     """
     try:
-        client = _get_client()
-        responses = client.weather_api(
+        return _fetch(
             _API_URL,
             params={
                 "latitude": lat,
                 "longitude": lng,
-                "current": ["temperature_2m", "weather_code"],
-                "daily": [
-                    "weather_code",
-                    "temperature_2m_max",
-                    "temperature_2m_min",
-                ],
+                "current": "temperature_2m,weather_code",
+                "daily": "weather_code,temperature_2m_max,temperature_2m_min",
                 "forecast_days": 5,
             },
-            timeout=API_TIMEOUT_S,
+            parse=_parse_weather,
         )
-        resp = responses[0]
-
-        # Current conditions
-        current = resp.Current()
-        temp = current.Variables(0).Value()
-        code = int(current.Variables(1).Value())
-
-        # Daily forecast
-        daily_data = resp.Daily()
-        daily: list[DailyForecast] = []
-        for i in range(daily_data.Variables(0).ValuesLength()):
-            # Daily timestamps are Unix epoch at midnight UTC
-            ts = daily_data.Time() + i * daily_data.Interval()
-            day_name = datetime.fromtimestamp(ts, timezone.utc).strftime("%a")
-            day_code = int(cast(float, daily_data.Variables(0).Values(i)))
-            day_max = float(cast(float, daily_data.Variables(1).Values(i)))
-            day_min = float(cast(float, daily_data.Variables(2).Values(i)))
-            daily.append(
-                DailyForecast(
-                    date=day_name,
-                    code=day_code,
-                    description=wmo_description(code=day_code),
-                    temp_max=round(day_max, 1),
-                    temp_min=round(day_min, 1),
-                )
-            )
-
-        return WeatherData(
-            temperature=round(temp, 1),
-            weather_code=code,
-            description=wmo_description(code=code),
-            icon_name=wmo_icon_name(code=code),
-            daily=daily,
-        )
-    except Exception:
-        log.bind(action="fetch_weather").warning(
-            "Failed to fetch weather", exc_info=True
-        )
+    except (OSError, HTTPException, ValueError, KeyError, TypeError, OverflowError):
+        log.bind(action="fetch_weather").warning("Failed to fetch weather")
         return None
 
 
@@ -241,38 +348,34 @@ def fetch_air_quality(lat: float, lng: float) -> AirQualityData | None:
     Returns None on any API/network error. Responses cached per REFRESH_INTERVAL.
     """
     try:
-        client = _get_client()
-        responses = client.weather_api(
+        return _fetch(
             _AQI_URL,
             params={
                 "latitude": lat,
                 "longitude": lng,
-                "current": ["european_aqi", "pm10", "pm2_5", "uv_index"],
+                "current": "european_aqi,pm10,pm2_5,uv_index",
             },
-            timeout=API_TIMEOUT_S,
+            parse=_parse_air_quality,
         )
-        current = responses[0].Current()
-        aqi = int(current.Variables(0).Value())
-        pm10 = round(current.Variables(1).Value(), 1)
-        pm2_5 = round(current.Variables(2).Value(), 1)
-        uv_index = _optional_current_value(current, index=3)
-        return AirQualityData(
-            aqi=aqi,
-            pm2_5=pm2_5,
-            pm10=pm10,
-            label=aqi_label(aqi=aqi),
-            uv_index=uv_index,
-        )
-    except Exception:
-        log.bind(action="fetch_air_quality").warning(
-            "Failed to fetch air quality",
-            exc_info=True,
-        )
+    except (OSError, HTTPException, ValueError, KeyError, TypeError, OverflowError):
+        log.bind(action="fetch_air_quality").warning("Failed to fetch air quality")
         return None
 
 
-def _optional_current_value(current: Any, *, index: int) -> float | None:
+def _parse_air_quality(payload: JsonObject) -> AirQualityData:
+    current = _object(payload["current"])
+    aqi = int(_number(current["european_aqi"]))
+    return AirQualityData(
+        aqi=aqi,
+        pm2_5=round(_number(current["pm2_5"]), 1),
+        pm10=round(_number(current["pm10"]), 1),
+        label=aqi_label(aqi=aqi),
+        uv_index=_optional_current_value(current),
+    )
+
+
+def _optional_current_value(current: JsonObject) -> float | None:
     try:
-        return round(float(current.Variables(index).Value()), 1)
-    except (AttributeError, IndexError, TypeError, ValueError):
+        return round(_number(current.get("uv_index")), 1)
+    except (ValueError, OverflowError):
         return None

@@ -57,9 +57,7 @@ class TestAppletCatalog:
     def test_contains_battery(self):
         assert "battery" in get_applet_catalog()
 
-    def test_contains_weather_when_available(self):
-        if importlib.util.find_spec("openmeteo_requests") is None:
-            pytest.skip("openmeteo_requests not installed")
+    def test_contains_weather(self):
         assert "weather" in get_applet_catalog()
 
     def test_contains_session(self):

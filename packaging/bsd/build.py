@@ -257,7 +257,7 @@ def install_and_check(package: Path, system: str, work: Path, version: str) -> N
             str(Path(sys.executable).resolve()),
             "-c",
             (
-                "import docking, requests_cache, retry_requests, openmeteo_requests; "
+                "import docking, docking.applets.weather.api; "
                 'assert docking.__file__.startswith("/usr/local/lib/docking/python/"); '
                 'print("Installed payload:", docking.__file__)'
             ),
