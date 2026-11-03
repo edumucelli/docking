@@ -44,7 +44,7 @@ def structural_similarity(
     """Compute scikit-image's mean channel SSIM for 8-bit image data."""
     if image_true.shape != image_test.shape:
         raise ValueError("Input images must have the same dimensions.")
-    if image_true.ndim != 3:
+    if image_true.ndim != 3 or image_true.shape[-1] not in (3, 4):
         raise ValueError("Expected RGB or RGBA image arrays.")
     if min(image_true.shape[:2]) < 7:
         raise ValueError("Images must be at least 7x7 pixels.")

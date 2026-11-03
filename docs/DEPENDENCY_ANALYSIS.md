@@ -278,9 +278,9 @@ processing, a seven-pixel window, sample covariance, border cropping, and
 floating-point operation order. Its NumPy implementation of SciPy 1.17.1's
 rolling-sum filter preserves float64 accumulators and float32 output after each
 axis. Unused Gaussian, gradient, dimensionality, and data-range options are not
-copied. The port is 93 lines and 3,769 bytes; the two retained BSD notices add
+copied. The port is 93 lines and 3,807 bytes; the two retained BSD notices add
 2,882 bytes. Code, licenses, frozen upstream values, and their tests total
-13,439 bytes before packaging differences.
+13,827 bytes before packaging differences.
 
 Comparison against scikit-image 0.26.0/SciPy 1.17.1 produced exactly equal SSIM
 and PSNR values for 189 pairs: 117 generated cases and perturbations of all 72
@@ -288,7 +288,7 @@ tracked offscreen/compositor baselines. These include flat regions, minimum
 windows, RGB/RGBA channels, and 3,840-pixel-wide images. No acceptance decisions
 changed. Frozen reference results cover both sides of each existing SSIM/PSNR
 threshold, and an isolated import-blocking test exercises comparisons without
-any of the six removed distributions. All 36 metric tests pass on NumPy 1.24.4
+any of the six removed distributions. All 41 metric tests pass on NumPy 1.24.4
 and 2.4.4. Baseline images and thresholds remain
 unchanged. The source links and update procedure are documented in
 [visual compositor testing](VISUAL_COMPOSITOR_TESTING.md#layer-2--pixels).

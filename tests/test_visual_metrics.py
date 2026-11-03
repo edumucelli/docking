@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
+from tests.visual.metrics import structural_similarity
 from tests.visual.support import VisualThresholds, compute_metrics
 
 REFERENCE_FILE = Path(__file__).parent / "visual" / "metrics_reference.json"
@@ -102,6 +103,13 @@ def test_ssim_rejects_images_smaller_than_its_window(size):
 def test_metrics_reject_different_shapes():
     with pytest.raises(ValueError, match="same dimensions"):
         compute_metrics(Image.new("RGBA", (8, 8)), Image.new("RGBA", (9, 8)))
+
+
+@pytest.mark.parametrize("shape", [(8, 8), (8, 8, 0), (8, 8, 1), (8, 8, 2), (8, 8, 5)])
+def test_ssim_rejects_inputs_outside_rgb_and_rgba(shape):
+    image = np.zeros(shape, dtype=np.float32)
+    with pytest.raises(ValueError, match="RGB or RGBA"):
+        structural_similarity(image, image)
 
 
 def test_visual_metrics_work_without_removed_dependencies():
