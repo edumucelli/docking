@@ -63,6 +63,10 @@ class BsdProcessBackend(ProcessBackend):
     def script(self, pid: int) -> str | None:
         return process_script(pid)
 
+    def python_process_title(self, pid: int) -> str | None:
+        # psutil cannot reliably corroborate a rewritten title across BSDs.
+        return None
+
     def sandbox_app_id(self, pid: int) -> str | None:
         return None
 

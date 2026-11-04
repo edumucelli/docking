@@ -176,6 +176,10 @@ def test_process_evidence_uses_the_injected_backend_for_every_query(tmp_path):
             self.calls.append(("script", pid))
             return "editor.py"
 
+        def python_process_title(self, pid):
+            self.calls.append(("python-title", pid))
+            return
+
         def sandbox_app_id(self, pid):
             self.calls.append(("sandbox", pid))
             return
@@ -188,7 +192,8 @@ def test_process_evidence_uses_the_injected_backend_for_every_query(tmp_path):
     identity = ProcessIdentityService(LaunchProvenanceStore(), backend=backend)
     assert identity.identity_for_pid(42).executable_path == tmp_path / "editor"
     assert sorted(backend.calls) == sorted(
-        (name, 42) for name in ("executable", "script", "sandbox", "steam")
+        (name, 42)
+        for name in ("executable", "script", "python-title", "sandbox", "steam")
     )
 
 

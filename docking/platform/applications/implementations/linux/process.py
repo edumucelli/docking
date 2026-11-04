@@ -10,6 +10,8 @@ from docking.platform.applications.implementations.unix.flatpak import (
 )
 from docking.platform.applications.steam import valid_steam_app_id
 
+_PYTHON_EXECUTABLE = re.compile(r"python(?:\d+(?:\.\d+)*)?")
+
 
 def _process_executable_path(
     pid: int, *, proc_root: Path = Path("/proc")
@@ -54,9 +56,7 @@ def _process_python_script(process_dir: Path) -> str | None:
         argv = data.rstrip(b"\0").decode("utf-8").split("\0")
     except UnicodeDecodeError:
         return None
-    if len(argv) < 2 or not re.fullmatch(
-        r"python(?:\d+(?:\.\d+)*)?", Path(argv[0]).name
-    ):
+    if len(argv) < 2 or not _PYTHON_EXECUTABLE.fullmatch(Path(argv[0]).name):
         return None
     script = argv[1]
     if script.startswith("-") or not script.endswith(".py"):
@@ -91,6 +91,25 @@ class LinuxProcessBackend(ProcessBackend):
 
     def script(self, pid: int) -> str | None:
         return _process_python_script(self._proc_root / str(pid))
+
+    def python_process_title(self, pid: int) -> str | None:
+        # setproctitle() replaces argv, so retain a title separately from a
+        # confirmed script basename. Never infer Python from the title itself.
+        executable = self.executable(pid)
+        if executable is None or not _PYTHON_EXECUTABLE.fullmatch(executable.name):
+            return None
+        data = _bounded_process_file(self._proc_root / str(pid) / "cmdline", 4096)
+        if data is None:
+            return None
+        try:
+            title = data.rstrip(b"\0").decode("utf-8")
+        except UnicodeDecodeError:
+            return None
+        if not re.fullmatch(
+            r"[A-Za-z_][A-Za-z0-9_-]{0,127}", title
+        ) or _PYTHON_EXECUTABLE.fullmatch(title):
+            return None
+        return title
 
     def sandbox_app_id(self, pid: int) -> str | None:
         return _process_sandbox_app_id(self._proc_root / str(pid))
