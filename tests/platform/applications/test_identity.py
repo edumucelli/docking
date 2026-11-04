@@ -165,6 +165,36 @@ def test_script_metadata_rejects_unconfirmed_script_names(tmp_path, cmdline):
     assert service.identity_for_pid(42).script_basename is None
 
 
+@pytest.mark.parametrize(
+    "cmdline,expected",
+    [
+        (b"mintUpdate\0" + b"\0" * 100, "mintUpdate"),
+        (b"example-tool\0", "example-tool"),
+        (b"/usr/bin/python3\0/tmp/example.py\0", None),
+        (b"python3\0", None),
+        (b"/path/mintUpdate\0", None),
+        (b"mintUpdate --private\0", None),
+        (b"mintUpdate\0--private\0", None),
+        (b"\xff\0", None),
+        (b"x" * 4097, None),
+        (b"", None),
+    ],
+)
+def test_renamed_python_title_retains_only_a_corroborated_name(
+    tmp_path, cmdline, expected
+):
+    executable = tmp_path / "python3.13"
+    executable.touch()
+    process = tmp_path / "42"
+    process.mkdir()
+    (process / "exe").symlink_to(executable)
+    (process / "cmdline").write_bytes(cmdline)
+    service = make_process_identity(LaunchProvenanceStore(), proc_root=tmp_path)
+    identity = service.identity_for_pid(42)
+    assert identity.process_title == expected
+    assert "private" not in repr(identity)
+
+
 def test_process_metadata_failure_is_optional(tmp_path, monkeypatch):
     original = Path.open
 
