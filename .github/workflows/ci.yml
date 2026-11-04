@@ -1100,10 +1100,39 @@ jobs:
             -v "$PWD/packaging/deb:/checks:ro" \
             "$IMAGE" bash -euc '
               apt-get update
-              apt-get install -y xvfb xauth dbus libglib2.0-bin sway /packages/docking_*_${PACKAGE_ARCH}.deb
+              apt-get install -y --no-install-recommends xvfb xauth dbus libglib2.0-bin sway /packages/docking_*_${PACKAGE_ARCH}.deb
               test "$(dpkg-query -W -f="\${Status}" docking)" = "install ok installed"
               test "$(dpkg --print-architecture)" = "$PACKAGE_ARCH"
               bash /checks/runtime-smoke.sh
+            '
+
+  test-arch-install:
+    name: Install Arch package (${{ matrix.image }})
+    needs: build-arch
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['archlinux:latest', 'cachyos/cachyos:latest']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: docking-arch
+          path: artifacts/arch
+      - name: Install the Arch package and exercise X11 and Wayland
+        env:
+          IMAGE: ${{ matrix.image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD/artifacts/arch:/packages:ro" \
+            -v "$PWD/packaging:/checks:ro" \
+            "$IMAGE" bash -euc '
+              pacman -Syu --noconfirm --needed xorg-server-xvfb xorg-xauth dbus glib2 sway
+              pacman -U --noconfirm /packages/*.pkg.tar.zst
+              bash /checks/arch/runtime-smoke.sh
             '
 
   test-rpm-install:
@@ -1204,6 +1233,7 @@ jobs:
       - build-appimage-arm64
       - build-arch
       - build-arch-arm64
+      - test-arch-install
       - build-nix
       - build-nix-arm64
       - bsd-desktops

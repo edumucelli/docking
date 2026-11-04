@@ -54,7 +54,8 @@ docking
 
 - **Runtime deps**: system GTK/GI packages plus `python3 (>= 3.10)`.
   Native Wayland placement is included through Debian/Ubuntu's
-  `gir1.2-gtklayershell-0.1` package.
+  `gir1.2-gtklayershell-0.1` package. `librsvg2-common` supplies the SVG loader
+  required by the default clock and other artwork, including minimal installs.
 - **PyWayland**: the package recommends distro `python3-pywayland` where it is
   available. Release builds supply native Python 3.10–3.14 fallbacks under
   `/usr/lib/docking/vendor-pythonX.Y/` on both architectures. These avoid missing
@@ -79,7 +80,8 @@ docking
   `org.docking.Docking-symbolic` only to avoid launcher/app-menu icon collisions.
 - **Tests**: skipped during deb build (no pytest in build env); run in CI instead.
 - **CI validation**: native amd64 and arm64 packages are installed on Ubuntu
-  22.04/24.04/26.04 and Debian 12/13. Checks launch Docking on X11 and headless
+  22.04/24.04/26.04 and Debian 12/13 with `--no-install-recommends`. Checks decode
+  a bundled clock SVG, verify GSettings caches, launch Docking on X11 and headless
   Sway, require its D-Bus API to respond, verify native Wayland protocols, and
   require graceful shutdown. Publication also verifies signed APT downloads,
   fresh installs, and upgrades from the previous stable release.
@@ -291,6 +293,12 @@ sudo pacman -S --needed base-devel git python python-pip gettext
 # Install locally
 sudo pacman -U artifacts/docking-*.pkg.tar.*
 ```
+
+CI installs the x86_64 package in Arch and CachyOS containers, then runs the
+shared X11 and headless Wayland package checks. `packaging/arch/runtime-smoke.sh`
+rebuilds MIME and GSettings caches before testing because pacman hooks can be
+blocked by Docker's network namespace restrictions. This preparation applies
+only to the test container; it does not change the installed launcher.
 
 ## Nix
 
