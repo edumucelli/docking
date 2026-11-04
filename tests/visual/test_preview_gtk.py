@@ -138,6 +138,56 @@ def test_asynchronous_capture_resizes_and_reanchors_popup(preview, position, bou
     assert frame.get_allocated_height() == 84
 
 
+@pytest.mark.parametrize("position", list(Position))
+def test_late_fallback_artwork_resizes_and_reanchors_popup(preview, position):
+    popup = preview.popup
+    popup._preview_service.capture.return_value = None
+    icons = MagicMock()
+    icons.load.return_value = None
+    popup.set_application_icons(icons)
+    preview.show(1, position)
+    card = preview.cards[0]
+    image = card.get_child().get_children()[0].get_children()[0]
+    relayout = MagicMock(wraps=popup._relayout)
+    popup._relayout = relayout
+    callback = icons.subscribe.call_args.args[0]
+
+    for height in (64, 32, 32):
+        previous_height = image.get_allocated_height()
+        previous_size = popup.get_size()
+        _, previous_y = popup.get_position()
+        icon = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 64, height)
+        icon.fill(0x2288CCFF)
+        icons.load.return_value = icon
+        callback("test.desktop")
+        for _ in range(3):
+            settle_gtk()
+
+        assert image.get_pixbuf() is icon
+        assert image.get_allocated_height() == height
+        preview.assert_bounded()
+        preview.assert_card_visible(0)
+        assert not preview.scroller.get_hscrollbar().get_child_visible()
+        assert not preview.scroller.get_vscrollbar().get_child_visible()
+        _, popup_y = popup.get_position()
+        if height > previous_height:
+            assert popup.get_size().height > previous_size.height
+        elif height < previous_height:
+            assert popup.get_size().height < previous_size.height
+        if position == Position.TOP or height == previous_height:
+            assert popup_y == previous_y
+        elif height > previous_height:
+            assert popup_y < previous_y
+        else:
+            assert popup_y > previous_y
+        assert relayout.call_count == (1 if height == 64 else 2)
+
+    popup.hide()
+    assert popup._relayout is None
+    callback("test.desktop")
+    assert relayout.call_count == 2
+
+
 @pytest.fixture
 def preview_hover(preview):
     """Real hover/popup timers with only dock geometry and services simulated."""

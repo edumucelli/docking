@@ -662,12 +662,19 @@ class PreviewPopup(Gtk.Window):
         )
         if icon is None:
             return
+        size_changed = False
         for window_id, previous_icon in tuple(self._fallback_icons.items()):
             if icon is not previous_icon and window_id in self._thumbnail_images:
                 image, _width, _height, preview = self._thumbnail_images[window_id]
                 if preview is None:
+                    size_changed |= previous_icon is None or (
+                        previous_icon.get_width(),
+                        previous_icon.get_height(),
+                    ) != (icon.get_width(), icon.get_height())
                     image.set_from_pixbuf(icon)
                     self._fallback_icons[window_id] = icon
+        if size_changed and self._relayout is not None:
+            self._relayout()
 
     def _stop_preview_updates(self) -> None:
         self._relayout = None

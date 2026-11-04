@@ -174,6 +174,9 @@ class FakeEventBox:
 
 
 class FakeImage:
+    def __init__(self) -> None:
+        self.size_request: tuple[int, int] | None = None
+
     @classmethod
     def new_from_pixbuf(cls, _pixbuf):
         return cls()
@@ -182,8 +185,8 @@ class FakeImage:
     def new_from_icon_name(cls, _icon_name: str, _icon_size: int):
         return cls()
 
-    def set_size_request(self, _width: int, _height: int) -> None:
-        return
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
 
 
 class FakeLabel:
@@ -422,6 +425,7 @@ class TestPreviewPopupIntegration:
         assert "preview-thumb" in widget.get_style_context().classes
         assert "preview-image" in image_frame.get_style_context().classes
         assert image_frame.children == [popup._thumbnail_images[_snapshot(7).id][0]]
+        assert image_frame.children[0].size_request is None
         assert "preview-image" not in label.get_style_context().classes
 
     def test_wider_thumbnail_keeps_more_of_the_title(self, monkeypatch):
