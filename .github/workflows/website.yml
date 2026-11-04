@@ -38,6 +38,7 @@ jobs:
       contents: write
     concurrency:
       group: docking-website-promotion
+      queue: max
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
