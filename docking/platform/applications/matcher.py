@@ -607,26 +607,41 @@ class AppIdMatcher:
         process_id: int | None,
         instance_hint: str | None,
     ) -> ApplicationMatch | None:
-        if process is None or not process.script_basename:
+        if process is None or not app_id.endswith(".py"):
             return None
-        script = process.script_basename
-        if script.lower() != app_id.lower() or not script.endswith(".py"):
+        stem = app_id[:-3].lower()
+        if (
+            process.script_basename
+            and process.script_basename.lower() == app_id.lower()
+        ):
+            identity = process.script_basename
+            method = MatchMethod.SCRIPT_NAME
+        elif process.process_title and process.process_title.lower() == stem:
+            identity = process.process_title
+            method = MatchMethod.PROCESS_TITLE
+        else:
             return None
-        stem = script[:-3]
         candidates = self._registry.resolve_all_by_wm_class(stem)
+        if len(candidates) > 1:
+            # Desktop-specific alternatives may launch the very same app.
+            # Different commands/settings remain genuinely ambiguous.
+            invocations = {
+                (app.exec_line, app.terminal, app.working_directory)
+                for app in candidates
+            }
+            if len(invocations) != 1:
+                return None
+            candidates = tuple(app for app in candidates if app.visible)
         if len(candidates) != 1:
             return None
         application = candidates[0]
-        if (
-            desktop_entries.script_launcher_basename(application.exec_line)
-            != stem.lower()
-        ):
+        if desktop_entries.script_launcher_basename(application.exec_line) != stem:
             return None
         return self._application_match(
             desktop_id=application.desktop_id,
             application=application,
-            method=MatchMethod.SCRIPT_NAME,
-            raw_app_id=script,
+            method=method,
+            raw_app_id=identity,
             instance_hint=instance_hint,
             process=process,
             process_id=process_id,
