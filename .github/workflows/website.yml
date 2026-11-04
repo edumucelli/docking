@@ -63,6 +63,12 @@ jobs:
             exit 0
           fi
           if gh api "repos/$REPO/git/ref/heads/deploy/docking-cc" >/dev/null 2>&1; then
+            git fetch https://github.com/"$REPO".git refs/heads/deploy/docking-cc
+            deployed=$(git rev-parse FETCH_HEAD)
+            if git merge-base --is-ancestor "$TESTED" "$deployed"; then
+              echo "This commit or a newer approval is already promoted."
+              exit 0
+            fi
             gh api --method PATCH "repos/$REPO/git/refs/heads/deploy/docking-cc" -f sha="$TESTED" -F force=false >/dev/null
           else
             gh api --method POST "repos/$REPO/git/refs" -f ref=refs/heads/deploy/docking-cc -f sha="$TESTED" >/dev/null
