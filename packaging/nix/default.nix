@@ -5,7 +5,7 @@ let
 in
 pyPkgs.buildPythonApplication rec {
   pname = "docking";
-  version = "2.28.0";
+  version = "2.28.2";
   format = "pyproject";
 
   src = ../..;
@@ -35,14 +35,6 @@ pyPkgs.buildPythonApplication rec {
     pycairo
     pygobject3
     pywayland
-  ];
-
-  # Weather client deps are not consistently available in nixpkgs channels.
-  # Keep build reproducible in CI by removing them from Nix metadata.
-  pythonRemoveDeps = [
-    "openmeteo-requests"
-    "requests-cache"
-    "retry-requests"
   ];
 
   doCheck = false;

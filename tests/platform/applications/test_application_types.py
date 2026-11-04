@@ -64,6 +64,7 @@ def test_enum_wire_values_match_the_v3_contract():
         "application-id",
         "sandbox-id",
         "script-name",
+        "process-title",
         "steam-app-id",
         "steam-executable",
     ]
