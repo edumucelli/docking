@@ -199,7 +199,11 @@ rebuild. From the `website` directory, use `npm run dev` directly. Run
 `npm --prefix website test` to check the generated pages. Both `npm test` and
 `npm run test:browser` rebuild the site automatically before running checks.
 
-Netlify uses the root `netlify.toml` to build and publish `website/dist`.
+Hetzner hosts `website/dist` through a dedicated native Komodo Stack. The website
+workflow promotes tested website inputs to `deploy/docking-cc`; unrelated desktop
+commits do not trigger or block website deployment. Runtime/dependency/workflow
+changes require operational review. The root `netlify.toml` retains the old deploy
+for DNS propagation and skips new automatic Netlify builds.
 Publish the built directory, not the source `website` directory. Build output
 and `node_modules` are ignored by Git. Tailwind runs at build time; visitors
 do not download a CSS compiler. Applet icons come from the repository, and the
