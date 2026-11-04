@@ -191,7 +191,7 @@ def test_renamed_python_title_retains_only_a_corroborated_name(
     (process / "cmdline").write_bytes(cmdline)
     service = make_process_identity(LaunchProvenanceStore(), proc_root=tmp_path)
     identity = service.identity_for_pid(42)
-    assert identity.python_process_title == expected
+    assert identity.process_title == expected
     assert "private" not in repr(identity)
 
 

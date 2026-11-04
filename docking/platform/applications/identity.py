@@ -37,7 +37,7 @@ class ProcessIdentity:
     sandbox_app_id: str | None = None
     script_basename: str | None = None
     steam_app_id: str | None = None
-    python_process_title: str | None = None
+    process_title: str | None = None
 
 
 @dataclass(slots=True)
@@ -164,7 +164,7 @@ class ProcessIdentityService:
             sandbox_app_id=self._backend.sandbox_app_id(pid),
             script_basename=self._backend.script(pid),
             steam_app_id=self._backend.steam_app_id(pid),
-            python_process_title=self._backend.python_process_title(pid),
+            process_title=self._backend.process_title(pid),
         )
 
 

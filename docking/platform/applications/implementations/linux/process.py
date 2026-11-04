@@ -92,9 +92,10 @@ class LinuxProcessBackend(ProcessBackend):
     def script(self, pid: int) -> str | None:
         return _process_python_script(self._proc_root / str(pid))
 
-    def python_process_title(self, pid: int) -> str | None:
+    def process_title(self, pid: int) -> str | None:
         # setproctitle() replaces argv, so retain a title separately from a
-        # confirmed script basename. Never infer Python from the title itself.
+        # confirmed script basename. Currently only Python executables are
+        # supported; interpreter recognition belongs to this implementation.
         executable = self.executable(pid)
         if executable is None or not _PYTHON_EXECUTABLE.fullmatch(executable.name):
             return None

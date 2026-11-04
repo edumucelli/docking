@@ -42,7 +42,7 @@ def test_identity_uses_native_process_readers_without_proc(monkeypatch, tmp_path
     assert result is not None
     assert result.executable_path == executable
     assert result.script_basename == "program.py"
-    assert result.python_process_title is None
+    assert result.process_title is None
 
 
 @pytest.mark.parametrize(

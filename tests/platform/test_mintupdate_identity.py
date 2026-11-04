@@ -73,7 +73,7 @@ def test_update_manager_matches_its_current_desktop_variant(
     assert match.desktop_id == expected
     assert match.application.exec_line == "mintupdate"
     assert match.evidence.method is (
-        MatchMethod.PYTHON_PROCESS_TITLE if renamed else MatchMethod.SCRIPT_NAME
+        MatchMethod.PROCESS_TITLE if renamed else MatchMethod.SCRIPT_NAME
     )
     identity = processes.identity_for_pid(42)
     assert identity.script_basename == (None if renamed else "mintUpdate.py")

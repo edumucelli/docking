@@ -616,12 +616,9 @@ class AppIdMatcher:
         ):
             identity = process.script_basename
             method = MatchMethod.SCRIPT_NAME
-        elif (
-            process.python_process_title
-            and process.python_process_title.lower() == stem
-        ):
-            identity = process.python_process_title
-            method = MatchMethod.PYTHON_PROCESS_TITLE
+        elif process.process_title and process.process_title.lower() == stem:
+            identity = process.process_title
+            method = MatchMethod.PROCESS_TITLE
         else:
             return None
         candidates = self._registry.resolve_all_by_wm_class(stem)

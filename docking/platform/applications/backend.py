@@ -185,8 +185,8 @@ class ProcessBackend(ABC):
     @abstractmethod
     def script(self, pid: int) -> str | None: ...
     @abstractmethod
-    def python_process_title(self, pid: int) -> str | None:
-        """Return a simple rewritten title corroborated by a Python executable."""
+    def process_title(self, pid: int) -> str | None:
+        """Return a validated process-title identity when reliably available."""
         ...
 
     @abstractmethod

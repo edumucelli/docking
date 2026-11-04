@@ -184,7 +184,7 @@ class MatchMethod(Enum):
     APPLICATION_ID = "application-id"
     SANDBOX_ID = "sandbox-id"
     SCRIPT_NAME = "script-name"
-    PYTHON_PROCESS_TITLE = "python-process-title"
+    PROCESS_TITLE = "process-title"
     STEAM_APP_ID = "steam-app-id"
     STEAM_EXECUTABLE = "steam-executable"
 
