@@ -13,7 +13,9 @@ def pending_preview(context):
     service.asynchronous = True
     service.capture.return_value = None
     context.preview.show(1)
-    context.async_preview_image = context.preview.cards[0].get_child().get_children()[0]
+    context.async_preview_image = (
+        context.preview.cards[0].get_child().get_children()[0].get_children()[0]
+    )
     assert context.async_preview_image.get_pixbuf() is None
 
 

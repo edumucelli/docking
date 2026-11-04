@@ -32,7 +32,7 @@ def test_visible_popup_displays_asynchronous_capture_when_it_arrives(preview):
     capture.asynchronous = True
     capture.capture.return_value = None
     preview.show(1)
-    image = preview.cards[0].get_child().get_children()[0]
+    image = preview.cards[0].get_child().get_children()[0].get_children()[0]
     assert image.get_pixbuf() is None
     pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 20, 10)
     pixbuf.fill(0xFF0000FF)
@@ -51,6 +51,43 @@ def test_visible_popup_displays_asynchronous_capture_when_it_arrives(preview):
     assert preview.popup._preview_refresh_timer_id == 0
 
 
+@pytest.mark.parametrize("size", [(200, 150), (200, 106), (75, 150)])
+def test_thumbnail_highlight_touches_image_on_every_side(preview, size):
+    width, height = size
+    pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, width, height)
+    pixbuf.fill(0x4684DCFF)
+    preview.popup._preview_service.capture.return_value = PreviewImage(
+        pixbuf, width, height
+    )
+    preview.popup.set_thumbnail_outline_enabled(lambda: True)
+    preview.show(1)
+    card = preview.cards[0]
+    frame, label = card.get_child().get_children()
+    image = frame.get_children()[0]
+    event = Gdk.Event.new(Gdk.EventType.ENTER_NOTIFY)
+    card.emit("enter-notify-event", event)
+    settle_gtk()
+
+    style = frame.get_style_context()
+    border = style.get_border(style.get_state())
+    color = style.get_border_color(style.get_state())
+    assert (border.top, border.right, border.bottom, border.left) == (2, 2, 2, 2)
+    assert color.alpha > 0
+    x, y = image.translate_coordinates(frame, 0, 0)
+    assert x == 2 and y == 2
+    assert frame.get_allocated_width() - x - image.get_allocated_width() == 2
+    assert frame.get_allocated_height() - y - image.get_allocated_height() == 2
+    assert image.get_allocated_width() == width
+    assert image.get_allocated_height() == height
+    assert frame.get_allocated_width() == width + 4
+    assert frame.get_allocated_height() == height + 4
+    _, frame_y = frame.translate_coordinates(card, 0, 0)
+    _, label_y = label.translate_coordinates(card, 0, 0)
+    assert label_y >= frame_y + frame.get_allocated_height()
+    label_style = label.get_style_context()
+    assert label_style.get_border(label_style.get_state()).top == 0
+
+
 def test_synchronous_preview_does_not_add_capture_polling(preview):
     capture = preview.popup._preview_service
     capture.asynchronous = False
@@ -60,6 +97,95 @@ def test_synchronous_preview_does_not_add_capture_polling(preview):
         settle_gtk()
     assert capture.capture.call_count == calls
     assert preview.popup._preview_refresh_timer_id == 0
+
+
+@pytest.mark.parametrize("position", list(Position))
+@pytest.mark.parametrize("bounds", [Rect(0, 0, 1280, 800), Rect(0, 0, 180, 140)])
+def test_asynchronous_capture_resizes_and_reanchors_popup(preview, position, bounds):
+    preview.bounds = bounds
+    capture = preview.popup._preview_service
+    capture.asynchronous = True
+    full_capture = capture.capture.return_value
+    preview.show(1, position)
+    expected_size = preview.popup.get_size()
+    expected_position = preview.popup.get_position()
+
+    capture.capture.return_value = None
+    preview.show(1, position)
+    fallback_height = preview.popup.get_size().height
+    capture.capture.return_value = full_capture
+    for _ in range(5):
+        settle_gtk()
+
+    assert preview.popup.get_size() == expected_size
+    assert preview.popup.get_position() == expected_position
+    assert preview.popup.get_size().height > fallback_height
+    preview.assert_bounded()
+    if bounds.width == 1280:
+        preview.assert_card_visible(0)
+        assert not preview.scroller.get_hscrollbar().get_child_visible()
+        assert not preview.scroller.get_vscrollbar().get_child_visible()
+
+    # A later change in window proportions must also shrink the popup.
+    pixbuf = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, 200, 80)
+    pixbuf.fill(0x4684DCFF)
+    capture.capture.return_value = PreviewImage(pixbuf, 200, 80)
+    for _ in range(5):
+        settle_gtk()
+    assert preview.popup.get_size().height < expected_size.height
+    preview.assert_bounded()
+    frame = preview.cards[0].get_child().get_children()[0]
+    assert frame.get_allocated_height() == 84
+
+
+@pytest.mark.parametrize("position", list(Position))
+def test_late_fallback_artwork_resizes_and_reanchors_popup(preview, position):
+    popup = preview.popup
+    popup._preview_service.capture.return_value = None
+    icons = MagicMock()
+    icons.load.return_value = None
+    popup.set_application_icons(icons)
+    preview.show(1, position)
+    card = preview.cards[0]
+    image = card.get_child().get_children()[0].get_children()[0]
+    relayout = MagicMock(wraps=popup._relayout)
+    popup._relayout = relayout
+    callback = icons.subscribe.call_args.args[0]
+
+    for height in (64, 32, 32):
+        previous_height = image.get_allocated_height()
+        previous_size = popup.get_size()
+        _, previous_y = popup.get_position()
+        icon = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, 64, height)
+        icon.fill(0x2288CCFF)
+        icons.load.return_value = icon
+        callback("test.desktop")
+        for _ in range(3):
+            settle_gtk()
+
+        assert image.get_pixbuf() is icon
+        assert image.get_allocated_height() == height
+        preview.assert_bounded()
+        preview.assert_card_visible(0)
+        assert not preview.scroller.get_hscrollbar().get_child_visible()
+        assert not preview.scroller.get_vscrollbar().get_child_visible()
+        _, popup_y = popup.get_position()
+        if height > previous_height:
+            assert popup.get_size().height > previous_size.height
+        elif height < previous_height:
+            assert popup.get_size().height < previous_size.height
+        if position == Position.TOP or height == previous_height:
+            assert popup_y == previous_y
+        elif height > previous_height:
+            assert popup_y < previous_y
+        else:
+            assert popup_y > previous_y
+        assert relayout.call_count == (1 if height == 64 else 2)
+
+    popup.hide()
+    assert popup._relayout is None
+    callback("test.desktop")
+    assert relayout.call_count == 2
 
 
 @pytest.fixture
