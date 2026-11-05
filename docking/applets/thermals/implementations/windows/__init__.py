@@ -1,0 +1,1 @@
+"""Windows thermal capability declarations."""

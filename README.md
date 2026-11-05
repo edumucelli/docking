@@ -38,6 +38,10 @@ Release packages include or depend on the required runtime libraries. See the
 [installation guide](docs/INSTALLATION.md) for source dependencies and the
 [Wayland guide](docs/WAYLAND_SUPPORT.md) for compositor requirements and feature coverage.
 
+The [Windows 11 x64 preview](docs/INSTALLATION.md#windows-preview) has a per-user
+installer and portable ZIP with Python and GTK included. Preview packages are
+unsigned; see [Windows coverage](docs/WINDOWS.md) for accepted behavior and limits.
+
 ## Installation
 
 Choose the instructions for your system:
@@ -48,6 +52,8 @@ Choose the instructions for your system:
   for AppImage, Debian, RPM, Flatpak, Snap, Arch, and Nix packages.
 - [Run from source](docs/DEVELOPMENT.md#source-setup) using pip or uv.
 - [FreeBSD and OpenBSD](docs/INSTALLATION.md#freebsd-and-openbsd) package installation instructions.
+- [Windows 11 x64 preview](docs/INSTALLATION.md#windows-preview), using the installer
+  or portable ZIP when included in a release.
 
 The [website](https://docking.cc/#install) also provides APT and RPM instructions.
 

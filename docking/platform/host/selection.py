@@ -8,6 +8,10 @@ from .base import HostServices
 
 @cache
 def host_services() -> HostServices:
+    if sys.platform == "win32":
+        from .implementations.windows.backend import WindowsHostServices
+
+        return WindowsHostServices()
     if sys.platform.startswith(("freebsd", "openbsd")):
         from .implementations.bsd.backend import BsdHostServices
 

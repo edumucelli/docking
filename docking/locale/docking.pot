@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-11-01 21:35+0100\n"
+"POT-Creation-Date: 2026-11-01 21:40+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -23,6 +23,7 @@ msgid "AI Usage"
 msgstr ""
 
 #: docking/applets/aiusage/applet.py:137
+#: docking/applets/network/implementations/windows/backend.py:430
 msgid "Auto"
 msgstr ""
 
@@ -105,19 +106,23 @@ msgstr ""
 msgid "Add Alarm"
 msgstr ""
 
-#: docking/applets/alarm/applet.py:165 docking/applets/certwatch/state.py:243
-#: docking/applets/clock/applet.py:231 docking/applets/quicknote/applet.py:88
+#: docking/applets/alarm/applet.py:165
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:72
+#: docking/applets/certwatch/state.py:243 docking/applets/clock/applet.py:231
+#: docking/applets/quicknote/applet.py:88
 msgid "OK"
 msgstr ""
 
-#: docking/applets/alarm/applet.py:165 docking/applets/clock/applet.py:231
-#: docking/applets/lastfm/applet.py:380 docking/applets/news/applet.py:514
-#: docking/applets/plantcare/applet.py:474
+#: docking/applets/alarm/applet.py:165
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:73
+#: docking/applets/clock/applet.py:231 docking/applets/lastfm/applet.py:380
+#: docking/applets/news/applet.py:514 docking/applets/plantcare/applet.py:474
 #: docking/applets/quicknote/applet.py:87 docking/applets/reddit/applet.py:432
 #: docking/applets/runcommand/applet.py:150
 #: docking/applets/runcommand/applet.py:371
 #: docking/applets/sunrise/applet.py:187 docking/applets/trash/applet.py:200
 #: docking/applets/weather/applet.py:278 docking/applets/webapp/applet.py:179
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:97
 #: docking/ui/diagnostics.py:391 docking/ui/menu.py:450
 msgid "Cancel"
 msgstr ""
@@ -501,6 +506,8 @@ msgid "{hours}h {minutes:02d}m"
 msgstr ""
 
 #: docking/applets/bluetooth/applet.py:76
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:67
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:118
 msgid "Bluetooth"
 msgstr ""
 
@@ -515,10 +522,13 @@ msgstr ""
 #: docking/applets/bluetooth/applet.py:216
 #: docking/applets/bluetooth/state.py:98
 #: docking/applets/camshield/implementations/linux/backend.py:109
+#: docking/applets/camshield/implementations/windows/backend.py:97
 #: docking/applets/deskpresence/state.py:185
 #: docking/applets/micshield/implementations/unix/backend.py:170
-#: docking/applets/powerprofiles/state.py:69 docking/ui/diagnostics.py:258
-#: docking/ui/diagnostics.py:445
+#: docking/applets/micshield/implementations/windows/audio.py:196
+#: docking/applets/powerprofiles/state.py:69
+#: docking/platform/tray/implementations/windows/backend.py:323
+#: docking/ui/diagnostics.py:258 docking/ui/diagnostics.py:445
 msgid "Unknown"
 msgstr ""
 
@@ -620,6 +630,36 @@ msgstr ""
 msgid "Battery: {percent}%"
 msgstr ""
 
+#: docking/applets/bluetooth/implementations/windows/backend.py:101
+msgid "Keep Connected"
+msgstr ""
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:103
+msgid "Connect Audio"
+msgstr ""
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Release Connection"
+msgstr ""
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:106
+msgid "Disconnect Audio"
+msgstr ""
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr ""
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr ""
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr ""
+
 #: docking/applets/bluetooth/state.py:90
 #, python-brace-format
 msgid "Bluetooth: {error}"
@@ -716,6 +756,7 @@ msgstr ""
 #: docking/applets/caffeine/applet.py:127 docking/applets/crypto/state.py:559
 #: docking/applets/currencyfx/state.py:741 docking/applets/live_state.py:93
 #: docking/applets/music/applet.py:133 docking/applets/music/applet.py:217
+#: docking/applets/network/implementations/windows/connections.py:85
 #: docking/applets/screenshot/applet.py:125
 #: docking/applets/screenshot/preview.py:163
 #: docking/applets/weather/state.py:189 docking/search/controller.py:294
@@ -724,6 +765,11 @@ msgstr ""
 
 #: docking/applets/caffeine/applet.py:128
 msgid "Turn off after"
+msgstr ""
+
+#: docking/applets/caffeine/implementations/windows/backend.py:107
+#: docking/applets/caffeine/state.py:136
+msgid "Caffeine: keeping awake"
 msgstr ""
 
 #: docking/applets/caffeine/state.py:127
@@ -742,10 +788,6 @@ msgstr ""
 
 #: docking/applets/caffeine/state.py:134
 msgid "Caffeine: off"
-msgstr ""
-
-#: docking/applets/caffeine/state.py:136
-msgid "Caffeine: keeping awake"
 msgstr ""
 
 #: docking/applets/caffeine/state.py:137
@@ -1593,6 +1635,7 @@ msgid "Scrobbler Settings"
 msgstr ""
 
 #: docking/applets/lastfm/applet.py:381 docking/applets/plantcare/applet.py:473
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:140
 #: docking/ui/diagnostics.py:390
 msgid "Save"
 msgstr ""
@@ -1813,6 +1856,7 @@ msgid "Volume Down"
 msgstr ""
 
 #: docking/applets/music/state.py:74
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
 msgid "Pause"
 msgstr ""
 
@@ -1904,6 +1948,11 @@ msgstr ""
 
 #: docking/applets/network/applet.py:280
 msgid "Unnamed VPN"
+msgstr ""
+
+#: docking/applets/network/implementations/windows/connections.py:85
+#: docking/search/controller.py:258
+msgid "Permission denied"
 msgstr ""
 
 #: docking/applets/news/applet.py:110
@@ -2701,6 +2750,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: docking/applets/plantcare/applet.py:244
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:97
 #: docking/search/providers/applications.py:193 docking/ui/diagnostics.py:137
 #: docking/ui/menu.py:585 docking/ui/startup_tips.py:216
 msgid "Close"
@@ -3484,6 +3534,7 @@ msgstr ""
 #: docking/applets/systemtray/applet.py:554
 #: docking/applets/systemtray/applet.py:885
 #: docking/applets/systemtray/state.py:13
+#: docking/platform/tray/implementations/windows/backend.py:346
 msgid "System Tray unavailable"
 msgstr ""
 
@@ -3588,6 +3639,12 @@ msgid ""
 "tray apps may need to be restarted before they dock into Docking."
 msgstr ""
 
+#: docking/applets/systemtray/implementations/windows/presentation.py:24
+#: docking/applets/systemtray/implementations/windows/presentation.py:37
+#: docking/applets/systemtray/state.py:21
+msgid "System Tray: no tray apps"
+msgstr ""
+
 #: docking/applets/systemtray/state.py:12
 #, python-brace-format
 msgid "System Tray: {error}"
@@ -3596,10 +3653,6 @@ msgstr ""
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
 msgid "System Tray: legacy tray owned by {owner}"
-msgstr ""
-
-#: docking/applets/systemtray/state.py:21
-msgid "System Tray: no tray apps"
 msgstr ""
 
 #: docking/applets/systemtray/state.py:26
@@ -3978,15 +4031,20 @@ msgid "WebKitGTK is unavailable"
 msgstr ""
 
 #: docking/applets/webapp/implementations/unix/backend.py:286
+#: docking/applets/webapp/implementations/windows/backend.py:165
 msgid "Docking applet"
 msgstr ""
 
 #: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:184
 #, python-brace-format
 msgid "Reload {service}"
 msgstr ""
 
 #: docking/applets/webapp/implementations/unix/backend.py:379
+#: docking/applets/webapp/implementations/windows/backend.py:591
+#: docking/applets/webapp/implementations/windows/companion/browser.py:192
 msgid "browser process stopped"
 msgstr ""
 
@@ -3995,23 +4053,31 @@ msgid "camera and microphone"
 msgstr ""
 
 #: docking/applets/webapp/implementations/unix/backend.py:465
+#: docking/applets/webapp/implementations/windows/backend.py:503
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:346
 msgid "camera"
 msgstr ""
 
 #: docking/applets/webapp/implementations/unix/backend.py:467
+#: docking/applets/webapp/implementations/windows/backend.py:503
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:344
 msgid "microphone"
 msgstr ""
 
 #: docking/applets/webapp/implementations/unix/backend.py:473
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:355
 #, python-brace-format
 msgid "Allow {service} to use your {device}?"
 msgstr ""
 
 #: docking/applets/webapp/implementations/unix/backend.py:477
+#: docking/applets/webapp/implementations/windows/backend.py:514
 msgid "Deny"
 msgstr ""
 
 #: docking/applets/webapp/implementations/unix/backend.py:478
+#: docking/applets/webapp/implementations/windows/backend.py:515
 msgid "Allow"
 msgstr ""
 
@@ -4023,6 +4089,57 @@ msgstr ""
 #: docking/applets/webapp/implementations/unix/backend.py:557
 msgid ""
 "Install the WebKitGTK 4.1 or 4.0 introspection package, then restart Docking."
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:239
+msgid "Could not open browser session"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:160
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:73
+#: docking/search/controller.py:298
+msgid "Cancelled"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:75
+#: docking/search/controller.py:273 docking/search/controller.py:300
+msgid "Failed"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:77
+msgid "Paused"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
 msgstr ""
 
 #: docking/applets/whatsapp/applet.py:22
@@ -4428,20 +4545,12 @@ msgstr ""
 msgid "Unavailable on this desktop"
 msgstr ""
 
-#: docking/search/controller.py:258
-msgid "Permission denied"
-msgstr ""
-
 #: docking/search/controller.py:260
 msgid "Setup cancelled"
 msgstr ""
 
 #: docking/search/controller.py:272 docking/search/controller.py:281
 msgid "Conflict"
-msgstr ""
-
-#: docking/search/controller.py:273 docking/search/controller.py:300
-msgid "Failed"
 msgstr ""
 
 #: docking/search/controller.py:276 docking/search/controller.py:301
@@ -4454,10 +4563,6 @@ msgstr ""
 
 #: docking/search/controller.py:296
 msgid "Denied"
-msgstr ""
-
-#: docking/search/controller.py:298
-msgid "Cancelled"
 msgstr ""
 
 #: docking/search/controller.py:758

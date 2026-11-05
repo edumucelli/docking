@@ -1,0 +1,11 @@
+# Optional synthetic microphone fixture. Generate its raw input with
+# tools/windows/visual/microphone_fixture.py before adding this overlay to the lab.
+# Remove the overlay and recreate the container after microphone acceptance.
+services:
+  windows:
+    environment:
+      ALSA_CONFIG_PATH: /shared/lab/microphone-fixture/alsa.conf
+      ARGUMENTS: >-
+        -audiodev alsa,id=docking-mic-audio,in.dev=docking_fixture,out.dev=null,in.frequency=48000,in.channels=1,in.format=s16
+        -device hda-duplex,id=docking-mic-fixture,bus=hda.0,cad=1,audiodev=docking-mic-audio
+        -device hda-duplex,id=docking-mic-secondary,bus=hda.0,cad=2,audiodev=docking-mic-audio

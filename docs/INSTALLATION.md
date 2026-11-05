@@ -228,6 +228,51 @@ FreeBSD has no BlueZ trust property; trust and pairing removal are left to nativ
 system configuration. OpenBSD has no native Bluetooth stack, so its Bluetooth
 applet remains unavailable.
 
+## Windows preview
+
+Windows-enabled releases include an **unsigned Windows 11 x64 preview** installer
+and portable ZIP on [GitHub Releases](https://github.com/edumucelli/docking/releases).
+Both contain Python, GTK and their dependencies. You do not need MSYS2, a source
+checkout, a separate Python installation or administrator access. Web-based
+applets additionally need Microsoft's
+[Evergreen WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
+The [Windows coverage notes](WINDOWS.md) describe tested behavior and limitations.
+
+Download `docking-latest-windows-x86_64-setup.exe` or
+`docking-latest-windows-x86_64.zip`, together with `SHA256SUMS-windows` from the
+same release. Versioned filenames are also provided. In PowerShell, compute the
+download's checksum and compare it with its matching manifest line:
+
+```powershell
+Get-FileHash .\docking-latest-windows-x86_64-setup.exe -Algorithm SHA256
+# For the portable package:
+Get-FileHash .\docking-latest-windows-x86_64.zip -Algorithm SHA256
+```
+
+Checksums verify that the download matches the release; they are not a publisher
+signature. Signing is deferred, so Windows may display an unknown-publisher or
+SmartScreen prompt. Use the project release source and verify the checksum
+before deciding whether to run an unsigned preview.
+
+Run setup as your normal user. It defaults to
+`%LOCALAPPDATA%\Programs\Docking`, adds a Start menu shortcut and an Installed Apps
+entry, and offers optional launch at login. Windows Startup Apps policy can
+override that choice. For the portable package, extract the **entire** ZIP to a
+writable directory and open `Docking\Docking.exe`; keep its `runtime` directory
+beside the launcher.
+
+Docking's update notice offers **View Release**, which opens the release page.
+Download and verify the new package, close Docking and its AI usage-hook processes,
+then run the new installer at the registered location. Setup preserves the
+existing startup choice unless you change it, and refuses an upgrade while an
+owned process is still running. For a portable update, extract the new ZIP into a
+fresh directory and use its launcher. Update notices do not install packages.
+
+Remove an installed copy through Windows **Installed Apps**. Uninstall removes
+Docking's installed files and owned usage-hook entries while keeping preferences
+and unknown files; those files can leave folders behind. Portable copies can be
+deleted after their processes close. Neither method removes your saved preferences.
+
 ## Release downloads
 
 The latest prebuilt packages are available on

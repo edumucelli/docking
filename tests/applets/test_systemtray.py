@@ -393,6 +393,26 @@ def tray(monkeypatch):
     return _make_tray(monkeypatch)
 
 
+@pytest.mark.parametrize("managed", [False, True])
+def test_tray_uses_its_surface_policy_for_keyboard_focus(tray, monkeypatch, managed):
+    from docking.platform.backends.reduced.services import ReducedSurfaceService
+    from docking.platform.backends.windows.surface import WindowsSurfaceService
+
+    applet = tray.applet
+    applet._surface = WindowsSurfaceService() if managed else ReducedSurfaceService()
+    window = MagicMock()
+    create = MagicMock(return_value=window)
+    monkeypatch.setattr(applet_mod, "create_popup_window", create)
+    monkeypatch.setattr(applet, "_build_popup_content", lambda: object())
+    monkeypatch.setattr(applet_mod, "show_wrapped_popup", lambda **_kwargs: None)
+    try:
+        applet._show_popup()
+        create.assert_called_once_with(managed=managed)
+        assert applet._popup is window
+    finally:
+        applet.stop()
+
+
 def test_geometry_stays_with_the_borrowed_service_and_is_cleared_on_stop(tray):
     shared = tray.applet._service
     shared.set_geometry({"current": "bounds"})

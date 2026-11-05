@@ -66,7 +66,7 @@ def test_missing_controller_and_openbsd_are_unavailable(backend, monkeypatch):
 
 
 def test_factory_selects_bsd_without_importing_bluez(monkeypatch):
-
+    monkeypatch.setattr(environment, "is_windows", lambda: False)
     monkeypatch.setattr(environment, "is_bsd", lambda: True)
     monkeypatch.setitem(
         bsd.sys.modules, "docking.applets.bluetooth.implementations.linux.backend", None

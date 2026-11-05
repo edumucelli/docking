@@ -32,6 +32,8 @@ from docking.platform.environment import (
     is_wayland_session,
     is_x11_backend,
 )
+from docking.platform.host.base import HostFamily
+from docking.platform.host.selection import host_services
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -71,6 +73,14 @@ def create_session_backend(
     requested = os.environ.get("DOCKING_BACKEND", "").strip().lower()
     if requested == "reduced":
         return _create_reduced_backend(reason="requested by DOCKING_BACKEND=reduced")
+    if host_services().family is HostFamily.WINDOWS:
+        if requested not in {"", "windows", "win32"}:
+            raise ValueError(f"DOCKING_BACKEND={requested} is unavailable on Windows")
+        from docking.platform.backends.windows.session import WindowsSessionBackend
+
+        return WindowsSessionBackend(config=config, model=model, **identity_arguments)
+    if requested in {"windows", "win32"}:
+        raise ValueError(f"DOCKING_BACKEND={requested} requires a Windows host")
     if requested == "x11":
         return _create_x11_backend(
             config=config,

@@ -15,6 +15,11 @@ from docking.platform.composition.bsd import BsdAppletBackendFactories
 from tests.platform_factories import make_applet_platform
 
 
+@pytest.fixture(autouse=True)
+def bsd_platform(monkeypatch):
+    monkeypatch.setattr(environment, "is_windows", lambda: False)
+
+
 def test_native_interface_change_resets_traffic_baseline(monkeypatch):
     monkeypatch.setattr(environment, "is_bsd", lambda: True)
     readings = [bsd.NetworkInterface("vio0", "192.0.2.1", True, 1000, 2000)]

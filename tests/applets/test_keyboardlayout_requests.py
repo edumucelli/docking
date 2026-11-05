@@ -136,6 +136,36 @@ def test_show_current_layout_and_settings_do_not_launch_after_stop(keyboard):
     backend.show_layout.assert_not_called()
 
 
+def test_windows_applet_uses_native_state_without_linux_command_fallback(monkeypatch):
+    from docking.applets.keyboardlayout.implementations.unix import backend as linux
+    from docking.applets.keyboardlayout.implementations.windows import (
+        backend as windows,
+    )
+    from docking.platform.composition.windows import WindowsAppletBackendFactories
+    from tests.applets.test_windows_keyboardlayout import KeyboardAPI
+
+    monkeypatch.setattr(windows, "_native_api", lambda: KeyboardAPI())
+    profiles = MagicMock()
+    profiles.catalog.return_value = windows.InputCatalog()
+    monkeypatch.setattr(windows, "WindowsInputService", lambda: profiles)
+    monkeypatch.setattr(
+        linux, "_run", lambda cmd: pytest.fail("Windows invoked a Linux command")
+    )
+    monkeypatch.setattr(
+        "docking.applets.keyboardlayout.applet.BackgroundWorker", _ImmediateWorker
+    )
+    applet = KeyboardLayoutApplet(
+        48,
+        Config(),
+        platform_services=make_applet_platform(
+            backends=WindowsAppletBackendFactories()
+        ),
+    )
+    assert isinstance(applet._backend, windows.WindowsKeyboardBackend)
+    assert applet.item.name == "US" and applet._last_label == "EN"
+    applet.stop()
+
+
 def test_menu_refreshes_external_layout_and_invalidates_an_older_poll(keyboard):
     applet, backend = keyboard
     queue = DeferredWorker()
