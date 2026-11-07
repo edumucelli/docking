@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import NamedTuple
+from typing import NamedTuple, Protocol
 
 from docking.applets.tooltip import structured_tooltip
 from docking.applets.units import format_compact_number
@@ -119,7 +119,13 @@ def format_compact_speed(bps: float) -> str:
     return f"{format_compact_number(bps / (1024 * 1024 * 1024))}GB"
 
 
-def decode_ssid(ssid_bytes: object | None) -> str:
+class SsidBytes(Protocol):
+    """Native SSID byte container supplied by NetworkManager."""
+
+    def get_data(self) -> bytes: ...
+
+
+def decode_ssid(ssid_bytes: bytes | SsidBytes | None) -> str:
     """Decode an NM SSID byte container into a displayable string."""
     if ssid_bytes is None:
         return ""

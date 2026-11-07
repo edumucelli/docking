@@ -108,11 +108,26 @@ extra-paths = ["."]
 # proxies dynamically, so every method returns Unknown by construction.
 exclude = ["docking/platform/backends/wayland/protocols/"]
 
+[tool.ty.analysis]
+# System Cairo and BSD-only psutil need not be installed in the quality job.
+# These GI namespaces and optional protocols lack stubs in some installations.
+allowed-unresolved-imports = [
+    "cairo",
+    "psutil",
+    "gi.repository.NM",
+    "gi.repository.GtkLayerShell",
+    "gi.repository.Wnck",
+    "pywayland.protocol.ext_image_capture_source_v1",
+    "pywayland.protocol.ext_image_copy_capture_v1",
+]
+
 [tool.ty.rules]
-unresolved-import = "ignore"  # gi/cairo lack type stubs
-unresolved-attribute = "ignore"  # gi.repository dynamic attrs
-invalid-argument-type = "warn"
-no-matching-overload = "warn"
+unresolved-import = "error"
+# Attribute checking is enabled below for domains with typed boundaries;
+# native adapters and GTK wiring still contain dynamic attributes.
+unresolved-attribute = "ignore"
+invalid-argument-type = "error"
+no-matching-overload = "error"
 # Rules ty leaves off by default, turned on so the imprecision they describe
 # cannot creep back in. Keep the list to rules this codebase has cleared.
 missing-type-argument = "error"
@@ -125,6 +140,30 @@ possibly-unresolved-reference = "error"
 blanket-ignore-comment = "error"
 unused-ignore-comment = "error"
 redundant-cast = "error"
+disjoint-cast = "error"
+division-by-zero = "error"
+invalid-legacy-positional-parameter = "error"
+unsound-yield = "error"
+unsupported-dynamic-base = "error"
+
+[[tool.ty.overrides]]
+include = [
+    "docking/core/**",
+    "docking/search/**",
+    "docking/platform/applications/**",
+    "docking/platform/host/**",
+    "docking/platform/composition/**",
+    "docking/applets/**/state.py",
+    "docking/applets/bluetooth/implementations/unix/desktop.py",
+    "docking/applets/network/implementations/unix/desktop_settings.py",
+]
+exclude = [
+    "docking/platform/applications/implementations/**",
+    "docking/search/services/implementations/**",
+]
+
+[tool.ty.overrides.rules]
+unresolved-attribute = "error"
 
 [tool.vulture]
 paths = ["docking", "tests"]
