@@ -58,6 +58,7 @@ class Win32WindowAPI(WindowObservation):
         self._desktop = WindowsDesktopAPI()
         self._membership = workspace_membership
         self._properties = WindowsWindowProperties()
+        self._last_foreground_window: WindowSnapshot | None = None
         user = ctypes.WinDLL("user32", use_last_error=True)
         self._ghosts = WindowsGhostWindows(user)
         kernel = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -251,6 +252,22 @@ class Win32WindowAPI(WindowObservation):
         callback = self._callback_type(visit)
         if not self._enumerate(callback, 0):
             raise ctypes.WinError(ctypes.get_last_error())
+        previous = self._last_foreground_window
+        if not foreground and previous is not None:
+            # GetForegroundWindow can return NULL during mouse activation.
+            # Keep the last observed focus only while that window is current.
+            current = rows.get(previous.id)
+            if (
+                current is not None
+                and (current.pid, current.app_id) == (previous.pid, previous.app_id)
+                and current.visible
+                and not current.minimized
+                and current.on_current_workspace is not False
+            ):
+                rows[current.id] = replace(current, active=True)
+        self._last_foreground_window = next(
+            (row for row in rows.values() if row.active), None
+        )
         return tuple(rows.values())
 
     def original_window(self, ghost: int) -> int | None:

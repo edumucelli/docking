@@ -258,7 +258,8 @@ observations, physical input and reviewed screenshots are separate evidence.
 A capture labeled `captured-not-reviewed` is not visual acceptance.
 
 The hosted-only `tools.windows.visual.hosted_desktop` wrapper prepares
-recognized first-login/runner windows, records actions and temporarily scopes
+recognized first-login/runner windows, hides the verified Start surface,
+records actions and temporarily scopes
 the privacy-experience policy. It restores that policy afterward and does not
 handle arbitrary user windows. Its cleanup policy must stay confined to
 disposable hosted runners.

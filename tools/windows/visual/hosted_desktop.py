@@ -177,7 +177,7 @@ def action_for(identity, window, *, root, session, foreground):
                 "Unproven Start package", identity.package_error or 13
             )
         if window["class"] == "Windows.UI.Core.CoreWindow":
-            return "close"
+            return "hide"
         raise PreparationError("Unproven Start window")
     if identity.name == "windowsterminal.exe" and identity.runner_terminal:
         if identity.family != _TERMINAL or identity.package_error:
@@ -948,7 +948,7 @@ class NativeDesktop:
         )
         if (
             current is None
-            and action == "close"
+            and action in ("close", "hide")
             and action_for(
                 identity,
                 window,
@@ -981,6 +981,12 @@ class NativeDesktop:
                 ),
                 "Close first-login window",
             )
+        elif action == "hide":
+            # Start can retain its CoreWindow after accepting WM_CLOSE. Hide
+            # that verified surface without injecting keys into the collector.
+            bind(self.user, "ShowWindow", _B, _P, c.c_int32)(hwnd, 0)
+            if record is not None:
+                record["show_command"] = 0
         else:
             if (
                 identity.runner_terminal
@@ -1086,10 +1092,11 @@ class NativeDesktop:
                     (command != 6 and not identity.runner_terminal)
                     or self.foreground() != hwnd
                 )
-            return not any(
+            hidden = not any(
                 row["hwnd"] == hwnd and not row["cloaked"] and not row["minimized"]
                 for row in rows
             )
+            return hidden and (action != "hide" or self.foreground() != hwnd)
 
         try:
             if action == "minimize":

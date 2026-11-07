@@ -17,6 +17,89 @@ from docking.platform.backends.windows.windows import WindowsWindowService
 from tests.platform.application_fakes import application, identity_services
 
 
+@pytest.fixture
+def native_focus():
+    from docking.platform.backends.windows.windows import Win32WindowAPI
+
+    state = SimpleNamespace(
+        foreground=100,
+        rows={
+            hwnd: WindowSnapshot(
+                id=WindowId(DisplayServer.WINDOWS, hwnd),
+                desktop_id="",
+                app_id="Fixture.App",
+                wm_class="Fixture.Window",
+                pid=101,
+                visible=True,
+                can_activate=True,
+            )
+            for hwnd in (100, 200)
+        },
+    )
+    native = Win32WindowAPI.__new__(Win32WindowAPI)
+    native._last_foreground_window = None
+    native._foreground = lambda: state.foreground
+    native._desktop = SimpleNamespace(covered_windows=frozenset)
+    native._callback_type = lambda callback: callback
+    native._enumerate = lambda callback, data: tuple(
+        callback(hwnd, data) for hwnd in state.rows
+    )
+    native._snapshot = lambda hwnd, foreground, *_: replace(
+        state.rows[hwnd], active=hwnd == foreground
+    )
+    native.perform = MagicMock(return_value=ActionResult.OK)
+    return native, state
+
+
+@pytest.mark.parametrize("gap", (None, 0))
+def test_cycle_retains_last_native_focus_during_mouse_activation_handoff(
+    native_focus, gap
+):
+    native, state = native_focus
+    service = WindowsWindowService(
+        model=SimpleNamespace(visible_items=list, update_running=MagicMock()),
+        native=native,
+        **identity_services(application("Fixture.App")),
+    )
+    service.refresh()
+    for active in (100, 200, 100, 200):
+        state.foreground = gap
+        assert service.cycle("Fixture.App") is ActionResult.OK
+        target, action = native.perform.call_args.args
+        assert target.id.value == (200 if active == 100 else 100)
+        assert action == "activate"
+        state.foreground = target.id.value
+        service.refresh()
+
+
+@pytest.mark.parametrize(
+    "change",
+    ("closed", "pid", "app_id", "minimized", "hidden", "workspace", "foreground"),
+)
+def test_foreground_handoff_never_preserves_a_stale_or_ineligible_window(
+    native_focus, change
+):
+    native, state = native_focus
+    assert next(row for row in native.windows() if row.active).id.value == 100
+    state.foreground = None
+    if change == "closed":
+        del state.rows[100]
+    elif change == "foreground":
+        state.foreground = 999  # A real foreground outside the tracked windows.
+    else:
+        fields = {
+            "pid": {"pid": 202},
+            "app_id": {"app_id": "Another.App"},
+            "minimized": {"minimized": True},
+            "hidden": {"visible": False},
+            "workspace": {"on_current_workspace": False},
+        }
+        state.rows[100] = replace(state.rows[100], **fields[change])
+    assert not any(row.active for row in native.windows())
+    state.foreground = None
+    assert not any(row.active for row in native.windows())
+
+
 @pytest.mark.parametrize(
     "cached_active,current_active",
     [(None, 100), (None, 200), (100, 200), (200, 100)],
@@ -133,6 +216,7 @@ def test_ghost_keeps_one_original_identity_with_presentation_state_in_either_z_o
         geometry=Rect(100, 200, 400, 300),
     )
     native = Win32WindowAPI.__new__(Win32WindowAPI)
+    native._last_foreground_window = None
     native._foreground = lambda: 900
     native._desktop = MagicMock()
     native._desktop.covered_windows.return_value = frozenset()
@@ -174,6 +258,7 @@ def test_unassociated_ghost_cannot_create_a_dwm_running_entry():
     from docking.platform.backends.windows.windows import Win32WindowAPI
 
     native = Win32WindowAPI.__new__(Win32WindowAPI)
+    native._last_foreground_window = None
     native._foreground = lambda: 900
     native._desktop = MagicMock()
     native._desktop.covered_windows.return_value = frozenset()
@@ -267,6 +352,7 @@ def test_windows_covered_by_desktop_keep_running_entries_without_reporting_overl
     from docking.platform.backends.windows.windows import Win32WindowAPI
 
     native = Win32WindowAPI.__new__(Win32WindowAPI)
+    native._last_foreground_window = None
     native._desktop = MagicMock()
     native._desktop.covered_windows.return_value = frozenset({10})
     native._foreground = lambda: 0

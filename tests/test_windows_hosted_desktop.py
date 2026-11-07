@@ -148,7 +148,7 @@ def test_arbitrary_wwahost_is_never_treated_as_privacy_ui(family, error):
 
 @pytest.mark.parametrize("caption", ("Start", "Démarrer", "", "开始"))
 @pytest.mark.parametrize("foreground", (100, 999))
-def test_start_close_requires_exact_package_path_and_class(caption, foreground):
+def test_start_hide_requires_exact_package_path_and_class(caption, foreground):
     process = identity(
         "startmenuexperiencehost.exe",
         ROOT + "\\SystemApps\\" + hosted._START + r"\StartMenuExperienceHost.exe",
@@ -158,7 +158,7 @@ def test_start_close_requires_exact_package_path_and_class(caption, foreground):
         hosted.action_for(
             process, window(title=caption), root=ROOT, session=3, foreground=foreground
         )
-        == "close"
+        == "hide"
     )
     with pytest.raises(hosted.PreparationError):
         hosted.action_for(
@@ -1132,7 +1132,7 @@ def test_startup_readiness_has_a_deadline_even_without_mutation_permission(monke
     assert journal["quiet_sweeps"] == 0
 
 
-def test_verified_visible_nonforeground_start_is_closed_without_keyboard_input():
+def test_verified_visible_nonforeground_start_is_hidden_without_keyboard_input():
     process = identity(
         "startmenuexperiencehost.exe",
         ROOT + "\\SystemApps\\" + hosted._START + r"\StartMenuExperienceHost.exe",
@@ -1158,7 +1158,7 @@ def test_verified_visible_nonforeground_start_is_closed_without_keyboard_input()
     journal = {"actions": []}
     assert hosted.sweep(api, journal) == 1
     api.perform.assert_called_once_with(
-        process, "close", window(), record=journal["actions"][0]
+        process, "hide", window(), record=journal["actions"][0]
     )
     assert journal["known_visible_blockers"] == [
         {"pid": 20, "hwnd": 100, "name": process.name}
@@ -1955,7 +1955,7 @@ def test_successful_live_dwm_and_iconic_reads_keep_actual_attributes(window_read
         ),
     ],
 )
-def test_verified_wm_close_accepts_window_destroyed_during_dwm_readback(
+def test_verified_dismissal_accepts_window_destroyed_during_dwm_readback(
     window_reader, name, relative, family, native_class
 ):
     api = window_reader
@@ -1973,6 +1973,11 @@ def test_verified_wm_close_accepts_window_destroyed_during_dwm_readback(
         state.closing = True
         return 1
 
+    def hide(_hwnd, command):
+        assert command == 0
+        state.closing = True
+        return 1
+
     def attribute(_hwnd, _kind, _output, _size):
         if state.closing:
             state.alive = False
@@ -1984,14 +1989,21 @@ def test_verified_wm_close_accepts_window_destroyed_during_dwm_readback(
         assert predicate(), message
 
     api.user.PostMessageW = Mock(side_effect=close)
+    api.user.ShowWindow = Mock(side_effect=hide)
     api.dwm.DwmGetWindowAttribute.side_effect = attribute
     api.desktop.wait_for = wait_for
     api.desktop.key = Mock()
     process = identity(name, ROOT + "\\" + relative, family)
+    action = "hide" if name == "startmenuexperiencehost.exe" else "close"
     assert (
-        api.perform(process, "close", window(**{"class": native_class})) == "dismissed"
+        api.perform(process, action, window(**{"class": native_class})) == "dismissed"
     )
-    api.user.PostMessageW.assert_called_once_with(100, 0x10, 0, 0)
+    if action == "close":
+        api.user.PostMessageW.assert_called_once_with(100, 0x10, 0, 0)
+        api.user.ShowWindow.assert_not_called()
+    else:
+        api.user.ShowWindow.assert_called_once_with(100, 0)
+        api.user.PostMessageW.assert_not_called()
     api.desktop.key.assert_not_called()
     assert state.closing and not state.alive
 
@@ -2016,10 +2028,62 @@ def test_start_dismissal_between_inventory_and_action_never_injects_input(
     )
     previous = window(**{"class": native_class})
     if native_class == "Windows.UI.Core.CoreWindow":
-        assert api.perform(process, "close", previous) == "already-dismissed"
+        assert api.perform(process, "hide", previous) == "already-dismissed"
     else:
         with pytest.raises(hosted.PreparationError, match="Unproven Start window"):
-            api.perform(process, "close", previous)
+            api.perform(process, "hide", previous)
+    api.user.PostMessageW.assert_not_called()
+    api.desktop.key.assert_not_called()
+
+
+@pytest.mark.parametrize("hides", (True, False))
+@pytest.mark.parametrize("foreground", (100, 999))
+@pytest.mark.parametrize("releases_foreground", (True, False))
+def test_start_is_hidden_without_relying_on_wm_close_or_keyboard_input(
+    hides, foreground, releases_foreground
+):
+    api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
+    api.root, api.session = ROOT, 3
+    state = {"visible": True}
+    current = window()
+    api.windows = lambda _pid: [current] if state["visible"] else []
+    api.foreground = lambda: (
+        foreground if state["visible"] or not releases_foreground else 999
+    )
+    api.kernel = SimpleNamespace(
+        WaitForSingleObject=Mock(return_value=258), GetProcessId=Mock(return_value=20)
+    )
+
+    def show(hwnd, command):
+        assert hwnd == 100 and command == 0
+        state["visible"] = not hides
+        return 1
+
+    def wait_for(predicate, message, seconds):
+        assert seconds == 2
+        assert predicate(), message
+
+    api.user = SimpleNamespace(ShowWindow=Mock(side_effect=show), PostMessageW=Mock())
+    api.desktop = SimpleNamespace(wait_for=wait_for, key=Mock())
+    process = identity(
+        "startmenuexperiencehost.exe",
+        ROOT + "\\SystemApps\\" + hosted._START + r"\StartMenuExperienceHost.exe",
+        hosted._START,
+    )
+    record = {}
+    action = hosted.action_for(
+        process, current, root=ROOT, session=3, foreground=foreground
+    )
+    if hides and (releases_foreground or foreground != 100):
+        assert api.perform(process, action, current, record=record) == "dismissed"
+    else:
+        with pytest.raises(AssertionError, match="not dismissed"):
+            api.perform(process, action, current, record=record)
+    assert record["show_command"] == 0
+    assert record["foreground_after"] == (
+        999 if hides and releases_foreground else foreground
+    )
+    api.user.ShowWindow.assert_called_once_with(100, 0)
     api.user.PostMessageW.assert_not_called()
     api.desktop.key.assert_not_called()
 
@@ -2666,7 +2730,9 @@ def test_runner_terminal_identity_mismatch_cannot_issue_first_native_command(
     f.api.kernel.TerminateProcess.assert_not_called()
 
 
-@pytest.mark.parametrize("action", ("terminate", "close", "escape", "stop-wsl-update"))
+@pytest.mark.parametrize(
+    "action", ("terminate", "close", "hide", "escape", "stop-wsl-update")
+)
 def test_even_verified_runner_terminal_cannot_be_closed_or_killed(
     runner_terminal_api, action
 ):
