@@ -55,7 +55,7 @@ def probe_devices(
     output = read_command(["fstat", *(str(path) for path in devices.values())])
     if output is None:
         # Never turn a failed inspection into a reassuring "Camera idle".
-        return CamshieldState(available=False, active=False)
+        return CamshieldState(available=False, active=None, error=True)
     holders = _holders(output, devices)
     return CamshieldState(
         True, bool(holders), tuple(sorted(devices)), holders, locked()
@@ -63,6 +63,7 @@ def probe_devices(
 
 
 class BsdCameraControl(UnixCameraControl):
+    controls_supported = True
     state_dir = Path("/var/db/docking/camshield")
 
     def requires_acl_backup(self, device: Path) -> bool:

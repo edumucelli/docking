@@ -18,6 +18,10 @@ from docking.applets.camshield.implementations.bsd import (
     netbsd,
     openbsd,
 )
+from docking.applets.camshield.implementations.linux.backend import (
+    LinuxCamshieldBackend,
+)
+from docking.applets.camshield.implementations.unix import client as camera_client
 from docking.applets.camshield.implementations.unix import helper
 from docking.applets.camshield.state import CameraHolder, CamshieldState, build_tooltip
 from docking.platform import environment
@@ -78,11 +82,47 @@ def test_camera_probe_uses_kernel_file_table(monkeypatch, tmp_path, platform):
     assert calls[0] == ["fstat", str(device)]
 
 
-def test_failed_file_table_does_not_report_camera_idle(monkeypatch, tmp_path):
+@pytest.mark.parametrize(
+    "control", [freebsd.FreeBsdCameraControl, openbsd.OpenBsdCameraControl]
+)
+def test_failed_file_table_does_not_report_camera_idle(monkeypatch, tmp_path, control):
     (tmp_path / "video0").touch()
     monkeypatch.setattr(common, "read_command", lambda argv: None)
-    state = freebsd.FreeBsdCameraControl().probe(dev_root=tmp_path, proc_root=tmp_path)
-    assert not state.available
+    state = control().probe(dev_root=tmp_path, proc_root=tmp_path)
+    assert not state.available and state.active is None and state.error
+    assert "Camera state unavailable" in build_tooltip(state)
+
+
+def test_netbsd_client_never_offers_or_authorizes_camera_controls(monkeypatch):
+    helper_calls = []
+    monkeypatch.setattr(
+        camera_client,
+        "_helper_command",
+        lambda **kwargs: helper_calls.append(kwargs) or ["pkexec", "helper"],
+    )
+    monkeypatch.setattr(
+        camera_client.subprocess,
+        "run",
+        lambda *args, **kwargs: pytest.fail("unsupported camera action authorized"),
+    )
+    client = camera_client.UnixCamshieldClient(netbsd.NetBsdCameraControl())
+    assert not client.controls_available()
+    assert not client.lock_available() and not client.unlock_available()
+    assert not client.lock() and not client.unlock()
+    assert not helper_calls
+
+
+@pytest.mark.parametrize(
+    "control",
+    [LinuxCamshieldBackend, freebsd.FreeBsdCameraControl, openbsd.OpenBsdCameraControl],
+)
+def test_supported_camera_clients_keep_helper_controls(monkeypatch, control):
+    monkeypatch.setattr(
+        camera_client, "_helper_command", lambda **kwargs: ["pkexec", "helper"]
+    )
+    client = camera_client.UnixCamshieldClient(control())
+    assert client.controls_available()
+    assert client.lock_available() and client.unlock_available()
 
 
 def test_unattached_openbsd_device_nodes_are_not_cameras(monkeypatch, tmp_path):

@@ -124,6 +124,8 @@ def _read_text(path: Path) -> str:
 
 
 class LinuxCamshieldBackend(UnixCameraControl):
+    controls_supported = True
+
     def requires_acl_backup(self, device: Path) -> bool:
         return False
 

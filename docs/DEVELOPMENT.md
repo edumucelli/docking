@@ -268,15 +268,22 @@ hardware validation; the reference desktop is compositing Xfce.
 The NetBSD target is 11.0/amd64 with pkgsrc Python 3.12. When changing this target,
 update the X11 SHA512 pins in `tools/bsd/visual/checksums/` from the signed NetBSD
 release hash list. The installer verifies each archive before extraction.
-Its VM scripts set
-`DOCKING_BSD_PYTHON=/usr/pkg/bin/python3.12` and include `/usr/pkg/bin`,
-`/usr/pkg/sbin`, and `/usr/X11R7/bin` in `PATH`. Packages and installed visual
-checks use `/usr/pkg`; keep native GTK/GI/Cairo/psutil packages visible with
+The CI workflow sets the following environment. Export it before running the
+NetBSD VM scripts manually:
+
+```bash
+export DOCKING_BSD_PYTHON=/usr/pkg/bin/python3.12
+export PATH="/usr/pkg/bin:/usr/pkg/sbin:/usr/X11R7/bin:$PATH"
+```
+
+Packages and installed visual checks use `/usr/pkg`; keep native
+GTK/GI/Cairo/psutil packages visible with
 `--system-site-packages`. NetBSD sensor tests cover envsys units and unavailable
 readings without requiring a laptop or temperature sensor in the VM.
 
 For a local Linux/BSD X11 control, install GTK3/Cairo/Wnck GI bindings, Xvfb,
-Xfwm, D-Bus and XTest, then run `python3 -m tools.bsd.visual.run --pytest`.
+Xfwm, D-Bus and XTest, then run
+`"${DOCKING_BSD_PYTHON:-python3}" -m tools.bsd.visual.run --pytest`.
 `--case placement-bottom` selects one scenario, and `--dock-command` can point
 at an installed executable. The default output is a timestamped directory under
 `artifacts/bsd-visual/`; an explicit `--output` must be empty.

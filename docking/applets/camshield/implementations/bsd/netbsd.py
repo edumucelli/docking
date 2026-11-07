@@ -10,6 +10,8 @@ _UNAVAILABLE = "NetBSD camera permission control unavailable"
 
 
 class NetBsdCameraControl(UnixCameraControl):
+    controls_supported = False
+
     def probe(self, *, dev_root: Path, proc_root: Path) -> CamshieldState:
         return CamshieldState(available=False, active=None, error=True)
 
