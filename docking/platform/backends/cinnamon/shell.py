@@ -22,6 +22,7 @@ from gi.repository import Gio, GLib
 if TYPE_CHECKING:
     from gi.repository import Gtk
 
+from docking.core.json_types import JsonObject, JsonValue, as_json_object
 from docking.core.position import Position
 from docking.log import get_logger
 from docking.platform.backends.base import (
@@ -126,6 +127,14 @@ WINDOWS_SCRIPT = """
 """
 
 
+def _integer_values(value: JsonValue, *, length: int) -> tuple[int, ...] | None:
+    """Validate exact integer geometry values received from the shell."""
+    if not isinstance(value, list) or len(value) != length:
+        return None
+    integers = tuple(part for part in value if type(part) is int)
+    return integers if len(integers) == length else None
+
+
 class CinnamonShellClient:
     """Use the shell's existing API without installing a Cinnamon extension."""
 
@@ -136,7 +145,7 @@ class CinnamonShellClient:
         self.last_request_failed = False
         self.snapshot_revision = 0
         self.workspace_snapshots: tuple[WorkspaceSnapshot, ...] = ()
-        self.rows: tuple[Mapping[str, Any], ...] = ()
+        self.rows: tuple[JsonObject, ...] = ()
 
     @classmethod
     def connect(cls) -> CinnamonShellClient | None:
@@ -165,7 +174,7 @@ class CinnamonShellClient:
     def bus_name(self) -> str | None:
         return self._proxy.get_connection().get_unique_name()
 
-    def _eval(self, script: str) -> object:
+    def _eval(self, script: str) -> JsonValue:
         try:
             success, value = self._proxy.call_sync(
                 "Eval",
@@ -175,7 +184,7 @@ class CinnamonShellClient:
                 None,
             ).unpack()
             self.last_request_failed = not success
-            return json.loads(value) if success else None
+            return cast(JsonValue, json.loads(value)) if success else None
         except Exception as exc:
             self.last_request_failed = True
             log.debug("Cinnamon shell request failed: %s", exc)
@@ -197,20 +206,31 @@ class CinnamonShellClient:
             return ()
         if isinstance(result, dict):
             workspaces = result.get("workspaces", [])
-            self.workspace_snapshots = tuple(
-                WorkspaceSnapshot(
-                    id=row["id"],
-                    number=row["number"],
-                    name=row.get("name", ""),
-                    active=row.get("active") is True,
-                )
-                for row in workspaces
-                if isinstance(row, dict)
-                and isinstance(row.get("id"), str)
-                and type(row.get("number")) is int
-                and isinstance(row.get("name", ""), str)
-            )
-        self.rows = tuple(row for row in rows if isinstance(row, Mapping))
+            workspace_rows = workspaces if isinstance(workspaces, list) else []
+            snapshots: list[WorkspaceSnapshot] = []
+            for row in workspace_rows:
+                if not isinstance(row, dict):
+                    continue
+                workspace_id = row.get("id")
+                number = row.get("number")
+                name = row.get("name", "")
+                if (
+                    isinstance(workspace_id, str)
+                    and type(number) is int
+                    and isinstance(name, str)
+                ):
+                    snapshots.append(
+                        WorkspaceSnapshot(
+                            id=workspace_id,
+                            number=number,
+                            name=name,
+                            active=row.get("active") is True,
+                        )
+                    )
+            self.workspace_snapshots = tuple(snapshots)
+        self.rows = tuple(
+            window for row in rows if (window := as_json_object(row)) is not None
+        )
         self.snapshot_revision += 1
         return self.rows
 
@@ -228,12 +248,8 @@ class CinnamonShellClient:
     def pointer_position(self) -> tuple[int, int] | None:
         """Query the compositor pointer, including positions outside XWayland."""
         result = self._eval("global.get_pointer().slice(0, 2)")
-        if (
-            isinstance(result, list)
-            and len(result) == 2
-            and all(type(value) is int for value in result)
-        ):
-            coordinates = cast(list[int], result)
+        coordinates = _integer_values(result, length=2)
+        if coordinates is not None:
             return coordinates[0], coordinates[1]
         return None
 
@@ -356,14 +372,9 @@ class CinnamonShellClient:
             "chrome.modifyActorParams(owned.actor, {affectsStruts:true});"
             "chrome.updateRegions(); }} })()"
         )
-        if (
-            isinstance(result, list)
-            and len(result) == 4
-            and all(type(part) is int for part in result)
-        ):
-            values = cast(list[int], result)
-            if values[2] > 0 and values[3] > 0:
-                return Rect(*values)
+        values = _integer_values(result, length=4)
+        if values is not None and values[2] > 0 and values[3] > 0:
+            return Rect(*values)
         return None
 
     def reserve_dock(self, *, title: str, request: ReservationRequest) -> bool:
@@ -478,12 +489,8 @@ class CinnamonShellClient:
             f"{int(request.size.width)}, {int(request.size.height)});"
             "const r = w.get_frame_rect(); return [r.x, r.y]; })()"
         )
-        if (
-            isinstance(result, list)
-            and len(result) == 2
-            and all(type(part) is int for part in result)
-        ):
-            values = cast(list[int], result)
+        values = _integer_values(result, length=2)
+        if values is not None:
             return values[0], values[1]
         return None
 
@@ -563,14 +570,9 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
             and self._client.snapshot_revision > self._position_revision
         ):
             for row in self._client.rows:
-                rect = row.get("frame-rect")
-                if (
-                    row.get("title") == self._title
-                    and isinstance(rect, list)
-                    and len(rect) == 4
-                    and all(type(v) is int for v in rect)
-                ):
-                    self._position = int(rect[0]), int(rect[1])
+                rect = _integer_values(row.get("frame-rect"), length=4)
+                if row.get("title") == self._title and rect is not None:
+                    self._position = rect[0], rect[1]
                     self._position_revision = self._client.snapshot_revision
                     break
         return self._position

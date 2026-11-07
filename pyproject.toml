@@ -109,6 +109,10 @@ extra-paths = ["."]
 exclude = ["docking/platform/backends/wayland/protocols/"]
 
 [tool.ty.analysis]
+strict-generic-narrowing = true
+strict-equality-semantics = true
+# Suppressions must use ty's rule-specific syntax.
+respect-type-ignore-comments = false
 # System Cairo and BSD-only psutil need not be installed in the quality job.
 # GI namespaces and optional PyWayland modules are absent in some installations.
 allowed-unresolved-imports = [
@@ -154,15 +158,17 @@ unsupported-dynamic-base = "error"
 include = [
     "docking/core/**",
     "docking/search/**",
-    "docking/platform/applications/**",
-    "docking/platform/host/**",
-    "docking/platform/composition/**",
+    "docking/platform/**",
     "docking/applets/**/state.py",
+    "docking/applets/**/render.py",
+    "docking/applets/volume/**",
     "docking/applets/bluetooth/implementations/unix/desktop.py",
     "docking/applets/network/implementations/unix/desktop_settings.py",
 ]
 exclude = [
-    "docking/platform/applications/implementations/**",
+    "docking/platform/backends/**",
+    "docking/platform/desktop/**",
+    "docking/platform/diagnostics.py",
     "docking/search/services/implementations/**",
 ]
 

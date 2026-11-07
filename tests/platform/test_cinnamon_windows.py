@@ -210,6 +210,45 @@ def test_shell_client_distinguishes_failed_and_empty_snapshots():
     assert client.list_windows() == ({},)
 
 
+@pytest.mark.parametrize("workspaces", [None, True, 123, "invalid", {"id": "0"}])
+def test_malformed_workspace_container_preserves_valid_window_snapshot(workspaces):
+    client = CinnamonShellClient(
+        proxy=_proxy({"windows": [_row()], "workspaces": workspaces})
+    )
+
+    assert client.list_windows() == (_row(),)
+    assert not client.last_query_failed
+    assert client.workspace_snapshots == ()
+    assert client.snapshot_revision == 1
+
+
+def test_workspace_snapshot_filters_invalid_entries_without_discarding_valid_ones():
+    client = CinnamonShellClient(
+        proxy=_proxy(
+            {
+                "windows": [_row()],
+                "workspaces": [
+                    None,
+                    {"id": 1, "number": 0},
+                    {"id": "bad-number", "number": True},
+                    {"id": "bad-name", "number": 1, "name": []},
+                    {"id": "0", "number": 0, "name": "Main", "active": True},
+                ],
+            }
+        )
+    )
+
+    assert client.list_windows() == (_row(),)
+    assert len(client.workspace_snapshots) == 1
+    snapshot = client.workspace_snapshots[0]
+    assert (snapshot.id, snapshot.number, snapshot.name, snapshot.active) == (
+        "0",
+        0,
+        "Main",
+        True,
+    )
+
+
 @pytest.mark.parametrize("result", ["ok", "not_found", "unsupported", None])
 def test_shell_action_validates_generation_and_uses_workspace_aware_activation(result):
     proxy = _proxy(result)

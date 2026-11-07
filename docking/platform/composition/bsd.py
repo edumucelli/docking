@@ -81,7 +81,7 @@ class BsdAppletBackendFactories(UnixAppletBackendFactories):
 
         return BsdThermalsBackend()
 
-    def volume(self) -> VolumeBackend | None:
+    def volume(self) -> VolumeBackend:
         from docking.applets.volume.implementations.bsd.backend import create_backend
 
         return create_backend()

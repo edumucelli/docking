@@ -994,7 +994,9 @@ class SearchWindow:
                 if isinstance(row, Gtk.ListBoxRow) and row.get_visible()
             ]
             current = target.get_selected_row()
-            index = rows.index(current) if current in rows else -1
+            index = (
+                rows.index(current) if current is not None and current in rows else -1
+            )
             delta = -1 if event.keyval == Gdk.KEY_Up else 1
             next_index = min(max(index + delta, 0), len(rows) - 1)
             if rows:

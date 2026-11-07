@@ -174,9 +174,17 @@ this checkout over system-installed Docking releases.
 
 Missing-import checks remain enabled, with an explicit allowlist for system
 Cairo, BSD-only psutil, native GI namespaces, and optional PyWayland modules
-that lack stubs in some installations. Attribute checks cover core logic,
-shared applet state, Search outside native implementations, and
-application/host contracts and policy.
+that lack stubs in some installations. Strict generic narrowing requires callers
+to validate container contents instead of treating an arbitrary mapping as
+having known key/value types. Strict equality semantics keeps equality tests
+from silently narrowing values to literal types.
+Use rule-specific `ty: ignore[...]` comments when suppression is necessary;
+legacy `type: ignore` comments do not suppress ty diagnostics.
+
+Attribute checks cover core logic, applet state and renderers, volume integration,
+Search outside native implementations, and platform modules outside desktop
+adapters, session backends, and diagnostics. Application discovery and monitoring
+adapters are included.
 The `tool.ty.overrides` section records this scope; expand it as native adapters
 and GTK wiring gain precise types. Remove native namespaces from the allowlist
 when their stubs become available.

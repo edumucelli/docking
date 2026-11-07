@@ -11,7 +11,8 @@ from pathlib import Path
 import gi
 
 gi.require_version("Gio", "2.0")
-from gi.repository import Gio
+gi.require_version("GLib", "2.0")
+from gi.repository import Gio, GLib
 
 from docking.log import get_logger, with_context
 
@@ -89,10 +90,10 @@ def current_desktop_names() -> tuple[str, ...]:
     return tuple(part.strip().casefold() for part in raw.split(":") if part.strip())
 
 
-def desktop_entry_string_list(key_file: object, key: str) -> tuple[str, ...]:
+def desktop_entry_string_list(key_file: GLib.KeyFile, key: str) -> tuple[str, ...]:
     """Read a ``;``-separated Desktop Entry list value."""
     try:
-        values = key_file.get_string_list("Desktop Entry", key)  # type: ignore[attr-defined]
+        values = key_file.get_string_list("Desktop Entry", key)
     except Exception:
         return ()
     return tuple(text for text in (clean_text(value) for value in values) if text)

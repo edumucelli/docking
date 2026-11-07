@@ -139,10 +139,16 @@ class CinnamonVisibilityMonitor(VisibilityMonitor):
         focused = next((r for r in candidates if r.get("focused")), None)
 
         def same_app(row) -> bool:
+            """Match a valid PID or window class against the focused application."""
             if not focused:
                 return False
+            focused_pid = focused.get("pid", 0)
             return bool(
-                (focused.get("pid", 0) > 0 and row.get("pid") == focused.get("pid"))
+                (
+                    type(focused_pid) is int
+                    and focused_pid > 0
+                    and row.get("pid") == focused_pid
+                )
                 or (
                     focused.get("wm-class")
                     and row.get("wm-class") == focused.get("wm-class")

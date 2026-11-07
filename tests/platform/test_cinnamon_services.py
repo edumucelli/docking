@@ -13,7 +13,10 @@ from gi.repository import GLib
 
 from docking.core.config import Config, HideMode
 from docking.platform.backends.base import ActionResult, Rect, WorkspaceSnapshot
-from docking.platform.backends.cinnamon.applets import CinnamonIdleService
+from docking.platform.backends.cinnamon.applets import (
+    CinnamonColorPickerService,
+    CinnamonIdleService,
+)
 from docking.platform.backends.cinnamon.picking import CinnamonWindowPickService
 from docking.platform.backends.cinnamon.services import (
     CinnamonPreviewService,
@@ -247,6 +250,93 @@ def test_picker_revalidates_native_pid_and_termination_target():
     client.for_window.return_value = "ok"
     assert picker.kill(target) is ActionResult.OK
     assert "w.kill()" in client.for_window.call_args.args[1]
+
+
+@pytest.mark.parametrize("pid", [None, "invalid", [], {}, True])
+def test_overlap_handles_invalid_focused_pid_without_losing_class_matching(pid):
+    rows = (
+        _row(1, workspace=0, focused=True, pid=pid, **{"frame-rect": [0, 0, 40, 40]}),
+        _row(2, workspace=0, pid=99, **{"frame-rect": [0, 80, 40, 40]}),
+    )
+    windows, client, _model = _service(*rows)
+    workspace_state(client, rows)
+    monitor = CinnamonVisibilityService(
+        windows=windows, config=Config(hide_mode=HideMode.WINDOW_DODGE.value)
+    ).create_monitor(
+        get_dock_rect=lambda: Rect(0, 100, 80, 20),
+        on_change=MagicMock(),
+    )
+
+    monitor.evaluate_now()
+    assert monitor._hidden
+
+
+@pytest.mark.parametrize(
+    "point",
+    [
+        None,
+        [],
+        [False, 0],
+        [0, True],
+        ["1", 0],
+        [float("inf"), 0],
+        [0, float("nan")],
+        [10**400, 0],
+    ],
+)
+def test_color_picker_rejects_invalid_coordinates_and_releases_busy_state(point):
+    picker = CinnamonColorPickerService(client=MagicMock())
+    picker._selection = MagicMock(select=MagicMock(return_value=point))
+    picker._sample = MagicMock()
+
+    assert picker.pick_color(x=0, y=0) is None
+    picker._sample.assert_not_called()
+    assert not picker._busy
+
+
+@pytest.mark.parametrize("point", [[0, -1], [1.5, -2.5]])
+def test_color_picker_samples_valid_coordinates(point):
+    picker = CinnamonColorPickerService(client=MagicMock())
+    picker._selection = MagicMock(select=MagicMock(return_value=point))
+    picker._sample = MagicMock(return_value=(10, 20, 30))
+
+    assert picker.pick_color(x=0, y=0) == (10, 20, 30)
+    picker._sample.assert_called_once_with(int(point[0]), int(point[1]))
+    assert not picker._busy
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ([0, 128, 255], (0, 128, 255)),
+        ([True, 128, 255], None),
+        ([0.0, 128, 255], None),
+        ([-1, 128, 255], None),
+        ([0, 128, 256], None),
+        ([0, 128], None),
+        (None, None),
+    ],
+)
+def test_color_picker_validates_channels_and_cleans_up_sampling(
+    monkeypatch, value, expected
+):
+    client = MagicMock()
+    client._eval.side_effect = [True, {"done": True, "value": value}, True]
+    picker = CinnamonColorPickerService(client=client)
+    loop = MagicMock()
+    callbacks = []
+    monkeypatch.setattr(GLib, "MainLoop", lambda: loop)
+    monkeypatch.setattr(
+        GLib, "timeout_add", lambda _delay, callback: callbacks.append(callback) or 42
+    )
+    remove = MagicMock()
+    monkeypatch.setattr(GLib, "source_remove", remove)
+    loop.run.side_effect = lambda: callbacks[0]()
+
+    assert picker._sample(10, 20) == expected
+    assert picker._loop is None and picker._sample_key is None
+    remove.assert_called_once_with(42)
+    assert "s.restore()" in client._eval.call_args.args[0]
 
 
 def test_snapshot_metadata_and_features_are_probed_separately_from_windows():

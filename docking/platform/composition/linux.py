@@ -83,7 +83,7 @@ class LinuxAppletBackendFactories(UnixAppletBackendFactories):
 
         return LinuxThermalsBackend()
 
-    def volume(self) -> VolumeBackend | None:
+    def volume(self) -> VolumeBackend:
         from docking.applets.volume.implementations.linux.backend import create_backend
 
         return create_backend()
