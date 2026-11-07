@@ -261,7 +261,7 @@ def test_overlap_handles_invalid_focused_pid_without_losing_class_matching(pid):
     windows, client, _model = _service(*rows)
     workspace_state(client, rows)
     monitor = CinnamonVisibilityService(
-        windows=windows, config=Config(hide_mode=HideMode.WINDOW_DODGE.value)
+        windows=windows, config=Config(hide_mode=HideMode.INTELLIGENT.value)
     ).create_monitor(
         get_dock_rect=lambda: Rect(0, 100, 80, 20),
         on_change=MagicMock(),
