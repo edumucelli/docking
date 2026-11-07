@@ -83,7 +83,10 @@ def test_failed_encoding_does_not_replace_previous_file_or_leave_temp_data(tmp_p
     assert list(tmp_path.iterdir()) == [path]
 
 
-def test_preview_fits_the_monitor_and_destroys_its_native_chooser(monkeypatch):
+@pytest.mark.parametrize("has_monitor", [True, False])
+def test_preview_fits_the_monitor_and_destroys_its_native_chooser(
+    monkeypatch, has_monitor
+):
     from gi.repository import Gtk
 
     from docking.applets.screenshot import preview
@@ -91,13 +94,22 @@ def test_preview_fits_the_monitor_and_destroys_its_native_chooser(monkeypatch):
     monkeypatch.setattr(preview.ScreenshotPreview, "copy", Mock())
     chooser = Mock()
     monkeypatch.setattr(Gtk.FileChooserNative, "new", Mock(return_value=chooser))
+    if not has_monitor:
+        display = Mock()
+        display.get_primary_monitor.return_value = None
+        display.get_monitor.return_value = None
+        monkeypatch.setattr(Gtk.Dialog, "get_display", lambda _self: display)
     image = ScreenshotImage(bytes((1, 2, 3)) * (1280 * 800), 1280, 800)
     view = preview.ScreenshotPreview(image, anchor=None)
     try:
         shown = view.dialog.get_content_area().get_children()[0].get_pixbuf()
-        monitor = view.dialog.get_display().get_monitor(0).get_workarea()
-        assert shown.get_width() <= monitor.width - 80
-        assert shown.get_height() <= monitor.height - 140
+        if has_monitor:
+            monitor = view.dialog.get_display().get_monitor(0).get_workarea()
+            assert shown.get_width() <= monitor.width - 80
+            assert shown.get_height() <= monitor.height - 140
+        else:
+            assert shown.get_width() <= 900
+            assert shown.get_height() <= 500
         view._save_as()
         chooser.set_do_overwrite_confirmation.assert_called_once_with(True)
         chooser.show.assert_called_once()

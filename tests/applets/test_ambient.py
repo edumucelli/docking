@@ -181,6 +181,28 @@ class TestAmbientPlaybackBranches:
         pipeline.set_state.assert_called_once()
         assert applet._playing is True
 
+    def test_file_playback_without_a_bus_still_stops_cleanly(
+        self, monkeypatch, tmp_path
+    ):
+        applet = _make_applet()
+        applet._current = "birds"
+        (tmp_path / "birds.ogg").touch()
+        monkeypatch.setattr(ambient_mod, "SOUNDS_DIR", tmp_path)
+        pipeline = MagicMock(spec=ambient_mod.Gst.Element)
+        pipeline.get_bus.return_value = None
+        monkeypatch.setattr(ambient_mod, "_build_file_pipeline", lambda **_: pipeline)
+
+        applet._start_playback()
+
+        assert applet._playing is True
+        applet._stop_playback()
+        assert applet._pipeline is None
+        assert applet._playing is False
+        assert pipeline.set_state.call_args_list == [
+            ((ambient_mod.Gst.State.PLAYING,),),
+            ((ambient_mod.Gst.State.NULL,),),
+        ]
+
     def test_start_playback_file_missing_keeps_stopped(self, monkeypatch, tmp_path):
         # Given
         applet = _make_applet()
@@ -230,7 +252,7 @@ class TestAmbientPlaybackBranches:
     def test_apply_volume_uses_named_volume_element_when_needed(self):
         # Given
         applet = _make_applet()
-        pipeline = MagicMock()
+        pipeline = MagicMock(spec=ambient_mod.Gst.Bin)
         pipeline.find_property.return_value = None
         volume_element = MagicMock()
         pipeline.get_by_name.return_value = volume_element

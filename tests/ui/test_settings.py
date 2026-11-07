@@ -796,6 +796,12 @@ def _config():
     )
 
 
+@pytest.fixture(autouse=True)
+def _fake_info_icon(monkeypatch):
+    # The owned widget subclass must use the same fake GTK tree as its siblings.
+    monkeypatch.setattr(settings_mod, "_InfoIcon", FakeEventBox)
+
+
 class TestSettingsWindowController:
     def test_show_reuses_single_window_and_builds_four_tabs(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

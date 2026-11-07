@@ -297,6 +297,14 @@ def _set_menu_item_icon(
     item.add(row)
 
 
+class _WindowMenuRow(Gtk.MenuItem):
+    """Running-window row whose identity survives native GTK ownership."""
+
+
+class _WindowRowsSeparator(Gtk.SeparatorMenuItem):
+    """Separator removed together with the final running-window row."""
+
+
 class MenuHandler:
     """Builds and shows context menus for dock items."""
 
@@ -822,13 +830,12 @@ class MenuHandler:
             windows = sorted(windows, key=lambda window: window.title.lower())
         for window in windows:
             menu.append(self._build_window_menu_row(window=window))
-        separator = Gtk.SeparatorMenuItem()
-        separator._window_rows_separator = True
+        separator = _WindowRowsSeparator()
         menu.append(separator)
 
     def _build_window_menu_row(self, window: WindowSnapshot) -> Gtk.MenuItem:
         title = window.title or _("Window")
-        row = Gtk.MenuItem()
+        row = _WindowMenuRow()
         row.set_label(title)
 
         box = Gtk.Box(
@@ -865,7 +872,6 @@ class MenuHandler:
         if child is not None:
             row.remove(child)
         row.add(box)
-        row._window_row = True
         if self._preview_service.asynchronous is True:
             self._watch_window_thumbnail(row, image, window.id, thumbnail)
         row.connect("button-press-event", self._on_window_row_button_press, window.id)
@@ -950,9 +956,9 @@ class MenuHandler:
         parent.remove(widget)
         widget.destroy()
         children = list(parent.get_children())
-        if not any(getattr(child, "_window_row", False) for child in children):
+        if not any(isinstance(child, _WindowMenuRow) for child in children):
             for child in children:
-                if getattr(child, "_window_rows_separator", False):
+                if isinstance(child, _WindowRowsSeparator):
                     child.hide()
                     parent.remove(child)
                     child.destroy()
@@ -1120,7 +1126,7 @@ class MenuHandler:
         self._folder_stack.update_folder_pref(item, key, value)
 
     def _on_folder_sort_changed(
-        self, widget: Gtk.MenuItem, item: DockItem, value: str
+        self, widget: Gtk.RadioMenuItem, item: DockItem, value: str
     ) -> None:
         if widget.get_active():
             self._update_folder_pref(item, "sort", value)

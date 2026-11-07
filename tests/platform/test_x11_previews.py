@@ -174,7 +174,7 @@ class TestCaptureWindow:
         scaled = MagicMock()
         pixbuf.scale_simple.return_value = scaled
 
-        display = MagicMock()
+        display = MagicMock(spec=preview_capture.GdkX11.X11Display)
         display.error_trap_pop.return_value = 0
         monkeypatch.setattr(
             preview_capture.GdkX11.X11Display,
@@ -241,7 +241,7 @@ class TestCaptureWindow:
         pixbuf.get_has_alpha.return_value = True
         pixbuf.get_pixels.return_value = bytes([0, 0, 0, 255] * 16)
 
-        display = MagicMock()
+        display = MagicMock(spec=preview_capture.GdkX11.X11Display)
         display.error_trap_pop.return_value = 0
         monkeypatch.setattr(
             preview_capture.GdkX11.X11Display,

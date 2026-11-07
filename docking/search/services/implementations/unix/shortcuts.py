@@ -25,7 +25,10 @@ import logging
 import secrets
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import TypeAlias
+from typing import TYPE_CHECKING, Protocol, TypeAlias
+
+if TYPE_CHECKING:
+    from gi.repository import Gio, GLib
 
 from docking.search.services.global_shortcuts import GlobalShortcutService
 
@@ -59,10 +62,31 @@ ActivationCallback: TypeAlias = Callable[[GlobalShortcutActivation], None]
 StatusCallback: TypeAlias = Callable[[GlobalShortcutsStatus], None]
 
 
+class _GioNamespace(Protocol):
+    """Native module members loaded only when portal operations begin."""
+
+    @property
+    def BusType(self) -> type[Gio.BusType]: ...  # noqa: N802 - native GI name
+    @property
+    def DBusCallFlags(self) -> type[Gio.DBusCallFlags]: ...  # noqa: N802 - native GI name
+    @property
+    def DBusSignalFlags(self) -> type[Gio.DBusSignalFlags]: ...  # noqa: N802 - native GI name
+
+    @staticmethod
+    def bus_get_sync(
+        _bus_type: Gio.BusType, cancellable: Gio.Cancellable | None, /
+    ) -> Gio.DBusConnection: ...
+
+
+class _GLibNamespace(Protocol):
+    @property
+    def Variant(self) -> type[GLib.Variant]: ...  # noqa: N802 - native GI name
+
+
 class GioConnectionAdapter:
     """Create the real session-bus connection only when the service starts."""
 
-    def __call__(self) -> object:
+    def __call__(self) -> Gio.DBusConnection:
         """Return the process session-bus connection."""
         gio, _glib = _load_gio()
         return gio.bus_get_sync(gio.BusType.SESSION, None)
@@ -77,7 +101,7 @@ class GioCallAdapter:
 
     def __call__(
         self,
-        connection: object,
+        connection: Gio.DBusConnection,
         *,
         destination: str,
         object_path: str,
@@ -111,7 +135,7 @@ class GioSignalAdapter:
 
     def subscribe(
         self,
-        connection: object,
+        connection: Gio.DBusConnection,
         *,
         sender: str,
         object_path: str | None,
@@ -119,12 +143,12 @@ class GioSignalAdapter:
         signal: str,
         arg0: str | None,
         callback: SignalCallback,
-    ) -> object:
+    ) -> int:
         """Subscribe to one filtered signal and return its Gio handle."""
         gio, _glib = _load_gio()
 
         def on_signal(
-            _connection: object,
+            _connection: Gio.DBusConnection,
             _sender: str,
             _path: str,
             _interface: str,
@@ -149,7 +173,7 @@ class GioSignalAdapter:
             on_signal,
         )
 
-    def unsubscribe(self, connection: object, handle: object) -> None:
+    def unsubscribe(self, connection: Gio.DBusConnection, handle: int) -> None:
         """Remove a signal subscription from the supplied connection."""
         connection.signal_unsubscribe(handle)
 
@@ -160,7 +184,7 @@ class _PendingRequest:
 
     path: str
     generation: int
-    subscription: object | None = None
+    subscription: int | None = None
     done: bool = False
 
 
@@ -190,7 +214,7 @@ class GlobalShortcutsService(GlobalShortcutService):
         self._preferred_trigger = preferred_trigger
         self._parent_window = ""
 
-        self._connection: object | None = None
+        self._connection: Gio.DBusConnection | None = None
         self._connection_adapter = GioConnectionAdapter()
         self._call_adapter = GioCallAdapter()
         self._signal_adapter = GioSignalAdapter()
@@ -203,8 +227,8 @@ class GlobalShortcutsService(GlobalShortcutService):
         self._portal_version: int | None = None
         self._session_handle: str | None = None
         self._binding: GlobalShortcutBinding | None = None
-        self._owner_subscription: object | None = None
-        self._session_subscriptions: list[object] = []
+        self._owner_subscription: int | None = None
+        self._session_subscriptions: list[int] = []
         self._pending_requests: list[_PendingRequest] = []
         self._status = GlobalShortcutsStatus(GlobalShortcutsState.STOPPED)
 
@@ -446,7 +470,7 @@ class GlobalShortcutsService(GlobalShortcutService):
         self._publish(state)
 
     def _subscribe_session_signals(self, session_handle: str) -> None:
-        subscriptions: list[object] = []
+        subscriptions: list[int] = []
         try:
             subscriptions.append(
                 self._subscribe(
@@ -784,7 +808,7 @@ class GlobalShortcutsService(GlobalShortcutService):
             arguments=arguments,
         )
 
-    def _subscribe_request(self, path: str, callback: SignalCallback) -> object:
+    def _subscribe_request(self, path: str, callback: SignalCallback) -> int:
         return self._subscribe(
             sender=PORTAL_BUS_NAME,
             object_path=path,
@@ -803,7 +827,7 @@ class GlobalShortcutsService(GlobalShortcutService):
         signal: str,
         arg0: str | None,
         callback: SignalCallback,
-    ) -> object:
+    ) -> int:
         if self._connection is None:
             raise RuntimeError("session bus is not connected")
         return self._signal_adapter.subscribe(
@@ -816,7 +840,7 @@ class GlobalShortcutsService(GlobalShortcutService):
             callback=callback,
         )
 
-    def _unsubscribe(self, handle: object) -> None:
+    def _unsubscribe(self, handle: int) -> None:
         if self._connection is None:
             return
         try:
@@ -859,7 +883,7 @@ class GlobalShortcutsService(GlobalShortcutService):
             log.exception("global shortcut status callback failed")
 
 
-def _load_gio() -> tuple[object, object]:
+def _load_gio() -> tuple[_GioNamespace, _GLibNamespace]:
     import gi
 
     gi.require_version("Gio", "2.0")
@@ -869,12 +893,12 @@ def _load_gio() -> tuple[object, object]:
 
 
 def _gio_parameters(
-    glib: object,
+    glib: _GLibNamespace,
     *,
     interface: str,
     method: str,
     arguments: tuple[object, ...],
-) -> object | None:
+) -> GLib.Variant | None:
     variant = glib.Variant
     if interface in {REQUEST_INTERFACE, SESSION_INTERFACE} and method == "Close":
         return None
@@ -924,7 +948,9 @@ def _gio_parameters(
     raise ValueError(f"unsupported GlobalShortcuts method {method}")
 
 
-def _gio_vardict(glib: object, values: Mapping[str, object]) -> dict[str, object]:
+def _gio_vardict(
+    glib: _GLibNamespace, values: Mapping[str, object]
+) -> dict[str, object]:
     variant = glib.Variant
     packed: dict[str, object] = {}
     for key, value in values.items():

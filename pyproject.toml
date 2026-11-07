@@ -101,7 +101,7 @@ ignore = [
 [tool.ty.environment]
 python-version = "3.10"
 # Always resolve Docking imports from this checkout before installed releases.
-extra-paths = ["."]
+extra-paths = [".", "typings"]
 
 [tool.ty.src]
 # Generated pywayland bindings: the request/event decorators build their
@@ -131,9 +131,7 @@ allowed-unresolved-imports = [
 
 [tool.ty.rules]
 unresolved-import = "error"
-# Attribute checking is enabled below for domains with typed boundaries;
-# native adapters and GTK wiring still contain dynamic attributes.
-unresolved-attribute = "ignore"
+unresolved-attribute = "error"
 invalid-argument-type = "error"
 no-matching-overload = "error"
 # Rules ty leaves off by default, turned on so the imprecision they describe
@@ -153,27 +151,6 @@ division-by-zero = "error"
 invalid-legacy-positional-parameter = "error"
 unsound-yield = "error"
 unsupported-dynamic-base = "error"
-
-[[tool.ty.overrides]]
-include = [
-    "docking/core/**",
-    "docking/search/**",
-    "docking/platform/**",
-    "docking/applets/**/state.py",
-    "docking/applets/**/render.py",
-    "docking/applets/volume/**",
-    "docking/applets/bluetooth/implementations/unix/desktop.py",
-    "docking/applets/network/implementations/unix/desktop_settings.py",
-]
-exclude = [
-    "docking/platform/backends/**",
-    "docking/platform/desktop/**",
-    "docking/platform/diagnostics.py",
-    "docking/search/services/implementations/**",
-]
-
-[tool.ty.overrides.rules]
-unresolved-attribute = "error"
 
 [tool.vulture]
 paths = ["docking", "tests"]

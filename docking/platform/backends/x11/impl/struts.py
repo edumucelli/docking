@@ -161,9 +161,12 @@ class BlurRect(NamedTuple):
     height: int
 
 
-def _xlib_display() -> tuple[object, ctypes.c_void_p]:
+def _xlib_display() -> tuple[ctypes.CDLL, ctypes.c_void_p]:
     xlib = load_library("X11", "libX11.so.6")
-    xdisplay = ctypes.c_void_p(hash(GdkX11.X11Display.get_default().get_xdisplay()))
+    display = GdkX11.X11Display.get_default()
+    if not isinstance(display, GdkX11.X11Display):
+        raise RuntimeError("X11 display is unavailable")
+    xdisplay = ctypes.c_void_p(hash(display.get_xdisplay()))
     xlib.XInternAtom.restype = ctypes.c_ulong
     xlib.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
     xlib.XChangeProperty.argtypes = [

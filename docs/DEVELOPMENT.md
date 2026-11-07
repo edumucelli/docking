@@ -181,13 +181,12 @@ from silently narrowing values to literal types.
 Use rule-specific `ty: ignore[...]` comments when suppression is necessary;
 legacy `type: ignore` comments do not suppress ty diagnostics.
 
-Attribute checks cover core logic, applet state and renderers, volume integration,
-Search outside native implementations, and platform modules outside desktop
-adapters, session backends, and diagnostics. Application discovery and monitoring
-adapters are included.
-The `tool.ty.overrides` section records this scope; expand it as native adapters
-and GTK wiring gain precise types. Remove native namespaces from the allowlist
-when their stubs become available.
+Attribute checks apply to all handwritten application code, including native
+adapters and GTK wiring. Generated Wayland bindings retain their source exclusion.
+The `typings/` search path supplies the GTK 3 GdkX11 APIs used by Docking because
+upstream GdkX11 stubs target GTK 4. Keep this small overlay aligned with the native
+API; remove it when upstream provides matching GTK 3 stubs. Remove native
+namespaces from the missing-import allowlist when their stubs become available.
 
 When changing platform interfaces, migrate Behave callers in `features/steps/`
 as well as pytest fixtures. The shared test factories deliberately construct

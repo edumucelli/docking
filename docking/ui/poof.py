@@ -70,32 +70,26 @@ def show_poof(x: int, y: int) -> None:
     if visual:
         win.set_visual(visual)
 
-    # Store animation state on the window to prevent GC issues
-    win.poof = {
-        "frame": 0,
-        "pixbuf": pixbuf,
-        "frame_size": frame_size,
-        "num_frames": num_frames,
-    }
+    # The draw and timer closures retain the animation state.
+    frame = 0
 
-    def on_draw(widget: Gtk.Widget, cr: cairo.Context) -> bool:
+    def on_draw(_widget: Gtk.Widget, cr: cairo.Context) -> bool:
         cr.set_operator(cairo.OPERATOR_SOURCE)
         cr.set_source_rgba(0, 0, 0, 0)
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
 
-        p = widget.poof
-        f = min(p["frame"], p["num_frames"] - 1)
-        Gdk.cairo_set_source_pixbuf(cr, p["pixbuf"], 0, -p["frame_size"] * f)
-        cr.rectangle(0, 0, p["frame_size"], p["frame_size"])
+        f = min(frame, num_frames - 1)
+        Gdk.cairo_set_source_pixbuf(cr, pixbuf, 0, -frame_size * f)
+        cr.rectangle(0, 0, frame_size, frame_size)
         cr.fill()
         return True
 
     def tick(w: Gtk.Window) -> bool:
-        p = w.poof
-        p["frame"] += 1
-        log.bind(action="animate").debug(f"tick: frame={p['frame']}/{p['num_frames']}")
-        if p["frame"] >= p["num_frames"]:
+        nonlocal frame
+        frame += 1
+        log.bind(action="animate").debug(f"tick: frame={frame}/{num_frames}")
+        if frame >= num_frames:
             w.destroy()
             return False
         w.queue_draw()

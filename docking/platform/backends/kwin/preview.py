@@ -257,6 +257,8 @@ class KWinPreviewService(PreviewService):
                     max(1, round(pixbuf.get_height() * ratio)),
                     GdkPixbuf.InterpType.BILINEAR,
                 )
+            if pixbuf is None:
+                return None
             return PreviewImage(pixbuf, pixbuf.get_width(), pixbuf.get_height())
         finally:
             operation.close()

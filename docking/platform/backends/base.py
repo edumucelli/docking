@@ -25,6 +25,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum
+from typing import Protocol
 
 from .diagnostics import WindowTrackingDiagnostic
 
@@ -343,6 +344,14 @@ class WindowService(Service):
         """Toggle focus/minimize behavior for an app."""
 
 
+class OverlayWindow(Protocol):
+    """Toolkit-neutral operations used to place an external overlay window."""
+
+    def get_scale_factor(self) -> int: ...
+    def move(self, x: int, y: int) -> None: ...
+    def resize(self, width: int, height: int) -> None: ...
+
+
 class SurfaceService(Service):
     """Dock surface role, screen reservation, and platform edge integration."""
 
@@ -494,7 +503,7 @@ class SurfaceService(Service):
     def prepare_overlay_window(self, window: object) -> None:
         """Give a transient overlay window its platform role before realize."""
 
-    def place_overlay(self, window: object, rect: Rect) -> None:
+    def place_overlay(self, window: OverlayWindow, rect: Rect) -> None:
         """Place a prepared overlay window at ``rect`` in global coordinates.
 
         The default suits backends reporting device pixels and where

@@ -120,8 +120,9 @@ class UnixTrayPresentation(TrayPresentation):
             return
 
         message = self._host.unavailable_reason or _("Unknown X11 tray error")
+        anchor = self._anchor()
         dialog = Gtk.MessageDialog(
-            transient_for=self._anchor().parent if self._anchor() else None,
+            transient_for=anchor.parent if anchor is not None else None,
             modal=True,
             message_type=Gtk.MessageType.WARNING,
             buttons=Gtk.ButtonsType.OK,
@@ -133,8 +134,9 @@ class UnixTrayPresentation(TrayPresentation):
 
     def _confirm_take_over_legacy(self) -> None:
         owner = self._state().legacy_owner or _("another tray")
+        anchor = self._anchor()
         dialog = Gtk.MessageDialog(
-            transient_for=self._anchor().parent if self._anchor() else None,
+            transient_for=anchor.parent if anchor is not None else None,
             modal=True,
             message_type=Gtk.MessageType.WARNING,
             buttons=Gtk.ButtonsType.CANCEL,

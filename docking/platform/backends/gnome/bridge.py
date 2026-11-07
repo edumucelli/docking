@@ -275,7 +275,7 @@ class GnomeShellBridgeWindowService(WindowService):
         model: DockModel,
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
-        bridge: object,
+        bridge: GnomeShellBridgeClient,
     ) -> None:
         self._model = model
         self._matcher = AppIdMatcher(
@@ -512,7 +512,7 @@ class GnomeShellBridgeWindowService(WindowService):
 class GnomeShellBridgeWorkspaceService(WorkspaceService):
     """WorkspaceService backed by the GNOME Shell bridge extension."""
 
-    def __init__(self, *, bridge: object) -> None:
+    def __init__(self, *, bridge: GnomeShellBridgeClient) -> None:
         self._bridge = bridge
         self._workspaces: tuple[WorkspaceSnapshot, ...] = ()
         self._watchers: dict[int, Callable[[], None]] = {}
@@ -702,7 +702,7 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
     runs inside the shell process with full window-management privileges.
     """
 
-    def __init__(self, *, bridge: object) -> None:
+    def __init__(self, *, bridge: GnomeShellBridgeClient) -> None:
         self._bridge = bridge
         self._window: object | None = None
         self._position_retry_source_id: int = 0

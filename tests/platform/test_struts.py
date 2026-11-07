@@ -476,7 +476,7 @@ class TestStrutWriters:
             lambda _name: xlib,
         )
 
-        display = MagicMock()
+        display = MagicMock(spec=struts_mod.GdkX11.X11Display)
         display.get_xdisplay.return_value = object()
         monkeypatch.setattr(
             struts_mod.GdkX11.X11Display,
@@ -592,7 +592,7 @@ class TestStrutWriters:
             lambda _name: xlib,
         )
 
-        display = MagicMock()
+        display = MagicMock(spec=struts_mod.GdkX11.X11Display)
         display.get_xdisplay.return_value = object()
         monkeypatch.setattr(
             struts_mod.GdkX11.X11Display,

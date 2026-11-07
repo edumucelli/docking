@@ -146,7 +146,7 @@ class FolderStackController(StackPopupController):
         self._browser = FolderBrowser(
             target_service=target_service,
         )
-        self._folder_stack_cache = FolderStackCache(target_service)
+        self._folder_stack_cache: FolderStackCache = FolderStackCache(target_service)
         self._folder_content_cache: dict[tuple[object, ...], StackContent] = {}
         self._folder_stack_item: DockItem | None = None
         self._folder_stack_monitor: Gio.FileMonitor | None = None

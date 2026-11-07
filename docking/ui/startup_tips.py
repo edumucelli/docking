@@ -49,6 +49,7 @@ from docking.ui.tooltip import compute_tooltip_position
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.ui.dock_window import DockWindow
 
 log = get_logger("tips")
 
@@ -74,7 +75,7 @@ class StartupTipsController:
     def __init__(
         self,
         *,
-        window: Gtk.Window,
+        window: DockWindow,
         config: Config,
         state_path: Path | str | None = None,
         chooser: Callable[[Sequence[StartupTip]], StartupTip] | None = None,
