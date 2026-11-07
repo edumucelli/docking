@@ -161,11 +161,11 @@ class BlurRect(NamedTuple):
     height: int
 
 
-def _xlib_display() -> tuple[ctypes.CDLL, ctypes.c_void_p]:
-    xlib = load_library("X11", "libX11.so.6")
+def _xlib_display() -> tuple[ctypes.CDLL, ctypes.c_void_p] | None:
     display = GdkX11.X11Display.get_default()
     if not isinstance(display, GdkX11.X11Display):
-        raise RuntimeError("X11 display is unavailable")
+        return None
+    xlib = load_library("X11", "libX11.so.6")
     xdisplay = ctypes.c_void_p(hash(display.get_xdisplay()))
     xlib.XInternAtom.restype = ctypes.c_ulong
     xlib.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
@@ -184,7 +184,10 @@ def _xlib_display() -> tuple[ctypes.CDLL, ctypes.c_void_p]:
 
 def set_struts(gdk_window: GdkX11.X11Window, struts: list[int]) -> None:
     """Write the raw strut arrays to X11 properties via ctypes/Xlib."""
-    xlib, xdisplay = _xlib_display()
+    connection = _xlib_display()
+    if connection is None:
+        return
+    xlib, xdisplay = connection
     xid = gdk_window.get_xid()
 
     atom_partial = xlib.XInternAtom(xdisplay, ATOM_STRUT_PARTIAL, 0)
@@ -249,7 +252,10 @@ def compute_blur_region(
 
 def set_blur_region(gdk_window: GdkX11.X11Window, blur_region: list[int]) -> None:
     """Write the Docking blur hint property for compositor integrations."""
-    xlib, xdisplay = _xlib_display()
+    connection = _xlib_display()
+    if connection is None:
+        return
+    xlib, xdisplay = connection
     xid = gdk_window.get_xid()
 
     atom_blur = xlib.XInternAtom(xdisplay, ATOM_BACKGROUND_BLUR_REGION, 0)

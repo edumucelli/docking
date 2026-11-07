@@ -424,7 +424,8 @@ class WaylandPreviewService(PreviewService):
     def _create_frame(self, *, request: _CaptureRequest, format_: int) -> None:
         session = request.session
         if session is None:
-            raise RuntimeError("Capture session has already closed")
+            self._finish_failed(request)
+            return
         stride = request.width * 4
         buffer = _allocate_shm_buffer(
             request,

@@ -3,6 +3,8 @@
 import sys
 from unittest.mock import MagicMock
 
+import pytest
+
 try:
     import gi  # noqa: F401
 except ModuleNotFoundError:  # pragma: no cover
@@ -466,6 +468,25 @@ class TestBlurRegion:
 
 
 class TestStrutWriters:
+    @pytest.mark.parametrize("display", [None, object()])
+    def test_optional_x11_hints_are_skipped_without_an_x11_display(
+        self, monkeypatch, display
+    ):
+        monkeypatch.setattr(
+            struts_mod.GdkX11.X11Display, "get_default", lambda: display
+        )
+        load_library = MagicMock()
+        monkeypatch.setattr(struts_mod, "load_library", load_library)
+        window = MagicMock()
+
+        struts_mod.set_struts(window, [0] * 12)
+        clear_struts(window)
+        set_blur_region(window, [0] * 8)
+        clear_blur_region(window)
+
+        load_library.assert_not_called()
+        window.get_xid.assert_not_called()
+
     def test_set_struts_writes_partial_and_legacy_atoms(self, monkeypatch):
         # Given
         xlib = MagicMock()

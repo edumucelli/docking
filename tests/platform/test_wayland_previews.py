@@ -152,6 +152,31 @@ def test_wayland_preview_service_starts_once_and_returns_cached_frame(monkeypatc
     assert session.frame.destroy.call_count == 1
 
 
+def test_closed_capture_session_releases_request_without_allocating_a_buffer():
+    window_id = WindowId(DisplayServer.WAYLAND, 7)
+    source = SimpleNamespace(destroy=MagicMock())
+    protocol = SimpleNamespace(create_shm_pool=MagicMock())
+    service = WaylandPreviewService(protocol=protocol, handles=MagicMock())
+    request = preview_mod._CaptureRequest(
+        window_id=window_id,
+        requested_width=100,
+        requested_height=60,
+        source=source,
+        session=None,
+        width=320,
+        height=240,
+    )
+    service._pending[(window_id, 100, 60)] = request
+
+    service._create_frame(request=request, format_=SHM_ARGB8888)
+    service.stop()
+
+    assert service._pending == {}
+    source.destroy.assert_called_once_with()
+    protocol.create_shm_pool.assert_not_called()
+    assert request.fd is None and request.mmap_obj is None
+
+
 def test_hyprland_preview_service_uses_wlr_handle_and_returns_cached_frame(
     monkeypatch,
 ):
