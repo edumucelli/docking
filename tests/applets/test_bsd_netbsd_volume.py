@@ -1,5 +1,7 @@
 """NetBSD mixer channel scaling, native mute, and reversible software mute."""
 
+import sys
+
 import pytest
 
 from docking.applets.volume.implementations.bsd import backend, netbsd
@@ -20,7 +22,7 @@ def mixer(monkeypatch):
         return "\n".join(f"{key}={value}" for key, value in values.items())
 
     monkeypatch.setattr(netbsd, "run_command", command)
-    monkeypatch.setattr(backend.sys, "platform", "netbsd11")
+    monkeypatch.setattr(sys, "platform", "netbsd11")
     monkeypatch.setattr(
         backend.shutil,
         "which",
@@ -86,6 +88,6 @@ def test_failed_write_does_not_claim_software_mute(mixer, monkeypatch):
 
 
 def test_pulseaudio_keeps_precedence_on_netbsd(monkeypatch):
-    monkeypatch.setattr(backend.sys, "platform", "netbsd11")
+    monkeypatch.setattr(sys, "platform", "netbsd11")
     monkeypatch.setattr(backend.shutil, "which", lambda _name: "/usr/pkg/bin/pactl")
     assert backend.create_backend().controls.command == "pactl"

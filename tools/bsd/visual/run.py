@@ -26,6 +26,7 @@ import traceback
 from contextlib import contextmanager
 from pathlib import Path
 
+from docking.platform.environment import is_freebsd, is_netbsd
 from tools.bsd.visual.pixels import Frame, placement
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -618,9 +619,9 @@ def run_checks(observer: Observer, env: dict[str, str], record):
                 "camshield",
             )
         ]
-        if sys.platform.startswith("netbsd"):
+        if is_netbsd():
             pinned.remove("applet://camshield")
-        if sys.platform.startswith(("linux", "freebsd")):
+        if sys.platform.startswith("linux") or is_freebsd():
             pinned.append("applet://bluetooth")
         with dock_case(observer, env, "applets", {"pinned": pinned}) as child:
             ready(observer, child, count=len(pinned))

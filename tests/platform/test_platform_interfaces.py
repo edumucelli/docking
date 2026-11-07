@@ -139,9 +139,23 @@ def test_shared_consumers_do_not_select_or_import_native_implementations():
                 path
             )
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-                assert node.func.attr not in {"is_bsd", "is_windows", "is_linux"}, path
+                assert node.func.attr not in {
+                    "is_bsd",
+                    "is_freebsd",
+                    "is_openbsd",
+                    "is_netbsd",
+                    "is_windows",
+                    "is_linux",
+                }, path
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-                assert node.func.id not in {"is_bsd", "is_windows", "is_linux"}, path
+                assert node.func.id not in {
+                    "is_bsd",
+                    "is_freebsd",
+                    "is_openbsd",
+                    "is_netbsd",
+                    "is_windows",
+                    "is_linux",
+                }, path
             if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
                 assert (node.value.id, node.attr) not in {
                     ("sys", "platform"),

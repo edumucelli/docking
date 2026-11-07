@@ -1,5 +1,6 @@
 """BSD integration regression tests at their owning boundaries."""
 
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -22,7 +23,7 @@ def test_process_disappearing_does_not_abort_tracking(monkeypatch):
 
 
 def test_openbsd_does_not_guess_process_executable_from_its_own_path(monkeypatch):
-    monkeypatch.setattr(bsd.sys, "platform", "openbsd7")
+    monkeypatch.setattr(sys, "platform", "openbsd7")
     process = SimpleNamespace(cmdline=lambda: ["editor"], exe=lambda: "/wrong/editor")
     monkeypatch.setattr(
         bsd, "_psutil", lambda: SimpleNamespace(Process=lambda pid: process)
@@ -64,3 +65,28 @@ def test_script_identity_only_returns_python_script_basename(
         ),
     )
     assert bsd.process_script(42) == expected
+
+
+@pytest.mark.parametrize(
+    "system,kernel_path",
+    [
+        ("freebsd15", True),
+        ("openbsd7", False),
+        ("netbsd11", True),
+    ],
+)
+def test_native_executable_evidence_uses_the_supported_source(
+    monkeypatch, tmp_path, system, kernel_path
+):
+    monkeypatch.setattr(sys, "platform", system)
+    executable = tmp_path / "kernel-program"
+    executable.touch()
+    command = tmp_path / "argv-program"
+    command.touch()
+    process = SimpleNamespace(
+        exe=lambda: str(executable), cmdline=lambda: [str(command)]
+    )
+    monkeypatch.setattr(
+        bsd, "_psutil", lambda: SimpleNamespace(Process=lambda pid: process)
+    )
+    assert bsd.process_executable(42) == (executable if kernel_path else command)

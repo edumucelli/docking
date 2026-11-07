@@ -55,7 +55,7 @@ def test_actual_host_selection_and_process_executable():
 
 
 @pytest.mark.skipif(
-    not sys.platform.startswith("netbsd"),
+    not environment.is_netbsd(),
     reason="requires NetBSD pkgsrc desktop dependencies",
 )
 def test_actual_netbsd_icons_and_application_discovery():

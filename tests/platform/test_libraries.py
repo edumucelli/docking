@@ -1,5 +1,7 @@
 """Native library discovery must respect BSD ABI names and Linux SONAMEs."""
 
+import sys
+
 import pytest
 
 from docking.platform import libraries
@@ -8,7 +10,7 @@ from docking.platform import libraries
 @pytest.mark.parametrize("system", ["freebsd15", "openbsd7", "netbsd11"])
 def test_bsd_uses_native_library_name(monkeypatch, system):
     libraries._library_path.cache_clear()
-    monkeypatch.setattr(libraries.sys, "platform", system)
+    monkeypatch.setattr(sys, "platform", system)
     monkeypatch.setattr(
         libraries.ctypes.util,
         "find_library",
@@ -23,7 +25,7 @@ def test_bsd_uses_native_library_name(monkeypatch, system):
 
 def test_linux_keeps_packaged_soname(monkeypatch):
     libraries._library_path.cache_clear()
-    monkeypatch.setattr(libraries.sys, "platform", "linux")
+    monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.setattr(
         libraries.ctypes.util,
         "find_library",

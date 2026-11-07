@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import importlib
 import re
-import sys
 from pathlib import Path
 from typing import Any
 
 from docking.log import get_logger
 from docking.platform.applications.backend import ProcessBackend
+from docking.platform.environment import is_netbsd, is_openbsd
 
 log = get_logger("applications.bsd")
 
@@ -21,13 +21,13 @@ def _psutil() -> Any:
 def process_executable(pid: int) -> Path | None:
     try:
         process = _psutil().Process(pid)
-        if sys.platform.startswith("openbsd"):
-            # OpenBSD cannot query a kernel executable path. psutil.exe() guesses
-            # via the observer's PATH, which can misidentify another executable.
-            argv = process.cmdline()
-            value = str(argv[0]) if argv else ""
+        if is_netbsd():
+            from .netbsd import executable_path
+        elif is_openbsd():
+            from .openbsd import executable_path
         else:
-            value = str(process.exe())
+            from .freebsd import executable_path
+        value = executable_path(process)
         path = Path(value)
         return (
             path.resolve() if value and path.is_absolute() and path.is_file() else None

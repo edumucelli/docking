@@ -1,6 +1,7 @@
 """NetBSD envsys sensors retain units, validity, and unknown battery times."""
 
 import plistlib
+import sys
 
 import pytest
 
@@ -38,7 +39,7 @@ def readings(monkeypatch):
         return plistlib.dumps(devices).decode()
 
     monkeypatch.setattr(envsys, "read_command", command)
-    monkeypatch.setattr(battery_bsd.sys, "platform", "netbsd11")
+    monkeypatch.setattr(sys, "platform", "netbsd11")
     return devices
 
 

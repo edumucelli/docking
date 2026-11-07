@@ -1,10 +1,10 @@
 """BSD session-action commands, with privileges controlled by the OS."""
 
 import shutil
-import sys
 
 from docking.applets.session.backend import SessionBackend
 from docking.applets.session.implementations.unix.actions import SessionCommands
+from docking.platform.environment import is_netbsd, is_openbsd
 
 _LOCK_SCREEN_COMMAND_CANDIDATES: tuple[tuple[str, ...], ...] = (
     ("mate-screensaver-command", "-l"),
@@ -28,14 +28,16 @@ def command_for(action: str) -> list[str] | None:
             if shutil.which(argv[0]):
                 return list(argv)
         return None
-    openbsd = sys.platform.startswith("openbsd")
-    suspend = ["zzz"] if openbsd else ["acpiconf", "-s", "3"]
-    if sys.platform.startswith("netbsd"):
-        suspend = ["sysctl", "-w", "hw.acpi.sleep.state=3"]
+    if is_netbsd():
+        from . import netbsd as native
+    elif is_openbsd():
+        from . import openbsd as native
+    else:
+        from . import freebsd as native
     commands = {
-        "suspend": suspend,
+        "suspend": list(native.SUSPEND_COMMAND),
         "reboot": ["shutdown", "-r", "now"],
-        "poweroff": ["shutdown", "-hp" if openbsd else "-p", "now"],
+        "poweroff": list(native.POWEROFF_COMMAND),
     }
     result = commands.get(action)
     return result if result and shutil.which(result[0]) else None

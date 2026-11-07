@@ -111,6 +111,11 @@ owning domain's `implementations/<family>/` package. Use `unix` for shared
 Linux/BSD protocols and tools, `linux` or `bsd` for kernel APIs, and `shared`
 for portable native tools. Keep package initializers lightweight.
 
+Within BSD adapters, keep OS-specific behavior in matching `freebsd.py`,
+`openbsd.py`, and `netbsd.py` modules. Dispatch through the owning backend using
+`is_freebsd()`, `is_openbsd()`, and `is_netbsd()` from `platform/environment/`.
+Keep behavior common to all three BSDs shared.
+
 `platform/host/` supplies paths, storage durability, file locking, hook commands,
 and mounted-filesystem facts without importing GI. Host selection is cached;
 XDG variables are read when directory helpers are called. Desktop file/URI

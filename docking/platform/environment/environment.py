@@ -159,7 +159,22 @@ def detect_desktop() -> Desktop:
 
 def is_bsd() -> bool:
     """Return True on the supported FreeBSD, OpenBSD and NetBSD hosts."""
-    return sys.platform.startswith(("freebsd", "openbsd", "netbsd"))
+    return is_freebsd() or is_openbsd() or is_netbsd()
+
+
+def is_freebsd() -> bool:
+    """Return True on FreeBSD, including versioned platform names."""
+    return sys.platform.startswith("freebsd")
+
+
+def is_openbsd() -> bool:
+    """Return True on OpenBSD, including versioned platform names."""
+    return sys.platform.startswith("openbsd")
+
+
+def is_netbsd() -> bool:
+    """Return True on NetBSD, including versioned platform names."""
+    return sys.platform.startswith("netbsd")
 
 
 def is_wayland_session() -> bool:

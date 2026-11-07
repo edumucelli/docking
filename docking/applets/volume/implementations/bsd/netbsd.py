@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import shutil
+
 from docking.applets.volume.backend import VolumeControls
 from docking.applets.volume.implementations.unix.command import run_command
 from docking.applets.volume.state import VolumeState
 
 
-def controls() -> VolumeControls:
+def controls() -> VolumeControls | None:
+    if shutil.which("mixerctl") is None:
+        return None
     saved_levels: tuple[int, ...] | None = None
 
     def read() -> tuple[str, tuple[int, ...], str | None, bool] | None:
