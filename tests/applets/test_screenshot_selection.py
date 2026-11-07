@@ -104,9 +104,12 @@ def test_preview_fits_the_monitor_and_destroys_its_native_chooser(
     try:
         shown = view.dialog.get_content_area().get_children()[0].get_pixbuf()
         if has_monitor:
-            monitor = view.dialog.get_display().get_monitor(0).get_workarea()
-            assert shown.get_width() <= monitor.width - 80
-            assert shown.get_height() <= monitor.height - 140
+            display = view.dialog.get_display()
+            monitor = display.get_primary_monitor() or display.get_monitor(0)
+            assert monitor is not None
+            workarea = monitor.get_workarea()
+            assert shown.get_width() <= workarea.width - 80
+            assert shown.get_height() <= workarea.height - 140
         else:
             assert shown.get_width() <= 900
             assert shown.get_height() <= 500

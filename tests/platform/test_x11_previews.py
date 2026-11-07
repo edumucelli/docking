@@ -209,22 +209,25 @@ class TestCaptureWindow:
         fallback = MagicMock()
         monkeypatch.setattr(preview_capture, "_icon_fallback", lambda **_k: fallback)
         monkeypatch.setattr(preview_capture.GLib, "Error", RuntimeError, raising=False)
+        display = MagicMock(spec=preview_capture.GdkX11.X11Display)
+        lookup = MagicMock(side_effect=TypeError("bad foreign window"))
         monkeypatch.setattr(
             preview_capture.GdkX11.X11Display,
             "get_default",
-            lambda: MagicMock(),
+            lambda: display,
             raising=False,
         )
         monkeypatch.setattr(
             preview_capture.GdkX11.X11Window,
             "foreign_new_for_display",
-            MagicMock(side_effect=TypeError("bad foreign window")),
+            lookup,
             raising=False,
         )
         # When
         result = preview_capture.capture_window(window, thumb_w=180, thumb_h=120)
         # Then
         assert result is fallback
+        lookup.assert_called_once_with(display, 100)
 
     def test_capture_xid_returns_none_for_black_unavailable_frame(self, monkeypatch):
         # Given

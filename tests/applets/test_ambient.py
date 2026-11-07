@@ -354,7 +354,7 @@ class TestAmbientLifecycleAndPipelines:
         applet._start_playback()
 
         bus.add_signal_watch.assert_called_once()
-        bus.connect.assert_called_once()
+        bus.connect.assert_called_once_with("message::eos", applet._on_eos)
         pipeline.set_state.assert_called_once_with(ambient_mod.Gst.State.PLAYING)
         assert applet._bus_watching is True
 
