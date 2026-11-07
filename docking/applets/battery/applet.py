@@ -78,6 +78,7 @@ class BatteryApplet(PlatformServicesApplet):
         self._worker = BackgroundWorker()
         self._stopped = False
         self._generation = 0
+        self._poll_pending = False
         self._state: BatteryState | None = None
         self._peripherals: list[PeripheralBattery] = []
         super().__init__(
@@ -100,6 +101,7 @@ class BatteryApplet(PlatformServicesApplet):
         super().start(notify=notify)
         self._stopped = False
         self._generation += 1
+        self._poll_pending = False
         self._tick()
         self._timer_id = GLib.timeout_add_seconds(_FULL_POLL_SECONDS, self._tick)
         self._sync_power_timer()
@@ -109,6 +111,7 @@ class BatteryApplet(PlatformServicesApplet):
         """Stop the polling timers."""
         self._stopped = True
         self._generation += 1
+        self._poll_pending = False
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -161,6 +164,7 @@ class BatteryApplet(PlatformServicesApplet):
         if self._stopped:
             return False
         backend, generation = self._backend, self._generation
+        self._poll_pending = False
 
         def ready(state: BatteryState | None) -> bool:
             if (
@@ -170,14 +174,20 @@ class BatteryApplet(PlatformServicesApplet):
             ):
                 self._state = state
                 self.present()
+                if self._poll_pending:
+                    self._poll_pending = False
+                    self._tick()
             return False
 
-        self._worker.run_guarded(
+        started = self._worker.run_guarded(
             key=f"battery:{generation}",
             name="battery-state",
             fn=backend.read_battery,
             on_result=ready,
+            on_error=lambda _error: ready(None),
         )
+        if not started:
+            self._poll_pending = True
         self._refresh_peripherals()
         return True
 

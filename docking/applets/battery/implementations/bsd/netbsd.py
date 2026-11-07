@@ -8,6 +8,7 @@ from .backend import Battery
 
 
 def battery() -> Battery | None:
+    """Read one present ACPI battery, retaining unknown time and charge states."""
     sensors = read_sensors()
     batteries: dict[str, dict[str, Sensor]] = {}
     connected = any(
@@ -40,13 +41,27 @@ def battery() -> Battery | None:
         capacity = max(0, min(100, round(charge.value * 100 / maximum)))
         charging = readings.get("charging")
         is_charging = charging is not None and charging.value == 1
-        status = "Charging" if is_charging else "Full" if connected else "Discharging"
-        remaining = None
-        rate = readings.get("charge rate" if is_charging else "discharge rate")
         rate_unit = "Watts" if charge.unit == "Watt hour" else "Ampere"
+        discharge = readings.get("discharge rate")
+        is_discharging = not connected or (
+            discharge is not None
+            and discharge.unit == rate_unit
+            and discharge.value > 0
+        )
+        status = (
+            "Charging"
+            if is_charging
+            else "Discharging"
+            if is_discharging
+            else "Full"
+            if capacity == 100
+            else "Not charging"
+        )
+        remaining = None
+        rate = readings.get("charge rate") if is_charging else discharge
         if rate is not None and rate.unit == rate_unit and rate.value > 0:
             amount = max(0, maximum - charge.value) if is_charging else charge.value
-            if is_charging or not connected:
+            if is_charging or is_discharging:
                 remaining = round(amount * 3600 / rate.value)
         return Battery(capacity, status, remaining)
     return None

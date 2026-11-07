@@ -74,9 +74,25 @@ def test_missing_or_invalid_discharge_rate_keeps_unknown_time(readings, rate):
     assert battery_bsd.battery() == battery_bsd.Battery(75, "Discharging", None)
 
 
-def test_plugged_battery_without_charging_is_full(readings):
+def test_plugged_battery_keeps_discharge_estimate_when_supplying_power(readings):
     readings["acpiacad0"][0]["cur-value"] = 1
-    assert battery_bsd.battery() == battery_bsd.Battery(75, "Full", None)
+    assert battery_bsd.battery() == battery_bsd.Battery(75, "Discharging", 10800)
+
+
+@pytest.mark.parametrize(
+    "charge,status", [(30_000_000, "Not charging"), (40_000_000, "Full")]
+)
+def test_plugged_idle_battery_is_full_only_at_full_capacity(readings, charge, status):
+    readings["acpiacad0"][0]["cur-value"] = 1
+    next(s for s in readings["acpibat0"] if s["description"] == "charge")[
+        "cur-value"
+    ] = charge
+    next(s for s in readings["acpibat0"] if s["description"] == "discharge rate")[
+        "cur-value"
+    ] = 0
+    assert battery_bsd.battery() == battery_bsd.Battery(
+        round(charge / 400_000), status, None
+    )
 
 
 @pytest.mark.parametrize(

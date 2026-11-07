@@ -7,15 +7,21 @@ import shutil
 from docking.applets.volume.backend import VolumeControls
 from docking.applets.volume.implementations.unix.command import run_command
 from docking.applets.volume.state import VolumeState
+from docking.platform.environment import docking_state_dir
+
+from .software_mute import SavedMute, load_mute, save_mute
 
 
 def controls() -> VolumeControls | None:
+    """Create native controls; perform mixer and recovery I/O on their worker."""
     if shutil.which("mixerctl") is None:
         return None
-    saved_levels: tuple[int, ...] | None = None
+    state_path = docking_state_dir() / "volume/netbsd-mute.json"
+    saved: SavedMute | None = None
+    loaded = False
 
     def read() -> tuple[str, tuple[int, ...], str | None, bool] | None:
-        nonlocal saved_levels
+        nonlocal saved, loaded
         output = run_command(["mixerctl", "-a"], "get_state")
         if output is None:
             return None
@@ -48,9 +54,18 @@ def controls() -> VolumeControls | None:
             ),
             None,
         )
-        if any(levels):
-            saved_levels = None
-        muted = values[mute] == "on" if mute else saved_levels is not None
+        if not loaded:
+            saved = load_mute(state_path)
+            loaded = True
+        if saved is not None and (
+            saved.control != key
+            or len(saved.levels) != len(levels)
+            or mute is not None
+            or any(levels)
+        ):
+            saved = None
+            save_mute(state_path, None)
+        muted = values[mute] == "on" if mute else saved is not None
         return key, levels, mute, muted
 
     def write(key: str, levels: tuple[int, ...]) -> bool:
@@ -69,17 +84,18 @@ def controls() -> VolumeControls | None:
         return VolumeState(round(sum(levels) * 100 / (len(levels) * 255)), muted)
 
     def set_volume(value: int) -> None:
-        nonlocal saved_levels
+        nonlocal saved
         reading = read()
         if reading is None:
             return
         key, levels, _mute, _muted = reading
         level = round(max(0, min(100, value)) * 255 / 100)
         if write(key, (level,) * len(levels)):
-            saved_levels = None
+            saved = None
+            save_mute(state_path, None)
 
     def toggle_mute() -> None:
-        nonlocal saved_levels
+        nonlocal saved
         reading = read()
         if reading is None:
             return
@@ -88,10 +104,16 @@ def controls() -> VolumeControls | None:
             run_command(
                 ["mixerctl", "-w", f"{mute}={'off' if muted else 'on'}"], "toggle_mute"
             )
-        elif saved_levels is not None:
-            if write(key, saved_levels):
-                saved_levels = None
-        elif any(levels) and write(key, (0,) * len(levels)):
-            saved_levels = levels
+        elif saved is not None:
+            if write(key, saved.levels):
+                saved = None
+                save_mute(state_path, None)
+        else:
+            recovery = SavedMute(key, levels)
+            if save_mute(state_path, recovery):
+                if write(key, (0,) * len(levels)):
+                    saved = recovery
+                else:
+                    save_mute(state_path, None)
 
     return VolumeControls("mixerctl", get_state, set_volume, toggle_mute)

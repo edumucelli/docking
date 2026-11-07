@@ -265,7 +265,10 @@ without a BSD machine. The weekly/manual **BSD desktops** workflow runs the
 same checks. Hardware readings, audio devices and power actions need physical
 hardware validation; the reference desktop is compositing Xfce.
 
-The NetBSD target is 11.0/amd64 with pkgsrc Python 3.12. Its VM scripts set
+The NetBSD target is 11.0/amd64 with pkgsrc Python 3.12. When changing this target,
+update the X11 SHA512 pins in `tools/bsd/visual/checksums/` from the signed NetBSD
+release hash list. The installer verifies each archive before extraction.
+Its VM scripts set
 `DOCKING_BSD_PYTHON=/usr/pkg/bin/python3.12` and include `/usr/pkg/bin`,
 `/usr/pkg/sbin`, and `/usr/X11R7/bin` in `PATH`. Packages and installed visual
 checks use `/usr/pkg`; keep native GTK/GI/Cairo/psutil packages visible with

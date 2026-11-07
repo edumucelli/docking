@@ -1,0 +1,7 @@
+# NetBSD 11.0/amd64 X11 sets, authenticated with the release hash signature.
+# https://cdn.NetBSD.org/pub/NetBSD/security/hashes/NetBSD-11.0_hashes.asc
+# Signing key: 271133262BF35CB50D4F504689261E17F5EF49FF
+SHA512 (xbase.tar.xz) = 1fc6760036b07676d3da3f45eb23bf1a3891fd46255d4b9f984d045095c77bf586bda0ba1be9b79f6d9c7c2f6d73c3098c31b982c1f2706a6071f155a27a3ef6
+SHA512 (xetc.tar.xz) = 65bca517b224b65b6e5070f679e56bc803b0970b1ae08c653cf5c13b46d0576241add37a2c5284d419e8a5e0335fee6daebee04bcd3009178671eef0e9810bf7
+SHA512 (xfont.tar.xz) = 5d74faffbe25923eb37318bca4a897713989d8d98627d31640aacba53a976aadff370491011c808aaf03919534ff2fce95e78362461c6e2eae1ced449bba5316
+SHA512 (xserver.tar.xz) = 27ae07ba72d5e805489facd37b7f932c70f480b71ac66e9b1b437ea2418ef15de35bcedef010cb91be8b09f93e2aa7ea22f9f4758daa6eec3fe4f64128f5dec3

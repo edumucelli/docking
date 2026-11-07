@@ -250,6 +250,46 @@ def _make_applet(
 
 
 class TestVolumeApplet:
+    @pytest.mark.parametrize("steps", [1, 3])
+    def test_scroll_before_initial_reply_uses_the_mixer_volume(self, steps):
+        jobs = []
+        worker = MagicMock()
+        worker.run_guarded.side_effect = lambda **task: jobs.append(task) or True
+        worker.run.side_effect = lambda **task: jobs.append(task)
+        applet = _make_applet(
+            VolumeState(80, False), worker_factory=lambda **_kwargs: worker
+        )
+        controls = applet._backend.controls
+        controls.set_volume.side_effect = lambda value: setattr(
+            controls.get_state, "return_value", VolumeState(value, False)
+        )
+        initial = jobs.pop(0)
+        old_state = initial["fn"]()
+        for _ in range(steps):
+            applet.on_scroll(True)
+        controls.set_volume.assert_not_called()
+        initial["on_result"](old_state)
+        assert not applet._available
+        for task in jobs:
+            task["on_result"](task["fn"]())
+        assert applet._volume == 80 + 5 * steps
+        assert applet._available
+        assert controls.set_volume.call_args_list[0].args == (85,)
+        applet.stop()
+
+    @pytest.mark.parametrize("action", ["scroll", "mute"])
+    def test_unverified_change_is_unavailable_until_a_successful_read(self, action):
+        applet = _make_applet(VolumeState(80, False))
+        applet._backend.controls.get_state.return_value = None
+        if action == "scroll":
+            applet.on_scroll(True)
+        else:
+            applet.on_clicked()
+        assert not applet._available
+        assert applet.item.name == "Volume\nUnavailable"
+        applet._on_poll_result(VolumeState(75, False))
+        assert applet._available and applet.item.name == "Volume: 75%"
+
     def test_native_commands_are_deferred_and_old_scroll_results_do_not_rewind(self):
         jobs = []
         worker = MagicMock()
@@ -476,6 +516,9 @@ class TestVolumeAppletInternals:
     def test_on_poll_result_handles_none_and_no_change(self):
         applet = _make_applet()
         assert applet._on_poll_result(None) is False
+        assert not applet._available
+        assert applet._on_poll_result(VolumeState(45, False)) is False
+        assert applet._available
         applet._volume = 45
         applet._muted = False
         applet.present = MagicMock()

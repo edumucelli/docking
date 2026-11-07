@@ -235,6 +235,7 @@ def openbsd_package(stage_dir: Path, work: Path, version: str) -> Path:
 
 
 def netbsd_package(stage_dir: Path, work: Path, version: str) -> Path:
+    """Build a pkgsrc package with compatible runtime dependency patterns."""
     prefix = Path("/usr/pkg")
     suffix = f"{sys.version_info.major}{sys.version_info.minor}"
     dependencies = []
@@ -250,10 +251,14 @@ def netbsd_package(stage_dir: Path, work: Path, version: str) -> Path:
         "dbus",
         "polkit",
     ):
-        matches = output("pkg_info", "-e", f"{stem}-[0-9]*").splitlines()
+        matches = [
+            package
+            for package in output("pkg_info", "-e", f"{stem}-[0-9]*").splitlines()
+            if package.rpartition("-")[0] == stem
+        ]
         if len(matches) != 1:
             raise ValueError(f"Expected one installed dependency for {stem}: {matches}")
-        dependencies.append(matches[0])
+        dependencies.append(f"{stem}>={matches[0].rpartition('-')[2]}")
     plist = work / "PLIST"
     plist.write_text(
         f"@name docking-{version}\n"

@@ -33,7 +33,9 @@ def test_netbsd_camera_controls_are_unavailable_without_permission_changes(
     state = tmp_path / "state"
     monkeypatch.setattr(common.BsdCameraControl, "state_dir", state)
     backend = create_backend()
-    assert not backend.probe(dev_root=tmp_path, proc_root=tmp_path).available
+    camera = backend.probe(dev_root=tmp_path, proc_root=tmp_path)
+    assert not camera.available and camera.active is None and camera.error
+    assert "Camera state unavailable" in build_tooltip(camera)
     for action in (backend.lock, backend.unlock):
         with pytest.raises(OSError, match="NetBSD"):
             action()

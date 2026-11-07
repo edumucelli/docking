@@ -1693,5 +1693,10 @@
     "pt": "Transferir pacote NetBSD",
     "fr": "Télécharger le paquet NetBSD",
     "es": "Descargar paquete NetBSD"
+  },
+  "amd64 · .tgz · composited X11": {
+    "pt": "amd64 · .tgz · X11 com composição",
+    "fr": "amd64 · .tgz · X11 avec composition",
+    "es": "amd64 · .tgz · X11 con composición"
   }
 }

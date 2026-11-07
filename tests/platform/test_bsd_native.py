@@ -58,7 +58,7 @@ def test_actual_host_selection_and_process_executable():
     not environment.is_netbsd(),
     reason="requires NetBSD pkgsrc desktop dependencies",
 )
-def test_actual_netbsd_icons_and_application_discovery():
+def test_actual_netbsd_icons_and_application_discovery(monkeypatch):
     import gi
 
     gi.require_version("GdkPixbuf", "2.0")
@@ -67,7 +67,24 @@ def test_actual_netbsd_icons_and_application_discovery():
 
     from docking.platform.applications.implementations.unix.entries import desktop_dirs
 
+    monkeypatch.delenv("XDG_DATA_DIRS", raising=False)
     asset = Path(__file__).resolve().parents[2] / "docking/assets/poof.svg"
     assert GdkPixbuf.Pixbuf.new_from_file(str(asset)).get_width() > 0
     assert Gtk.IconTheme.get_default().has_icon("folder")
     assert Path("/usr/pkg/share/applications") in desktop_dirs()
+
+
+@pytest.mark.skipif(
+    not environment.is_netbsd(), reason="requires NetBSD kernel pathname API"
+)
+def test_actual_netbsd_executable_does_not_use_procfs(monkeypatch):
+    import psutil
+
+    from docking.platform.applications.implementations.bsd.process import (
+        process_executable,
+    )
+
+    monkeypatch.setattr(
+        psutil.Process, "exe", lambda _self: pytest.fail("procfs executable lookup")
+    )
+    assert process_executable(os.getpid()) == Path(sys.executable).resolve()

@@ -11,11 +11,26 @@ export PATH="/usr/pkg/bin:/usr/pkg/sbin:/usr/X11R7/bin:$PATH"
 if [ ! -x /usr/X11R7/bin/Xvfb ]; then
     release=$(uname -r)
     architecture=$(uname -m)
+    checksums="$(dirname "$0")/checksums/netbsd-$release-$architecture.sha512"
+    if [ ! -f "$checksums" ]; then
+        printf 'No trusted X11 checksums for NetBSD %s/%s\n' "$release" "$architecture" >&2
+        exit 1
+    fi
     directory=$(mktemp -d /tmp/docking-x11.XXXXXX)
     trap 'rm -rf "$directory"' EXIT HUP INT TERM
     for set in xbase xetc xfont xserver; do
+        expected=$(awk -v archive="($set.tar.xz)" '$1 == "SHA512" && $2 == archive { print $4 }' "$checksums")
+        if [ "${#expected}" -ne 128 ]; then
+            printf 'Missing or ambiguous SHA512 for %s\n' "$set" >&2
+            exit 1
+        fi
         ftp -o "$directory/$set.tar.xz" \
             "https://cdn.netbsd.org/pub/NetBSD/NetBSD-$release/$architecture/binary/sets/$set.tar.xz"
+        actual=$(cksum -a SHA512 -q "$directory/$set.tar.xz")
+        if [ "$actual" != "$expected" ]; then
+            printf 'SHA512 verification failed for %s\n' "$set" >&2
+            exit 1
+        fi
         tar -xpf "$directory/$set.tar.xz" -C /
     done
 fi

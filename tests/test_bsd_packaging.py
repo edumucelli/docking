@@ -108,6 +108,8 @@ def test_netbsd_package_uses_pkgsrc_staging_and_native_architecture(
         if argv == ("pkg_info", "-V"):
             return "20260227"
         assert argv[:2] == ("pkg_info", "-e")
+        if argv[2] == "dbus-[0-9]*":
+            return "dbus-1.0\ndbus-1-helper-1.0"
         return argv[2].replace("-[0-9]*", "-1.0")
 
     monkeypatch.setattr(builder, "output", output)
@@ -118,9 +120,14 @@ def test_netbsd_package_uses_pkgsrc_staging_and_native_architecture(
     assert builder.netbsd_package(stage, work, "1.2.3") == work / "docking-1.2.3.tgz"
     command = calls[0]
     assert command[0] == "pkg_create"
+    assert command[command.index("-c") + 1].startswith("-")
+    assert command[command.index("-d") + 1].startswith("-")
     assert command[command.index("-p") + 1] == str(stage / "usr/pkg")
     assert command[command.index("-I") + 1] == "/usr/pkg"
-    assert command[command.index("-P") + 1].split()[-1] == "polkit-1.0"
+    dependencies = command[command.index("-P") + 1].split()
+    assert dependencies[-1] == "polkit>=1.0"
+    assert "dbus>=1.0" in dependencies
+    assert len(dependencies) == 10
     assert (work / "PLIST").read_text() == "@name docking-1.2.3\nbin/docking\n"
     assert "MACHINE_ARCH=x86_64\n" in (work / "BUILD_INFO").read_text()
     assert "PKGTOOLS_VERSION=20260227\n" in (work / "BUILD_INFO").read_text()
