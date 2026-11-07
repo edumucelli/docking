@@ -48,7 +48,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [freebsd, openbsd]
+        os: [freebsd, openbsd, netbsd]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -81,6 +81,19 @@ jobs:
           run: |
             export PATH="/usr/local/bin:/usr/X11R6/bin:$PATH"
             sh tools/bsd/visual/vm-run.sh artifacts/bsd-visual/openbsd
+      - name: NetBSD desktop checks
+        if: matrix.os == 'netbsd'
+        uses: vmactions/netbsd-vm@v1
+        with:
+          release: "11.0"
+          sync: rsync
+          copyback: true
+          prepare: |
+            sh tools/bsd/visual/install-netbsd.sh
+          run: |
+            export PATH="/usr/pkg/bin:/usr/pkg/sbin:/usr/X11R7/bin:$PATH"
+            export DOCKING_BSD_PYTHON=/usr/pkg/bin/python3.12
+            sh tools/bsd/visual/vm-run.sh artifacts/bsd-visual/netbsd
       - name: Check copied BSD results
         env:
           BSD_OS: ${{ matrix.os }}

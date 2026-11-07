@@ -1,9 +1,15 @@
 """BSD staging must include runtime data without editable paths or pip tooling."""
 
 import importlib.util
+import json
+import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+
+import pytest
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "packaging/bsd/build.py"
 spec = importlib.util.spec_from_file_location("docking_bsd_build", MODULE_PATH)
@@ -12,7 +18,10 @@ builder = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(builder)
 
 
-def test_staged_runtime_is_self_contained_without_build_tools(monkeypatch, tmp_path):
+@pytest.mark.parametrize("prefix", [Path("/usr/local"), Path("/usr/pkg")])
+def test_staged_runtime_is_self_contained_without_build_tools(
+    monkeypatch, tmp_path, prefix
+):
     root = tmp_path / "source"
     for folder in (
         "docking/assets",
@@ -62,22 +71,93 @@ def test_staged_runtime_is_self_contained_without_build_tools(monkeypatch, tmp_p
         ],
     )
     destination = tmp_path / "stage"
-    builder.stage(destination)
-    private = destination / "usr/local/lib/docking/python"
+    builder.stage(destination, prefix=prefix)
+    staged_prefix = destination / prefix.relative_to("/")
+    private = staged_prefix / "lib/docking/python"
     assert (private / "dependency.py").read_text() == "runtime"
     assert (private / "docking/assets/fixture.svg").is_file()
     assert not (private / "pip.py").exists()
     assert not (private / "__editable__.pth").exists()
-    assert not (destination / "usr/local/bin/escape").exists()
-    launcher = destination / "usr/local/bin/docking"
+    assert not (staged_prefix / "bin/escape").exists()
+    launcher = staged_prefix / "bin/docking"
     assert launcher.stat().st_mode & 0o111
-    assert "/usr/local/lib/docking/python" in launcher.read_text()
+    assert str(prefix / "lib/docking/python") in launcher.read_text()
     assert str(venv) not in launcher.read_text()
-    helper = destination / "usr/local/bin/docking-camshield-helper"
+    helper = staged_prefix / "bin/docking-camshield-helper"
     assert helper.stat().st_mode & 0o111
-    assert " -I -c " in helper.read_text()
+    assert " -I -B -c " in helper.read_text()
     assert '"$@"' in helper.read_text()
-    policy = (
-        destination / "usr/local/share/polkit-1/actions/org.docking.camshield.policy"
+    policy = staged_prefix / "share/polkit-1/actions/org.docking.camshield.policy"
+    assert str(prefix / "bin/docking-camshield-helper") in policy.read_text()
+
+
+def test_netbsd_package_uses_pkgsrc_staging_and_native_architecture(
+    monkeypatch, tmp_path
+):
+    stage = tmp_path / "stage"
+    launcher = stage / "usr/pkg/bin/docking"
+    launcher.parent.mkdir(parents=True)
+    launcher.write_text("payload")
+    work = tmp_path / "work"
+    work.mkdir()
+    calls = []
+
+    def output(*argv):
+        if argv == ("uname", "-p"):
+            return "x86_64"
+        if argv == ("pkg_info", "-V"):
+            return "20260227"
+        assert argv[:2] == ("pkg_info", "-e")
+        return argv[2].replace("-[0-9]*", "-1.0")
+
+    monkeypatch.setattr(builder, "output", output)
+    monkeypatch.setattr(builder.platform, "release", lambda: "11.0")
+    monkeypatch.setattr(
+        builder.subprocess, "run", lambda argv, **_kwargs: calls.append(argv)
     )
-    assert "/usr/local/bin/docking-camshield-helper" in policy.read_text()
+    assert builder.netbsd_package(stage, work, "1.2.3") == work / "docking-1.2.3.tgz"
+    command = calls[0]
+    assert command[0] == "pkg_create"
+    assert command[command.index("-p") + 1] == str(stage / "usr/pkg")
+    assert command[command.index("-I") + 1] == "/usr/pkg"
+    assert command[command.index("-P") + 1].split()[-1] == "polkit-1.0"
+    assert (work / "PLIST").read_text() == "@name docking-1.2.3\nbin/docking\n"
+    assert "MACHINE_ARCH=x86_64\n" in (work / "BUILD_INFO").read_text()
+    assert "PKGTOOLS_VERSION=20260227\n" in (work / "BUILD_INFO").read_text()
+
+
+@pytest.mark.skipif(
+    not sys.platform.startswith("netbsd")
+    or os.environ.get("DOCKING_BSD_VM_TEST") != "1",
+    reason="requires the disposable NetBSD package acceptance VM",
+)
+def test_actual_netbsd_package_upgrade_removal_and_reinstallation(tmp_path):
+    packages = list(
+        (builder.ROOT / "artifacts/bsd-packages/netbsd").glob("docking-*.tgz")
+    )
+    assert len(packages) == 1
+    candidate = packages[0]
+    metadata = json.loads(candidate.with_suffix(".tgz.json").read_text())
+    current = tmp_path / f"docking-{metadata['version']}.tgz"
+    shutil.copy2(candidate, current)
+    prefix = Path("/usr/pkg")
+    stage = tmp_path / "stage"
+    builder.stage(stage, prefix=prefix)
+    obsolete = Path("lib/docking/python/docking/.upgrade-probe")
+    (stage / prefix.relative_to("/") / obsolete).write_text("previous package")
+    older = builder.netbsd_package(stage, tmp_path, "0.0.0")
+    try:
+        subprocess.run(["pkg_add", "-U", str(older)], check=True)
+        assert (prefix / obsolete).is_file()
+        subprocess.run(["pkg_add", "-u", str(current)], check=True)
+        assert (
+            builder.output("pkg_info", "-e", "docking-[0-9]*")
+            == f"docking-{metadata['version']}"
+        )
+        assert not (prefix / obsolete).exists()
+        subprocess.run(["pkg_delete", "docking"], check=True)
+        assert not (prefix / "bin/docking").exists()
+        assert not (prefix / "lib/docking/python/docking/__init__.py").exists()
+    finally:
+        subprocess.run(["pkg_add", "-U", str(current)], check=True)
+    assert (prefix / "bin/docking").is_file()

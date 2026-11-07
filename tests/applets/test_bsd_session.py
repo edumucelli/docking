@@ -12,6 +12,13 @@ from docking.applets.session.implementations.bsd import backend as bsd
         ("freebsd15", ["systemctl", "suspend"], ["acpiconf", "-s", "3"]),
         ("openbsd7", ["systemctl", "poweroff"], ["shutdown", "-hp", "now"]),
         ("freebsd15", ["systemctl", "poweroff"], ["shutdown", "-p", "now"]),
+        (
+            "netbsd11",
+            ["systemctl", "suspend"],
+            ["sysctl", "-w", "hw.acpi.sleep.state=3"],
+        ),
+        ("netbsd11", ["systemctl", "poweroff"], ["shutdown", "-p", "now"]),
+        ("netbsd11", ["systemctl", "reboot"], ["shutdown", "-r", "now"]),
     ],
 )
 def test_session_actions_select_native_commands_without_elevation(

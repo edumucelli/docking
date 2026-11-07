@@ -12,7 +12,7 @@ from functools import lru_cache
 def _library_path(name: str, fallback: str, system: str) -> str:
     # Preserve Linux's existing packaged SONAMEs and avoid a subprocess on every
     # strut update. BSD assigns its own major/minor library versions.
-    if system.startswith(("freebsd", "openbsd")):
+    if system.startswith(("freebsd", "openbsd", "netbsd")):
         return ctypes.util.find_library(name) or fallback
     return fallback
 

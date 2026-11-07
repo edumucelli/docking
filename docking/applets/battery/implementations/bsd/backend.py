@@ -33,6 +33,10 @@ class Battery(NamedTuple):
 
 
 def battery() -> Battery | None:
+    if sys.platform.startswith("netbsd"):
+        from .netbsd import battery as netbsd_battery
+
+        return netbsd_battery()
     if sys.platform.startswith("openbsd"):
         percent = command(["apm", "-l"])
         status = command(["apm", "-b"])

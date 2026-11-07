@@ -5,7 +5,7 @@ import pytest
 from docking.platform import libraries
 
 
-@pytest.mark.parametrize("system", ["freebsd15", "openbsd7"])
+@pytest.mark.parametrize("system", ["freebsd15", "openbsd7", "netbsd11"])
 def test_bsd_uses_native_library_name(monkeypatch, system):
     libraries._library_path.cache_clear()
     monkeypatch.setattr(libraries.sys, "platform", system)

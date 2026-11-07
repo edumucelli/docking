@@ -6,6 +6,11 @@ set -u
 output=${1:?artifact directory required}
 setup_log=$(mktemp /tmp/docking-bsd-install.XXXXXX)
 status=0
+python=${DOCKING_BSD_PYTHON:-python3}
+prefix=/usr/local
+if [ "$(uname -s)" = NetBSD ]; then
+    prefix=/usr/pkg
+fi
 sh tools/bsd/visual/install-python.sh >"$setup_log" 2>&1 || status=$?
 package_log=$(mktemp /tmp/docking-bsd-package.XXXXXX)
 if [ "$status" -eq 0 ]; then
@@ -14,7 +19,7 @@ if [ "$status" -eq 0 ]; then
 fi
 if [ "$status" -eq 0 ]; then
     export DOCKING_BSD_VM_TEST=1
-    .venv-bsd/bin/python -m tools.bsd.visual.run --pytest --dock-command /usr/local/bin/docking --output "$output" || status=$?
+    .venv-bsd/bin/python -m tools.bsd.visual.run --pytest --dock-command "$prefix/bin/docking" --output "$output" || status=$?
 fi
 mkdir -p "$output"
 cp "$setup_log" "$output/install.log"
@@ -23,7 +28,7 @@ rm -f "$setup_log"
 rm -f "$package_log"
 printf '%s\n' "$status" >"$output/exit-status"
 if [ ! -f "$output/results.json" ]; then
-    python3 - "$output" "$status" <<'PY'
+    "$python" - "$output" "$status" <<'PY'
 import platform
 import sys
 from pathlib import Path

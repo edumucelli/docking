@@ -9,7 +9,11 @@ import re
 import shutil
 from pathlib import Path
 
-TARGETS = {("freebsd", "15.1", "amd64"): ".pkg", ("openbsd", "7.9", "amd64"): ".tgz"}
+TARGETS = {
+    ("freebsd", "15.1", "amd64"): ".pkg",
+    ("openbsd", "7.9", "amd64"): ".tgz",
+    ("netbsd", "11.0", "amd64"): ".tgz",
+}
 
 
 def stage(directories: list[Path], version: str, destination: Path) -> None:

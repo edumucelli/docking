@@ -29,8 +29,11 @@ def command_for(action: str) -> list[str] | None:
                 return list(argv)
         return None
     openbsd = sys.platform.startswith("openbsd")
+    suspend = ["zzz"] if openbsd else ["acpiconf", "-s", "3"]
+    if sys.platform.startswith("netbsd"):
+        suspend = ["sysctl", "-w", "hw.acpi.sleep.state=3"]
     commands = {
-        "suspend": ["zzz"] if openbsd else ["acpiconf", "-s", "3"],
+        "suspend": suspend,
         "reboot": ["shutdown", "-r", "now"],
         "poweroff": ["shutdown", "-hp" if openbsd else "-p", "now"],
     }

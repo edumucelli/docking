@@ -99,9 +99,18 @@ def load_desktop_key_file(path: Path) -> GLib.KeyFile | None:
 
 def desktop_dirs() -> list[Path]:
     """Get application .desktop file directories from XDG_DATA_DIRS."""
-    xdg = os.environ.get("XDG_DATA_DIRS", DEFAULT_XDG_DATA_DIRS)
+    # GLib's native defaults include the pkgsrc prefix on NetBSD. Explicit XDG
+    # overrides still take precedence, including an intentionally empty value.
+    xdg = os.environ.get("XDG_DATA_DIRS")
+    data_dirs = (
+        xdg.split(":")
+        if xdg is not None
+        else dict.fromkeys(
+            [*GLib.get_system_data_dirs(), *DEFAULT_XDG_DATA_DIRS.split(":")]
+        )
+    )
     dirs = []
-    for directory in xdg.split(":"):
+    for directory in data_dirs:
         path = Path(directory) / "applications"
         if path.is_dir():
             dirs.append(path)

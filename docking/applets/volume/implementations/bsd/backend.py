@@ -1,4 +1,4 @@
-"""Native FreeBSD mixer and OpenBSD sndio controls for the Volume applet."""
+"""Native BSD mixer controls for the Volume applet."""
 
 from __future__ import annotations
 
@@ -32,6 +32,10 @@ def create_backend() -> VolumeBackend:
 def _controls() -> VolumeControls | None:
     if shutil.which("pactl"):
         return PULSEAUDIO
+    if sys.platform.startswith("netbsd"):
+        from .netbsd import controls
+
+        return controls() if shutil.which("mixerctl") else None
     openbsd = sys.platform.startswith("openbsd")
     tool = "sndioctl" if openbsd else "mixer"
     if shutil.which(tool) is None:

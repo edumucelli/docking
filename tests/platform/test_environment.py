@@ -27,7 +27,7 @@ from docking.platform.environment.environment import (
 
 @pytest.mark.parametrize(
     "platform,expected",
-    [("freebsd15", True), ("openbsd7", True), ("linux", False), ("netbsd10", False)],
+    [("freebsd15", True), ("openbsd7", True), ("linux", False), ("netbsd11", True)],
 )
 def test_bsd_detection_keeps_desktop_identity(monkeypatch, platform, expected):
     monkeypatch.setattr(sys, "platform", platform)

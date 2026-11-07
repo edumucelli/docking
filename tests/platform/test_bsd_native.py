@@ -1,5 +1,7 @@
 """Read the actual BSD guest's kernel APIs; these are not mocked checks."""
 
+import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -36,3 +38,36 @@ def test_actual_x11_idle_time_is_available():
 
     idle = _get_idle_ms()
     assert idle is not None and idle >= 0
+
+
+def test_actual_host_selection_and_process_executable():
+    from docking.platform.applications.implementations.bsd.process import (
+        process_executable,
+    )
+    from docking.platform.composition.bsd import BsdPlatformProvider
+    from docking.platform.composition.selection import platform_provider
+    from docking.platform.host.base import HostFamily
+    from docking.platform.host.selection import host_services
+
+    assert host_services().family is HostFamily.BSD
+    assert isinstance(platform_provider(), BsdPlatformProvider)
+    assert process_executable(os.getpid()) == Path(sys.executable).resolve()
+
+
+@pytest.mark.skipif(
+    not sys.platform.startswith("netbsd"),
+    reason="requires NetBSD pkgsrc desktop dependencies",
+)
+def test_actual_netbsd_icons_and_application_discovery():
+    import gi
+
+    gi.require_version("GdkPixbuf", "2.0")
+    gi.require_version("Gtk", "3.0")
+    from gi.repository import GdkPixbuf, Gtk
+
+    from docking.platform.applications.implementations.unix.entries import desktop_dirs
+
+    asset = Path(__file__).resolve().parents[2] / "docking/assets/poof.svg"
+    assert GdkPixbuf.Pixbuf.new_from_file(str(asset)).get_width() > 0
+    assert Gtk.IconTheme.get_default().has_icon("folder")
+    assert Path("/usr/pkg/share/applications") in desktop_dirs()

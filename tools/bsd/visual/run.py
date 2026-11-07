@@ -536,6 +536,9 @@ def run_checks(observer: Observer, env: dict[str, str], record):
                     )
                     time.sleep(0.4)
                     bounds = placement(observer.settled(name), edge)
+                    # Capturing pixels does not dispatch the observer's Wnck
+                    # events. Refresh its cached geometry after the WM settles.
+                    observer.windows()
                     x, y, width, height = client.get_geometry()
                     overlaps = (
                         x <= bounds["right"]
@@ -543,7 +546,10 @@ def run_checks(observer: Observer, env: dict[str, str], record):
                         and y <= bounds["bottom"]
                         and y + height > bounds["top"]
                     )
-                    assert not overlaps, "Maximized client overlaps reserved dock area"
+                    assert not overlaps, (
+                        f"Maximized client {(x, y, width, height)} overlaps "
+                        f"reserved dock area {bounds}"
+                    )
                     reserved = [x, y, width, height]
 
                 def full_workarea():
@@ -612,6 +618,8 @@ def run_checks(observer: Observer, env: dict[str, str], record):
                 "camshield",
             )
         ]
+        if sys.platform.startswith("netbsd"):
+            pinned.remove("applet://camshield")
         if sys.platform.startswith(("linux", "freebsd")):
             pinned.append("applet://bluetooth")
         with dock_case(observer, env, "applets", {"pinned": pinned}) as child:
@@ -737,6 +745,11 @@ def observe(args):
                             )
                         ),
                         "tests/test_bsd_visual.py",
+                        "tests/test_bsd_packaging.py",
+                        "tests/test_bsd_release.py",
+                        "tests/applets/test_battery.py",
+                        "tests/applets/test_volume.py",
+                        "tests/applets/test_hardware_requests.py",
                         f"--junitxml={output / 'unit-tests.xml'}",
                     ],
                     output / "unit-tests.log",
@@ -928,7 +941,7 @@ def main():
         service_dir.mkdir()
         # Xfwm needs its settings daemon. Permit this one service without
         # activating the host's portals, keyring, or session services.
-        for prefix in ("/usr/local/share", "/usr/share"):
+        for prefix in ("/usr/pkg/share", "/usr/local/share", "/usr/share"):
             source = Path(prefix) / "dbus-1/services/org.xfce.Xfconf.service"
             if source.exists():
                 shutil.copyfile(source, service_dir / source.name)

@@ -78,7 +78,7 @@ class BatteryApplet(PlatformServicesApplet):
         self._worker = BackgroundWorker()
         self._stopped = False
         self._generation = 0
-        self._state: BatteryState | None = self._backend.read_battery()
+        self._state: BatteryState | None = None
         self._peripherals: list[PeripheralBattery] = []
         super().__init__(
             icon_size=icon_size, config=config, platform_services=platform_services
@@ -100,7 +100,7 @@ class BatteryApplet(PlatformServicesApplet):
         super().start(notify=notify)
         self._stopped = False
         self._generation += 1
-        self._refresh_peripherals()
+        self._tick()
         self._timer_id = GLib.timeout_add_seconds(_FULL_POLL_SECONDS, self._tick)
         self._sync_power_timer()
         self.present()
@@ -160,9 +160,25 @@ class BatteryApplet(PlatformServicesApplet):
         """Re-read system battery and peripherals and refresh the icon."""
         if self._stopped:
             return False
-        self._state = self._backend.read_battery()
+        backend, generation = self._backend, self._generation
+
+        def ready(state: BatteryState | None) -> bool:
+            if (
+                not self._stopped
+                and generation == self._generation
+                and backend is self._backend
+            ):
+                self._state = state
+                self.present()
+            return False
+
+        self._worker.run_guarded(
+            key=f"battery:{generation}",
+            name="battery-state",
+            fn=backend.read_battery,
+            on_result=ready,
+        )
         self._refresh_peripherals()
-        self.present()
         return True
 
     def _refresh_peripherals(self) -> None:

@@ -114,6 +114,8 @@ class BsdBluetoothBackend(BluetoothBackend):
     def get_state(self, active_adapter_path: str | None = None) -> BluetoothState:
         if sys.platform.startswith("openbsd"):
             return unavailable_state("OpenBSD has no Bluetooth stack")
+        if sys.platform.startswith("netbsd"):
+            return unavailable_state("NetBSD Bluetooth integration unavailable")
         listing = _run([_HCCONTROL, "read_node_list"])
         if listing is None:
             return unavailable_state("FreeBSD Bluetooth controllers unavailable")

@@ -9,7 +9,7 @@ description = "A lightweight, feature-rich dock for Linux and BSD written in Pyt
 requires-python = ">=3.10"
 license = {text = "GPL-3.0-or-later"}
 dependencies = [
-    "psutil>=6.0; platform_system == 'FreeBSD' or platform_system == 'OpenBSD'",
+    "psutil>=6.0; platform_system == 'FreeBSD' or platform_system == 'OpenBSD' or platform_system == 'NetBSD'",
 ]
 
 [project.scripts]

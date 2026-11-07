@@ -8,7 +8,7 @@ from .base import HostServices
 
 @cache
 def host_services() -> HostServices:
-    if sys.platform.startswith(("freebsd", "openbsd")):
+    if sys.platform.startswith(("freebsd", "openbsd", "netbsd")):
         from .implementations.bsd.backend import BsdHostServices
 
         return BsdHostServices()

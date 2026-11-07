@@ -87,6 +87,8 @@ class BsdCamshieldBackend(UnixCameraControl):
         )
 
     def probe(self, *, dev_root: Path, proc_root: Path) -> CamshieldState:
+        if sys.platform.startswith("netbsd"):
+            return CamshieldState(available=False, active=False)
         devices = _devices(dev_root)
         if not devices:
             return CamshieldState(available=False, active=False)
@@ -107,6 +109,8 @@ class BsdCamshieldBackend(UnixCameraControl):
         )
 
     def lock(self) -> int:
+        if sys.platform.startswith("netbsd"):
+            raise OSError("NetBSD camera permission control unavailable")
         with _action_lock():
             return self._lock_devices()
 
@@ -138,6 +142,8 @@ class BsdCamshieldBackend(UnixCameraControl):
         return 0
 
     def unlock(self) -> int:
+        if sys.platform.startswith("netbsd"):
+            raise OSError("NetBSD camera permission control unavailable")
         with _action_lock():
             return self._unlock_devices()
 
@@ -158,6 +164,9 @@ class BsdCamshieldBackend(UnixCameraControl):
         return 0
 
     def status(self) -> int:
+        if sys.platform.startswith("netbsd"):
+            print(json.dumps({"available": False, "locked": False, "devices": []}))
+            return 0
         if not sys.platform.startswith("openbsd"):
             from docking.applets.camshield.implementations.unix.helper import (
                 status_devices,

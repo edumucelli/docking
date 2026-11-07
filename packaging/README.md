@@ -316,7 +316,10 @@ only to the test container; it does not change the installed launcher.
 `packaging/bsd/build.py` runs in the prepared BSD VM with `.venv-bsd/bin/python`.
 It vendors the resolved Python runtime dependencies, keeps GI/Cairo/psutil as
 native dependencies, compiles translations, and uses `pkg create` on FreeBSD or
-`pkg_create` on OpenBSD. Each package is installed before its visual tests run.
+`pkg_create` on OpenBSD or NetBSD. NetBSD uses pkgsrc's staging prefix and real
+prefix options, records native dependencies and build information, and installs
+under `/usr/pkg`; the other BSD targets use `/usr/local`. Each package is
+installed before its visual tests run.
 The main CI release job requires these checks and stages the original package
 bytes, manifests, latest aliases, and `SHA256SUMS-bsd` through
 `packaging/bsd/release.py`. Distribution uses GitHub Releases.

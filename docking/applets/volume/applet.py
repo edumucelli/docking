@@ -29,7 +29,7 @@ from gi.repository import GdkPixbuf, GLib, Gtk
 from docking.applets.base import PlatformServicesApplet
 from docking.applets.menu import menu_sections
 from docking.applets.volume import meta
-from docking.applets.worker import BackgroundWorker
+from docking.applets.worker import SerialWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -71,10 +71,10 @@ class VolumeApplet(PlatformServicesApplet):
         self._show_level = False
         self._timer_id: int = 0
         self._poll_generation = 0
-        self._worker = BackgroundWorker(logger=log)
+        self._stopped = False
+        self._worker = SerialWorker(on_close=lambda: None, logger=log)
         prefs = config.applet_prefs.get(meta.id, {})
         self._show_level = bool(prefs.get("show_level", False))
-        self._poll()
         super().__init__(icon_size, config, platform_services=platform_services)
         self.present()
 
@@ -97,10 +97,16 @@ class VolumeApplet(PlatformServicesApplet):
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify)
+        if self._stopped:
+            self._stopped = False
+            self._worker = SerialWorker(on_close=lambda: None, logger=log)
+        self._tick()
         self._timer_id = GLib.timeout_add_seconds(1, self._tick)
 
     def stop(self) -> None:
+        self._stopped = True
         self._poll_generation += 1
+        self._worker.stop()
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -108,26 +114,39 @@ class VolumeApplet(PlatformServicesApplet):
 
     def on_clicked(self) -> None:
         """Toggle mute on left-click."""
-        if self._backend.controls:
-            self._poll_generation += 1
-            self._backend.controls.toggle_mute()
-            self._poll()
-            self._update_tooltip()
-            self.present()
+        if self._backend.controls and not self._stopped:
+            self._muted = not self._muted
+            self._change_volume(self._backend.controls.toggle_mute)
 
     def on_scroll(self, direction_up: bool) -> None:
         """Adjust volume ±5% on scroll."""
-        if not self._backend.controls:
+        if not self._backend.controls or self._stopped:
             return
-        self._poll_generation += 1
         if direction_up:
             new = min(100, self._volume + STEP)
         else:
             new = max(0, self._volume - STEP)
-        self._backend.controls.set_volume(new)
-        self._poll()
-        self._update_tooltip()
+        self._volume = new
+        controls = self._backend.controls
+        self._change_volume(lambda: controls.set_volume(new))
+
+    def _change_volume(self, change: Callable[[], None]) -> None:
+        controls = self._backend.controls
+        if controls is None:
+            return
+        self._poll_generation += 1
+        generation = self._poll_generation
         self.present()
+
+        def apply() -> VolumeState | None:
+            change()
+            return controls.get_state()
+
+        self._worker.run(
+            name="volume-change",
+            fn=apply,
+            on_result=lambda state: self._on_poll_result(state, generation=generation),
+        )
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         show = Gtk.CheckMenuItem(label=_("Show Level"))
@@ -148,18 +167,9 @@ class VolumeApplet(PlatformServicesApplet):
         self.save_prefs(prefs={"show_level": self._show_level})
         self.present()
 
-    def _poll(self) -> None:
-        """Read current volume state from backend."""
-        if not self._backend.controls:
-            return
-        state = self._backend.controls.get_state()
-        if state is not None:
-            self._volume = state.volume
-            self._muted = state.muted
-
     def _tick(self) -> bool:
         """Periodic poll - fetch state in background thread."""
-        if not self._backend.controls:
+        if not self._backend.controls or self._stopped:
             return True
         generation = self._poll_generation
         self._worker.run_guarded(

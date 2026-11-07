@@ -12,11 +12,31 @@ import pytest
 import tests.platform_factories as test_platform
 from docking.applets.camshield.implementations.bsd import backend as bsd
 from docking.applets.camshield.implementations.unix import helper
+from docking.applets.camshield.state import CameraHolder, CamshieldState, build_tooltip
+from docking.platform import environment
 from tests.platform_factories import TestAppletBackendFactories, make_applet_platform
 
 create_backend = bsd.BsdCamshieldBackend
-from docking.applets.camshield.state import CameraHolder, CamshieldState, build_tooltip
-from docking.platform import environment
+
+
+def test_netbsd_camera_controls_are_unavailable_without_permission_changes(
+    monkeypatch, tmp_path, capsys
+):
+    monkeypatch.setattr(bsd.sys, "platform", "netbsd11")
+    state = tmp_path / "state"
+    monkeypatch.setattr(bsd, "_STATE_DIR", state)
+    backend = create_backend()
+    assert not backend.probe(dev_root=tmp_path, proc_root=tmp_path).available
+    for action in (backend.lock, backend.unlock):
+        with pytest.raises(OSError, match="NetBSD"):
+            action()
+    assert not state.exists()
+    assert backend.status() == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "available": False,
+        "locked": False,
+        "devices": [],
+    }
 
 
 @pytest.mark.parametrize("platform", ["freebsd15", "openbsd7"])
@@ -308,7 +328,10 @@ def test_invalid_device_snapshot_cannot_replace_recovery_data(
     assert device.stat().st_mode & 0o777 == 0
 
 
-@pytest.mark.skipif(not environment.is_bsd(), reason="requires BSD kernel file tables")
+@pytest.mark.skipif(
+    not bsd.sys.platform.startswith(("freebsd", "openbsd")),
+    reason="requires supported BSD camera file tables",
+)
 def test_actual_bsd_kernel_reports_open_camera_descriptor(tmp_path):
     device = tmp_path / "video0"
     device.touch()
@@ -323,7 +346,12 @@ def test_actual_bsd_kernel_reports_open_camera_descriptor(tmp_path):
 @pytest.mark.skipif(not environment.is_bsd(), reason="requires installed BSD package")
 def test_installed_camera_helper_status_is_usable():
     result = subprocess.run(
-        ["/usr/local/bin/docking-camshield-helper", "status"],
+        [
+            "/usr/pkg/bin/docking-camshield-helper"
+            if bsd.sys.platform.startswith("netbsd")
+            else "/usr/local/bin/docking-camshield-helper",
+            "status",
+        ],
         capture_output=True,
         text=True,
         timeout=5,
