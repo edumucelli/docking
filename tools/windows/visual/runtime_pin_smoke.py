@@ -281,6 +281,76 @@ def _phase(output: Path, phase: str, runtime) -> None:
             return current
 
         menu._new_popup_menu = observe_menu
+
+        # Keep native focus, GTK dispatch and backend action evidence together.
+        # A successful SendInput alone does not prove which item handled it.
+        events = report["input_events"] = []
+        controller, windows = ui.input_controller, kwargs["session_backend"].windows
+
+        def window_state():
+            return {
+                "foreground": native.user.GetForegroundWindow(),
+                "windows": [
+                    {
+                        "hwnd": row.id.value,
+                        "desktop_id": row.desktop_id,
+                        "active": row.active,
+                        "minimized": row.minimized,
+                    }
+                    for row in windows.list_all_windows()
+                ],
+            }
+
+        for name in ("_on_button_press", "_on_button_release"):
+            original = (
+                controller._on_button_press
+                if name == "_on_button_press"
+                else controller._on_button_release
+            )
+
+            def observe_button(widget, event, *, original=original, name=name):
+                frame = ui.window.geometry.build_frame(
+                    cursor_x=event.x, cursor_y=event.y
+                )
+                item = frame.item_at_point(event.x, event.y)
+                record = {
+                    "event": name,
+                    "button": event.button,
+                    "point": [event.x, event.y],
+                    "selected": item.desktop_id if item is not None else None,
+                    "before": window_state(),
+                }
+                events.append(record)
+                result = original(widget, event)
+                record.update(result=result, after=window_state())
+                return result
+
+            if name == "_on_button_press":
+                controller._on_button_press = observe_button
+            else:
+                controller._on_button_release = observe_button
+
+        cycle, perform = windows.cycle, windows.perform
+
+        def observe_cycle(desktop_id):
+            record = {"event": "cycle", "desktop_id": desktop_id, **window_state()}
+            events.append(record)
+            result = cycle(desktop_id)
+            record["result"] = result.value
+            return result
+
+        def observe_perform(window_id, action):
+            record = {
+                "event": action,
+                "hwnd": window_id.value,
+                **window_state(),
+            }
+            events.append(record)
+            result = perform(window_id, action)
+            record.update(result=result.value, after=window_state())
+            return result
+
+        windows.cycle, windows.perform = observe_cycle, observe_perform
         ready.set()
         return ui
 
@@ -372,6 +442,7 @@ def _phase(output: Path, phase: str, runtime) -> None:
                     "cursor": [cursor.x, cursor.y],
                     "rect": [round(v, 2) for v in (rect.x, rect.y, rect.w, rect.h)],
                     "item_count": len(frame.item_geometries),
+                    "items": [g.item.desktop_id for g in frame.item_geometries],
                     "selected": selected.desktop_id if selected is not None else None,
                     "native_window": native.window_at(cursor.x, cursor.y),
                     "dock_window": dock["hwnd"],
@@ -751,9 +822,11 @@ def _phase(output: Path, phase: str, runtime) -> None:
 
                 initial = native.wait_for(active_handle, "Fixture did not activate")
                 foregrounds = [initial]
+                report["cycle_foregrounds"] = foregrounds
                 for _ in range(4):
                     click_target()
                     expected = next(h for h in handles if h != foregrounds[-1])
+                    report["expected_foreground"] = expected
                     native.wait_for(
                         lambda expected=expected: active_handle() == expected,
                         "Pin did not cycle to the other native window",
@@ -790,6 +863,7 @@ def _phase(output: Path, phase: str, runtime) -> None:
             if explorer_folder is not None and explorer_folder.cleanup_failure:
                 report["explorer_cleanup_failure"] = explorer_folder.cleanup_failure
             if program_pid is not None:
+                report["foreground"] = native.user.GetForegroundWindow()
                 report["native_windows"] = native.windows(program_pid)
                 report["tracked_windows"] = call(
                     lambda: [
@@ -800,6 +874,8 @@ def _phase(output: Path, phase: str, runtime) -> None:
                             "desktop_id": row.desktop_id,
                             "class": row.wm_class,
                             "skip_taskbar": row.skip_taskbar,
+                            "active": row.active,
+                            "minimized": row.minimized,
                         }
                         for row in shared["backend"].windows.list_all_windows()
                         if row.pid == program_pid
