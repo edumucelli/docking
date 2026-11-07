@@ -110,13 +110,17 @@ exclude = ["docking/platform/backends/wayland/protocols/"]
 
 [tool.ty.analysis]
 # System Cairo and BSD-only psutil need not be installed in the quality job.
-# These GI namespaces and optional protocols lack stubs in some installations.
+# GI namespaces and optional PyWayland modules are absent in some installations.
 allowed-unresolved-imports = [
     "cairo",
     "psutil",
     "gi.repository.NM",
     "gi.repository.GtkLayerShell",
     "gi.repository.Wnck",
+    "pywayland.client",
+    "pywayland.protocol.wayland",
+    "pywayland.protocol.ext_foreign_toplevel_list_v1",
+    "pywayland.protocol.ext_idle_notify_v1",
     "pywayland.protocol.ext_image_capture_source_v1",
     "pywayland.protocol.ext_image_copy_capture_v1",
 ]

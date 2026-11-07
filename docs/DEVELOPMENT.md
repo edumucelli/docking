@@ -173,7 +173,7 @@ incomplete no-GI fixtures. The type-checker configuration explicitly prioritizes
 this checkout over system-installed Docking releases.
 
 Missing-import checks remain enabled, with an explicit allowlist for system
-Cairo, BSD-only psutil, native GI namespaces, and optional PyWayland protocols
+Cairo, BSD-only psutil, native GI namespaces, and optional PyWayland modules
 that lack stubs in some installations. Attribute checks cover core logic,
 shared applet state, Search outside native implementations, and
 application/host contracts and policy.
