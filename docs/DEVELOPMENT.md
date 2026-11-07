@@ -111,6 +111,11 @@ owning domain's `implementations/<family>/` package. Use `unix` for shared
 Linux/BSD protocols and tools, `linux` or `bsd` for kernel APIs, and `shared`
 for portable native tools. Keep package initializers lightweight.
 
+Within BSD adapters, keep OS-specific behavior in matching `freebsd.py`,
+`openbsd.py`, and `netbsd.py` modules. Dispatch through the owning backend using
+`is_freebsd()`, `is_openbsd()`, and `is_netbsd()` from `platform/environment/`.
+Keep behavior common to all three BSDs shared.
+
 `platform/host/` supplies paths, storage durability, file locking, hook commands,
 and mounted-filesystem facts without importing GI. Host selection is cached;
 XDG variables are read when directory helpers are called. Desktop file/URI
@@ -250,16 +255,35 @@ See also [custom applet development](APPLET_DEVELOPMENT.md),
 
 ## BSD package and desktop checks
 
-CI builds and installs packages in actual FreeBSD and OpenBSD VMs, then runs
-core/platform and BSD applet tests plus 13 X11 visual scenarios. Download the
-`bsd-visual-freebsd` or `bsd-visual-openbsd` artifact and open `index.html` to
-review screenshots, per-case settings, package logs, JUnit, and JSON results
+CI builds and installs packages in actual FreeBSD, OpenBSD, and NetBSD VMs, then
+runs core/platform, BSD applet, and battery/volume lifecycle tests plus 13 X11
+visual scenarios. NetBSD also verifies package upgrade, removal, and
+reinstallation. Download the `bsd-visual-freebsd`, `bsd-visual-openbsd`, or
+`bsd-visual-netbsd` artifact and open `index.html` to review screenshots,
+per-case settings, package logs, JUnit, and JSON results
 without a BSD machine. The weekly/manual **BSD desktops** workflow runs the
 same checks. Hardware readings, audio devices and power actions need physical
 hardware validation; the reference desktop is compositing Xfce.
 
+The NetBSD target is 11.0/amd64 with pkgsrc Python 3.12. When changing this target,
+update the X11 SHA512 pins in `tools/bsd/visual/checksums/` from the signed NetBSD
+release hash list. The installer verifies each archive before extraction.
+The CI workflow sets the following environment. Export it before running the
+NetBSD VM scripts manually:
+
+```bash
+export DOCKING_BSD_PYTHON=/usr/pkg/bin/python3.12
+export PATH="/usr/pkg/bin:/usr/pkg/sbin:/usr/X11R7/bin:$PATH"
+```
+
+Packages and installed visual checks use `/usr/pkg`; keep native
+GTK/GI/Cairo/psutil packages visible with
+`--system-site-packages`. NetBSD sensor tests cover envsys units and unavailable
+readings without requiring a laptop or temperature sensor in the VM.
+
 For a local Linux/BSD X11 control, install GTK3/Cairo/Wnck GI bindings, Xvfb,
-Xfwm, D-Bus and XTest, then run `python3 -m tools.bsd.visual.run --pytest`.
+Xfwm, D-Bus and XTest, then run
+`"${DOCKING_BSD_PYTHON:-python3}" -m tools.bsd.visual.run --pytest`.
 `--case placement-bottom` selects one scenario, and `--dock-command` can point
 at an installed executable. The default output is a timestamped directory under
 `artifacts/bsd-visual/`; an explicit `--output` must be empty.

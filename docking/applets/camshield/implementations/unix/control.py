@@ -11,6 +11,10 @@ if TYPE_CHECKING:
 
 
 class UnixCameraControl(ABC):
+    @property
+    @abstractmethod
+    def controls_supported(self) -> bool: ...
+
     @abstractmethod
     def requires_acl_backup(self, device: Path) -> bool: ...
 

@@ -38,20 +38,20 @@ class BsdAppletBackendFactories(UnixAppletBackendFactories):
 
     def bluetooth(self) -> BluetoothBackend:
         from docking.applets.bluetooth.implementations.bsd.backend import (
-            BsdBluetoothBackend,
+            create_backend,
         )
 
-        return BsdBluetoothBackend()
+        return create_backend()
 
     def camshield(self) -> CamshieldBackend:
         from docking.applets.camshield.implementations.bsd.backend import (
-            BsdCamshieldBackend,
+            create_backend,
         )
         from docking.applets.camshield.implementations.unix.client import (
             UnixCamshieldClient,
         )
 
-        return UnixCamshieldClient(BsdCamshieldBackend())
+        return UnixCamshieldClient(create_backend())
 
     def network(self, interface: str = "") -> NetworkBackend:
         from docking.applets.network.implementations.bsd.backend import (
@@ -107,8 +107,8 @@ class BsdPlatformProvider(UnixPlatformProvider):
 
     def camera_helper(self, argv: list[str] | None = None) -> int:
         from docking.applets.camshield.implementations.bsd.backend import (
-            BsdCamshieldBackend,
+            create_backend,
         )
         from docking.applets.camshield.implementations.unix.helper import main
 
-        return main(argv, backend=BsdCamshieldBackend())
+        return main(argv, backend=create_backend())

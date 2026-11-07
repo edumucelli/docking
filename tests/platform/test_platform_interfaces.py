@@ -65,7 +65,8 @@ def test_construction_requires_platform_dependencies():
             assert signature.parameters[name].default is inspect.Parameter.empty
 
 
-def test_contracts_and_host_import_without_gi():
+@pytest.mark.parametrize("system", [sys.platform, "freebsd15", "openbsd7", "netbsd11"])
+def test_contracts_and_host_import_without_gi(system):
     # Backend contracts must not pull in their presentation or native runtime.
     script = """
 import importlib
@@ -106,7 +107,10 @@ assert host_services() is host_services()
 assert not any(name.startswith("gi.") for name in sys.modules)
 """
     result = subprocess.run(
-        [sys.executable, "-c", script], cwd=ROOT, capture_output=True, text=True
+        [sys.executable, "-c", f"import sys; sys.platform = {system!r}\n" + script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, result.stderr
 
@@ -135,9 +139,23 @@ def test_shared_consumers_do_not_select_or_import_native_implementations():
                 path
             )
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-                assert node.func.attr not in {"is_bsd", "is_windows", "is_linux"}, path
+                assert node.func.attr not in {
+                    "is_bsd",
+                    "is_freebsd",
+                    "is_openbsd",
+                    "is_netbsd",
+                    "is_windows",
+                    "is_linux",
+                }, path
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-                assert node.func.id not in {"is_bsd", "is_windows", "is_linux"}, path
+                assert node.func.id not in {
+                    "is_bsd",
+                    "is_freebsd",
+                    "is_openbsd",
+                    "is_netbsd",
+                    "is_windows",
+                    "is_linux",
+                }, path
             if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
                 assert (node.value.id, node.attr) not in {
                     ("sys", "platform"),

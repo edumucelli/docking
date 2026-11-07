@@ -55,6 +55,16 @@ def battery_backend(monkeypatch):
     return value
 
 
+@pytest.fixture
+def immediate_battery_worker(monkeypatch):
+    worker = MagicMock()
+    worker.run_guarded.side_effect = lambda **task: (
+        task["on_result"](task["fn"]()) or True
+    )
+    monkeypatch.setattr(battery_applet_mod, "BackgroundWorker", lambda: worker)
+    return worker
+
+
 class TestResolveBatteryIcon:
     @pytest.mark.parametrize(
         "level, status, expected",
@@ -690,8 +700,7 @@ class TestBatteryAppletRendering:
             "",
             "Power Settings",
         ]
-        callback, args = items[4]._signals["activate"][0]
-        callback(None, *args)
+        items[4].activate()
         battery_backend.open_settings.assert_called_once_with()
 
     def test_menu_overlay_only_without_power_settings_tool(self, battery_backend):
@@ -729,6 +738,7 @@ class TestBatteryAppletRendering:
         assert config.applet_prefs["battery"] == {"overlay": OVERLAY_POWER}
         applet.present.assert_called_once()
 
+    @pytest.mark.usefixtures("immediate_battery_worker")
     def test_tooltip_shows_percentage(self, tmp_path, monkeypatch, battery_backend):
         bat = tmp_path / "BAT0"
         bat.mkdir()
@@ -744,6 +754,7 @@ class TestBatteryAppletRendering:
         applet = BatteryApplet(
             48, config=Config(), platform_services=make_applet_platform()
         )
+        applet._tick()
         assert applet.item.name == "Battery: 72%"
 
     def test_tooltip_no_battery(self, battery_backend):
@@ -762,6 +773,7 @@ class TestBatteryAppletRendering:
         assert state is not None
         assert state.icon_name == "battery-full-charging"
 
+    @pytest.mark.usefixtures("immediate_battery_worker")
     def test_start_stop_and_tick_manage_polling_lifecycle(
         self, monkeypatch, battery_backend
     ):
@@ -801,3 +813,68 @@ class TestBatteryAppletRendering:
         applet.stop()
         assert removed == [77]
         assert applet._timer_id == 0
+
+    def test_slow_native_read_is_deferred_and_old_result_is_rejected(
+        self, monkeypatch, battery_backend
+    ):
+        jobs = []
+        worker = MagicMock()
+        worker.run_guarded.side_effect = lambda **task: jobs.append(task) or True
+        monkeypatch.setattr(battery_applet_mod, "BackgroundWorker", lambda: worker)
+        monkeypatch.setattr(
+            battery_applet_mod.GLib, "timeout_add_seconds", lambda *_args: 77
+        )
+        monkeypatch.setattr(
+            battery_applet_mod.GLib, "source_remove", lambda _source: None
+        )
+        applet = BatteryApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
+        battery_backend.read_battery.assert_not_called()
+        applet.start(lambda: None)
+        battery_backend.read_battery.assert_not_called()
+        old = next(task for task in jobs if task["name"] == "battery-state")
+        applet.stop()
+        jobs.clear()
+        applet.start(lambda: None)
+        current = next(task for task in jobs if task["name"] == "battery-state")
+        state = BatteryState("battery-good", 80, "Discharging", None)
+        old["on_result"](state)
+        assert applet._state is None
+        current["on_result"](state)
+        assert applet._state is state
+        assert applet.item.name == "Battery: 80%"
+        applet.stop()
+
+
+@pytest.mark.parametrize("first_fails", [False, True])
+def test_tick_during_a_slow_battery_read_gets_one_follow_up(
+    monkeypatch, battery_backend, first_fails
+):
+    from tests.applets.deferred_worker import DeferredWorker
+
+    queue = DeferredWorker()
+    monkeypatch.setattr(battery_applet_mod, "BackgroundWorker", lambda: queue.worker)
+    monkeypatch.setattr(
+        battery_applet_mod.GLib, "timeout_add_seconds", lambda *_args: 77
+    )
+    monkeypatch.setattr(battery_applet_mod.GLib, "source_remove", lambda _source: None)
+    old = BatteryState("battery-good", 80, "Discharging", None)
+    current = BatteryState("battery-good", 75, "Discharging", None)
+    battery_backend.read_battery.side_effect = [
+        OSError("slow read failed") if first_fails else old,
+        current,
+    ]
+    applet = BatteryApplet(48, Config(), platform_services=make_applet_platform())
+    monkeypatch.setattr(applet, "_refresh_peripherals", lambda: None)
+    applet.start(lambda: None)
+    queue.read()
+    applet._tick()
+    applet._tick()
+    assert not queue.tasks
+    queue.publish()
+    assert len(queue.tasks) == 1
+    queue.drain()
+    assert applet._state == current
+    assert battery_backend.read_battery.call_count == 2
+    applet.stop()

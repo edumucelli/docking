@@ -1428,6 +1428,12 @@ jobs:
           name: docking-bsd-openbsd
           path: artifacts/bsd-openbsd
 
+      - name: Download NetBSD package
+        uses: actions/download-artifact@v8
+        with:
+          name: docking-bsd-netbsd
+          path: artifacts/bsd-netbsd
+
       - name: Normalize release asset names
         if: steps.release_check.outputs.should_release == 'true'
         run: |
@@ -1604,6 +1610,7 @@ jobs:
         run: |
           python3 packaging/bsd/release.py --version "${{ steps.version.outputs.version }}" \
             --directory artifacts/bsd-freebsd --directory artifacts/bsd-openbsd \
+            --directory artifacts/bsd-netbsd \
             --output artifacts/release
 
       - name: Create GitHub Release

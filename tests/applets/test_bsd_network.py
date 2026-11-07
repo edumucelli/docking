@@ -53,6 +53,11 @@ def test_bluetooth_available_on_freebsd_but_not_openbsd(monkeypatch):
     )
     assert not bluetooth_meta.available_on_host
     assert camera_meta.available_on_host
+    monkeypatch.setattr(
+        identity, "host_services", lambda: SimpleNamespace(platform_name="netbsd11")
+    )
+    assert not bluetooth_meta.available_on_host
+    assert not camera_meta.available_on_host
 
 
 def test_shared_applet_starts_without_networkmanager_and_keeps_preferences(monkeypatch):

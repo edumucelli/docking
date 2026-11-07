@@ -16,8 +16,8 @@ Future Windows-specific tools belong in `tools/windows/`, with visual checks und
 The two existing visual harnesses serve related purposes with different coverage.
 The Linux harness exercises multiple Wayland compositors and Cinnamon/X11,
 including desktop integration and screenshot comparisons against baselines. The
-BSD harness runs the complete dock in a private Xvfb/Xfwm session on FreeBSD and
-OpenBSD, and on Linux as a control. It checks placement and interaction using
+BSD harness runs the complete dock in a private Xvfb/Xfwm session on FreeBSD,
+OpenBSD, and NetBSD, and on Linux as a control. It checks placement and interaction using
 captured pixels and real XTest input.
 
 ```bash
