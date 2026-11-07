@@ -465,7 +465,9 @@ class NativeDesktop:
 
     def _unavailable_query(self, handle, pid, name, stage, error):
         """Skip only proved rundown or an unverified, invisible background target."""
-        if error.code not in (5, 87):
+        # Hosted Arm image queries can also return ERROR_GEN_FAILURE. Keep the
+        # same pinned-handle and passive visibility proof; never grant actions.
+        if error.code not in (5, 87) and (stage != "image" or error.code != 31):
             return False
         row = {"pid": pid, "name": name, "stage": stage, "code": error.code}
         wait = bind(self.kernel, "WaitForSingleObject", _U, _P, _U)

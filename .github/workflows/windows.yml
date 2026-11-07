@@ -108,6 +108,7 @@ jobs:
           name: windows-native-domains-ucrt64-x64
           path: |
             artifacts/windows/environment.json
+            artifacts/windows/multiple-windows/
             artifacts/windows/input-candidate.json
             artifacts/windows/input-domain.json
             artifacts/windows/tray-domain.json

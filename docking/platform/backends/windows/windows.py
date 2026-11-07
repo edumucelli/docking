@@ -542,6 +542,11 @@ class WindowsWindowService(SnapshotWindowService):
         except OSError:
             log.exception("Could not refresh native Windows application windows")
 
+    def cycle(self, desktop_id: str) -> ActionResult:
+        # Focus can change between the 500 ms polls and the user's click.
+        self.refresh()
+        return super().cycle(desktop_id)
+
     def set_previews_available(self, available: bool) -> None:
         if self._previews_available != available:
             self._previews_available = available

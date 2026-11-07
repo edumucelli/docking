@@ -2024,8 +2024,10 @@ def test_start_dismissal_between_inventory_and_action_never_injects_input(
     api.desktop.key.assert_not_called()
 
 
-@pytest.mark.parametrize("stage", ("image", "creation"))
-@pytest.mark.parametrize("code", (5, 87))
+@pytest.mark.parametrize(
+    "stage,code",
+    [("image", 5), ("image", 87), ("creation", 5), ("creation", 87), ("image", 31)],
+)
 @pytest.mark.parametrize("status", (0, 258, 0xFFFFFFFF))
 def test_snapshot_failure_skips_only_a_signalled_pinned_handle(
     updater_api, stage, code, status
@@ -2072,14 +2074,31 @@ def test_snapshot_failure_skips_only_a_signalled_pinned_handle(
     api.kernel.TerminateProcess.assert_not_called()
 
 
-def test_unrelated_snapshot_failure_is_fatal_without_exit_reclassification(updater_api):
+@pytest.mark.parametrize(
+    "stage,code", [("image", 13), ("creation", 31), ("command-line", 31)]
+)
+def test_unrelated_snapshot_failure_is_fatal_without_exit_reclassification(
+    updater_api, stage, code
+):
     api, _state, _original = updater_api
-    error = hosted.PreparationError("QueryFullProcessImageNameW", 13)
-    api._image = Mock(side_effect=error)
+    operation, target = {
+        "image": ("QueryFullProcessImageNameW", "_image"),
+        "creation": ("GetProcessTimes", "_created"),
+        "command-line": ("WSL updater command line unavailable", "_wsl_arguments"),
+    }[stage]
+    error = hosted.PreparationError(operation, code)
+    setattr(api, target, Mock(side_effect=error))
     with pytest.raises(hosted.PreparationError) as failed, api.processes():
         pytest.fail("Unexpected errors must remain fatal")
     assert failed.value is error
-    api.kernel.WaitForSingleObject.assert_not_called()
+    if stage == "command-line":
+        assert all(
+            call.args[1] == 0 for call in api.kernel.WaitForSingleObject.call_args_list
+        )
+    else:
+        api.kernel.WaitForSingleObject.assert_not_called()
+    assert not api.exited and not api.unverified_background
+    api.kernel.TerminateProcess.assert_not_called()
     api.kernel.CloseHandle.assert_called_once_with(10)
 
 
@@ -2280,8 +2299,18 @@ def background_api(updater_api):
     )
 
 
-@pytest.mark.parametrize("stage", ("image", "creation", "command-line"))
-@pytest.mark.parametrize("code", (5, 87))
+@pytest.mark.parametrize(
+    "stage,code",
+    [
+        ("image", 5),
+        ("image", 87),
+        ("creation", 5),
+        ("creation", 87),
+        ("command-line", 5),
+        ("command-line", 87),
+        ("image", 31),
+    ],
+)
 def test_unavailable_background_classification_never_authorizes_an_action(
     background_api, stage, code
 ):
@@ -2344,11 +2373,12 @@ def test_unavailable_query_records_rundown_only_after_pinned_handle_signals(
         "wait",
     ),
 )
+@pytest.mark.parametrize("code", (5, 31))
 def test_unavailable_query_cannot_skip_visible_foreground_or_unprovable_candidate(
-    background_api, state
+    background_api, state, code
 ):
     f = background_api
-    error = hosted.PreparationError("QueryFullProcessImageNameW", 5)
+    error = hosted.PreparationError("QueryFullProcessImageNameW", code)
     f.api._image = Mock(side_effect=error)
     if state == "visible":
         f.windows[200]["visible"] = True  # Includes minimized visible windows.

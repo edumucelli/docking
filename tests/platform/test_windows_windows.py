@@ -17,6 +17,69 @@ from docking.platform.backends.windows.windows import WindowsWindowService
 from tests.platform.application_fakes import application, identity_services
 
 
+@pytest.mark.parametrize(
+    "cached_active,current_active",
+    [(None, 100), (None, 200), (100, 200), (200, 100)],
+)
+def test_cycle_uses_current_native_focus_instead_of_the_previous_poll(
+    cached_active, current_active
+):
+    def rows(active):
+        return tuple(
+            WindowSnapshot(
+                id=WindowId(DisplayServer.WINDOWS, hwnd),
+                desktop_id="",
+                app_id="Fixture.App",
+                pid=101,
+                active=hwnd == active,
+                can_activate=True,
+            )
+            for hwnd in (100, 200)
+        )
+
+    native = SimpleNamespace(
+        windows=MagicMock(return_value=rows(current_active)),
+        perform=MagicMock(return_value=ActionResult.OK),
+    )
+    service = WindowsWindowService(
+        model=SimpleNamespace(visible_items=list, update_running=MagicMock()),
+        native=native,
+        **identity_services(application("Fixture.App")),
+    )
+    service.replace_windows(rows(cached_active))
+
+    assert service.cycle("Fixture.App") is ActionResult.OK
+    target, action = native.perform.call_args.args
+    assert target.id.value == (200 if current_active == 100 else 100)
+    assert action == "activate"
+
+
+def test_cycle_does_not_activate_windows_closed_since_the_previous_poll():
+    native = SimpleNamespace(
+        windows=MagicMock(return_value=()),
+        perform=MagicMock(return_value=ActionResult.OK),
+    )
+    service = WindowsWindowService(
+        model=SimpleNamespace(visible_items=list, update_running=MagicMock()),
+        native=native,
+        **identity_services(application("Fixture.App")),
+    )
+    service.replace_windows(
+        (
+            WindowSnapshot(
+                id=WindowId(DisplayServer.WINDOWS, 100),
+                desktop_id="",
+                app_id="Fixture.App",
+                pid=101,
+                can_activate=True,
+            ),
+        )
+    )
+
+    assert service.cycle("Fixture.App") is ActionResult.NOT_FOUND
+    native.perform.assert_not_called()
+
+
 def test_reused_native_handle_cannot_act_on_another_process():
     from docking.platform.backends.windows.windows import Win32WindowAPI
 
