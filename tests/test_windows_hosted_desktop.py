@@ -17,6 +17,24 @@ FACTS = {"product_type": 1, "build": 26200, "native_machine": 0xAA64, "session":
 READY = {"input_desktop": "Default", "shell_ready": True, "blockers": []}
 
 
+@pytest.fixture
+def psutil_api(monkeypatch):
+    # psutil is a Windows/BSD runtime dependency, optional on Linux test hosts.
+    class NoSuchProcessError(Exception):
+        pass
+
+    class AccessDeniedError(Exception):
+        pass
+
+    api = SimpleNamespace(
+        process_iter=Mock(return_value=[]),
+        NoSuchProcess=NoSuchProcessError,
+        AccessDenied=AccessDeniedError,
+    )
+    monkeypatch.setitem(sys.modules, "psutil", api)
+    return api
+
+
 @pytest.mark.parametrize(
     "platform,environment,facts",
     [
@@ -219,12 +237,10 @@ def test_input_desktop_is_opened_read_only_and_closed_even_on_query_failure(
     ],
 )
 def test_setup_windows_are_reported_without_dismissal_or_private_captions(
-    monkeypatch, name
+    psutil_api, name
 ):
-    import psutil
-
     process = SimpleNamespace(pid=25, info={"name": name}, cmdline=lambda: ["wsl.exe"])
-    monkeypatch.setattr(psutil, "process_iter", lambda _: [process])
+    psutil_api.process_iter.return_value = [process]
     api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
     api.session = 3
     api.session_of = lambda _: 3
@@ -237,13 +253,11 @@ def test_setup_windows_are_reported_without_dismissal_or_private_captions(
     assert api.blockers() == [{"pid": 25, "name": name, "class": "#32770"}]
 
 
-def test_background_wsl_update_is_reported_without_terminating_it(monkeypatch):
-    import psutil
-
+def test_background_wsl_update_is_reported_without_terminating_it(psutil_api):
     process = SimpleNamespace(
         pid=25, info={"name": "wsl.exe"}, cmdline=lambda: ["wsl.exe", "--update"]
     )
-    monkeypatch.setattr(psutil, "process_iter", lambda _: [process])
+    psutil_api.process_iter.return_value = [process]
     api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
     api.session = 3
     api.session_of = lambda _: 3
@@ -424,12 +438,10 @@ def test_collector_branch_cannot_run_smokes_before_exact_parent_permission(
 
 @pytest.mark.parametrize("code", [5, 87])
 def test_disappeared_setup_process_is_ignored_but_permission_failure_is_not(
-    monkeypatch, code
+    psutil_api, code
 ):
-    import psutil
-
     process = SimpleNamespace(pid=25, info={"name": "setuphost.exe"})
-    monkeypatch.setattr(psutil, "process_iter", lambda _: [process])
+    psutil_api.process_iter.return_value = [process]
     api = hosted.NativeDesktop.__new__(hosted.NativeDesktop)
     api.session = 3
     api.session_of = Mock(
