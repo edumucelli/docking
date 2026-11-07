@@ -205,6 +205,27 @@ jobs:
           assert windows.product_type == 1 and windows.build >= 22000
           assert facts["msystem"] == "UCRT64"
           PY
+      # WslGetDistributionConfiguration callers can launch the inbox WSL
+      # bootstrap prompt repeatedly when the hosted image has no WSL package.
+      # Install only the signed package, without a distro or optional features,
+      # before physical-input acceptance starts.
+      - name: Complete hosted WSL package setup
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          $wsl = Join-Path $env:SystemRoot 'System32/wsl.exe'
+          & $wsl --version
+          if ($LASTEXITCODE -eq 0) { exit 0 }
+          $msi = Join-Path $env:RUNNER_TEMP 'docking-wsl-arm64.msi'
+          Invoke-WebRequest 'https://github.com/microsoft/WSL/releases/download/3.0.3/wsl.3.0.3.0.arm64.msi' -OutFile $msi
+          if ((Get-FileHash $msi -Algorithm SHA256).Hash -ne '2937c7ce840bb35ec6e97f052189bdfff27f8c3463bfdd231df9a958212787a3') {
+            throw 'WSL package digest differs from the pinned release'
+          }
+          $install = Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /norestart" -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "WSL package installation failed: $($install.ExitCode)" }
+          & $wsl --version
+          if ($LASTEXITCODE -ne 0) { throw 'WSL package readback failed' }
       - name: Compile translations and configure GTK
         run: |
           bash tools/i18n.sh --compile
@@ -233,9 +254,9 @@ jobs:
       - name: Verify GTK and native input dependencies
         if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
         run: python -m tools.windows.ci --stage preflight
-      - name: Verify hosted desktop readiness and the complete input domain
+      - name: Prepare the hosted desktop and verify the complete input domain
         if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
-        run: python -m tools.windows.visual.hosted_desktop --installed-root artifacts/windows/runtime --wheel dist/*.whl --source-sha "$GITHUB_SHA" --output artifacts/windows
+        run: python -m tools.windows.visual.hosted_desktop --minimize-runner-terminals --installed-root artifacts/windows/runtime --wheel dist/*.whl --source-sha "$GITHUB_SHA" --output artifacts/windows
       - uses: actions/upload-artifact@v7
         if: always()
         with:

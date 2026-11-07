@@ -166,7 +166,7 @@ def test_candidate_workflow_orders_exact_wheel_before_strict_client_and_release(
     assert (
         client.index("Download the exact Server candidate")
         < client.index("Verify and install the exact AMD64 candidate")
-        < client.index("Verify hosted desktop readiness")
+        < client.index("Prepare the hosted desktop")
     )
     assert "inputs.candidate-artifact == ''" in client  # manual dispatch only
     assert "--wheel dist/*.whl --source-sha" in client

@@ -257,14 +257,16 @@ missing or unshipped implementation files. API return values, protocol
 observations, physical input and reviewed screenshots are separate evidence.
 A capture labeled `captured-not-reviewed` is not visual acceptance.
 
-The hosted-only `tools.windows.visual.hosted_desktop` wrapper verifies an
-active input desktop, a ready shell, a provisioned WSL package, and the absence
-of visible setup/update blockers before starting the owned input collector.
-It continues observing readiness during acceptance. Host setup windows and
-policy are left untouched. An unfinished setup, updater, installer, privacy
-prompt, or locked desktop fails the job with a retained readiness report.
-The runner administrator/provider must complete supported provisioning before
-acceptance runs; WSL is not a Docking dependency.
+The hosted-only `tools.windows.visual.hosted_desktop` wrapper prepares
+recognized first-login/runner windows, records actions and temporarily scopes
+the privacy-experience policy. It restores that policy afterward and does not
+handle arbitrary user windows. Its cleanup policy must stay confined to
+disposable hosted runners.
+
+The Windows 11 hosted workflow first ensures the WSL package is installed,
+using a pinned ARM64 MSI when `wsl --version` fails. This prevents repeated
+inbox bootstrap prompts from interrupting physical input. It installs no Linux
+distribution or Windows optional features; WSL is not a Docking dependency.
 
 ### Feature probes
 

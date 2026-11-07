@@ -276,23 +276,7 @@ def write_input_artifact(
             "collector_stopped": True,
             "desktop_guard": "main-thread",
             "input_status": 0,
-            "mode": "verify-only",
-            "policy_changed": False,
-            "actions": [],
-            "blockers": [],
-            "readiness_checks": 2,
-            "checks": {
-                "session_ready": True,
-                "wsl_ready": True,
-                "shell_ready": True,
-                "input_desktop": "Default",
-                "blockers": [],
-            },
-            "last_desktop": {
-                "shell_ready": True,
-                "input_desktop": "Default",
-                "blockers": [],
-            },
+            "policy": {"previous": None, "applied": True, "restored": True},
         },
     )
     save(
@@ -489,18 +473,14 @@ def test_input_validation_imports_no_application_gui_or_windows_process_dependen
         "failed",
         "collector-running",
         "input-failed",
-        "policy-changed",
-        "legacy-mutation",
-        "blocking-window",
-        "session-unready",
-        "wsl-unready",
-        "wrong-desktop",
-        "unchecked-desktop",
+        "policy-unrestored",
+        "policy-unapplied",
+        "policy-before-missing",
         "guard-error",
         "guard-mismatch",
     ],
 )
-def test_workstation_requires_read_only_readiness_and_owned_collector_cleanup(
+def test_workstation_requires_original_guard_completion_and_exact_policy_cleanup(
     tmp_path, failure
 ):
     write_input_artifact(tmp_path)
@@ -516,22 +496,14 @@ def test_workstation_requires_read_only_readiness_and_owned_collector_cleanup(
         report["collector_stopped"] = False
     elif failure == "input-failed":
         report["input_status"] = 1
-    elif failure == "policy-changed":
-        report["policy_changed"] = True
-    elif failure == "legacy-mutation":
-        report["policy"] = {"applied": True, "restored": True}
-    elif failure == "blocking-window":
-        report["last_desktop"]["blockers"] = [{"name": "setuphost.exe"}]
-    elif failure == "session-unready":
-        report["checks"]["session_ready"] = False
-    elif failure == "wsl-unready":
-        report["checks"]["wsl_ready"] = False
-    elif failure == "wrong-desktop":
-        report["last_desktop"]["input_desktop"] = "Winlogon"
-    elif failure == "unchecked-desktop":
-        report["readiness_checks"] = 0
+    elif failure == "policy-unrestored":
+        report["policy"]["restored"] = False
+    elif failure == "policy-unapplied":
+        report["policy"]["applied"] = False
+    elif failure == "policy-before-missing":
+        del report["policy"]["previous"]
     elif failure == "guard-error":
-        report["error"] = {"operation": "Runner setup is incomplete", "code": 5}
+        report["error"] = {"operation": "Privacy policy restoration failed", "code": 5}
     elif failure == "guard-mismatch":
         report["guard"]["build"] = 26100
     if failure != "missing":

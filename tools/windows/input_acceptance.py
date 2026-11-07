@@ -509,10 +509,8 @@ def validate_input_artifact(
             )
         preparation = _record(read("desktop-preparation.json"))
         _true(preparation, "ok", "prepared", "collector_started", "collector_stopped")
-        checks = _record(preparation.get("checks"))
-        _true(checks, "session_ready", "wsl_ready", "shell_ready")
-        last = _record(preparation.get("last_desktop"))
-        _true(last, "shell_ready")
+        policy = _record(preparation.get("policy"))
+        _true(policy, "applied", "restored")
         guard = _record(preparation.get("guard"))
         session = guard.get("session")
         if (
@@ -528,22 +526,11 @@ def validate_input_artifact(
             or guard.get("native_machine") != platform.get("native_machine")
             or type(session) is not int
             or session <= 0
-            or preparation.get("mode") != "verify-only"
-            or preparation.get("policy_changed") is not False
-            or "policy" in preparation
-            or preparation.get("actions") != []
-            or preparation.get("blockers") != []
-            or type(preparation.get("readiness_checks")) is not int
-            or preparation["readiness_checks"] < 2
-            or checks.get("input_desktop") != "Default"
-            or checks.get("blockers") != []
-            or last.get("input_desktop") != "Default"
-            or last.get("blockers") != []
+            or "previous" not in policy
+            or "error" in policy
+            or "restore_error" in policy
         ):
-            raise ValueError(
-                "Read-only desktop readiness or owned collector cleanup "
-                "did not complete"
-            )
+            raise ValueError("Hosted desktop preparation/cleanup did not complete")
     domain = _record(read("input-domain.json"))
     if (
         type(_record(domain.get("coverage")).get("schema")) is not int
