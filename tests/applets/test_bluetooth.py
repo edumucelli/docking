@@ -279,6 +279,24 @@ class TestBluetoothStateHelpers:
             ["blueman-services"],
         ]
 
+    def test_failed_command_returns_false_and_logs_action(self, monkeypatch, caplog):
+        monkeypatch.setattr(
+            bluetooth_desktop_mod, "send_files_command", lambda: ["bluetooth-sendto"]
+        )
+
+        def fail_launch(*_args, **_kwargs):
+            raise FileNotFoundError("Bluetooth sender is unavailable")
+
+        monkeypatch.setattr(bluetooth_desktop_mod.subprocess, "Popen", fail_launch)
+
+        with caplog.at_level(logging.WARNING, logger="docking.bluetooth.unix_desktop"):
+            assert bluetooth_desktop_mod.open_send_files() is False
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.__dict__["action"] == "open_send_files"
+        assert "Bluetooth sender is unavailable" in record.getMessage()
+
 
 class TestLinuxBluetoothBackend:
     def test_pair_device_uses_bluetoothctl_fallback_on_failure(self):

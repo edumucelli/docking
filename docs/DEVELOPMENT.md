@@ -172,6 +172,15 @@ Run the smoke file in its own process. Full-suite import caches can hide
 incomplete no-GI fixtures. The type-checker configuration explicitly prioritizes
 this checkout over system-installed Docking releases.
 
+Missing-import checks remain enabled, with an explicit allowlist for system
+Cairo, BSD-only psutil, native GI namespaces, and optional PyWayland modules
+that lack stubs in some installations. Attribute checks cover core logic,
+shared applet state, Search outside native implementations, and
+application/host contracts and policy.
+The `tool.ty.overrides` section records this scope; expand it as native adapters
+and GTK wiring gain precise types. Remove native namespaces from the allowlist
+when their stubs become available.
+
 When changing platform interfaces, migrate Behave callers in `features/steps/`
 as well as pytest fixtures. The shared test factories deliberately construct
 Linux adapters for deterministic filesystem/command fixtures; tests reading the
