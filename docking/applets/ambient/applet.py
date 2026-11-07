@@ -200,9 +200,10 @@ class AmbientApplet(Applet):
         self._bus_watching = False
         if sound.kind == "file":
             bus = self._pipeline.get_bus()
-            bus.add_signal_watch()
-            bus.connect("message::eos", self._on_eos)
-            self._bus_watching = True
+            if bus is not None:
+                bus.add_signal_watch()
+                bus.connect("message::eos", self._on_eos)
+                self._bus_watching = True
 
         if self._pipeline.set_state(Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
             log.warning(
@@ -238,7 +239,7 @@ class AmbientApplet(Applet):
         # playbin has a volume property directly
         if self._pipeline.find_property("volume"):
             self._pipeline.set_property("volume", self._state.volume)
-        else:
+        elif isinstance(self._pipeline, Gst.Bin):
             # noise pipeline: find the volume element by name
             volume_element = self._pipeline.get_by_name("vol")
             if volume_element:

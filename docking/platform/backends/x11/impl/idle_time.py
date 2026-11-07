@@ -79,7 +79,7 @@ def _xdisplay_handle() -> ctypes.c_void_p | None:
         log.debug("GdkX11 unavailable: %s", exc)
         return None
     display = GdkX11.X11Display.get_default()
-    if display is None:
+    if not isinstance(display, GdkX11.X11Display):
         return None
     return ctypes.c_void_p(hash(display.get_xdisplay()))
 

@@ -7,10 +7,11 @@ import socket
 import struct
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import replace
-from typing import Any
+from typing import Any, cast
 
 from gi.repository import GLib
 
+from docking.core.json_types import JsonValue, as_json_object
 from docking.log import get_logger
 from docking.platform.backends.base import (
     ActionResult,
@@ -43,7 +44,7 @@ class SwayIpcClient:
     def __init__(self, path: str) -> None:
         self.path = path
 
-    def query(self, kind: int, payload: str = "") -> object:
+    def query(self, kind: int, payload: str = "") -> JsonValue:
         encoded = payload.encode("utf-8")
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
             sock.settimeout(0.25)
@@ -52,7 +53,7 @@ class SwayIpcClient:
             magic, length, reply_kind = _HEADER.unpack(_receive(sock, _HEADER.size))
             if magic != b"i3-ipc" or length > _MAX_REPLY or reply_kind != kind:
                 raise OSError("Invalid Sway IPC reply")
-            return json.loads(_receive(sock, length))
+            return cast(JsonValue, json.loads(_receive(sock, length)))
 
     def command(self, command: str) -> ActionResult:
         try:
@@ -192,7 +193,9 @@ class SwayWindowService(SnapshotWindowService):
                 else set()
             )
             self.replace_windows(
-                windows_from_tree(tree, visible) if isinstance(tree, Mapping) else ()
+                windows_from_tree(tree_object, visible)
+                if (tree_object := as_json_object(tree)) is not None
+                else ()
             )
         except (OSError, ValueError) as exc:
             log.debug("Sway snapshot unavailable: %s", exc)

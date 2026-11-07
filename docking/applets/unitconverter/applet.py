@@ -44,7 +44,7 @@ logic.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import gi
 
@@ -319,7 +319,10 @@ class UnitConverterApplet(Applet):
 
     def _unit_index_from_combo(self, *, combo: Gtk.ComboBoxText, fallback: int) -> int:
         """Resolve either selected or typed unit text into the current unit index."""
-        typed = combo.get_child().get_text().strip()
+        entry = combo.get_child()
+        if entry is None:
+            return fallback
+        typed = cast("Gtk.Entry", entry).get_text().strip()
         units = get_units(get_categories()[self._cat_idx])
         normalized = typed.casefold()
         for index, unit in enumerate(units):

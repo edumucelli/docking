@@ -23,7 +23,7 @@ import gi
 gi.require_version("Gio", "2.0")
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import GdkPixbuf, Gio, Gtk
+from gi.repository import GdkPixbuf, Gio, GObject, Gtk
 
 from docking.applets.base import TargetServicesApplet
 from docking.applets.devices import meta
@@ -81,7 +81,7 @@ class DevicesApplet(TargetServicesApplet):
             self._monitor,
             read_network_mounts(),
         )
-        self._handler_ids: list[tuple[object, int]] = []
+        self._handler_ids: list[tuple[GObject.Object, int]] = []
         super().__init__(
             icon_size=icon_size,
             config=config,

@@ -174,12 +174,19 @@ this checkout over system-installed Docking releases.
 
 Missing-import checks remain enabled, with an explicit allowlist for system
 Cairo, BSD-only psutil, native GI namespaces, and optional PyWayland modules
-that lack stubs in some installations. Attribute checks cover core logic,
-shared applet state, Search outside native implementations, and
-application/host contracts and policy.
-The `tool.ty.overrides` section records this scope; expand it as native adapters
-and GTK wiring gain precise types. Remove native namespaces from the allowlist
-when their stubs become available.
+that lack stubs in some installations. Strict generic narrowing requires callers
+to validate container contents instead of treating an arbitrary mapping as
+having known key/value types. Strict equality semantics keeps equality tests
+from silently narrowing values to literal types.
+Use rule-specific `ty: ignore[...]` comments when suppression is necessary;
+legacy `type: ignore` comments do not suppress ty diagnostics.
+
+Attribute checks apply to all handwritten application code, including native
+adapters and GTK wiring. Generated Wayland bindings retain their source exclusion.
+The `typings/` search path supplies the GTK 3 GdkX11 APIs used by Docking because
+upstream GdkX11 stubs target GTK 4. Keep this small overlay aligned with the native
+API; remove it when upstream provides matching GTK 3 stubs. Remove native
+namespaces from the missing-import allowlist when their stubs become available.
 
 When changing platform interfaces, migrate Behave callers in `features/steps/`
 as well as pytest fixtures. The shared test factories deliberately construct

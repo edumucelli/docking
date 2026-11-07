@@ -634,9 +634,10 @@ class PinnedEntry:
             return None
         if not target_raw:
             return None
-        if kind_raw not in {APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND}:
-            return None
-        return cls(kind=kind_raw, target=target_raw)
+        for kind in (APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND):
+            if kind_raw == kind:
+                return cls(kind=kind, target=target_raw)
+        return None
 
 
 def _uri_is_dir(target: str) -> bool:

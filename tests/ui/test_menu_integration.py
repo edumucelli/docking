@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -280,6 +281,14 @@ class FakeRadioMenuItem(FakeCheckMenuItem):
 class FakeSeparatorMenuItem(FakeMenuItem):
     def __init__(self) -> None:
         super().__init__(label="---")
+
+
+class FakeWindowMenuRow(FakeMenuItem):
+    pass
+
+
+class FakeWindowRowsSeparator(FakeSeparatorMenuItem):
+    pass
 
 
 class FakeImage:
@@ -738,6 +747,8 @@ def _frame(*, item=None, item_index: int = -1, insert_index: int = 0):
 @pytest.fixture
 def handler(monkeypatch):
     monkeypatch.setattr(menu_mod, "Gtk", FakeGtk)
+    monkeypatch.setattr(menu_mod, "_WindowMenuRow", FakeWindowMenuRow)
+    monkeypatch.setattr(menu_mod, "_WindowRowsSeparator", FakeWindowRowsSeparator)
     monkeypatch.setattr(menu_mod, "Pango", FakePango)
     monkeypatch.setattr(folder_stack_mod, "Gtk", FakeGtk)
     monkeypatch.setattr(folder_stack_mod, "Pango", FakePango)
@@ -1262,7 +1273,7 @@ class TestItemMenus:
         assert row.destroyed is True
         assert row not in menu.children
         assert not any(
-            getattr(child, "_window_rows_separator", False) for child in menu.children
+            isinstance(child, FakeWindowRowsSeparator) for child in menu.children
         )
         assert menu.popdown_called is True
         assert menu.shown is True
@@ -1341,7 +1352,7 @@ class TestItemMenus:
         handler._config.window_list_sort = "default"
         handler._build_item_menu(menu=menu, item=item)
 
-        rows = [c for c in menu.children if getattr(c, "_window_row", False)]
+        rows = [c for c in menu.children if isinstance(c, FakeWindowMenuRow)]
         labels = [r.get_child().children[1].label for r in rows]
         assert labels == ["Charlie", "Alpha", "Bravo"]
 
@@ -1366,7 +1377,7 @@ class TestItemMenus:
         handler._config.window_list_sort = "alphabetical"
         handler._build_item_menu(menu=menu, item=item)
 
-        rows = [c for c in menu.children if getattr(c, "_window_row", False)]
+        rows = [c for c in menu.children if isinstance(c, FakeWindowMenuRow)]
         labels = [r.get_child().children[1].label for r in rows]
         assert labels == ["Alpha", "Bravo", "Charlie"]
 
@@ -2827,3 +2838,21 @@ def test_asynchronous_menu_thumbnail_updates_after_mapping_and_cleans_timer(
     row.emit("unmap")
     row.emit("destroy")
     assert removed == [101]
+
+
+@pytest.mark.skipif(not menu_mod.Gtk.init_check()[0], reason="GTK display required")
+def test_closing_the_last_window_removes_its_separator_after_gtk_takes_ownership():
+    menu = menu_mod.Gtk.Menu()
+    row = menu_mod._WindowMenuRow()
+    separator = menu_mod._WindowRowsSeparator()
+    menu.append(row)
+    menu.append(separator)
+    del row, separator
+    gc.collect()
+    try:
+        row = menu.get_children()[0]
+        handler = object.__new__(menu_mod.MenuHandler)
+        handler._remove_window_row(row, refresh_popup=False)
+        assert menu.get_children() == []
+    finally:
+        menu.destroy()

@@ -84,7 +84,7 @@ def _number(value: JsonValue) -> float:
 
 def _weather_code(value: JsonValue) -> int:
     number = _number(value)
-    if not number.is_integer():
+    if int(number) != number:
         raise ValueError("Expected an integer WMO weather code")
     return int(number)
 

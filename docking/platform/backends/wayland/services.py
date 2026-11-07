@@ -35,6 +35,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, Protocol, cast
 from weakref import WeakKeyDictionary
 
 import cairo
@@ -47,6 +48,15 @@ from docking.platform.backends.base import (
     ReservationRequest,
     SurfaceService,
 )
+
+if TYPE_CHECKING:
+    from gi.repository import Gdk
+
+
+class _LayerShell(Protocol):
+    """Required entry point of the optional native layer-shell module."""
+
+    def init_for_window(self, window: object) -> None: ...
 
 
 def load_gtk_layer_shell() -> object | None:
@@ -87,7 +97,7 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         layer_shell: object,
         on_layer_surface_ready: Callable[[object], None] | None = None,
     ) -> None:
-        self._layer_shell = layer_shell
+        self._layer_shell = cast(_LayerShell, layer_shell)
         self._window: object | None = None
         self._exclusive_zone: int = 0
         self._on_layer_surface_ready = on_layer_surface_ready
@@ -287,7 +297,7 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         if self._overlay_monitors.get(window) is not gdk_monitor:
             _call_if_available(self._layer_shell, "set_monitor", window, gdk_monitor)
             self._overlay_monitors[window] = gdk_monitor
-        bounds = gdk_monitor.get_geometry()
+        bounds = cast("Gdk.Monitor", gdk_monitor).get_geometry()
         edges = _edges(self._layer_shell)
         for edge_name, margin in (
             ("LEFT", rect.x - bounds.x),

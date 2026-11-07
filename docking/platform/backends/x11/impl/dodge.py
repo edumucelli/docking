@@ -25,7 +25,7 @@ import gi
 gi.require_version("Wnck", "3.0")
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GLib, Wnck
+from gi.repository import Gdk, GLib, GObject, Wnck
 
 from docking.core.config import HideMode
 from docking.log import get_logger, with_context
@@ -81,7 +81,7 @@ class WindowDodgeMonitor(VisibilityMonitor):
         self._screen: Wnck.Screen | None = None
         self._should_hide = False
         self._debounce_id: int = 0
-        self._signal_ids: list[tuple[object, int]] = []
+        self._signal_ids: list[tuple[GObject.Object, int]] = []
         self._window_signal_ids: dict[int, tuple[Wnck.Window, list[int]]] = {}
 
     def start(self) -> None:
@@ -113,7 +113,7 @@ class WindowDodgeMonitor(VisibilityMonitor):
         self._screen = None
 
     def _connect(
-        self, obj: object, signal: str, handler: Callable[..., object]
+        self, obj: GObject.Object, signal: str, handler: Callable[..., object]
     ) -> None:
         sid = obj.connect_after(signal, handler)
         self._signal_ids.append((obj, sid))

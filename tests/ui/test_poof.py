@@ -162,7 +162,7 @@ class TestShowPoof:
             cr = cairo.Context(surface)
             win.signals["draw"](win, cr)
             while callback(win):
-                pass
+                win.signals["draw"](win, cr)
             return 1
 
         monkeypatch.setattr(poof_mod.GLib, "timeout_add", _run_animation, raising=False)
@@ -172,3 +172,6 @@ class TestShowPoof:
         assert len(created) == 1
         assert created[0].destroyed is True
         assert created[0].queue_draw_count == 2
+        assert [
+            call.args[3] for call in poof_mod.Gdk.cairo_set_source_pixbuf.call_args_list
+        ] == [0, -64, -128]

@@ -22,11 +22,13 @@ from __future__ import annotations
 import os
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 from docking.log import get_logger
 
 if TYPE_CHECKING:
+    from gi.repository import GLib
+
     from docking.platform.backends.wayland.cosmic import (
         CosmicOverlapAdapter,
         CosmicToplevelAdapter,
@@ -35,6 +37,9 @@ if TYPE_CHECKING:
     from docking.platform.backends.wayland.previews import (
         WaylandPreviewHandleTracker,
         _CaptureResource,
+        _CaptureSession,
+        _HyprlandFrame,
+        _PhocFrame,
         _ShmPool,
     )
     from docking.platform.backends.wayland.toplevels import (
@@ -63,6 +68,22 @@ def _workspace_flags(value: object) -> Iterable[object] | int | None:
     return _iterable_state(value)
 
 
+class _GLibNamespace(Protocol):
+    """GLib scheduling API used by the optional Wayland runtime."""
+
+    @property
+    def IOChannel(self) -> type[GLib.IOChannel]: ...  # noqa: N802 - native GLib name
+    @property
+    def IO_IN(self) -> int: ...  # noqa: N802 - native GLib name
+    @property
+    def IO_ERR(self) -> int: ...  # noqa: N802 - native GLib name
+    @property
+    def IO_HUP(self) -> int: ...  # noqa: N802 - native GLib name
+
+    @staticmethod
+    def source_remove(tag: int) -> bool: ...
+
+
 @dataclass(frozen=True)
 class WaylandProtocolFactories:
     """Runtime imports and constructors needed by WaylandProtocolRuntime."""
@@ -70,7 +91,7 @@ class WaylandProtocolFactories:
     display_cls: type
     manager_cls: type
     workspace_manager_cls: type
-    glib: object
+    glib: _GLibNamespace
 
 
 class ForeignToplevelProtocolAdapter:
@@ -580,10 +601,10 @@ class PreviewProtocolAdapter:
             raise RuntimeError("Wayland preview capture is unavailable")
         return cast("_CaptureResource", self._source_manager.create_source(handle))
 
-    def create_session(self, source: object) -> _CaptureResource:
+    def create_session(self, source: object) -> _CaptureSession:
         if not self.capture_available or self._capture_manager is None:
             raise RuntimeError("Wayland preview capture is unavailable")
-        return cast("_CaptureResource", self._capture_manager.create_session(source, 0))
+        return cast("_CaptureSession", self._capture_manager.create_session(source, 0))
 
     def create_shm_pool(self, fd: int, size: int) -> _ShmPool:
         if not self.capture_available or self._shm is None:
@@ -693,11 +714,11 @@ class HyprlandPreviewProtocolAdapter:
         self._flush = None
         self.available = False
 
-    def create_frame(self, handle: object) -> _CaptureResource:
+    def create_frame(self, handle: object) -> _HyprlandFrame:
         if not self.capture_available or self._manager is None:
             raise RuntimeError("Hyprland preview capture is unavailable")
         return cast(
-            "_CaptureResource",
+            "_HyprlandFrame",
             self._manager.capture_toplevel_with_wlr_toplevel_handle(0, handle),
         )
 
@@ -741,12 +762,10 @@ class PhocPreviewProtocolAdapter:
 
         self._shm = registry.bind(name, WlShm, min(version, WlShm.version))
 
-    def create_frame(self, handle: object, width: int, height: int) -> _CaptureResource:
+    def create_frame(self, handle: object, width: int, height: int) -> _PhocFrame:
         if not self.capture_available or self._manager is None:
             raise RuntimeError("Phoc preview capture is unavailable")
-        return cast(
-            "_CaptureResource", self._manager.get_thumbnail(handle, width, height)
-        )
+        return cast("_PhocFrame", self._manager.get_thumbnail(handle, width, height))
 
     def create_shm_pool(self, fd: int, size: int) -> _ShmPool:
         if not self.capture_available or self._shm is None:
@@ -1072,7 +1091,10 @@ class WaylandProtocolRuntime:
         fd = display.get_fd()
         channel = factories.glib.IOChannel.unix_new(fd)
         self._glib_source_id = channel.add_watch(
-            factories.glib.IO_IN | factories.glib.IO_ERR | factories.glib.IO_HUP,
+            cast(
+                "GLib.IOCondition",
+                factories.glib.IO_IN | factories.glib.IO_ERR | factories.glib.IO_HUP,
+            ),
             self._on_wayland_fd,
             display,
         )

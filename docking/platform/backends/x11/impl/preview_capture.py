@@ -56,6 +56,8 @@ def capture_xid(
 ) -> GdkPixbuf.Pixbuf | None:
     """Capture a window thumbnail by XID."""
     display = GdkX11.X11Display.get_default()
+    if not isinstance(display, GdkX11.X11Display):
+        return None
 
     try:
         foreign = GdkX11.X11Window.foreign_new_for_display(display, xid)
@@ -147,6 +149,8 @@ def _looks_unavailable_capture(pixbuf: GdkPixbuf.Pixbuf) -> bool:
 def _icon_fallback(thumb_w: int, thumb_h: int) -> GdkPixbuf.Pixbuf | None:
     """Create a dark placeholder pixbuf with the generic app icon centered."""
     bg = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, True, 8, thumb_w, thumb_h)
+    if bg is None:
+        return None
     bg.fill(0x1E1E1EFF)
 
     icon_theme = Gtk.IconTheme.get_default()

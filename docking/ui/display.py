@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import NamedTuple, cast
 
 import gi
 
@@ -90,14 +90,15 @@ def window_screen_position(window: Gtk.Window) -> ScreenPosition:
     return ScreenPosition(x=int(x), y=int(y))
 
 
-def window_surface_service(window: object) -> object | None:
+def window_surface_service(window: object) -> SurfaceService | None:
     """Return an explicitly attached surface service, if one exists."""
     try:
         attrs = vars(window)
     except TypeError:
         return None
     if "surface_service" in attrs:
-        return attrs["surface_service"]
+        # GTK windows may be plain popup parents or carry Docking's service.
+        return cast(SurfaceService | None, attrs["surface_service"])
     return None
 
 

@@ -120,7 +120,7 @@ class SteamDiscovery:
                         if not isinstance(folders, dict):
                             raise ValueError("Invalid library folders")
                         for key, value in folders.items():
-                            if not key.isdecimal():
+                            if not isinstance(key, str) or not key.isdecimal():
                                 continue
                             path = (
                                 value.get("path") if isinstance(value, dict) else value

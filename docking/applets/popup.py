@@ -81,7 +81,8 @@ def entry_completion_combo(
     completion.set_inline_completion(True)
     completion.set_popup_completion(True)
     completion.set_match_func(_completion_matches, matches or _prefix_matches)
-    entry = combo.get_child()
+    # new_with_entry guarantees an Entry; GTK exposes it as a generic Widget.
+    entry = cast("Gtk.Entry", combo.get_child())
     entry.set_completion(completion)
     entry.connect("focus-in-event", _select_combo_entry_text)
     entry.connect("button-release-event", _select_combo_entry_text)

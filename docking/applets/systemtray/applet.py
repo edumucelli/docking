@@ -323,9 +323,10 @@ class SystemTrayApplet(PlatformServicesApplet):
         return True
 
     def _on_popup_focus_out(self, *_args) -> bool:
-        if self.popup_visible:
+        popup = self._popup
+        if self.popup_visible and popup is not None:
             self._focus_target = None
-            self._popup.hide()
+            popup.hide()
         return False
 
     def _on_focus_return(self, request: TrayFocusRequest) -> None:

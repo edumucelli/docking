@@ -25,7 +25,6 @@ def activation_timestamp() -> int:
         if window is None:
             return 0
         window.set_events(window.get_events() | Gdk.EventMask.PROPERTY_CHANGE_MASK)
-        # GTK 3 takes a Gdk.Window; the installed stubs describe GTK 4 surfaces.
-        return GdkX11.x11_get_server_time(window)  # ty: ignore[invalid-argument-type]
+        return GdkX11.x11_get_server_time(window)
     finally:
         probe.destroy()
