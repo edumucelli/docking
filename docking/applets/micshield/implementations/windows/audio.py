@@ -39,7 +39,7 @@ def _check(status: int) -> None:
         raise OSError(f"Core Audio capture failed: 0x{status & 0xFFFFFFFF:08x}")
 
 
-def _object(stack: ExitStack, pointer, index: int, *arguments):
+def _object(stack: ExitStack, pointer, index: int, *arguments) -> _POINTER:
     value = _POINTER()
     kinds, values = arguments[::2], arguments[1::2]
     try:

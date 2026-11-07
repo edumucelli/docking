@@ -70,3 +70,30 @@ def test_windows_file_urls_decode_independently_of_the_host(uri, expected):
 )
 def test_windows_file_urls_reject_invalid_paths(uri):
     assert WindowsHostServices().local_path(uri) is None
+
+
+def test_native_drive_enumeration_preserves_all_null_separated_paths(monkeypatch):
+    import ctypes
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    from docking.platform.host.implementations.windows import paths
+
+    drives = ("C:\\", "Z:\\")
+    text = "\0".join(drives) + "\0\0"
+    source = ctypes.create_unicode_buffer(text)
+
+    def read(length, buffer):
+        if not length:
+            return len(text)
+        assert length >= len(source)
+        ctypes.memmove(buffer, source, ctypes.sizeof(source))
+        return len(text) - 1
+
+    monkeypatch.setattr(
+        paths.ctypes,
+        "WinDLL",
+        lambda *_args, **_kwargs: SimpleNamespace(GetLogicalDriveStringsW=read),
+        raising=False,
+    )
+    assert paths.mount_points() == tuple(Path(drive) for drive in drives)

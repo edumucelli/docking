@@ -120,4 +120,6 @@ def mount_points() -> tuple[Path, ...]:
     actual = read(len(buffer), buffer)
     if not 0 < actual < len(buffer):
         raise OSError("Could not read native volume paths")
-    return tuple(Path(value) for value in buffer[:actual].split("\0") if value)
+    return tuple(
+        Path(value) for value in ctypes.wstring_at(buffer, actual).split("\0") if value
+    )

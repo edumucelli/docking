@@ -79,6 +79,7 @@ def _gtk_events(user: object, on_error: Callable[[], None]) -> Iterator[int]:
     )(0, "STATIC", "", 0, 0, 0, 0, 0, -3, None, None, None)  # HWND_MESSAGE
     if not hwnd:
         raise ctypes.WinError(ctypes.get_last_error())
+    hwnd = int(hwnd)
     timer = 0
     modal = None
     try:

@@ -137,6 +137,13 @@ allowed-unresolved-imports = [
     "pywayland.protocol.ext_idle_notify_v1",
     "pywayland.protocol.ext_image_capture_source_v1",
     "pywayland.protocol.ext_image_copy_capture_v1",
+    # The optional Qt companion runs in its own Windows Python environment.
+    "PySide6.QtCore",
+    "PySide6.QtGui",
+    "PySide6.QtWebChannel",
+    "PySide6.QtWebEngineCore",
+    "PySide6.QtWebEngineWidgets",
+    "PySide6.QtWidgets",
 ]
 
 [tool.ty.rules]
