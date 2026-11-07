@@ -400,3 +400,35 @@ def test_default_directory_handler_name_and_pending():
     for status in (AssociationStatus.PENDING, AssociationStatus.UNAVAILABLE):
         registry.directory_application_name.return_value = AssociationResolution(status)
         assert service.default_directory_app_name() is None
+
+
+def test_windows_default_handler_receives_the_decoded_native_path(
+    tmp_path, monkeypatch
+):
+    from docking.platform.desktop.implementations.windows import targets as native
+    from docking.platform.desktop.implementations.windows.backend import (
+        WindowsDesktopServices,
+    )
+
+    path = tmp_path / "report # résumé 100%.txt"
+    path.write_text("document")
+    launch = MagicMock(return_value=True)
+    monkeypatch.setattr(targets_mod, "desktop_services", WindowsDesktopServices)
+    monkeypatch.setattr(native, "open_default_target", launch)
+    assert open_target(path.as_uri())
+    launch.assert_called_once_with(str(path.resolve()))
+
+
+def test_windows_default_handler_receives_allowed_web_uri_and_reports_failure(
+    monkeypatch,
+):
+    from docking.platform.desktop.implementations.windows import targets as native
+    from docking.platform.desktop.implementations.windows.backend import (
+        WindowsDesktopServices,
+    )
+
+    launch = MagicMock(return_value=False)
+    monkeypatch.setattr(targets_mod, "desktop_services", WindowsDesktopServices)
+    monkeypatch.setattr(native, "open_default_target", launch)
+    assert not open_target("https://example.com/docs")
+    launch.assert_called_once_with("https://example.com/docs")

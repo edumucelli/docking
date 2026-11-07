@@ -65,6 +65,7 @@ def test_missing_controller_is_unavailable(backend, monkeypatch):
 
 
 def test_factory_selects_bsd_without_importing_bluez(monkeypatch):
+    monkeypatch.setattr(environment, "is_windows", lambda: False)
     monkeypatch.setattr(sys, "platform", "freebsd15")
     monkeypatch.setattr(environment, "is_bsd", lambda: True)
     monkeypatch.setitem(

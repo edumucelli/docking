@@ -9,7 +9,7 @@ import pytest
 from docking.core.items import DockItem
 from docking.platform.applications.identity import ProcessIdentity
 from docking.platform.applications.matcher import AppIdMatcher
-from docking.platform.applications.types import ApplicationLocation
+from docking.platform.applications.types import ApplicationLocation, ApplicationOrigin
 from tests.platform.application_fakes import ApplicationRegistryStub, application
 
 
@@ -53,3 +53,45 @@ def _pe_image():
     header[:2] = b"MZ"
     header[0x3C:0x40] = (128).to_bytes(4, "little")
     return bytes(header) + b"PE\0\0"
+
+
+@pytest.mark.parametrize("visible", [False, True])
+def test_unlisted_pe_program_does_not_borrow_another_executables_pin(tmp_path, visible):
+    paths = [tmp_path / folder / "Shared.exe" for folder in ("installed", "other")]
+    for path in paths:
+        path.parent.mkdir()
+        path.write_bytes(_pe_image())
+    installed = replace(
+        application("Example.Installed", wm_class="shared"),
+        executable_path=paths[0],
+        exec_line="",
+        location=ApplicationLocation.HOST,
+    )
+    process = ProcessIdentity(pid=42, executable_path=paths[1])
+    from docking.platform.applications.implementations.windows.registration import (
+        WindowsExecutableRegistration,
+    )
+
+    registry = ApplicationRegistryStub((installed,))
+    registry.registrations = WindowsExecutableRegistration()
+    matcher = AppIdMatcher(
+        registry,
+        SimpleNamespace(identity_for_pid=lambda _pid: process),
+    )
+    if visible:
+        matcher.sync_visible_items(
+            [
+                DockItem(
+                    kind="app",
+                    desktop_id=installed.desktop_id,
+                    application_info=installed,
+                )
+            ]
+        )
+
+    matched = matcher.match_result("shared", process_id=42)
+
+    assert matched is not None
+    assert matched.desktop_id != installed.desktop_id
+    assert matched.application.origin is ApplicationOrigin.RUNTIME
+    assert matched.application.executable_path == paths[1]

@@ -29,22 +29,22 @@ from docking.platform.environment.environment import (
 
 
 @pytest.mark.parametrize(
-    "platform,freebsd,openbsd,netbsd",
+    "platform,freebsd,openbsd,netbsd,desktop",
     [
-        ("freebsd", True, False, False),
-        ("freebsd15", True, False, False),
-        ("openbsd", False, True, False),
-        ("openbsd7", False, True, False),
-        ("netbsd", False, False, True),
-        ("netbsd11", False, False, True),
-        ("linux", False, False, False),
-        ("darwin", False, False, False),
-        ("win32", False, False, False),
-        ("dragonfly6", False, False, False),
+        ("freebsd", True, False, False, Desktop.XFCE),
+        ("freebsd15", True, False, False, Desktop.XFCE),
+        ("openbsd", False, True, False, Desktop.XFCE),
+        ("openbsd7", False, True, False, Desktop.XFCE),
+        ("netbsd", False, False, True, Desktop.XFCE),
+        ("netbsd11", False, False, True, Desktop.XFCE),
+        ("linux", False, False, False, Desktop.XFCE),
+        ("darwin", False, False, False, Desktop.XFCE),
+        ("win32", False, False, False, Desktop.WINDOWS),
+        ("dragonfly6", False, False, False, Desktop.XFCE),
     ],
 )
 def test_bsd_detection_keeps_desktop_identity(
-    monkeypatch, platform, freebsd, openbsd, netbsd
+    monkeypatch, platform, freebsd, openbsd, netbsd, desktop
 ):
     monkeypatch.setattr(sys, "platform", platform)
     monkeypatch.setenv("XDG_SESSION_DESKTOP", "xfce")
@@ -52,7 +52,7 @@ def test_bsd_detection_keeps_desktop_identity(
     assert is_openbsd() is openbsd
     assert is_netbsd() is netbsd
     assert is_bsd() is (freebsd or openbsd or netbsd)
-    assert detect_desktop() == Desktop.XFCE
+    assert detect_desktop() == desktop
 
 
 class TestParseDesktop:

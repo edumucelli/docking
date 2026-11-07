@@ -8,8 +8,12 @@ from .base import HostServices
 @cache
 def host_services() -> HostServices:
     # Environment's XDG helpers import host_services, so resolve this lazily.
-    from docking.platform.environment import is_bsd
+    from docking.platform.environment import is_bsd, is_windows
 
+    if is_windows():
+        from .implementations.windows.backend import WindowsHostServices
+
+        return WindowsHostServices()
     if is_bsd():
         from .implementations.bsd.backend import BsdHostServices
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from docking.platform.backends.base import PlacementRequest
+from docking.platform.backends.base import PlacementRequest, Rect
 
 if TYPE_CHECKING:
     from gi.repository import Gtk
@@ -36,3 +36,14 @@ def place_window(window: object, request: PlacementRequest) -> None:
     window.set_size_request(request.size.width, request.size.height)
     window.resize(request.size.width, request.size.height)
     window.move(request.x, request.y)
+
+
+def logical_screen_rectangle(window: object, rect: Rect) -> Rect | None:
+    window = cast("Gtk.Window", window)
+    native = window.get_window()
+    if native is None or not window.get_mapped():
+        return None
+    success, x, y = native.get_origin()
+    if not success:
+        return None
+    return Rect(x + rect.x, y + rect.y, rect.width, rect.height)
