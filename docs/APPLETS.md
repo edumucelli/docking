@@ -1,6 +1,6 @@
 # Applets
 
-Docking includes 66 built-in applets that live alongside
+Docking includes 67 built-in applets that live alongside
 application launchers, files, and folders. Applets can launch workflows,
 show live information, adjust system settings, or provide small tools
 without opening a full application.
@@ -37,7 +37,8 @@ hidden from the menu.
 - **System & Power:** [Battery](#battery), [Bluetooth](#bluetooth),
   [Brightness](#brightness), [Caffeine](#caffeine), [Cam Shield](#cam-shield),
   [Caps Lock](#caps-lock), [Cert Watch](#cert-watch), [Devices](#devices),
-  [Docker](#docker), [Keyboard Layout](#keyboard-layout), [Mic Shield](#mic-shield),
+  [Docker](#docker), [KDE Connect](#kde-connect),
+  [Keyboard Layout](#keyboard-layout), [Mic Shield](#mic-shield),
   [Music](#music), [Network](#network), [Notifications](#notifications),
   [Power Profiles](#power-profiles), [Screenshot](#screenshot), [Session](#session),
   [Speedtest](#speedtest), [System Monitor](#system-monitor),
@@ -421,6 +422,27 @@ Shows Docker availability and container status when Docker is installed.
 
 **Click:** Refresh container state
 **Right-click:** Container actions when available
+
+### KDE Connect
+
+Connect a paired phone or another KDE Connect device to the dock. The icon shows
+the selected device's battery percentage and charging status. Paired devices
+remain in the menu when they go offline.
+
+**Click:** Open KDE Connect's device settings and pairing interface.
+
+**Right-click:** Choose a paired device, Ring Phone, Send Files, Refresh Now, or
+Open KDE Connect / Pair Device. Actions are enabled only when the selected
+device is online and the corresponding feature is enabled in KDE Connect.
+
+**Drop files:** Drop one or more local files onto the icon to send them to the
+selected device. The destination stays the same if that device goes offline or
+is unpaired; choose another device explicitly to send files elsewhere. Use KDE
+Connect to check transfer progress and confirm receipt.
+
+**Requires:** Install KDE Connect on the computer and phone, pair the devices,
+and enable the battery, find-phone, and file-sharing features you want to use in
+KDE Connect's settings. A KDE Plasma desktop is not required.
 
 ### Keyboard Layout
 

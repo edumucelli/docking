@@ -764,6 +764,16 @@
     "fr": "Un rappel discret pour garder les pauses saines à l’esprit.",
     "es": "Un recordatorio discreto para tener presentes las pausas saludables."
   },
+  "KDE Connect": {
+    "pt": "KDE Connect",
+    "fr": "KDE Connect",
+    "es": "KDE Connect"
+  },
+  "See phone battery and charging status, ring your phone, and send files.": {
+    "pt": "Veja a bateria e o estado de carregamento do telemóvel, faça-o tocar e envie ficheiros.",
+    "fr": "Consultez la batterie et l’état de charge du téléphone, faites-le sonner et envoyez des fichiers.",
+    "es": "Consulta la batería y el estado de carga del teléfono, hazlo sonar y envía archivos."
+  },
   "Keyboard Layout": {
     "pt": "Disposição do teclado",
     "fr": "Disposition du clavier",
