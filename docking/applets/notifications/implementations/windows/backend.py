@@ -32,7 +32,7 @@ from docking.platform.native.windows.com import (
     release,
     value,
 )
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 from docking.platform.native.windows.winrt import WindowsRuntime, check
 
 log = get_logger("notifications.windows")
@@ -106,7 +106,7 @@ class QuietHours:
         name = ctypes.c_uint64(0x0D83063EA3BF1C75)
         stamp, state, size = ctypes.c_uint32(), ctypes.c_uint32(), ctypes.c_uint32(4)
         status = bind(
-            ctypes.WinDLL("ntdll"),
+            windows_ctypes.WinDLL("ntdll"),
             "NtQueryWnfStateData",
             ctypes.c_int32,
             ctypes.POINTER(ctypes.c_uint64),

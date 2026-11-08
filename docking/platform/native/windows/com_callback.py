@@ -9,6 +9,7 @@ from typing import Any, ClassVar
 
 from docking.log import get_logger
 from docking.platform.native.windows.com import GUID, HRESULT
+from docking.platform.native.windows.ffi import windows_ctypes
 
 log = get_logger("windows.com_callback")
 _POINTER = ctypes.c_void_p
@@ -42,7 +43,7 @@ class ComObject:
         self._iid = bytes(GUID.parse(iid))
         self._on_error, self._agile = on_error, agile
         self._references, self._owned = 1, True
-        function = ctypes.WINFUNCTYPE
+        function = windows_ctypes.WINFUNCTYPE
         self._functions: list[Any] = [
             function(HRESULT, _POINTER, ctypes.POINTER(GUID), ctypes.POINTER(_POINTER))(
                 self._query

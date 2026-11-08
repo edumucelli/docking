@@ -120,7 +120,7 @@ def test_windows_privacy_settings_remain_available_without_a_capture_device(
     client, api = capture
     api.endpoints = ()
     opened = []
-    monkeypatch.setattr(backend.os, "startfile", opened.append, raising=False)
+    monkeypatch.setattr(backend.windows_os, "startfile", opened.append, raising=False)
     assert client.settings_available() and client.open_settings()
     assert opened == ["ms-settings:privacy-microphone"]
 

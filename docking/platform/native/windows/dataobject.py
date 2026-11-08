@@ -14,7 +14,7 @@ from docking.platform.native.windows.com import (
     method,
     release,
 )
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 
 class FormatEtc(ctypes.Structure):
@@ -59,7 +59,7 @@ def cached_data_object(
         stack.callback(release, pointer)
         interface = GUID.parse("0000010e-0000-0000-c000-000000000046")
         status = bind(
-            ctypes.WinDLL("shell32", use_last_error=True),
+            windows_ctypes.WinDLL("shell32", use_last_error=True),
             "SHCreateDataObject",
             HRESULT,
             ctypes.c_void_p,
@@ -72,7 +72,7 @@ def cached_data_object(
         _check(status)
         if not pointer.value:
             raise OSError("Missing native drag data object")
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
         allocate = bind(
             kernel, "GlobalAlloc", ctypes.c_void_p, ctypes.c_uint32, ctypes.c_size_t
         )
@@ -80,7 +80,7 @@ def cached_data_object(
         lock = bind(kernel, "GlobalLock", ctypes.c_void_p, ctypes.c_void_p)
         unlock = bind(kernel, "GlobalUnlock", ctypes.c_int32, ctypes.c_void_p)
         register = bind(
-            ctypes.WinDLL("user32", use_last_error=True),
+            windows_ctypes.WinDLL("user32", use_last_error=True),
             "RegisterClipboardFormatW",
             ctypes.c_uint32,
             ctypes.c_wchar_p,
@@ -90,14 +90,14 @@ def cached_data_object(
                 raise ValueError("Native drag payload must not be empty")
             kind = 15 if name == "CF_HDROP" else register(name)
             if not kind:
-                raise ctypes.WinError(ctypes.get_last_error())
+                raise windows_ctypes.WinError(windows_ctypes.get_last_error())
             handle = allocate(0x42, len(data))  # GMEM_MOVEABLE | GMEM_ZEROINIT
             if not handle:
-                raise ctypes.WinError(ctypes.get_last_error())
+                raise windows_ctypes.WinError(windows_ctypes.get_last_error())
             try:
                 address = lock(handle)
                 if not address:
-                    raise ctypes.WinError(ctypes.get_last_error())
+                    raise windows_ctypes.WinError(windows_ctypes.get_last_error())
                 try:
                     ctypes.memmove(address, data, len(data))
                 finally:

@@ -13,7 +13,7 @@ from docking.platform.native.windows.com import (
     method,
     release,
 )
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 # IApplicationResolver2's first method is used by the Windows shell for .lnk
 # identities. This is an internal interface; unavailable implementations return
@@ -49,7 +49,7 @@ def shortcut_application_id(path: Path) -> str | None:
         if status < 0 or not resolver.value:
             return None
         parse = bind(
-            ctypes.WinDLL("shell32", use_last_error=True),
+            windows_ctypes.WinDLL("shell32", use_last_error=True),
             "SHCreateItemFromParsingName",
             HRESULT,
             ctypes.c_wchar_p,

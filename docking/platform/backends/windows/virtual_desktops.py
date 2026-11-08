@@ -25,7 +25,7 @@ from docking.platform.native.windows.com import (
     method,
     release,
 )
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 log = get_logger("windows.virtual_desktops")
 _SHELL = GUID.parse("c2f03a33-21f5-47fa-b4bb-156362a2f239")
@@ -126,7 +126,7 @@ class WindowsVirtualDesktopAPI:
         """Apply stickiness to one owned view, never a shared application ID."""
         if not self.supported():
             raise OSError("Virtual desktop shell ABI is unavailable on this build")
-        user = ctypes.WinDLL("user32", use_last_error=True)
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
         owner = bind(
             user,
             "GetWindowThreadProcessId",
@@ -209,7 +209,7 @@ class WindowsVirtualDesktopAPI:
 
     @staticmethod
     def _name(desktop: ctypes.c_void_p) -> str:
-        runtime, value = ctypes.WinDLL("combase"), ctypes.c_void_p()
+        runtime, value = windows_ctypes.WinDLL("combase"), ctypes.c_void_p()
         clear = bind(runtime, "WindowsDeleteString", HRESULT, ctypes.c_void_p)
         raw = bind(
             runtime,
@@ -301,8 +301,8 @@ class WindowsVirtualDesktopAPI:
     def _windows(
         public: ctypes.c_void_p, desktops: frozenset[str]
     ) -> dict[int, WindowWorkspace]:
-        user = ctypes.WinDLL("user32", use_last_error=True)
-        callback_type = ctypes.WINFUNCTYPE(
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
+        callback_type = windows_ctypes.WINFUNCTYPE(
             ctypes.c_int32, ctypes.c_void_p, ctypes.c_ssize_t
         )
         enumerate_windows = bind(

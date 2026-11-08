@@ -5,6 +5,7 @@ from __future__ import annotations
 import ctypes
 from collections import deque
 from ctypes import wintypes
+from typing import TYPE_CHECKING, cast
 
 from docking.applets.screenshot.backend import SelectionPhase
 from docking.log import get_logger
@@ -12,7 +13,10 @@ from docking.platform.backends.base import MonitorSnapshot, Rect
 from docking.platform.desktop.implementations.windows.geometry import (
     WindowsMonitorGeometry,
 )
-from docking.platform.native.windows.ffi import bind, window_handle
+from docking.platform.native.windows.ffi import bind, window_handle, windows_ctypes
+
+if TYPE_CHECKING:
+    from gi.repository import Gtk
 
 log = get_logger("screenshot.windows_selection")
 _PHASES: dict[int, SelectionPhase] = {0x201: "press", 0x200: "motion", 0x202: "release"}
@@ -22,6 +26,7 @@ class WindowsRegionCoordinates:
     """Observe only the owned overlay's input, without consuming its messages."""
 
     def __init__(self, window: object) -> None:
+        window = cast("Gtk.Window", window)
         self._hwnd = None
         self._positions: dict[SelectionPhase, deque[tuple[int, int]]] = {
             "press": deque(maxlen=32),
@@ -33,6 +38,8 @@ class WindowsRegionCoordinates:
         self._mappings = []
         for index in range(display.get_n_monitors()):
             monitor = display.get_monitor(index)
+            if monitor is None:
+                continue
             bounds = monitor.get_geometry()
             self._mappings.append(
                 geometry.mapping(
@@ -44,7 +51,7 @@ class WindowsRegionCoordinates:
                     display,
                 )
             )
-        user = ctypes.WinDLL("user32", use_last_error=True)
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
         self._to_screen = bind(
             user,
             "ClientToScreen",
@@ -52,7 +59,7 @@ class WindowsRegionCoordinates:
             wintypes.HWND,
             ctypes.POINTER(wintypes.POINT),
         )
-        callback_type = ctypes.WINFUNCTYPE(
+        callback_type = windows_ctypes.WINFUNCTYPE(
             ctypes.c_ssize_t,
             wintypes.HWND,
             wintypes.UINT,
@@ -62,7 +69,7 @@ class WindowsRegionCoordinates:
             ctypes.c_size_t,
         )
         self._callback = callback_type(self._message)
-        library = ctypes.WinDLL("comctl32", use_last_error=True)
+        library = windows_ctypes.WinDLL("comctl32", use_last_error=True)
         self._set = bind(
             library,
             "SetWindowSubclass",
@@ -93,7 +100,7 @@ class WindowsRegionCoordinates:
         if hwnd is None:
             raise OSError("Region overlay has no native window")
         if not self._set(hwnd, self._callback, id(self), 0):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         self._hwnd = hwnd
 
     def _message(self, hwnd, message, wparam, lparam, _subclass, _data):

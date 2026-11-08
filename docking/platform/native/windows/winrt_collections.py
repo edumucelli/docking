@@ -15,7 +15,7 @@ from docking.platform.native.windows.com import (
     value,
 )
 from docking.platform.native.windows.com_callback import ComObject
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 from docking.platform.native.windows.winrt import WindowsRuntime, check
 
 _P = ctypes.c_void_p
@@ -65,7 +65,7 @@ class _StringIterator(_Inspectable):
     def __init__(self, runtime: WindowsRuntime, strings: tuple[str, ...]):
         self._index, self._strings, self._runtime = 0, strings, runtime
         self._duplicate = bind(
-            ctypes.WinDLL("combase"),
+            windows_ctypes.WinDLL("combase"),
             "WindowsDuplicateString",
             HRESULT,
             _P,

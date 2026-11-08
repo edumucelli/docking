@@ -15,7 +15,7 @@ from docking.platform.native.windows.com import (
     object_result,
     query,
 )
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 from docking.platform.native.windows.winrt import check
 
 KEYBOARD_CATEGORY = "34745c63-b2f0-4784-8b67-5e12c8701a31"
@@ -104,9 +104,11 @@ class TextProfiles:
     def __init__(self, scope: ExitStack):
         self._profiles = create_instance(scope, _CLASS, _PROFILES)
         self._manager = query(scope, self._profiles, _MANAGER)
-        self._free_string = bind(ctypes.WinDLL("oleaut32"), "SysFreeString", None, _P)
+        self._free_string = bind(
+            windows_ctypes.WinDLL("oleaut32"), "SysFreeString", None, _P
+        )
         self._string_length = bind(
-            ctypes.WinDLL("oleaut32"), "SysStringLen", ctypes.c_uint32, _P
+            windows_ctypes.WinDLL("oleaut32"), "SysStringLen", ctypes.c_uint32, _P
         )
 
     def _name(self, native: NativeProfile) -> str:

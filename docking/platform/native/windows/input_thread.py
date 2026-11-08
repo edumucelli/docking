@@ -19,7 +19,14 @@ from typing import cast
 
 from docking.log import get_logger
 from docking.platform.native.windows.com import GUID, HRESULT
-from docking.platform.native.windows.ffi import bind, process_machine
+from docking.platform.native.windows.ffi import (
+    CREATE_NO_WINDOW,
+    WindowsErrorCode,
+    WindowsProcessHandle,
+    bind,
+    process_machine,
+    windows_ctypes,
+)
 from docking.platform.native.windows.input_context import InputContext
 from docking.platform.native.windows.input_profiles import (
     InputProfile,
@@ -192,13 +199,13 @@ def _mapping(kernel, name: str) -> Iterator[Request]:
         ctypes.c_wchar_p,
     )(_P(-1), None, 4, 0, ctypes.sizeof(Request), name)
     if not handle:
-        raise ctypes.WinError(ctypes.get_last_error())
+        raise windows_ctypes.WinError(windows_ctypes.get_last_error())
     try:
         address = bind(
             kernel, "MapViewOfFile", _P, _P, _DWORD, _DWORD, _DWORD, ctypes.c_size_t
         )(handle, 6, 0, 0, ctypes.sizeof(Request))
         if not address:
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         try:
             yield Request.from_address(address)
         finally:
@@ -211,7 +218,7 @@ def _mapping(kernel, name: str) -> Iterator[Request]:
 def _library() -> ctypes.CDLL:
     # One process-wide reference keeps callbacks valid through unhooking and
     # avoids retaining another module reference after every applet recreation.
-    return cast(ctypes.CDLL, ctypes.WinDLL(str(_runtime(64))))
+    return windows_ctypes.WinDLL(str(_runtime(64)))
 
 
 def _reap_host(process: subprocess.Popen[bytes], *, terminate: bool) -> None:
@@ -231,8 +238,8 @@ class InputThread:
     """A request owns its atom, mapping, hook, and optional x86 host process."""
 
     def __init__(self) -> None:
-        self._kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-        self._user = ctypes.WinDLL("user32", use_last_error=True)
+        self._kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
+        self._user = windows_ctypes.WinDLL("user32", use_last_error=True)
 
     def _machine(self, pid: int) -> int:
         kernel = self._kernel
@@ -242,7 +249,7 @@ class InputThread:
             pid,  # PROCESS_QUERY_LIMITED_INFORMATION
         )
         if not handle:
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         try:
             machine = process_machine(kernel, handle)
             if machine not in (0x14C, 0x8664):
@@ -332,7 +339,7 @@ class InputThread:
                 name
             )
             if not atom:
-                raise ctypes.WinError(ctypes.get_last_error())
+                raise windows_ctypes.WinError(windows_ctypes.get_last_error())
             value.atom = atom
             if bits == 32:
                 host = Path(os.environ.get("SYSTEMROOT", r"C:\Windows"))
@@ -342,9 +349,9 @@ class InputThread:
                 executable = host / "SysWOW64/rundll32.exe"
                 process = subprocess.Popen(
                     f'"{executable}" "{path}",Dispatch {atom}',
-                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    creationflags=CREATE_NO_WINDOW,
                 )
-                job.assign(int(process._handle))
+                job.assign(int(cast(WindowsProcessHandle, process)._handle))
                 assigned = True
                 if cancelled.is_set() or time.monotonic() >= deadline:
                     return None
@@ -366,7 +373,7 @@ class InputThread:
                     context.thread,
                 )
                 if not hook:
-                    raise ctypes.WinError(ctypes.get_last_error())
+                    raise windows_ctypes.WinError(windows_ctypes.get_last_error())
                 value.phase = 202  # Registered-message lookup.
                 message = bind(
                     user, "RegisterWindowMessageW", _DWORD, ctypes.c_wchar_p
@@ -385,7 +392,7 @@ class InputThread:
                     ctypes.c_size_t,
                     ctypes.c_ssize_t,
                 )(context.window, message, atom, value.nonce):
-                    raise ctypes.WinError(ctypes.get_last_error())
+                    raise windows_ctypes.WinError(windows_ctypes.get_last_error())
                 value.dispatched = 1
             while value.state != 2:
                 if cancelled.wait(0.005):
@@ -422,7 +429,7 @@ class InputThread:
             # WinError.errno is a translated C errno. Keep the actual Win32
             # code at this external exception boundary when one is available.
             try:
-                code = error.winerror
+                code = cast(WindowsErrorCode, error).winerror
             except AttributeError:
                 code = None
             if code is None:

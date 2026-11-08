@@ -5,7 +5,7 @@ from __future__ import annotations
 import ctypes
 from ctypes import wintypes
 
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 
 class _Limits(ctypes.Structure):
@@ -51,7 +51,7 @@ class ProcessJob:
     """Assign before permitting the child to initialize its browser runtime."""
 
     def __init__(self) -> None:
-        self._kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        self._kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
         self._handle = bind(
             self._kernel,
             "CreateJobObjectW",
@@ -60,7 +60,7 @@ class ProcessJob:
             wintypes.LPCWSTR,
         )(None, None)
         if not self._handle:
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         limits = _ExtendedLimits()
         limits.basic.flags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE.
         if not bind(
@@ -72,7 +72,7 @@ class ProcessJob:
             ctypes.c_void_p,
             wintypes.DWORD,
         )(self._handle, 9, ctypes.byref(limits), ctypes.sizeof(limits)):
-            error = ctypes.WinError(ctypes.get_last_error())
+            error = windows_ctypes.WinError(windows_ctypes.get_last_error())
             self.close()
             raise error
 
@@ -84,7 +84,7 @@ class ProcessJob:
             wintypes.HANDLE,
             wintypes.HANDLE,
         )(self._handle, process_handle):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
 
     def close(self) -> None:
         if self._handle:
@@ -98,7 +98,7 @@ class ProfileMutex:
     """Hold one profile's ownership across companion shutdown and replacement."""
 
     def __init__(self, name: str) -> None:
-        self._kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        self._kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
         self._handle = bind(
             self._kernel,
             "CreateMutexW",
@@ -108,7 +108,7 @@ class ProfileMutex:
             wintypes.LPCWSTR,
         )(None, False, name)
         if not self._handle:
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         status = bind(
             self._kernel,
             "WaitForSingleObject",

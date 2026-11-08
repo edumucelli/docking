@@ -38,6 +38,38 @@ def coordinates():
     return value
 
 
+def test_selection_retains_the_other_monitor_when_one_disappears(monkeypatch):
+    from docking.applets.screenshot.implementations.windows import selection
+
+    mapping = ScreenMapping(
+        Rect(0, 0, 800, 600), Rect(0, 0, 800, 600), Rect(0, 0, 800, 560), 1
+    )
+    geometry = Mock()
+    geometry.mapping.return_value = mapping
+    monkeypatch.setattr(selection, "WindowsMonitorGeometry", lambda: geometry)
+    library = Mock()
+    library.SetWindowSubclass.return_value = 1
+    monkeypatch.setattr(
+        ctypes, "WinDLL", lambda *_args, **_kwargs: library, raising=False
+    )
+    monkeypatch.setattr(ctypes, "WINFUNCTYPE", ctypes.CFUNCTYPE, raising=False)
+    monkeypatch.setattr(selection, "window_handle", lambda _window: 100)
+    window, monitor = Mock(), Mock()
+    window.get_display().get_n_monitors.return_value = 2
+    window.get_display().get_monitor.side_effect = [None, monitor]
+    monitor.get_geometry.return_value = Rect(0, 0, 800, 600)
+    monitor.get_scale_factor.return_value = 1
+
+    coordinates = WindowsRegionCoordinates(window)
+    try:
+        assert coordinates._mappings == [mapping]
+        assert geometry.mapping.call_args.args[0].index == 1
+        library.SetWindowSubclass.assert_called_once()
+    finally:
+        coordinates.close()
+    library.RemoveWindowSubclass.assert_called_once()
+
+
 def test_observer_keeps_queued_button_positions_and_delegates_every_message():
     value = coordinates()
     for x, y in ((51, 61), (101, 81)):

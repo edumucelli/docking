@@ -25,7 +25,7 @@ from docking.platform.native.windows.capture import (
     WindowObservation,
     WindowsWindowTarget,
 )
-from docking.platform.native.windows.ffi import MonitorInfo
+from docking.platform.native.windows.ffi import MonitorInfo, windows_ctypes
 from docking.platform.native.windows.ffi import bind as _bind
 
 from .ghosts import WindowsGhostWindows
@@ -59,11 +59,11 @@ class Win32WindowAPI(WindowObservation):
         self._membership = workspace_membership
         self._properties = WindowsWindowProperties()
         self._last_foreground_window: WindowSnapshot | None = None
-        user = ctypes.WinDLL("user32", use_last_error=True)
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
         self._ghosts = WindowsGhostWindows(user)
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-        dwm = ctypes.WinDLL("dwmapi", use_last_error=True)
-        self._callback_type = ctypes.WINFUNCTYPE(
+        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
+        dwm = windows_ctypes.WinDLL("dwmapi", use_last_error=True)
+        self._callback_type = windows_ctypes.WINFUNCTYPE(
             wintypes.BOOL, wintypes.HWND, wintypes.LPARAM
         )
         self._enumerate = _bind(
@@ -251,7 +251,7 @@ class Win32WindowAPI(WindowObservation):
 
         callback = self._callback_type(visit)
         if not self._enumerate(callback, 0):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         previous = self._last_foreground_window
         if not foreground and previous is not None:
             # GetForegroundWindow can return NULL during mouse activation.

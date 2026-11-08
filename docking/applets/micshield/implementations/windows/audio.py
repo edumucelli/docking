@@ -23,7 +23,7 @@ from docking.platform.native.windows.com import (
     method,
     release,
 )
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 log = get_logger("micshield.windows_audio")
 _POINTER = ctypes.c_void_p
@@ -143,7 +143,7 @@ def _count(pointer, index: int, kind, maximum: int) -> int:
 
 
 def _process_name(pid: int) -> str:
-    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
     process = bind(
         kernel,
         "OpenProcess",

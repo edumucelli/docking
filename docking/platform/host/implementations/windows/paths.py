@@ -8,6 +8,8 @@ from pathlib import Path, PureWindowsPath
 from string import ascii_letters
 from urllib.parse import unquote, urlsplit
 
+from docking.platform.native.windows.ffi import windows_ctypes
+
 
 def _has_drive(target: str) -> bool:
     return len(target) >= 2 and target[0] in ascii_letters and target[1] == ":"
@@ -105,7 +107,7 @@ def xdg_state_home() -> Path:
 def mount_points() -> tuple[Path, ...]:
     from docking.platform.native.windows.ffi import bind
 
-    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
     read = bind(
         kernel,
         "GetLogicalDriveStringsW",

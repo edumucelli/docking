@@ -16,6 +16,20 @@ def test_interactive_windows_popups_use_managed_gtk_windows():
     assert not ReducedSurfaceService().popups_require_managed_windows()
 
 
+def test_window_lost_after_geometry_observation_does_not_query_its_monitor(monkeypatch):
+    from docking.platform.backends.windows import surface
+
+    service = WindowsSurfaceService()
+    service._appbar = Mock()
+    rect = Rect(10, 20, 30, 40)
+    monkeypatch.setattr(surface, "logical_screen_rectangle", lambda *_args: rect)
+    window = Mock()
+    window.get_window.return_value = None
+    assert service.screen_rectangle(window, rect) is None
+    window.get_display().get_monitor_at_window.assert_not_called()
+    service._appbar.mapping.assert_not_called()
+
+
 @pytest.fixture
 def popup_return(monkeypatch):
     from docking.platform.desktop.implementations.windows import menus

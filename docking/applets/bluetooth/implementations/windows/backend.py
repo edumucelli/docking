@@ -31,6 +31,7 @@ from docking.applets.bluetooth.state import (
 )
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform.native.windows.ffi import windows_os
 
 log = get_logger("bluetooth.windows")
 
@@ -248,9 +249,9 @@ class WindowsBluetoothBackend(BluetoothBackend):
                 executable = _file_sender()
                 if executable is None:
                     return False
-                os.startfile(str(executable), arguments="-send")
+                windows_os.startfile(str(executable), arguments="-send")
             else:
-                os.startfile("ms-settings:bluetooth")
+                windows_os.startfile("ms-settings:bluetooth")
             return True
         except OSError as exc:
             log.debug("Bluetooth desktop action %s unavailable: %s", action.value, exc)

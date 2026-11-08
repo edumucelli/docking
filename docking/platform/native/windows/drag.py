@@ -19,7 +19,7 @@ from docking.platform.native.windows.dataobject import (
     StorageMedium,
     file_drop_bytes,
 )
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 
 def _check(status: int) -> None:
@@ -30,7 +30,7 @@ def _check(status: int) -> None:
 def file_drag_formats(path: Path) -> tuple[tuple[str, bytes], ...]:
     """Copy the Shell's own file-list representation on the metadata worker."""
     with apartment() as ole, ExitStack() as stack:
-        shell = ctypes.WinDLL("shell32", use_last_error=True)
+        shell = windows_ctypes.WinDLL("shell32", use_last_error=True)
         parse = bind(
             shell,
             "SHParseDisplayName",
@@ -90,13 +90,13 @@ def file_drag_formats(path: Path) -> tuple[tuple[str, bytes], ...]:
         if not data_object.value:
             raise OSError("Missing Shell file data object")
         clipboard_format = bind(
-            ctypes.WinDLL("user32", use_last_error=True),
+            windows_ctypes.WinDLL("user32", use_last_error=True),
             "RegisterClipboardFormatW",
             ctypes.c_uint32,
             ctypes.c_wchar_p,
         )("Shell IDList Array")
         if not clipboard_format:
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         request = FormatEtc(clipboard_format, None, 1, -1, 1)
         medium = StorageMedium()
         try:
@@ -111,7 +111,7 @@ def file_drag_formats(path: Path) -> tuple[tuple[str, bytes], ...]:
             )
             if medium.kind != 1 or not medium.data:
                 raise OSError("Shell file list is not global-memory data")
-            kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
             length = bind(kernel, "GlobalSize", ctypes.c_size_t, ctypes.c_void_p)(
                 medium.data
             )
@@ -121,7 +121,7 @@ def file_drag_formats(path: Path) -> tuple[tuple[str, bytes], ...]:
                 medium.data
             )
             if not pointer:
-                raise ctypes.WinError(ctypes.get_last_error())
+                raise windows_ctypes.WinError(windows_ctypes.get_last_error())
             try:
                 data = ctypes.string_at(pointer, length)
             finally:

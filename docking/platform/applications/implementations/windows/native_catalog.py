@@ -29,7 +29,7 @@ from docking.platform.native.windows.com import (
     query,
     release,
 )
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 from docking.platform.native.windows.packages import hidden_application_ids
 from docking.platform.native.windows.properties import APP_ID, PropertyKey
 
@@ -114,7 +114,7 @@ def read_shell_applications() -> tuple[ApplicationInfo, ...]:
     with apartment() as ole, ExitStack() as stack:
         folder = ctypes.c_void_p()
         get_folder = bind(
-            ctypes.WinDLL("shell32", use_last_error=True),
+            windows_ctypes.WinDLL("shell32", use_last_error=True),
             "SHGetKnownFolderItem",
             HRESULT,
             ctypes.POINTER(GUID),

@@ -10,7 +10,7 @@ from docking.platform.backends.base import ScreenCaptureService
 from docking.platform.desktop.implementations.windows.geometry import (
     WindowsMonitorGeometry,
 )
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 log = get_logger("windows.screen_capture")
 
@@ -21,14 +21,14 @@ class ScreenAPI(Protocol):
 
 class WindowsScreenAPI:
     def __init__(self) -> None:
-        user = ctypes.WinDLL("user32", use_last_error=True)
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
         self._geometry = WindowsMonitorGeometry(user)
         self._get_dc = bind(user, "GetDC", ctypes.c_void_p, ctypes.c_void_p)
         self._release = bind(
             user, "ReleaseDC", ctypes.c_int32, ctypes.c_void_p, ctypes.c_void_p
         )
         self._pixel = bind(
-            ctypes.WinDLL("gdi32", use_last_error=True),
+            windows_ctypes.WinDLL("gdi32", use_last_error=True),
             "GetPixel",
             ctypes.c_uint32,
             ctypes.c_void_p,
@@ -36,7 +36,9 @@ class WindowsScreenAPI:
             ctypes.c_int32,
         )
         self._flush = bind(
-            ctypes.WinDLL("dwmapi", use_last_error=True), "DwmFlush", ctypes.c_int32
+            windows_ctypes.WinDLL("dwmapi", use_last_error=True),
+            "DwmFlush",
+            ctypes.c_int32,
         )
 
     def sample(self, x: int, y: int) -> tuple[int, int, int] | None:

@@ -81,7 +81,7 @@ class WindowsAppletBackendFactories(AppletBackendFactories):
 
         return WindowsNetworkBackend(interface)
 
-    def volume(self) -> VolumeBackend | None:
+    def volume(self) -> VolumeBackend:
         from docking.applets.volume.implementations.windows.backend import (
             create_backend,
         )

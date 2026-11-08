@@ -7,7 +7,7 @@ from typing import Protocol
 
 from docking.log import get_logger
 from docking.platform.backends.base import IdleService
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 log = get_logger("windows.idle")
 
@@ -23,13 +23,13 @@ class InputAPI(Protocol):
 class WindowsInputAPI:
     def __init__(self) -> None:
         self._last = bind(
-            ctypes.WinDLL("user32", use_last_error=True),
+            windows_ctypes.WinDLL("user32", use_last_error=True),
             "GetLastInputInfo",
             ctypes.c_int32,
             ctypes.POINTER(LastInputInfo),
         )
         self._ticks = bind(
-            ctypes.WinDLL("kernel32", use_last_error=True),
+            windows_ctypes.WinDLL("kernel32", use_last_error=True),
             "GetTickCount64",
             ctypes.c_uint64,
         )
@@ -37,7 +37,7 @@ class WindowsInputAPI:
     def sample(self) -> tuple[int, int]:
         info = LastInputInfo(size=ctypes.sizeof(LastInputInfo))
         if not self._last(ctypes.byref(info)):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         return int(info.tick), int(self._ticks())
 
 

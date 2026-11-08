@@ -13,12 +13,12 @@ import struct
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 
 class SharedMemory:
     def __init__(self) -> None:
-        shell = c.WinDLL("shlwapi", use_last_error=True)
+        shell = windows_ctypes.WinDLL("shlwapi", use_last_error=True)
         self.allocate = bind(
             shell, "SHAllocShared", c.c_void_p, c.c_void_p, c.c_uint32, c.c_uint32
         )

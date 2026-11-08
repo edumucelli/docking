@@ -1,10 +1,97 @@
 """Small Win32 ABI primitives shared by Windows service implementations."""
 
+# Match the external Windows API names in the module typing views.
+# ruff: noqa: N802
+
 from __future__ import annotations
 
 import ctypes
+import os
 from ctypes import wintypes
-from typing import Any
+from typing import Any, Protocol, cast
+
+
+class _WindowsCtypes(Protocol):
+    """Windows-only ctypes APIs omitted by Linux's standard-library stubs."""
+
+    def WinDLL(self, name: str, *, use_last_error: bool = False) -> ctypes.CDLL: ...
+    def WinError(self, code: int | None = None) -> OSError: ...
+    def get_last_error(self) -> int: ...
+    def set_last_error(self, value: int) -> int: ...
+    def WINFUNCTYPE(self, result: object, *arguments: object) -> Any: ...
+
+
+class _WindowsOS(Protocol):
+    def add_dll_directory(self, path: str) -> object: ...
+    def startfile(
+        self,
+        path: str,
+        operation: str = "open",
+        *,
+        arguments: str = "",
+    ) -> None: ...
+
+
+class _RegistryKey(Protocol):
+    def __enter__(self) -> _RegistryKey: ...
+    def __exit__(self, *exception: object) -> None: ...
+    def Detach(self) -> int: ...
+
+
+class _Registry(Protocol):
+    HKEY_LOCAL_MACHINE: int
+    HKEY_CURRENT_USER: int
+    KEY_READ: int
+    KEY_SET_VALUE: int
+    KEY_WOW64_64KEY: int
+    REG_SZ: int
+    REG_DWORD: int
+
+    def OpenKey(
+        self, key: object, _subkey: str, reserved: int = 0, access: int = 0x20019
+    ) -> _RegistryKey: ...
+    def CreateKey(self, key: object, _subkey: str) -> _RegistryKey: ...
+    def CreateKeyEx(
+        self, key: object, _subkey: str, reserved: int = 0, access: int = 0x20006
+    ) -> _RegistryKey: ...
+    def CloseKey(self, key: object) -> None: ...
+    def QueryValueEx(self, key: object, name: str) -> tuple[Any, int]: ...
+    def SetValueEx(
+        self, key: object, name: str, reserved: int, kind: int, value: object
+    ) -> None: ...
+    def DeleteValue(self, key: object, name: str) -> None: ...
+    def FlushKey(self, key: object) -> None: ...
+    def QueryInfoKey(self, key: object) -> tuple[int, int, int]: ...
+    def EnumKey(self, key: object, index: int) -> str: ...
+
+
+class WindowsProcessHandle(Protocol):
+    """The native handle provided by Windows' subprocess.Popen."""
+
+    _handle: int
+
+
+class WindowsErrorCode(Protocol):
+    winerror: int
+
+
+class _GObjectPointer(Protocol):
+    __gpointer__: object
+
+
+# The module objects are opaque at this cross-platform boundary. These views
+# retain those original objects, including ctypes mocking and CPython's
+# WinDLL/WINFUNCTYPE calling conventions.
+windows_ctypes = cast(_WindowsCtypes, cast(object, ctypes))
+windows_os = cast(_WindowsOS, cast(object, os))
+CREATE_NO_WINDOW = 0x08000000
+
+
+def registry() -> _Registry:
+    """Keep registry loading lazy on hosts that do not supply winreg."""
+    import winreg
+
+    return cast(_Registry, cast(object, winreg))
 
 
 class MonitorInfo(ctypes.Structure):
@@ -49,7 +136,7 @@ def process_machine(kernel: Any, process: int) -> int:
         ctypes.POINTER(ctypes.c_uint16),
         ctypes.POINTER(ctypes.c_uint16),
     )(process, ctypes.byref(guest), ctypes.byref(native)):
-        raise ctypes.WinError(ctypes.get_last_error())
+        raise windows_ctypes.WinError(windows_ctypes.get_last_error())
     if guest.value or native.value != 0xAA64:
         return guest.value or native.value
     info = ProcessMachineInformation()
@@ -66,7 +153,7 @@ def process_machine(kernel: Any, process: int) -> int:
     except AttributeError:
         raise OSError("Process machine type query is unavailable") from None
     if not query(process, 9, ctypes.byref(info), ctypes.sizeof(info)):
-        raise ctypes.WinError(ctypes.get_last_error())
+        raise windows_ctypes.WinError(windows_ctypes.get_last_error())
     return int(info.machine)
 
 
@@ -89,7 +176,7 @@ def window_handle(window: object) -> int | None:
         ctypes.c_void_p,
         ctypes.c_void_p,
     )
-    value = native(capsule(window.__gpointer__, None))
+    value = native(capsule(cast(_GObjectPointer, window).__gpointer__, None))
     return int(value) if value else None
 
 

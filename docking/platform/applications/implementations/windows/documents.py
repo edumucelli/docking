@@ -20,7 +20,7 @@ from docking.platform.native.windows.com import (
     release,
 )
 from docking.platform.native.windows.dataobject import cached_data_object
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 from docking.platform.native.windows.launching import launch_shortcut
 from docking.platform.native.windows.selection import shell_selection_formats
 
@@ -61,7 +61,7 @@ def _targets(uris: Sequence[str]) -> tuple[tuple[str, bool], ...] | None:
 
 
 def _items(stack: ExitStack, ole, targets: tuple[str, ...]) -> ctypes.c_void_p:
-    shell = ctypes.WinDLL("shell32", use_last_error=True)
+    shell = windows_ctypes.WinDLL("shell32", use_last_error=True)
     parse = bind(
         shell,
         "SHParseDisplayName",
@@ -132,7 +132,7 @@ def _handler_app_id(stack: ExitStack, ole, handler) -> str:
 def _registered_handler(
     stack: ExitStack, ole, application_id: str, association: str, files: bool
 ) -> ctypes.c_void_p | None:
-    shell = ctypes.WinDLL("shell32", use_last_error=True)
+    shell = windows_ctypes.WinDLL("shell32", use_last_error=True)
     iterator = ctypes.c_void_p()
     stack.callback(release, iterator)
     if files:

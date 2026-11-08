@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import ctypes as c
 
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 from docking.platform.tray.state import TrayIconPixmap
 
 
@@ -44,8 +44,8 @@ def icon_pixels(handle: int, size: int = 32) -> TrayIconPixmap | None:
     if not handle or not 1 <= size <= 256:
         return None
     p, u32, boolean = c.c_void_p, c.c_uint32, c.c_int32
-    gdi = c.WinDLL("gdi32", use_last_error=True)
-    user = c.WinDLL("user32", use_last_error=True)
+    gdi = windows_ctypes.WinDLL("gdi32", use_last_error=True)
+    user = windows_ctypes.WinDLL("user32", use_last_error=True)
     dc = bind(gdi, "CreateCompatibleDC", p, p)(None)
     if not dc:
         return None

@@ -1,6 +1,5 @@
 """Coalesce native Start Menu and AppsFolder changes into the shared registry."""
 
-import ctypes
 import os
 import time
 from collections.abc import Callable
@@ -10,7 +9,7 @@ from threading import RLock
 from gi.repository import GLib
 
 from docking.platform.applications.metadata import ApplicationChangeMonitor
-from docking.platform.native.windows.ffi import explorer_tray
+from docking.platform.native.windows.ffi import explorer_tray, windows_ctypes
 from docking.platform.native.windows.shell_changes import ShellChangeMonitor
 
 
@@ -33,7 +32,7 @@ class CatalogChangeMonitor(ApplicationChangeMonitor):
         self._closed = False
         self._source = 0
         self._poll_source = 0
-        self._user = ctypes.WinDLL("user32", use_last_error=True)
+        self._user = windows_ctypes.WinDLL("user32", use_last_error=True)
         self._shell = explorer_tray(self._user, exclude_pid=os.getpid())
         try:
             for folder in (

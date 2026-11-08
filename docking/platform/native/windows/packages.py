@@ -8,7 +8,7 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 from docking.log import get_logger
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 log = get_logger("windows.packages")
 _U32 = ctypes.c_uint32
@@ -20,7 +20,7 @@ class WindowsPackagePaths:
     """Resolve registered head packages, excluding resources and frameworks."""
 
     def __init__(self) -> None:
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
         self._find = bind(
             kernel,
             "FindPackagesByPackageFamily",

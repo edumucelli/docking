@@ -17,7 +17,7 @@ from docking.applets.powerprofiles.state import (
 )
 from docking.log import get_logger
 from docking.platform.native.windows.com import GUID
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 from docking.platform.native.windows.power import SystemPowerStatus
 
 log = get_logger("powerprofiles.windows")
@@ -47,8 +47,8 @@ class _Snapshot:
 
 class _PowerModes:
     def __init__(self):
-        dll = ctypes.WinDLL("powrprof", use_last_error=True)
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        dll = windows_ctypes.WinDLL("powrprof", use_last_error=True)
+        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
         self._get, self._set = {}, {}
         for source in ("AC", "DC"):
             self._get[source] = bind(
@@ -128,7 +128,7 @@ class _PowerModes:
     def source(self) -> str:
         status = SystemPowerStatus()
         if not self._status(ctypes.byref(status)):
-            raise OSError(ctypes.get_last_error(), "Power source unavailable")
+            raise OSError(windows_ctypes.get_last_error(), "Power source unavailable")
         if status.ACLineStatus not in (0, 1):
             raise OSError("Power source unknown")
         return "AC" if status.ACLineStatus else "DC"

@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 from docking.platform.native.windows.com import GUID, HRESULT, method, release
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 _STATICS = GUID.parse("5074f851-950d-4165-9c15-365619481eea")
 _PROFILE2 = GUID.parse("e2045145-4c9f-400c-9150-7ec7d6e2888a")
@@ -64,7 +64,7 @@ def _object(stack: ExitStack, pointer, index: int, *arguments):
 
 class _ProfileAPI:
     def __init__(self):
-        dll = ctypes.WinDLL("combase", use_last_error=True)
+        dll = windows_ctypes.WinDLL("combase", use_last_error=True)
         self._initialize = bind(dll, "RoInitialize", HRESULT, ctypes.c_uint32)
         self._uninitialize = bind(dll, "RoUninitialize", None)
         self._create_string = bind(

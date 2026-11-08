@@ -17,6 +17,7 @@ from gi.repository import GLib
 
 from docking.platform.desktop.implementations.windows.menus import WindowsMenuFocus
 from docking.platform.native.windows.ffi import bind as _bind
+from docking.platform.native.windows.ffi import windows_ctypes
 from docking.search.services.platform import WindowFocus
 
 _EXPLORER_CLASSES = {"Shell_TrayWnd", "Shell_SecondaryTrayWnd", "Progman", "WorkerW"}
@@ -35,8 +36,8 @@ class _LastInputInfo(ctypes.Structure):
 class WindowsShellFocus(WindowsMenuFocus):
     def __init__(self):
         super().__init__()
-        user = ctypes.WinDLL("user32", use_last_error=True)
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
+        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
         self._last_input = _bind(
             user, "GetLastInputInfo", wintypes.BOOL, ctypes.POINTER(_LastInputInfo)
         )

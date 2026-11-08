@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from docking.platform.native.windows.com import apartment
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import CREATE_NO_WINDOW, bind, windows_ctypes
 
 _P = ctypes.c_void_p
 _U32 = ctypes.c_uint32
@@ -42,7 +42,7 @@ def run_action(action: str) -> bool:
     if action not in ("lock", "unlock") or not helper_available():
         return False
     argv = [str(Path(__file__).with_name("helper.py")), action]
-    shell = ctypes.WinDLL("shell32", use_last_error=True)
+    shell = windows_ctypes.WinDLL("shell32", use_last_error=True)
     if bind(shell, "IsUserAnAdmin", ctypes.c_int32)():
         try:
             result = subprocess.run(
@@ -51,7 +51,7 @@ def run_action(action: str) -> bool:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 timeout=120,
-                creationflags=subprocess.CREATE_NO_WINDOW,
+                creationflags=CREATE_NO_WINDOW,
             )
             return result.returncode == 0
         except subprocess.TimeoutExpired as exc:
@@ -62,17 +62,17 @@ def run_action(action: str) -> bool:
     info.verb, info.file = "runas", sys.executable
     info.parameters = subprocess.list2cmdline(argv)
     info.show = 0
-    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
     try:
         with apartment():
             launched = bind(
                 shell, "ShellExecuteExW", ctypes.c_int32, ctypes.POINTER(_ExecuteInfo)
             )(ctypes.byref(info))
-            error = ctypes.get_last_error()
+            error = windows_ctypes.get_last_error()
         if not launched:
             if error == 1223:  # User cancelled elevation.
                 return False
-            raise ctypes.WinError(error)
+            raise windows_ctypes.WinError(error)
         if not info.process:
             raise OSError("Missing elevated camera helper process")
         wait = bind(kernel, "WaitForSingleObject", _U32, _P, _U32)(info.process, 120000)
@@ -88,7 +88,7 @@ def run_action(action: str) -> bool:
         if not bind(
             kernel, "GetExitCodeProcess", ctypes.c_int32, _P, ctypes.POINTER(_U32)
         )(info.process, ctypes.byref(code)):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         return code.value == 0
     finally:
         if info.process:

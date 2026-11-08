@@ -6,13 +6,13 @@ import ctypes
 from collections.abc import Callable
 from functools import lru_cache
 
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 
 @lru_cache(maxsize=1)
 def _key_state():
     return bind(
-        ctypes.WinDLL("user32", use_last_error=True),
+        windows_ctypes.WinDLL("user32", use_last_error=True),
         "GetKeyState",
         ctypes.c_int16,
         ctypes.c_int32,
@@ -42,9 +42,9 @@ class AltGrGuard:
     """
 
     def __init__(self) -> None:
-        user = ctypes.WinDLL("user32", use_last_error=True)
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-        self._callback_type = ctypes.WINFUNCTYPE(
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
+        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
+        self._callback_type = windows_ctypes.WINFUNCTYPE(
             ctypes.c_ssize_t, ctypes.c_int32, ctypes.c_size_t, ctypes.c_ssize_t
         )
         self._install = bind(
@@ -97,7 +97,7 @@ class AltGrGuard:
         if not hook:
             self._callback = None
             self._on_press = lambda: None
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         self._hook = hook
 
     def _event(self, code: int, message: int, address: int) -> int:
@@ -122,7 +122,7 @@ class AltGrGuard:
     def close(self) -> None:
         if self._hook is not None:
             if not self._remove(self._hook):
-                raise ctypes.WinError(ctypes.get_last_error())
+                raise windows_ctypes.WinError(windows_ctypes.get_last_error())
             self._hook = None
         self._callback = None
         self._on_press = lambda: None

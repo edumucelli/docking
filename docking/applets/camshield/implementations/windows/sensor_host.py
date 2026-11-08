@@ -8,6 +8,8 @@ import sys
 from contextlib import suppress
 from pathlib import Path
 
+from docking.platform.native.windows.ffi import windows_ctypes
+
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[5]))
 
@@ -23,7 +25,7 @@ def main() -> None:
     if sys.platform != "win32":
         raise OSError("Camera sensor host requires Windows")
     with apartment(multithreaded=True) as ole:
-        dll = ctypes.WinDLL("mfplat")
+        dll = windows_ctypes.WinDLL("mfplat")
         startup = bind(dll, "MFStartup", HRESULT, ctypes.c_uint32, ctypes.c_uint32)
         status = startup(0x20070, 1)
         if status < 0:

@@ -10,7 +10,7 @@ from pathlib import PureWindowsPath
 
 from docking.platform.applications.backend import LaunchOutcome
 from docking.platform.native.windows.com import apartment
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 
 class ShellExecuteInfo(ctypes.Structure):
@@ -37,7 +37,7 @@ class WindowsLaunchedProcess:
     """Poll the exact shell-returned process, never a reopened or reused PID."""
 
     def __init__(self, handle: int) -> None:
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
         close = bind(kernel, "CloseHandle", ctypes.c_int32, ctypes.c_void_p)
         self._handle = handle
         self._cleanup = weakref.finalize(self, close, handle)
@@ -92,7 +92,7 @@ def launch_shortcut(target: str, *, arguments: Sequence[str] = ()) -> LaunchOutc
     ):
         return LaunchOutcome(False)
     with apartment():
-        shell = ctypes.WinDLL("shell32", use_last_error=True)
+        shell = windows_ctypes.WinDLL("shell32", use_last_error=True)
         execute = bind(
             shell, "ShellExecuteExW", ctypes.c_int32, ctypes.POINTER(ShellExecuteInfo)
         )
@@ -110,7 +110,7 @@ def launch_shortcut(target: str, *, arguments: Sequence[str] = ()) -> LaunchOutc
             # A failed call can still return a handle that belongs to us.
             if info.process:
                 bind(
-                    ctypes.WinDLL("kernel32"),
+                    windows_ctypes.WinDLL("kernel32"),
                     "CloseHandle",
                     ctypes.c_int32,
                     ctypes.c_void_p,

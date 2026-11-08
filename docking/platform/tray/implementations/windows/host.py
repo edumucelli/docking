@@ -16,7 +16,7 @@ from ctypes import wintypes
 
 from docking.log import get_logger
 from docking.platform.backends.base import Rect
-from docking.platform.native.windows.ffi import bind, explorer_tray
+from docking.platform.native.windows.ffi import bind, explorer_tray, windows_ctypes
 from docking.platform.tray.implementations.windows.appbar import WindowsAppBarBridge
 from docking.platform.tray.implementations.windows.icons import icon_pixels
 from docking.platform.tray.implementations.windows.messages import (
@@ -98,7 +98,7 @@ class WindowsTrayHost:
         if not bind(self._user, "GetCursorPos", c.c_int32, c.POINTER(wintypes.POINT))(
             c.byref(point)
         ):
-            raise c.WinError(c.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         return int(point.x), int(point.y)
 
     def post(self, window: int, message: int, first: int, second: int) -> bool:
@@ -127,7 +127,7 @@ class WindowsTrayHost:
         for operation in (0x66, 0x62, 0x64):  # Time, width and height of mouse hover.
             value = _U()
             if not query(operation, 0, c.byref(value), 0):
-                raise c.WinError(c.get_last_error())
+                raise windows_ctypes.WinError(windows_ctypes.get_last_error())
             settings.append(int(value.value))
         return settings[0], settings[1], settings[2]
 
@@ -202,7 +202,7 @@ class WindowsTrayHost:
             c.c_int,
             _U,
         )(self._explorer, self._window, 0, 0, 0, 0, 0x13):
-            raise c.WinError(c.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
 
     def _mirror_explorer(self) -> None:
         if self._user is None or not self._window or not self._explorer:
@@ -230,11 +230,11 @@ class WindowsTrayHost:
         # Preserve routing and activation while matching Explorer's placement.
         # Explorer's fallback icon queries inspect the first Shell_TrayWnd.
         if not position(self._window, None, *bounds, 0x14):
-            raise c.WinError(c.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         if self._notify_window and not position(
             self._notify_window, None, 0, 0, bounds[2], bounds[3], 0x14
         ):
-            raise c.WinError(c.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         self._mirror_rect = bounds
 
     def _announce(self) -> None:
@@ -313,13 +313,13 @@ class WindowsTrayHost:
         instance, child = None, None
         user = kernel = None
         try:
-            user = self._user = c.WinDLL("user32", use_last_error=True)
-            kernel = c.WinDLL("kernel32", use_last_error=True)
+            user = self._user = windows_ctypes.WinDLL("user32", use_last_error=True)
+            kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
             mutex = bind(kernel, "CreateMutexW", _P, _P, c.c_int32, c.c_wchar_p)(
                 None, False, r"Local\Docking.NotificationArea"
             )
             if not mutex:
-                raise c.WinError(c.get_last_error())
+                raise windows_ctypes.WinError(windows_ctypes.get_last_error())
             if bind(kernel, "WaitForSingleObject", _U, _P, _U)(mutex, 0) not in (
                 0,
                 0x80,
@@ -335,7 +335,7 @@ class WindowsTrayHost:
                 raise OSError(
                     "Notification host must run at Explorer's integrity level"
                 )
-            callback_type = c.WINFUNCTYPE(_L, _P, _U, _W, _L)
+            callback_type = windows_ctypes.WINFUNCTYPE(_L, _P, _U, _W, _L)
             default = bind(user, "DefWindowProcW", _L, _P, _U, _W, _L)
 
             def dispatch(window, message, first, second):
@@ -409,7 +409,7 @@ class WindowsTrayHost:
                 if not bind(
                     user, "RegisterClassExW", c.c_uint16, c.POINTER(WindowClass)
                 )(c.byref(descriptor)):
-                    raise c.WinError(c.get_last_error())
+                    raise windows_ctypes.WinError(windows_ctypes.get_last_error())
                 registered.append(name)
             create = bind(
                 user,
@@ -444,7 +444,7 @@ class WindowsTrayHost:
                 None,
             )
             if not self._window:
-                raise c.WinError(c.get_last_error())
+                raise windows_ctypes.WinError(windows_ctypes.get_last_error())
             child = create(
                 0,
                 "TrayNotifyWnd",
@@ -460,13 +460,13 @@ class WindowsTrayHost:
                 None,
             )
             if not child:
-                raise c.WinError(c.get_last_error())
+                raise windows_ctypes.WinError(windows_ctypes.get_last_error())
             self._notify_window = int(child)
             self._arrange()
             if not bind(user, "SetTimer", _W, _P, _W, _U, _P)(
                 self._window, 1, 500, None
             ):
-                raise c.WinError(c.get_last_error())
+                raise windows_ctypes.WinError(windows_ctypes.get_last_error())
             self._ready.set()
             self._seed_changed_explorer()
             message = wintypes.MSG()
@@ -475,7 +475,7 @@ class WindowsTrayHost:
                     user, "GetMessageW", c.c_int32, c.POINTER(wintypes.MSG), _P, _U, _U
                 )(c.byref(message), None, 0, 0)
                 if status == -1:
-                    raise c.WinError(c.get_last_error())
+                    raise windows_ctypes.WinError(windows_ctypes.get_last_error())
                 if status == 0:
                     break
                 bind(user, "TranslateMessage", c.c_int32, c.POINTER(wintypes.MSG))(
@@ -509,17 +509,17 @@ class WindowsTrayHost:
 
     @staticmethod
     def _integrity(pid: int) -> int:
-        kernel = c.WinDLL("kernel32", use_last_error=True)
-        advapi = c.WinDLL("advapi32", use_last_error=True)
+        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
+        advapi = windows_ctypes.WinDLL("advapi32", use_last_error=True)
         process = bind(kernel, "OpenProcess", _P, _U, c.c_int32, _U)(0x1000, False, pid)
         if not process:
-            raise c.WinError(c.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         token = _P()
         try:
             if not bind(advapi, "OpenProcessToken", c.c_int32, _P, _U, c.POINTER(_P))(
                 process, 8, c.byref(token)
             ):
-                raise c.WinError(c.get_last_error())
+                raise windows_ctypes.WinError(windows_ctypes.get_last_error())
             required = _U()
             query = bind(
                 advapi, "GetTokenInformation", c.c_int32, _P, _U, _P, _U, c.POINTER(_U)
@@ -529,7 +529,7 @@ class WindowsTrayHost:
                 raise OSError("Invalid notification host integrity token")
             buffer = c.create_string_buffer(required.value)
             if not query(token, 25, buffer, len(buffer), c.byref(required)):
-                raise c.WinError(c.get_last_error())
+                raise windows_ctypes.WinError(windows_ctypes.get_last_error())
             sid = c.cast(buffer, c.POINTER(_P))[0]
             count = bind(advapi, "GetSidSubAuthorityCount", c.POINTER(c.c_ubyte), _P)(
                 sid

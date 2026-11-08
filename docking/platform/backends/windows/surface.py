@@ -26,6 +26,9 @@ from docking.platform.backends.gtk_surface import (
 )
 
 if TYPE_CHECKING:
+    from gi.repository import Gtk
+
+    from docking.core.config import Config
     from docking.platform.applications.backend import ApplicationDragSource
     from docking.platform.desktop.implementations.windows.geometry import ScreenMapping
     from docking.platform.desktop.implementations.windows.menus import (
@@ -37,9 +40,18 @@ if TYPE_CHECKING:
     from .workspaces import WindowsWorkspaceService
 
 
-class _CursorCoordinates(Protocol):
+class _PointerInteraction(Protocol):
+    def on_effective_enter(self) -> None: ...
+    def on_effective_leave(self, widget: Gtk.DrawingArea) -> None: ...
+
+
+class _DockState(Protocol):
+    config: Config
     cursor_x: float
     cursor_y: float
+    dock_hovered: bool
+    interaction: _PointerInteraction
+    drawing_area: Gtk.DrawingArea
 
 
 class WindowsSurfaceService(SurfaceService):
@@ -52,7 +64,7 @@ class WindowsSurfaceService(SurfaceService):
         file_drag_source_factory: Callable[[object], ApplicationDragSource]
         | None = None,
     ) -> None:
-        self._window: object | None = None
+        self._window: Gtk.Window | None = None
         self._workspaces = workspaces
         self._current_workspace_only = False
         self._appbar: WindowsAppBar | None = None
@@ -79,11 +91,15 @@ class WindowsSurfaceService(SurfaceService):
         return True
 
     def screen_rectangle(self, window: object, rect: Rect) -> Rect | None:
+        window = cast("Gtk.Window", window)
         logical = logical_screen_rectangle(window, rect)
         if logical is None or self._appbar is None:
             return None
         display = window.get_display()
-        monitor = display.get_monitor_at_window(window.get_window())
+        native = window.get_window()
+        if native is None:
+            return None
+        monitor = display.get_monitor_at_window(native)
         if monitor is None:
             return None
         index = next(
@@ -106,10 +122,12 @@ class WindowsSurfaceService(SurfaceService):
         """Native surface resources are attached when the window is realized."""
 
     def configure_before_realize(self, window: object) -> None:
+        window = cast("Gtk.Window", window)
         self._window = window
         apply_dock_hints(window)
 
     def on_realize(self, window: object) -> None:
+        window = cast("Gtk.Window", window)
         self._window = window
         apply_dock_hints(window)
         if self._appbar is None:
@@ -148,6 +166,7 @@ class WindowsSurfaceService(SurfaceService):
         validate: Callable[[], bool],
     ) -> bool:
         """Consume a live native return request before mapping an owned popup."""
+        window = cast("Gtk.Window", window)
         if self._window is None or self._appbar is None:
             return False
         from docking.platform.desktop.implementations.windows.menus import (
@@ -234,6 +253,7 @@ class WindowsSurfaceService(SurfaceService):
         )
 
     def prepare_capture_overlay(self, overlay: object) -> None:
+        overlay = cast("Gtk.Window", overlay)
         if self._window is None:
             return
         if self._menus is None:
@@ -298,7 +318,7 @@ class WindowsSurfaceService(SurfaceService):
         if self._appbar is not None and self._window is not None:
             mapping = self._appbar.mapping(monitor, self._window.get_display())
             self._mapping = mapping
-            position = self._window.config.pos
+            position = cast(_DockState, self._window).config.pos
             return mapping.to_logical(self._appbar.external(mapping, position))
         return monitor.workarea or monitor.geometry
 
@@ -520,10 +540,10 @@ class WindowsSurfaceService(SurfaceService):
         logical = mapping.to_logical(Rect(point[0], point[1], 1, 1))
         x, y = logical.x - placement.x, logical.y - placement.y
         inside = rect.x <= x < rect.right and rect.y <= y < rect.bottom
-        if inside and not window.dock_hovered:
-            cursor = cast(_CursorCoordinates, window)
-            cursor.cursor_x, cursor.cursor_y = x, y
-            window.interaction.on_effective_enter()
-        elif not inside and window.dock_hovered:
-            window.interaction.on_effective_leave(window.drawing_area)
+        state = cast(_DockState, window)
+        if inside and not state.dock_hovered:
+            state.cursor_x, state.cursor_y = x, y
+            state.interaction.on_effective_enter()
+        elif not inside and state.dock_hovered:
+            state.interaction.on_effective_leave(state.drawing_area)
         return True

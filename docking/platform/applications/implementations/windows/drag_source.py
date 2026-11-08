@@ -12,6 +12,8 @@ from weakref import WeakKeyDictionary
 
 import gi
 
+from docking.platform.native.windows.ffi import windows_ctypes
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
@@ -43,7 +45,7 @@ class _Handoff:
 def _gtk_events(user: object, on_error: Callable[[], None]) -> Iterator[int]:
     """Dispatch GLib while the Shell owns its modal drag loop."""
     context = GLib.MainContext.default()
-    callback_type = ctypes.WINFUNCTYPE(
+    callback_type = windows_ctypes.WINFUNCTYPE(
         None, ctypes.c_void_p, ctypes.c_uint32, ctypes.c_size_t, ctypes.c_uint32
     )
 
@@ -78,7 +80,7 @@ def _gtk_events(user: object, on_error: Callable[[], None]) -> Iterator[int]:
         ctypes.c_void_p,
     )(0, "STATIC", "", 0, 0, 0, 0, 0, -3, None, None, None)  # HWND_MESSAGE
     if not hwnd:
-        raise ctypes.WinError(ctypes.get_last_error())
+        raise windows_ctypes.WinError(windows_ctypes.get_last_error())
     hwnd = int(hwnd)
     timer = 0
     modal = None
@@ -102,7 +104,7 @@ def _gtk_events(user: object, on_error: Callable[[], None]) -> Iterator[int]:
             callback_type,
         )(hwnd, 1, 16, timer_callback)
         if not timer:
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         set_modal(hwnd)
         modal = set_modal
         yield hwnd
@@ -144,7 +146,7 @@ class WindowsFileDragSource(ApplicationDragSource):
         self._stopped = False
         self._active = False
         self._native_window = 0
-        self._user = ctypes.WinDLL("user32", use_last_error=True)
+        self._user = windows_ctypes.WinDLL("user32", use_last_error=True)
         self._host_handler = self._host.connect("destroy", lambda *_args: self.stop())
 
     def prepare(self, widget: object, *, application_id: str, data: Payloads) -> None:
@@ -244,7 +246,7 @@ class WindowsFileDragSource(ApplicationDragSource):
                 try:
                     effect = ctypes.c_uint32()
                     status = bind(
-                        ctypes.WinDLL("shell32", use_last_error=True),
+                        windows_ctypes.WinDLL("shell32", use_last_error=True),
                         "SHDoDragDrop",
                         HRESULT,
                         ctypes.c_void_p,
@@ -288,7 +290,7 @@ class WindowsFileDragSource(ApplicationDragSource):
                 if not posted:
                     log.error(
                         "Could not cancel native application drag: %s",
-                        ctypes.WinError(ctypes.get_last_error()),
+                        windows_ctypes.WinError(windows_ctypes.get_last_error()),
                     )
             bind(self._user, "ReleaseCapture", ctypes.c_int32)()
         for widget, handlers in tuple(self._widgets.items()):

@@ -13,6 +13,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from docking.platform.native.windows.ffi import windows_ctypes
+
 
 def installed_hook(prefix: Path) -> Path | None:
     """Keep provider commands valid when an installed runtime is upgraded.
@@ -113,7 +115,7 @@ def without_codex_hook(content: bytes, helper: Path) -> bytes | None:
 
 def _replace_preferences(destination: Path, replacement: Path) -> None:
     # ReplaceFileW preserves the existing settings file's ACLs and attributes.
-    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
     replace = kernel.ReplaceFileW
     replace.argtypes = [
         ctypes.c_wchar_p,
@@ -125,7 +127,7 @@ def _replace_preferences(destination: Path, replacement: Path) -> None:
     ]
     replace.restype = ctypes.c_int32
     if not replace(str(destination), str(replacement), None, 0, None, None):
-        raise ctypes.WinError(ctypes.get_last_error())
+        raise windows_ctypes.WinError(windows_ctypes.get_last_error())
 
 
 def remove_provider_hooks(root: Path, home: Path) -> None:

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from docking.platform.backends.base import MonitorSnapshot, Rect
-from docking.platform.native.windows.ffi import MonitorInfo, bind
+from docking.platform.native.windows.ffi import MonitorInfo, bind, windows_ctypes
 
 if TYPE_CHECKING:
     from gi.repository import Gdk
@@ -56,7 +56,11 @@ def constrain_window(hwnd: int, workarea: Rect, user: Any = None) -> bool:
     """
     if workarea.width <= 0 or workarea.height <= 0:
         raise OSError("Window work area is unavailable")
-    user = user if user is not None else ctypes.WinDLL("user32", use_last_error=True)
+    user = (
+        user
+        if user is not None
+        else windows_ctypes.WinDLL("user32", use_last_error=True)
+    )
     rectangle = wintypes.RECT()
     if not bind(
         user,
@@ -65,7 +69,7 @@ def constrain_window(hwnd: int, workarea: Rect, user: Any = None) -> bool:
         wintypes.HWND,
         ctypes.POINTER(wintypes.RECT),
     )(hwnd, ctypes.byref(rectangle)):
-        raise ctypes.WinError(ctypes.get_last_error())
+        raise windows_ctypes.WinError(windows_ctypes.get_last_error())
     current = _rectangle(rectangle)
     width, height = (
         min(current.width, workarea.width),
@@ -87,14 +91,16 @@ def constrain_window(hwnd: int, workarea: Rect, user: Any = None) -> bool:
         ctypes.c_int,
         wintypes.UINT,
     )(hwnd, None, x, y, width, height, 0x14):
-        raise ctypes.WinError(ctypes.get_last_error())
+        raise windows_ctypes.WinError(windows_ctypes.get_last_error())
     return True
 
 
 class WindowsMonitorGeometry:
     def __init__(self, user: Any = None) -> None:
         user = (
-            user if user is not None else ctypes.WinDLL("user32", use_last_error=True)
+            user
+            if user is not None
+            else windows_ctypes.WinDLL("user32", use_last_error=True)
         )
         self._monitor_from_point = bind(
             user, "MonitorFromPoint", wintypes.HMONITOR, wintypes.POINT, wintypes.DWORD
@@ -112,6 +118,8 @@ class WindowsMonitorGeometry:
         # the primary origin to locate the native monitor, then map relative to
         # the exact native bounds so mixed scales do not shift the reserved edge.
         primary = display.get_primary_monitor() or display.get_monitor(0)
+        if primary is None:
+            raise OSError("No monitor is available")
         origin = primary.get_geometry()
         primary_scale = primary.get_scale_factor()
         target = display.get_monitor(monitor.index) if monitor.index >= 0 else None
@@ -127,7 +135,7 @@ class WindowsMonitorGeometry:
         handle = self._monitor_from_point(center, 2)
         info = MonitorInfo(size=ctypes.sizeof(MonitorInfo))
         if not self._monitor_info(handle, ctypes.byref(info)):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         return ScreenMapping(
             monitor.geometry, _rectangle(info.monitor), _rectangle(info.workarea), scale
         )

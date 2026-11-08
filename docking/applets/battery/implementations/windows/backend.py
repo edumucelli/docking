@@ -15,6 +15,7 @@ from docking.applets.battery.peripherals import PeripheralBattery
 from docking.applets.battery.state import BatteryState, resolve_battery_icon
 from docking.log import get_logger
 from docking.platform.native.windows.ffi import bind as _bind
+from docking.platform.native.windows.ffi import windows_ctypes
 from docking.platform.native.windows.power import SystemPowerStatus
 
 log = get_logger("battery.windows")
@@ -49,13 +50,13 @@ class PowerAPI(Protocol):
 class WindowsPowerAPI:
     def __init__(self) -> None:
         self._status = _bind(
-            ctypes.WinDLL("kernel32", use_last_error=True),
+            windows_ctypes.WinDLL("kernel32", use_last_error=True),
             "GetSystemPowerStatus",
             ctypes.c_int32,
             ctypes.POINTER(SystemPowerStatus),
         )
         self._battery = _bind(
-            ctypes.WinDLL("powrprof"),
+            windows_ctypes.WinDLL("powrprof"),
             "CallNtPowerInformation",
             ctypes.c_int32,
             ctypes.c_int32,
@@ -68,7 +69,9 @@ class WindowsPowerAPI:
     def power_status(self) -> SystemPowerStatus | None:
         value = SystemPowerStatus()
         if not self._status(ctypes.byref(value)):
-            log.debug("GetSystemPowerStatus failed: %s", ctypes.get_last_error())
+            log.debug(
+                "GetSystemPowerStatus failed: %s", windows_ctypes.get_last_error()
+            )
             return None
         return value
 

@@ -14,7 +14,12 @@ from typing import Protocol
 from docking.applets.keyboardlayout.backend import LayoutBackend
 from docking.applets.keyboardlayout.state import LayoutInfo, LayoutState
 from docking.log import get_logger
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import (
+    bind,
+    registry,
+    windows_ctypes,
+    windows_os,
+)
 from docking.platform.native.windows.input_context import (
     GuiThreadInfo as _GuiThreadInfo,
 )
@@ -40,7 +45,7 @@ def _layout_id(handle: int) -> str:
         value = handle & 0xFFFFFFFF if device & 0xF000 == 0xE000 else device
         return f"{value or (handle & 0xFFFF):08X}"
 
-    import winreg
+    winreg = registry()
 
     try:
         with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, _LAYOUTS_KEY) as layouts:
@@ -95,8 +100,8 @@ class ProfilesAPI(Protocol):
 
 class WindowsKeyboardAPI:
     def __init__(self) -> None:
-        user = ctypes.WinDLL("user32", use_last_error=True)
-        kernel = ctypes.WinDLL("kernel32")
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
+        kernel = windows_ctypes.WinDLL("kernel32")
         self._foreground = bind(user, "GetForegroundWindow", _HWND)
         self._set_foreground = bind(user, "SetForegroundWindow", _BOOL, _HWND)
         self._thread = bind(
@@ -150,7 +155,7 @@ class WindowsKeyboardAPI:
             ctypes.c_int,
         )
         self._indirect = bind(
-            ctypes.WinDLL("shlwapi"),
+            windows_ctypes.WinDLL("shlwapi"),
             "SHLoadIndirectString",
             ctypes.c_int32,
             ctypes.c_wchar_p,
@@ -307,7 +312,7 @@ class WindowsKeyboardAPI:
         klid = _layout_id(handle)
         name = ""
         if re.fullmatch(r"[0-9a-fA-F]{8}", klid):
-            import winreg
+            winreg = registry()
 
             try:
                 with winreg.OpenKey(
@@ -701,7 +706,7 @@ class WindowsKeyboardBackend(LayoutBackend):
         if self._stopped.is_set():
             return False
         try:
-            os.startfile("ms-settings:typing")
+            windows_os.startfile("ms-settings:typing")
             return True
         except OSError as exc:
             log.debug("Keyboard Settings unavailable: %s", exc)
@@ -713,7 +718,7 @@ class WindowsKeyboardBackend(LayoutBackend):
         ):
             return False
         try:
-            os.startfile(
+            windows_os.startfile(
                 str(
                     Path(os.environ.get("SYSTEMROOT", "C:\\Windows"))
                     / "System32/osk.exe"

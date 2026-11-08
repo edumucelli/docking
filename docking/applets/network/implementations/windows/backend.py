@@ -18,6 +18,7 @@ from docking.applets.network.state import NetworkState, TrafficCounters
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.native.windows.ffi import bind as _bind
+from docking.platform.native.windows.ffi import windows_ctypes
 
 if TYPE_CHECKING:
     from docking.applets.network.implementations.windows.connections import (
@@ -222,7 +223,7 @@ def socket_address(value: SocketAddress) -> str | None:
 
 class _IPHelper:
     def __init__(self):
-        dll = ctypes.WinDLL("iphlpapi", use_last_error=True)
+        dll = windows_ctypes.WinDLL("iphlpapi", use_last_error=True)
         self._adapters = _bind(
             dll,
             "GetAdaptersAddresses",

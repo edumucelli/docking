@@ -16,7 +16,7 @@ from functools import lru_cache
 from docking.applets.network.state import AvailableNetwork
 from docking.log import get_logger
 from docking.platform.native.windows.com import GUID
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 log = get_logger("network.windows_wifi")
 _RADIO_STATE = 4
@@ -135,7 +135,7 @@ def _check(result: int, action: str) -> None:
 
 class _Wlan:
     def __init__(self):
-        dll = ctypes.WinDLL("wlanapi", use_last_error=True)
+        dll = windows_ctypes.WinDLL("wlanapi", use_last_error=True)
         self._open = bind(
             dll,
             "WlanOpenHandle",

@@ -24,7 +24,7 @@ from docking.platform.native.windows.com import (
     value,
 )
 from docking.platform.native.windows.com_callback import ComCallback, ComObject
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, registry, windows_ctypes
 from docking.platform.native.windows.winrt import WindowsRuntime, check
 
 _P = ctypes.c_void_p
@@ -105,20 +105,20 @@ class ToastPublisher:
             raise
 
     def _register(self, scope: ExitStack) -> None:
-        import winreg
+        winreg = registry()
 
         # Only one live publisher may own this profile's COM route. The stable
         # application identity preserves Windows preferences across restarts.
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
         handle = bind(kernel, "CreateMutexW", _P, _P, ctypes.c_int32, ctypes.c_wchar_p)(
             None,
             True,
             "Local\\Docking.WebApp.Toast." + self.identity.rsplit(".", 1)[-1],
         )
         if not handle:
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         close_handle = bind(kernel, "CloseHandle", ctypes.c_int32, _P)
-        if ctypes.get_last_error() == 183:  # ERROR_ALREADY_EXISTS.
+        if windows_ctypes.get_last_error() == 183:  # ERROR_ALREADY_EXISTS.
             close_handle(handle)
             raise OSError("Browser notification profile already active")
         scope.callback(close_handle, handle)
@@ -166,7 +166,7 @@ class ToastPublisher:
             agile=True,
         )
         scope.callback(factory.close)
-        ole = ctypes.WinDLL("ole32", use_last_error=True)
+        ole = windows_ctypes.WinDLL("ole32", use_last_error=True)
         cookie = ctypes.c_uint32()
         check(
             bind(

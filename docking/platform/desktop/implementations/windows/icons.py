@@ -27,6 +27,7 @@ from docking.platform.native.windows.com import (
     release,
 )
 from docking.platform.native.windows.ffi import bind as _bind
+from docking.platform.native.windows.ffi import windows_ctypes
 
 log = get_logger("windows.icons")
 
@@ -64,8 +65,8 @@ class _BitmapHeader(ctypes.Structure):
 
 
 def _bitmap_pixels(bitmap: wintypes.HBITMAP) -> IconPixels | None:
-    gdi = ctypes.WinDLL("gdi32", use_last_error=True)
-    user = ctypes.WinDLL("user32", use_last_error=True)
+    gdi = windows_ctypes.WinDLL("gdi32", use_last_error=True)
+    user = windows_ctypes.WinDLL("user32", use_last_error=True)
     get_object = _bind(
         gdi, "GetObjectW", ctypes.c_int, ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p
     )
@@ -124,7 +125,7 @@ def _bitmap_pixels(bitmap: wintypes.HBITMAP) -> IconPixels | None:
 def extract_icon(target: str, size: int) -> IconPixels | None:
     """Blocking extraction; callers must use a background thread."""
     with apartment():
-        shell = ctypes.WinDLL("shell32", use_last_error=True)
+        shell = windows_ctypes.WinDLL("shell32", use_last_error=True)
         create_item = _bind(
             shell,
             "SHCreateItemFromParsingName",
@@ -154,7 +155,7 @@ def extract_icon(target: str, size: int) -> IconPixels | None:
             try:
                 return _bitmap_pixels(bitmap)
             finally:
-                gdi = ctypes.WinDLL("gdi32", use_last_error=True)
+                gdi = windows_ctypes.WinDLL("gdi32", use_last_error=True)
                 _bind(gdi, "DeleteObject", wintypes.BOOL, ctypes.c_void_p)(bitmap)
         finally:
             release(factory)

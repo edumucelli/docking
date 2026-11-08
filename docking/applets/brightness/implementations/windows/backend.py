@@ -21,7 +21,7 @@ from typing import Protocol
 from docking.applets.brightness.backend import BrightnessBackend
 from docking.applets.brightness.state import BrightnessState
 from docking.log import get_logger
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 log = get_logger("brightness.windows")
 _DWORD = ctypes.c_uint32
@@ -128,8 +128,8 @@ if($null -ne $request.percent){
 
 class WindowsMonitorAPI:
     def __init__(self) -> None:
-        user = ctypes.WinDLL("user32", use_last_error=True)
-        ddc = ctypes.WinDLL("dxva2", use_last_error=True)
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
+        ddc = windows_ctypes.WinDLL("dxva2", use_last_error=True)
         self._monitor = bind(user, "MonitorFromPoint", _HANDLE, _Point, _DWORD)
         self._info = bind(
             user, "GetMonitorInfoW", _BOOL, _HANDLE, ctypes.POINTER(_MonitorInfo)
@@ -270,7 +270,10 @@ class WindowsMonitorAPI:
             return MonitorBrightness((current.value - minimum.value) / steps, levels)
         finally:
             if not self._destroy(count, monitors):
-                log.debug("DestroyPhysicalMonitors failed: %s", ctypes.get_last_error())
+                log.debug(
+                    "DestroyPhysicalMonitors failed: %s",
+                    windows_ctypes.get_last_error(),
+                )
 
     def wmi(
         self, display: Display, *, value: float | None = None

@@ -22,7 +22,7 @@ from docking.platform.native.windows.com import (
     release,
     value,
 )
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 from docking.platform.native.windows.process import NativeProcessReader
 from docking.platform.native.windows.winrt import check
 
@@ -74,7 +74,7 @@ class WindowsPlayerAudio:
         self, *, window_source_factory: Callable[[], WindowObservation]
     ) -> None:
         self._window_source_factory = window_source_factory
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
         self._open = bind(
             kernel,
             "OpenProcess",

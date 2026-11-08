@@ -18,7 +18,7 @@ from docking.platform.native.windows.com import (
     query,
     release,
 )
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 from docking.platform.native.windows.properties import (
     APP_ID,
     PROPERTY_STORE,
@@ -147,7 +147,7 @@ def write_application_shortcut(
     with apartment() as ole:
         pidl = ctypes.c_void_p()
         parse = bind(
-            ctypes.WinDLL("shell32", use_last_error=True),
+            windows_ctypes.WinDLL("shell32", use_last_error=True),
             "SHParseDisplayName",
             HRESULT,
             ctypes.c_wchar_p,

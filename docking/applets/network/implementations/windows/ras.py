@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 from docking.platform.native.windows.com import GUID
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 _WORD = ctypes.c_uint16
 _DWORD = ctypes.c_uint32
@@ -186,7 +186,7 @@ class VpnSession:
 
 class _Ras:
     def __init__(self):
-        dll = ctypes.WinDLL("rasapi32", use_last_error=True)
+        dll = windows_ctypes.WinDLL("rasapi32", use_last_error=True)
         self._entries = bind(
             dll,
             "RasEnumEntriesW",
@@ -332,7 +332,7 @@ class _Ras:
 
 def launch_dialer(profile: VpnProfile) -> None:
     """Launch Windows' own credential/status UI for the exact phonebook entry."""
-    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
     get_directory = bind(
         kernel,
         "GetSystemDirectoryW",

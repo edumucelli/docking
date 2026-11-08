@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import threading
 from pathlib import PureWindowsPath
 from typing import Protocol
@@ -19,6 +18,7 @@ from docking.applets.camshield.implementations.windows.control import (
 from docking.applets.camshield.state import CameraHolder, CamshieldState
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform.native.windows.ffi import windows_os
 from docking.platform.native.windows.process import NativeProcessReader
 
 log = get_logger("camshield.windows")
@@ -173,7 +173,7 @@ class WindowsCamshieldBackend(CamshieldBackend):
         if self._stopped.is_set():
             return False
         try:
-            os.startfile("ms-settings:privacy-webcam")
+            windows_os.startfile("ms-settings:privacy-webcam")
             return True
         except OSError as exc:
             log.debug("Camera Settings unavailable: %s", exc)

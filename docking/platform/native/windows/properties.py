@@ -11,7 +11,7 @@ from docking.platform.native.windows.com import (
     method,
     release,
 )
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 
 class PropertyKey(ctypes.Structure):
@@ -39,7 +39,7 @@ class WindowsWindowProperties:
 
     def __init__(self) -> None:
         self._store = bind(
-            ctypes.WinDLL("shell32", use_last_error=True),
+            windows_ctypes.WinDLL("shell32", use_last_error=True),
             "SHGetPropertyStoreForWindow",
             HRESULT,
             ctypes.c_void_p,

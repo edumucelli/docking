@@ -21,7 +21,7 @@ from docking.platform.backends.base import (
 from docking.platform.desktop.implementations.windows.geometry import (
     WindowsMonitorGeometry,
 )
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 from .windows import Win32WindowAPI
 
@@ -60,8 +60,8 @@ class _FileTime(ctypes.Structure):
 
 class WindowsPickAPI:
     def __init__(self) -> None:
-        user = ctypes.WinDLL("user32", use_last_error=True)
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
+        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
         self._windows = Win32WindowAPI()
         self._geometry = WindowsMonitorGeometry(user)
         self._at_point = bind(user, "WindowFromPoint", ctypes.c_void_p, wintypes.POINT)
@@ -89,7 +89,7 @@ class WindowsPickAPI:
             ctypes.c_wchar_p,
             ctypes.c_int32,
         )
-        self._callback_type = ctypes.WINFUNCTYPE(
+        self._callback_type = windows_ctypes.WINFUNCTYPE(
             ctypes.c_int32, ctypes.c_void_p, ctypes.c_ssize_t
         )
         self._children = bind(
@@ -147,7 +147,9 @@ class WindowsPickAPI:
             ctypes.c_uint32,
         )
         self._flush = bind(
-            ctypes.WinDLL("dwmapi", use_last_error=True), "DwmFlush", ctypes.c_int32
+            windows_ctypes.WinDLL("dwmapi", use_last_error=True),
+            "DwmFlush",
+            ctypes.c_int32,
         )
 
     def _pid(self, window: int) -> int:

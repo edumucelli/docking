@@ -10,7 +10,7 @@ from pathlib import PureWindowsPath
 
 from docking.platform.native.windows.com import HRESULT, apartment
 from docking.platform.native.windows.dataobject import file_drop_bytes
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 _MAX_SELECTION_BYTES = 1048576
 
@@ -62,7 +62,7 @@ def shell_selection_formats(
     if remaining < 2:
         raise OSError("Shell selection exceeds the byte limit")
     with apartment() as ole, ExitStack() as stack:
-        shell = ctypes.WinDLL("shell32", use_last_error=True)
+        shell = windows_ctypes.WinDLL("shell32", use_last_error=True)
         parse = bind(
             shell,
             "SHParseDisplayName",

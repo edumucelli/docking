@@ -13,9 +13,14 @@ import time
 from collections.abc import Callable, Sequence
 from contextlib import suppress
 from pathlib import Path
+from typing import cast
 
 from docking.platform import environment
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import (
+    WindowsProcessHandle,
+    bind,
+    windows_ctypes,
+)
 
 _CANCELLED = 1223
 _TIMEOUT = 1460
@@ -105,7 +110,7 @@ class PairingOperation:
 
                 job = ProcessJob()
                 # CPython owns this handle; avoid reopening a reusable PID.
-                job.assign(int(process._handle))
+                job.assign(int(cast(WindowsProcessHandle, process)._handle))
             assert process.stdin is not None and process.stdout is not None
             if self._cancelled.is_set() or time.monotonic() >= deadline:
                 return False
@@ -239,7 +244,7 @@ class PairingWindow:
         from ctypes import wintypes
 
         self._message_type = wintypes.MSG
-        self._user = ctypes.WinDLL("user32", use_last_error=True)
+        self._user = windows_ctypes.WinDLL("user32", use_last_error=True)
         self._owner = 0
         self._thread = 0
         self._create = bind(
@@ -282,7 +287,7 @@ class PairingWindow:
             ctypes.POINTER(ctypes.c_uint32),
         )
         self._thread_id = bind(
-            ctypes.WinDLL("kernel32"), "GetCurrentThreadId", ctypes.c_uint32
+            windows_ctypes.WinDLL("kernel32"), "GetCurrentThreadId", ctypes.c_uint32
         )
         self._peek = bind(
             self._user,
@@ -312,7 +317,7 @@ class PairingWindow:
             self._dispatch(ctypes.byref(message))
 
     def _dismiss(self) -> None:
-        callback_type = ctypes.WINFUNCTYPE(
+        callback_type = windows_ctypes.WINFUNCTYPE(
             ctypes.c_int32, ctypes.c_void_p, ctypes.c_ssize_t
         )
 
@@ -349,7 +354,7 @@ class PairingWindow:
             None,
         )
         if not owner:
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         self._owner = int(owner)
         done = threading.Event()
         result = [_GENERAL_FAILURE]
@@ -409,7 +414,7 @@ def authenticate(owner: int, radio_address: int, device_address: int) -> int:
     with ClassicInventory().radio_handle(radio_address) as radio:
         if radio is None or not radio.value:
             return 1168
-        library = ctypes.WinDLL("bthprops.cpl", use_last_error=True)
+        library = windows_ctypes.WinDLL("bthprops.cpl", use_last_error=True)
         read = bind(
             library,
             "BluetoothGetDeviceInfo",

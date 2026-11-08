@@ -25,7 +25,7 @@ from docking.platform.native.windows.com import (
     release,
 )
 from docking.platform.native.windows.com_callback import ComCallback
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 from docking.platform.native.windows.winrt import check
 
 _P = ctypes.c_void_p
@@ -84,14 +84,14 @@ class WebView2Host:
         self._subscriptions: list[tuple[ctypes.c_void_p, int, int]] = []
         self._closed = False
         self._controller, self.core, self.environment = _P(), _P(), _P()
-        self._ole = ctypes.WinDLL("ole32", use_last_error=True)
+        self._ole = windows_ctypes.WinDLL("ole32", use_last_error=True)
         check(bind(self._ole, "CoInitializeEx", HRESULT, _P, ctypes.c_uint32)(None, 2))
         self._scope.callback(bind(self._ole, "CoUninitialize", None))
         try:
             path = loader if loader is not None else loader_path()
             if not path.is_absolute():
                 raise OSError("WebView2 loader path must be absolute")
-            self._loader = ctypes.WinDLL(str(path), use_last_error=True)
+            self._loader = windows_ctypes.WinDLL(str(path), use_last_error=True)
             version = _P()
             try:
                 check(
@@ -301,13 +301,13 @@ class WebView2Host:
         if self._controller.value:
             rectangle = Rect()
             if not bind(
-                ctypes.WinDLL("user32"),
+                windows_ctypes.WinDLL("user32"),
                 "GetClientRect",
                 _BOOL,
                 _P,
                 ctypes.POINTER(Rect),
             )(self._parent, ctypes.byref(rectangle)):
-                raise ctypes.WinError(ctypes.get_last_error())
+                raise windows_ctypes.WinError(windows_ctypes.get_last_error())
             check(
                 method(self._controller, 6, HRESULT, Rect)(self._controller, rectangle)
             )

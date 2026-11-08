@@ -21,6 +21,7 @@ from docking.applets.webapp.implementations.windows.companion.protocol import (
     encode,
     read,
 )
+from docking.platform.native.windows.ffi import windows_ctypes
 
 SHUTDOWN_GRACE_SECONDS = 8
 
@@ -59,7 +60,7 @@ class BrowserProcess:
                 process = self._process
             if process is not None and process.poll() is None:
                 bind(
-                    ctypes.WinDLL("user32", use_last_error=True),
+                    windows_ctypes.WinDLL("user32", use_last_error=True),
                     "AllowSetForegroundWindow",
                     ctypes.c_int32,
                     ctypes.c_uint32,

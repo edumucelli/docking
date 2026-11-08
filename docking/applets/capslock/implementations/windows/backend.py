@@ -8,7 +8,7 @@ from collections.abc import Callable
 from docking.applets.capslock.backend import LockKeyBackend
 from docking.applets.capslock.state import LockKeyState
 from docking.log import get_logger
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 log = get_logger("capslock.windows")
 
@@ -21,7 +21,7 @@ class WindowsLockKeyBackend(LockKeyBackend):
         try:
             if self._read is None:
                 self._read = bind(
-                    ctypes.WinDLL("user32", use_last_error=True),
+                    windows_ctypes.WinDLL("user32", use_last_error=True),
                     "GetKeyState",
                     ctypes.c_int16,
                     ctypes.c_int32,

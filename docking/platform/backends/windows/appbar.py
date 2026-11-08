@@ -21,7 +21,11 @@ from docking.platform.desktop.implementations.windows.geometry import (
     WindowsMonitorGeometry,
 )
 from docking.platform.native.windows.ffi import bind as _bind
-from docking.platform.native.windows.ffi import explorer_tray, window_handle
+from docking.platform.native.windows.ffi import (
+    explorer_tray,
+    window_handle,
+    windows_ctypes,
+)
 
 if TYPE_CHECKING:
     from gi.repository import Gdk
@@ -71,9 +75,9 @@ class WindowsAppBar:
         self._reserved: Rect | None = None
         self._edge: int | None = None
         self._closed = False
-        self._user = user = ctypes.WinDLL("user32", use_last_error=True)
-        shell = ctypes.WinDLL("shell32", use_last_error=True)
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        self._user = user = windows_ctypes.WinDLL("user32", use_last_error=True)
+        shell = windows_ctypes.WinDLL("shell32", use_last_error=True)
+        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
         self._appbar = _bind(
             shell,
             "SHAppBarMessage",
@@ -111,7 +115,7 @@ class WindowsAppBar:
             ctypes.c_int,
             wintypes.UINT,
         )
-        callback_type = ctypes.WINFUNCTYPE(
+        callback_type = windows_ctypes.WINFUNCTYPE(
             ctypes.c_ssize_t,
             wintypes.HWND,
             wintypes.UINT,
@@ -150,7 +154,7 @@ class WindowsAppBar:
             user, "RegisterClassExW", wintypes.ATOM, ctypes.POINTER(WindowClass)
         )
         if not register(ctypes.byref(window_class)):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         create = _bind(
             user,
             "CreateWindowExW",
@@ -185,7 +189,7 @@ class WindowsAppBar:
         )
         if not self._hwnd:
             self._unregister_class()
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         opacity = _bind(
             user,
             "SetLayeredWindowAttributes",

@@ -12,7 +12,7 @@ from typing import ClassVar
 from docking.applets.caffeine.inhibit import Inhibitor
 from docking.i18n import _
 from docking.log import get_logger
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 log = get_logger("caffeine.windows")
 
@@ -43,7 +43,7 @@ class ReasonContext(ctypes.Structure):
 
 class WindowsPowerRequests:
     def __init__(self) -> None:
-        library = ctypes.WinDLL("kernel32", use_last_error=True)
+        library = windows_ctypes.WinDLL("kernel32", use_last_error=True)
         self._create = bind(
             library,
             "PowerCreateRequest",
@@ -66,20 +66,20 @@ class WindowsPowerRequests:
         context = ReasonContext(0, 1, _Reason(simple=reason))
         handle = self._create(ctypes.byref(context))
         if not handle or handle == ctypes.c_void_p(-1).value:
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         return int(handle)
 
     def set(self, handle: int, kind: int) -> None:
         if not self._set(handle, kind):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
 
     def clear(self, handle: int, kind: int) -> None:
         if not self._clear(handle, kind):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
 
     def close(self, handle: int) -> None:
         if not self._close(handle):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
 
 
 class WindowsInhibitor(Inhibitor):

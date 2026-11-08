@@ -9,6 +9,8 @@ from __future__ import annotations
 from contextlib import suppress
 from dataclasses import dataclass
 
+from docking.platform.native.windows.ffi import registry
+
 KEY = r"SOFTWARE\Policies\Microsoft\Camera"
 VALUE = "AllowCamera"
 _EDITIONS = (
@@ -31,7 +33,7 @@ class CameraPolicyState:
 
 class WindowsCameraPolicy:
     def snapshot(self) -> CameraPolicyState:
-        import winreg
+        winreg = registry()
 
         with winreg.OpenKey(
             winreg.HKEY_LOCAL_MACHINE,
@@ -56,7 +58,7 @@ class WindowsCameraPolicy:
         return CameraPolicyState(value, supported)
 
     def set_value(self, value: int | None) -> bool:
-        import winreg
+        winreg = registry()
 
         if value is not None and (type(value) is not int or value not in (0, 1)):
             raise ValueError("Invalid Windows camera policy")

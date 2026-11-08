@@ -9,10 +9,28 @@ from unittest.mock import Mock, call
 import pytest
 
 from docking.core.position import Position
-from docking.platform.backends.base import Rect
+from docking.platform.backends.base import MonitorSnapshot, Rect
 from docking.platform.backends.windows import appbar
 from docking.platform.backends.windows.appbar import edge_strip
-from docking.platform.desktop.implementations.windows.geometry import ScreenMapping
+from docking.platform.desktop.implementations.windows.geometry import (
+    ScreenMapping,
+    WindowsMonitorGeometry,
+)
+
+
+def test_monitor_removed_before_native_mapping_is_reported_as_unavailable():
+    geometry = WindowsMonitorGeometry.__new__(WindowsMonitorGeometry)
+    geometry._monitor_from_point = Mock()
+    geometry._monitor_info = Mock()
+    display = Mock()
+    display.get_primary_monitor.return_value = None
+    display.get_monitor.return_value = None
+    with pytest.raises(OSError, match="No monitor is available"):
+        geometry.mapping(
+            MonitorSnapshot(index=0, geometry=Rect(0, 0, 800, 600)), display
+        )
+    geometry._monitor_from_point.assert_not_called()
+    geometry._monitor_info.assert_not_called()
 
 
 @pytest.fixture

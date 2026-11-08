@@ -8,6 +8,7 @@ from ctypes import wintypes
 
 from docking.log import get_logger
 from docking.platform.native.windows.ffi import bind as _bind
+from docking.platform.native.windows.ffi import windows_ctypes
 
 log = get_logger("windows.close_hook")
 
@@ -19,7 +20,7 @@ class WindowsCloseHook:
         self._on_close = on_close
         self._hwnd = None
         self._subclass_id = id(self)
-        self._callback_type = ctypes.WINFUNCTYPE(
+        self._callback_type = windows_ctypes.WINFUNCTYPE(
             ctypes.c_ssize_t,
             wintypes.HWND,
             wintypes.UINT,
@@ -29,7 +30,7 @@ class WindowsCloseHook:
             ctypes.c_size_t,
         )
         self._callback = self._callback_type(self._message)
-        library = ctypes.WinDLL("comctl32", use_last_error=True)
+        library = windows_ctypes.WinDLL("comctl32", use_last_error=True)
         self._set = _bind(
             library,
             "SetWindowSubclass",
@@ -62,7 +63,7 @@ class WindowsCloseHook:
             return
         self.close()
         if not self._set(hwnd, self._callback, self._subclass_id, 0):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         self._hwnd = hwnd
 
     def _message(self, hwnd, message, wparam, lparam, _subclass_id, _data):

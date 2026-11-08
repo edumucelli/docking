@@ -16,7 +16,7 @@ from docking.platform.native.windows.com import (
     release,
     value,
 )
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 log = get_logger("windows.winrt")
 POINTER = ctypes.c_void_p
@@ -34,7 +34,7 @@ class WindowsRuntime:
     """Enter and exit on the same worker; never expose COM pointers to GTK."""
 
     def __init__(self) -> None:
-        dll = ctypes.WinDLL("combase", use_last_error=True)
+        dll = windows_ctypes.WinDLL("combase", use_last_error=True)
         self._initialize = bind(dll, "RoInitialize", HRESULT, ctypes.c_uint32)
         self._uninitialize = bind(dll, "RoUninitialize", None)
         self._create = bind(

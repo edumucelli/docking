@@ -21,7 +21,7 @@ from docking.platform.native.windows.com import (
     method,
     release,
 )
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 log = get_logger("windows.desktop")
 _SHELL_CLASS = GUID.parse("13709620-c279-11ce-a49e-444553540000")
@@ -52,7 +52,7 @@ class DesktopAPI(Protocol):
 
 class WindowsDesktopAPI:
     def __init__(self) -> None:
-        user = ctypes.WinDLL("user32", use_last_error=True)
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
         self._shell = bind(user, "GetShellWindow", ctypes.c_void_p)
         self._visible = bind(user, "IsWindowVisible", ctypes.c_int32, ctypes.c_void_p)
         self._next = bind(
@@ -80,7 +80,7 @@ class WindowsDesktopAPI:
             user, "AllowSetForegroundWindow", ctypes.c_int32, ctypes.c_uint32
         )
         self._cloaked = bind(
-            ctypes.WinDLL("dwmapi", use_last_error=True),
+            windows_ctypes.WinDLL("dwmapi", use_last_error=True),
             "DwmGetWindowAttribute",
             HRESULT,
             ctypes.c_void_p,

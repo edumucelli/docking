@@ -6,7 +6,7 @@ import ctypes
 import struct
 
 from docking.i18n import _
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 
 def _text(value: str) -> bytes:
@@ -14,8 +14,8 @@ def _text(value: str) -> bytes:
 
 
 def _pin_dialog(owner: int) -> str | None:
-    user = ctypes.WinDLL("user32", use_last_error=True)
-    procedure_type = ctypes.WINFUNCTYPE(
+    user = windows_ctypes.WinDLL("user32", use_last_error=True)
+    procedure_type = windows_ctypes.WINFUNCTYPE(
         ctypes.c_ssize_t,
         ctypes.c_void_p,
         ctypes.c_uint32,
@@ -89,7 +89,7 @@ def _pin_dialog(owner: int) -> str | None:
         ctypes.c_ssize_t,
     )(None, template, owner, procedure_callback, 0)
     if status == -1:
-        raise ctypes.WinError(ctypes.get_last_error())
+        raise windows_ctypes.WinError(windows_ctypes.get_last_error())
     return result[0] if status == 1 and result else None
 
 
@@ -101,7 +101,7 @@ def pairing_prompt(owner: int, kind: int, pin: str) -> str | None:
     if kind not in (2, 8):
         return None
     message = bind(
-        ctypes.WinDLL("user32", use_last_error=True),
+        windows_ctypes.WinDLL("user32", use_last_error=True),
         "MessageBoxW",
         ctypes.c_int32,
         ctypes.c_void_p,

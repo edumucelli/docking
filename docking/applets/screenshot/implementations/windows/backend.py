@@ -9,6 +9,7 @@ import threading
 import time
 from collections.abc import Callable
 from contextlib import closing
+from typing import TYPE_CHECKING, cast
 
 from PIL import ImageGrab
 
@@ -27,7 +28,10 @@ from docking.platform.desktop.implementations.windows.geometry import (
     WindowsMonitorGeometry,
 )
 from docking.platform.native.windows.capture import WindowObservation
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
+
+if TYPE_CHECKING:
+    from gi.repository import Gtk
 
 
 class WindowsScreenshotAPI:
@@ -35,9 +39,9 @@ class WindowsScreenshotAPI:
         self, *, window_source_factory: Callable[[], WindowObservation]
     ) -> None:
         self._window_source_factory = window_source_factory
-        user = ctypes.WinDLL("user32", use_last_error=True)
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
         self._metric = bind(user, "GetSystemMetrics", ctypes.c_int32, ctypes.c_int32)
-        self._flush = bind(ctypes.WinDLL("dwmapi"), "DwmFlush", ctypes.c_int32)
+        self._flush = bind(windows_ctypes.WinDLL("dwmapi"), "DwmFlush", ctypes.c_int32)
 
     def desktop(self, region: Rect | None = None) -> ScreenshotImage:
         bounds = Rect(*(self._metric(index) for index in (76, 77, 78, 79)))
@@ -145,6 +149,7 @@ class WindowsScreenshotBackend(ScreenshotBackend):
     ) -> None:
         from docking.platform.native.windows.ffi import window_handle
 
+        parent = cast("Gtk.Window | None", parent)
         native = parent.get_window() if parent is not None else None
         handle = window_handle(native) if native is not None else None
         self._excluded = (handle,) if handle else ()
@@ -179,7 +184,7 @@ class WindowsScreenshotBackend(ScreenshotBackend):
             return None
         geometry = WindowsMonitorGeometry()
 
-        def mapping(x: float, y: float):
+        def mapping(x: float, y: float, display=display):
             monitor = display.get_monitor_at_point(math.floor(x), math.floor(y))
             if monitor is None:
                 return None

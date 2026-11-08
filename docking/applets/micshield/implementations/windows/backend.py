@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import threading
 from typing import Protocol
 
@@ -13,6 +12,7 @@ from docking.applets.micshield.implementations.windows.audio import (
 )
 from docking.applets.micshield.state import MicShieldState
 from docking.log import get_logger
+from docking.platform.native.windows.ffi import windows_os
 
 log = get_logger("micshield.windows")
 
@@ -89,7 +89,7 @@ class WindowsMicShieldBackend(MicShieldBackend):
         if self._stopped.is_set():
             return False
         try:
-            os.startfile("ms-settings:privacy-microphone")
+            windows_os.startfile("ms-settings:privacy-microphone")
             return True
         except OSError as exc:
             log.debug("Microphone Settings unavailable: %s", exc)

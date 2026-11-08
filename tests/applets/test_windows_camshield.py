@@ -211,10 +211,12 @@ def test_settings_handoff_without_hardware(camera, monkeypatch):
     instance, api = camera
     api.value = replace(api.value, devices=())
     opened = []
-    monkeypatch.setattr(backend.os, "startfile", opened.append, raising=False)
+    monkeypatch.setattr(backend.windows_os, "startfile", opened.append, raising=False)
     assert instance.settings_available() and instance.open_settings()
     assert opened == ["ms-settings:privacy-webcam"]
-    monkeypatch.setattr(backend.os, "startfile", Mock(side_effect=OSError("denied")))
+    monkeypatch.setattr(
+        backend.windows_os, "startfile", Mock(side_effect=OSError("denied"))
+    )
     assert not instance.open_settings()
 
 

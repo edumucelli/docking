@@ -13,7 +13,7 @@ from contextlib import ExitStack
 from typing import Any
 
 from docking.platform.native.windows.com import GUID, HRESULT, method, release
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 _P = ctypes.c_void_p
 _U32 = ctypes.c_uint32
@@ -90,8 +90,8 @@ def _attribute_text(ole, pointer, key: GUID) -> str:
 
 def inventory(ole) -> list[dict[str, Any]]:
     """Enumerate video capture source metadata without opening any source."""
-    platform = ctypes.WinDLL("mfplat")
-    media = ctypes.WinDLL("mf")
+    platform = windows_ctypes.WinDLL("mfplat")
+    media = windows_ctypes.WinDLL("mf")
     attributes = _P()
     array = ctypes.POINTER(_P)()
     count = _U32()
@@ -155,7 +155,7 @@ class SensorMonitor:
         self._monitor = _P()
         # These thunks and the native instance stay owned by this object for
         # the entire monitor lifetime, including Stop/Release callbacks.
-        callback = ctypes.WINFUNCTYPE
+        callback = windows_ctypes.WINFUNCTYPE
         self._functions = (
             callback(HRESULT, _P, ctypes.POINTER(GUID), ctypes.POINTER(_P))(
                 self._query
@@ -192,7 +192,7 @@ class SensorMonitor:
 
     def _report(self, _this, pointer):
         try:
-            values = []
+            values: list[dict[str, Any]] = []
             count = _value(pointer, 3)
             if count > 256:
                 raise OSError("Invalid camera activity count")
@@ -233,7 +233,7 @@ class SensorMonitor:
         return 0
 
     def start(self) -> None:
-        dll = ctypes.WinDLL("mfsensorgroup")
+        dll = windows_ctypes.WinDLL("mfsensorgroup")
         try:
             _check(
                 bind(

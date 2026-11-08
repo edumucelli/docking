@@ -11,6 +11,7 @@ from gi.repository import Gio
 from docking.applets.trash.backend import TrashBackend, TrashEmptyResult
 from docking.core.paths import local_path_from_uri_or_path
 from docking.log import get_logger
+from docking.platform.native.windows.ffi import windows_ctypes
 
 log = get_logger("trash.windows")
 from docking.platform.native.windows.com import (
@@ -43,7 +44,7 @@ def _check(status: int) -> None:
 
 class WindowsRecycleBin:
     def __init__(self):
-        self._shell = ctypes.WinDLL("shell32", use_last_error=True)
+        self._shell = windows_ctypes.WinDLL("shell32", use_last_error=True)
         self._query = _bind(
             self._shell,
             "SHQueryRecycleBinW",
@@ -60,7 +61,7 @@ class WindowsRecycleBin:
             ctypes.c_uint32,
         )
         self._drive_type = _bind(
-            ctypes.WinDLL("kernel32", use_last_error=True),
+            windows_ctypes.WinDLL("kernel32", use_last_error=True),
             "GetDriveTypeW",
             ctypes.c_uint32,
             ctypes.c_wchar_p,

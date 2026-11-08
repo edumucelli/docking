@@ -10,6 +10,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Protocol
 
+from docking.platform.native.windows.ffi import windows_ctypes
+
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[5]))
 
@@ -68,7 +70,7 @@ class CameraTransitions:
 
 @contextmanager
 def _exclusive() -> Iterator[None]:
-    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
     handle = bind(
         kernel,
         "CreateMutexW",
@@ -78,7 +80,7 @@ def _exclusive() -> Iterator[None]:
         ctypes.c_wchar_p,
     )(None, False, "Global\\DockingCamShieldControl")
     if not handle:
-        raise ctypes.WinError(ctypes.get_last_error())
+        raise windows_ctypes.WinError(windows_ctypes.get_last_error())
     acquired = False
     try:
         status = bind(

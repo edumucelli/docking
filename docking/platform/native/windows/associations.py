@@ -3,13 +3,13 @@
 import ctypes
 
 from docking.platform.native.windows.com import HRESULT
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 
 def directory_association(*, name: bool) -> str | None:
     """Query the Directory open verb, including its documented Folder base."""
     query = bind(
-        ctypes.WinDLL("shlwapi", use_last_error=True),
+        windows_ctypes.WinDLL("shlwapi", use_last_error=True),
         "AssocQueryStringW",
         HRESULT,
         ctypes.c_uint32,

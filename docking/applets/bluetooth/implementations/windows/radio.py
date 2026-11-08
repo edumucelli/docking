@@ -25,7 +25,7 @@ from docking.applets.bluetooth.implementations.windows.le import (
     LowEnergyProvider,
 )
 from docking.applets.bluetooth.implementations.windows.pairing import PairingOperation
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 _DWORD = ctypes.c_uint32
 _BOOL = ctypes.c_int32
@@ -100,7 +100,7 @@ class Radio:
 
 class ClassicInventory:
     def __init__(self) -> None:
-        dll = ctypes.WinDLL("bthprops.cpl", use_last_error=True)
+        dll = windows_ctypes.WinDLL("bthprops.cpl", use_last_error=True)
         self._first_radio = bind(
             dll,
             "BluetoothFindFirstRadio",
@@ -137,12 +137,12 @@ class ClassicInventory:
             ctypes.POINTER(ctypes.c_uint64),
         )
         self._close_handle = bind(
-            ctypes.WinDLL("kernel32"), "CloseHandle", _BOOL, _HANDLE
+            windows_ctypes.WinDLL("kernel32"), "CloseHandle", _BOOL, _HANDLE
         )
 
     @staticmethod
     def _end() -> None:
-        error = ctypes.get_last_error()
+        error = windows_ctypes.get_last_error()
         if error != 259:  # ERROR_NO_MORE_ITEMS, including no installed radio
             raise OSError(error, "Bluetooth inventory failed")
 

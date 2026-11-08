@@ -7,7 +7,7 @@ import os
 import sys
 from pathlib import Path
 
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes, windows_os
 
 _DLL_DIRECTORIES: dict[Path, object] = {}
 
@@ -16,12 +16,12 @@ def _prepare_dpi_awareness() -> None:
     # GTK 3 otherwise selects system awareness. Windows then virtualizes native
     # coordinates after a DPI change, moving the dock over the taskbar while
     # its shell reservation uses a different coordinate space.
-    user = ctypes.WinDLL("user32", use_last_error=True)
+    user = windows_ctypes.WinDLL("user32", use_last_error=True)
     set_awareness = bind(
         user, "SetProcessDpiAwarenessContext", ctypes.c_int32, ctypes.c_void_p
     )
     if not set_awareness(ctypes.c_void_p(-4)):  # PER_MONITOR_AWARE_V2.
-        error = ctypes.get_last_error()
+        error = windows_ctypes.get_last_error()
         # An explicit manifest or an earlier host initialization takes priority.
         if error != 5:  # ERROR_ACCESS_DENIED: awareness is already set.
             raise OSError(error, "Could not enable per-monitor DPI awareness")
@@ -70,6 +70,6 @@ def prepare_windows_runtime() -> bool:
     directories = list(dict.fromkeys(path for path in candidates if path.is_dir()))
     for path in directories:
         if path not in _DLL_DIRECTORIES:
-            _DLL_DIRECTORIES[path] = os.add_dll_directory(str(path))
+            _DLL_DIRECTORIES[path] = windows_os.add_dll_directory(str(path))
     os.environ.setdefault("PYGI_DLL_PATH", os.pathsep.join(map(str, directories)))
     return bool(directories)

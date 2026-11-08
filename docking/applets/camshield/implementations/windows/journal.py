@@ -12,7 +12,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, registry, windows_ctypes
 
 KEY = r"SOFTWARE\DockingCamShieldRecovery"
 _SDDL = "O:BAD:P(A;;KA;;;SY)(A;;KA;;;BA)(A;;KR;;;BU)"
@@ -31,7 +31,7 @@ class _SecurityAttributes(ctypes.Structure):
 
 def _free(pointer) -> None:
     if pointer.value:
-        bind(ctypes.WinDLL("kernel32"), "LocalFree", _P, _P)(pointer)
+        bind(windows_ctypes.WinDLL("kernel32"), "LocalFree", _P, _P)(pointer)
 
 
 def _descriptor(advapi):
@@ -45,7 +45,7 @@ def _descriptor(advapi):
         ctypes.POINTER(_P),
         _P,
     )(_SDDL, 1, ctypes.byref(pointer), None):
-        raise ctypes.WinError(ctypes.get_last_error())
+        raise windows_ctypes.WinError(windows_ctypes.get_last_error())
     return pointer
 
 
@@ -62,7 +62,7 @@ def _canonical(advapi, descriptor) -> str:
             ctypes.POINTER(_P),
             _P,
         )(descriptor, 1, 5, ctypes.byref(text), None):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         if not text.value:
             raise OSError("Missing camera recovery security descriptor")
         return ctypes.wstring_at(text)
@@ -87,7 +87,7 @@ def _verify(advapi, handle: int, expected) -> None:
             ctypes.POINTER(_P),
         )(handle, 4, 5, None, None, None, None, ctypes.byref(descriptor))
         if status:
-            raise ctypes.WinError(status)
+            raise windows_ctypes.WinError(status)
         if not descriptor.value or _canonical(advapi, descriptor) != _canonical(
             advapi, expected
         ):
@@ -100,9 +100,9 @@ def _verify(advapi, handle: int, expected) -> None:
 
 @contextmanager
 def _open(*, create: bool) -> Iterator[int | None]:
-    import winreg
+    winreg = registry()
 
-    advapi = ctypes.WinDLL("advapi32", use_last_error=True)
+    advapi = windows_ctypes.WinDLL("advapi32", use_last_error=True)
     descriptor = _descriptor(advapi)
     handle = None
     try:
@@ -136,7 +136,7 @@ def _open(*, create: bool) -> Iterator[int | None]:
                 ctypes.byref(disposition),
             )
             if status:
-                raise ctypes.WinError(status)
+                raise windows_ctypes.WinError(status)
             handle = result.value
         else:
             try:
@@ -189,7 +189,7 @@ def _decode(text: str) -> RecordedPolicy | None:
 
 class WindowsCameraJournal:
     def read(self) -> RecordedPolicy | None:
-        import winreg
+        winreg = registry()
 
         with _open(create=False) as handle:
             if handle is None:
@@ -203,7 +203,7 @@ class WindowsCameraJournal:
             return _decode(value)
 
     def write(self, record: RecordedPolicy | None) -> None:
-        import winreg
+        winreg = registry()
 
         text = json.dumps(
             {

@@ -9,6 +9,7 @@ from contextlib import ExitStack, contextmanager
 from typing import Any
 
 from docking.platform.native.windows.ffi import bind as _bind
+from docking.platform.native.windows.ffi import windows_ctypes
 
 HRESULT = ctypes.c_int32
 
@@ -30,7 +31,7 @@ def method(pointer: ctypes.c_void_p, index: int, result: Any, *arguments: Any) -
     table = ctypes.cast(
         pointer, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))
     ).contents
-    return ctypes.WINFUNCTYPE(result, ctypes.c_void_p, *arguments)(table[index])
+    return windows_ctypes.WINFUNCTYPE(result, ctypes.c_void_p, *arguments)(table[index])
 
 
 def release(pointer: ctypes.c_void_p) -> None:
@@ -40,7 +41,7 @@ def release(pointer: ctypes.c_void_p) -> None:
 
 @contextmanager
 def apartment(*, multithreaded: bool = False) -> Iterator[Any]:
-    ole = ctypes.WinDLL("ole32", use_last_error=True)
+    ole = windows_ctypes.WinDLL("ole32", use_last_error=True)
     initialize = _bind(ole, "CoInitializeEx", HRESULT, ctypes.c_void_p, ctypes.c_uint32)
     status = initialize(None, 0 if multithreaded else 2)
     # GTK/Gio may already own a different COM apartment on the UI thread.
@@ -97,7 +98,7 @@ def create_instance(stack: ExitStack, clsid: GUID, interface: GUID) -> ctypes.c_
     """Create an in-process COM object in the caller's initialized apartment."""
     result = ctypes.c_void_p()
     create = _bind(
-        ctypes.WinDLL("ole32"),
+        windows_ctypes.WinDLL("ole32"),
         "CoCreateInstance",
         HRESULT,
         ctypes.POINTER(GUID),

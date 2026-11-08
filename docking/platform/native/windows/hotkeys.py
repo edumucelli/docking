@@ -6,6 +6,7 @@ import ctypes
 from ctypes import wintypes
 
 from docking.platform.native.windows.ffi import bind as _bind
+from docking.platform.native.windows.ffi import windows_ctypes
 from docking.platform.native.windows.input_context import GuiThreadInfo, typing_window
 from docking.platform.native.windows.modifiers import AltGrGuard
 
@@ -37,7 +38,7 @@ class WindowsHotkeyAPI:
         self._preferred: tuple[int, int | str] | None = None
         self._binding: tuple[int, int] | None = None
         self._altgr = AltGrGuard()
-        user = ctypes.WinDLL("user32", use_last_error=True)
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
         self._register = _bind(
             user,
             "RegisterHotKey",
@@ -144,7 +145,7 @@ class WindowsHotkeyAPI:
             pass
         modifiers, key = binding
         if not self._register(None, HOTKEY_ID, modifiers | MOD_NOREPEAT, key):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         self._binding = binding
 
     def activation(self) -> int | None:
@@ -177,5 +178,5 @@ class WindowsHotkeyAPI:
         if self._binding is None:
             return
         if not self._unregister(None, HOTKEY_ID):
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         self._binding = None

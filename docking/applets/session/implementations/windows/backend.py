@@ -8,7 +8,7 @@ from contextlib import contextmanager
 
 from docking.applets.session.backend import SessionBackend
 from docking.log import get_logger
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 log = get_logger("session.windows")
 _DWORD = ctypes.c_uint32
@@ -74,15 +74,15 @@ class _PowerCapabilities(ctypes.Structure):
 
 def _check(result, action: str) -> None:
     if not result:
-        raise OSError(ctypes.get_last_error(), action + " failed")
+        raise OSError(windows_ctypes.get_last_error(), action + " failed")
 
 
 class _PowerAPI:
     def __init__(self):
-        user = ctypes.WinDLL("user32", use_last_error=True)
-        power = ctypes.WinDLL("powrprof", use_last_error=True)
-        security = ctypes.WinDLL("advapi32", use_last_error=True)
-        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
+        power = windows_ctypes.WinDLL("powrprof", use_last_error=True)
+        security = windows_ctypes.WinDLL("advapi32", use_last_error=True)
+        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
         self._lock = bind(user, "LockWorkStation", _BOOL)
         self._exit = bind(user, "ExitWindowsEx", _BOOL, _DWORD, _DWORD)
         self._suspend = bind(power, "SetSuspendState", _BYTE, _BYTE, _BYTE, _BYTE)
@@ -155,7 +155,7 @@ class _PowerAPI:
             size = _DWORD()
             if (
                 not self._token_info(token, 3, None, 0, ctypes.byref(size))
-                and ctypes.get_last_error() != 122  # ERROR_INSUFFICIENT_BUFFER
+                and windows_ctypes.get_last_error() != 122  # ERROR_INSUFFICIENT_BUFFER
             ):
                 _check(False, "GetTokenInformation")
             for _ in range(3):
@@ -164,7 +164,7 @@ class _PowerAPI:
                 capacity = size.value
                 buffer = ctypes.create_string_buffer(capacity)
                 if not self._token_info(token, 3, buffer, capacity, ctypes.byref(size)):
-                    if ctypes.get_last_error() == 122:
+                    if windows_ctypes.get_last_error() == 122:
                         continue
                     _check(False, "GetTokenInformation")
                 count = _DWORD.from_buffer_copy(buffer).value
@@ -188,7 +188,7 @@ class _PowerAPI:
             request = _TokenPrivileges(count=1)
             request.privileges[0] = _Privilege(self._shutdown_luid(), 2)
             previous, size = _TokenPrivileges(), _DWORD()
-            ctypes.set_last_error(0)
+            windows_ctypes.set_last_error(0)
             _check(
                 self._adjust(
                     token,
@@ -200,18 +200,18 @@ class _PowerAPI:
                 ),
                 "AdjustTokenPrivileges",
             )
-            error = ctypes.get_last_error()
+            error = windows_ctypes.get_last_error()
             try:
                 if error:
                     raise OSError(error, "Shutdown privilege unavailable")
                 yield
             finally:
                 if previous.count:
-                    ctypes.set_last_error(0)
+                    windows_ctypes.set_last_error(0)
                     restored = self._adjust(
                         token, False, ctypes.byref(previous), 0, None, None
                     )
-                    error = ctypes.get_last_error()
+                    error = windows_ctypes.get_last_error()
                     if not restored or error:
                         log.warning("Could not restore shutdown privilege: %s", error)
 

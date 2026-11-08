@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from docking.platform.backends.base import WindowSnapshot
 from docking.platform.native.windows.com import GUID, HRESULT, method, release
 from docking.platform.native.windows.ffi import bind as _bind
+from docking.platform.native.windows.ffi import windows_ctypes
 
 
 @dataclass(frozen=True)
@@ -151,7 +152,7 @@ class WindowsCaptureDevice:
         self.device = _POINTER()
         self.context = _POINTER()
         self.runtime_device = _POINTER()
-        self._runtime = ctypes.WinDLL("combase", use_last_error=True)
+        self._runtime = windows_ctypes.WinDLL("combase", use_last_error=True)
         try:
             _check(
                 _bind(self._runtime, "RoInitialize", HRESULT, ctypes.c_uint32)(1),
@@ -176,7 +177,7 @@ class WindowsCaptureDevice:
                     )
             finally:
                 release(supported)
-            d3d = ctypes.WinDLL("d3d11", use_last_error=True)
+            d3d = windows_ctypes.WinDLL("d3d11", use_last_error=True)
             create = _bind(
                 d3d,
                 "D3D11CreateDevice",
@@ -240,7 +241,7 @@ class WindowsCaptureDevice:
             finally:
                 release(inspectable)
                 release(dxgi)
-            user = ctypes.WinDLL("user32", use_last_error=True)
+            user = windows_ctypes.WinDLL("user32", use_last_error=True)
             self._pid = _bind(
                 user,
                 "GetWindowThreadProcessId",

@@ -13,6 +13,7 @@ from gi.repository import GLib, Gtk
 from docking.log import get_logger
 from docking.platform.native.windows.close_hook import WindowsCloseHook
 from docking.platform.native.windows.ffi import bind as _bind
+from docking.platform.native.windows.ffi import windows_ctypes
 
 log = get_logger("windows.menus")
 
@@ -21,7 +22,7 @@ class WindowsMenuFocus:
     """Observe foreground ownership without changing other application settings."""
 
     def __init__(self):
-        user = ctypes.WinDLL("user32", use_last_error=True)
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
         self._foreground = _bind(user, "GetForegroundWindow", wintypes.HWND)
         self._active = _bind(user, "GetActiveWindow", wintypes.HWND)
         self._set_foreground = _bind(
@@ -34,7 +35,7 @@ class WindowsMenuFocus:
             wintypes.HWND,
             ctypes.POINTER(wintypes.DWORD),
         )
-        callback_type = ctypes.WINFUNCTYPE(
+        callback_type = windows_ctypes.WINFUNCTYPE(
             None,
             wintypes.HANDLE,
             wintypes.DWORD,
@@ -71,7 +72,7 @@ class WindowsMenuFocus:
         self._event_hook = self._hook(3, 3, None, self._event_callback, 0, 0, 0)
         if not self._event_hook:
             self._changed = None
-            raise ctypes.WinError(ctypes.get_last_error())
+            raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         changed(self.foreground())
 
     def _event(self, _hook, _event, hwnd, _object, _child, _thread, _time):

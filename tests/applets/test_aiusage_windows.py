@@ -134,7 +134,7 @@ def test_windows_mutex_closes_handle_and_releases_acquired_or_abandoned_owner(
     kernel.WaitForSingleObject.return_value = wait_result
     monkeypatch.setattr(
         locking,
-        "ctypes",
+        "windows_ctypes",
         SimpleNamespace(
             WinDLL=lambda *_a, **_kw: kernel,
             c_void_p=ctypes.c_void_p,
@@ -162,7 +162,7 @@ def test_failed_windows_mutex_wait_closes_handle_without_releasing_unowned_lock(
     kernel.WaitForSingleObject.return_value = 0xFFFFFFFF
     monkeypatch.setattr(
         locking,
-        "ctypes",
+        "windows_ctypes",
         SimpleNamespace(
             WinDLL=lambda *_a, **_kw: kernel,
             c_void_p=ctypes.c_void_p,

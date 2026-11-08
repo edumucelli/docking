@@ -11,7 +11,7 @@ from pathlib import Path
 from docking.log import get_logger
 from docking.platform.native.windows.appresolver import shortcut_application_id
 from docking.platform.native.windows.com import GUID, HRESULT, apartment
-from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.ffi import bind, windows_ctypes
 
 log = get_logger("windows.catalog_shortcuts")
 ShortcutSources = dict[str, tuple[tuple[Path, os.stat_result], ...]]
@@ -22,7 +22,7 @@ def _program_directories() -> tuple[Path, ...]:
     roots = []
     with apartment() as ole:
         folder = bind(
-            ctypes.WinDLL("shell32", use_last_error=True),
+            windows_ctypes.WinDLL("shell32", use_last_error=True),
             "SHGetKnownFolderPath",
             HRESULT,
             ctypes.POINTER(GUID),
@@ -115,7 +115,7 @@ def read_shortcut_sources(
         try:
             before = path.stat()
             identifier = shortcut_application_id(path)
-            if identifier in application_ids:
+            if identifier is not None and identifier in application_ids:
                 sources.setdefault(identifier, []).append((path, before))
         except FileNotFoundError:
             continue

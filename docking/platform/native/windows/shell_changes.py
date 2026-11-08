@@ -10,6 +10,7 @@ from gi.repository import GLib
 from docking.log import get_logger
 from docking.platform.native.windows.com import GUID, HRESULT
 from docking.platform.native.windows.ffi import bind as _bind
+from docking.platform.native.windows.ffi import windows_ctypes
 
 
 class _Entry(ctypes.Structure):
@@ -35,11 +36,11 @@ class ShellChangeMonitor:
         self._reconnect = False
         self._closed = False
         self._subclass_id = id(self)
-        shell = ctypes.WinDLL("shell32", use_last_error=True)
-        user = ctypes.WinDLL("user32", use_last_error=True)
-        controls = ctypes.WinDLL("comctl32", use_last_error=True)
-        ole = ctypes.WinDLL("ole32", use_last_error=True)
-        callback_type = ctypes.WINFUNCTYPE(
+        shell = windows_ctypes.WinDLL("shell32", use_last_error=True)
+        user = windows_ctypes.WinDLL("user32", use_last_error=True)
+        controls = windows_ctypes.WinDLL("comctl32", use_last_error=True)
+        ole = windows_ctypes.WinDLL("ole32", use_last_error=True)
+        callback_type = windows_ctypes.WINFUNCTYPE(
             ctypes.c_ssize_t,
             ctypes.c_void_p,
             ctypes.c_uint32,
@@ -150,9 +151,9 @@ class ShellChangeMonitor:
                 None,
             )
             if not self._hwnd or not self._taskbar_created:
-                raise ctypes.WinError(ctypes.get_last_error())
+                raise windows_ctypes.WinError(windows_ctypes.get_last_error())
             if not self._set(self._hwnd, self._callback, self._subclass_id, 0):
-                raise ctypes.WinError(ctypes.get_last_error())
+                raise windows_ctypes.WinError(windows_ctypes.get_last_error())
             folder_guid = GUID.parse(folder_id)
             status = folder(
                 ctypes.byref(folder_guid), 0, None, ctypes.byref(self._pidl)
