@@ -41,7 +41,7 @@ sed \
   "${RECIPE_TEMPLATE}" > "${tmp_recipe}"
 
 run_appimage_builder() {
-  python3 "${ROOT_DIR}/packaging/appimage/fetch_apprun.py" "${appimage_arch}" "${build_dir}" || return
+  python3 "${ROOT_DIR}/packaging/appimage/fetch_runtimes.py" "${appimage_arch}" "${build_dir}" || return
   python3 - "${tmp_recipe}" "${build_dir}" <<'PY'
 import runpy
 import sys
