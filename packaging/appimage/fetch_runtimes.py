@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+from importlib.metadata import version as installed_version
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+BUILDER_VERSION = "1.1.0"
 VERSION = "v2.0.0"
 ASSETS = {
     "x86_64": (
@@ -53,6 +56,7 @@ ASSETS = {
 
 
 def cache_runtimes(*, arch: str, build_dir: Path) -> None:
+    """Cache verified runtimes, falling back to pinned release download URLs."""
     # Match AppRunBinariesResolver and AppImagePrimer's cache layouts so the
     # builder skips browser URLs that can return persistent gateway errors.
     for name, repository, asset_id, checksum in ASSETS[arch]:
@@ -64,18 +68,33 @@ def cache_runtimes(*, arch: str, build_dir: Path) -> None:
             f"https://api.github.com/repos/{repository}/releases/assets/{asset_id}",
             headers={"Accept": "application/octet-stream"},
         )
-        with urlopen(request, timeout=60) as response:
-            content = response.read()
+        try:
+            with urlopen(request, timeout=60) as response:
+                content = response.read()
+        except HTTPError as error:
+            if error.code not in {403, 429, 500, 502, 503, 504}:
+                raise
+            release = (
+                VERSION if repository == "AppImageCrafters/AppRun" else "continuous"
+            )
+            fallback = Request(
+                f"https://github.com/{repository}/releases/download/{release}/{path.name}"
+            )
+            with urlopen(fallback, timeout=60) as response:
+                content = response.read()
         if hashlib.sha256(content).hexdigest() != checksum:
             raise ValueError(f"Checksum mismatch for {name}")
         path.write_bytes(content)
 
 
 def main() -> None:
+    """Require the builder whose cache layout matches the pinned runtimes."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("arch", choices=ASSETS)
     parser.add_argument("build_dir", type=Path)
     args = parser.parse_args()
+    if installed_version("appimage-builder") != BUILDER_VERSION:
+        raise SystemExit(f"Install appimage-builder=={BUILDER_VERSION} before building")
     cache_runtimes(arch=args.arch, build_dir=args.build_dir)
 
 

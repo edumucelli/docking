@@ -200,7 +200,7 @@ Notes:
 # Install tooling
 sudo apt install python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-3-bin squashfs-tools
 python3 -m pip install --upgrade pip
-python3 -m pip install appimage-builder
+python3 -m pip install appimage-builder==1.1.0
 
 # Build AppImage
 ./packaging/appimage/build.sh
@@ -221,6 +221,7 @@ Notes:
 
 - AppImage recipe: `packaging/appimage/AppImageBuilder.yml`
 - Build script: `packaging/appimage/build.sh`
+- appimage-builder 1.1.0 is required for the pinned runtime cache layout.
 - Runtime dependencies are bundled from Ubuntu 22.04 packages listed in the recipe.
 - The AppImage build script selects the correct Ubuntu mirror, package architecture, typelib path, and output name for `x86_64` vs `aarch64`.
 - The AppImage bundles GtkLayerShell runtime libraries.
