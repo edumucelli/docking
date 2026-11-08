@@ -641,7 +641,10 @@ class StackPopupController:
             elif pos_enum is Position.RIGHT:
                 rect.x += popup_w
                 gravity = Gdk.Gravity.NORTH_EAST
-            window.get_window().move_to_rect(
+            native_window = window.get_window()
+            if native_window is None:
+                return
+            native_window.move_to_rect(
                 rect,
                 Gdk.Gravity.NORTH_WEST,
                 gravity,

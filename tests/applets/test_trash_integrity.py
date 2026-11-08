@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from docking.applets.trash import backend
+from docking.applets.trash.implementations.unix import backend
 
 
 @pytest.fixture

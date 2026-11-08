@@ -80,6 +80,18 @@ def test_snapshot_matching_excludes_own_dock_and_taskbar_ineligible_windows():
     assert snapshot.can_preview
 
 
+def test_menu_removal_uses_native_window_identity_with_an_xwayland_dock(monkeypatch):
+    from docking.platform import environment
+
+    monkeypatch.setattr(environment, "is_x11_backend", lambda: True)
+    service, _client, _model = _service(_row())
+    service.refresh()
+    native_id = service.list_windows("firefox.desktop")[0].id
+
+    assert service.defer_menu_row_removal(native_id)
+    assert not service.defer_menu_row_removal(WindowId.x11(7))
+
+
 def test_inactive_and_minimized_apps_activate_mru_without_launching():
     service, client, _ = _service(_row(2, minimized=True), _row(1))
     assert service.toggle_focus("firefox.desktop") is ActionResult.OK
@@ -196,6 +208,45 @@ def test_shell_client_distinguishes_failed_and_empty_snapshots():
     assert not client.last_query_failed
     proxy.call_sync.return_value = SimpleNamespace(unpack=lambda: (True, "[{}, 1]"))
     assert client.list_windows() == ({},)
+
+
+@pytest.mark.parametrize("workspaces", [None, True, 123, "invalid", {"id": "0"}])
+def test_malformed_workspace_container_preserves_valid_window_snapshot(workspaces):
+    client = CinnamonShellClient(
+        proxy=_proxy({"windows": [_row()], "workspaces": workspaces})
+    )
+
+    assert client.list_windows() == (_row(),)
+    assert not client.last_query_failed
+    assert client.workspace_snapshots == ()
+    assert client.snapshot_revision == 1
+
+
+def test_workspace_snapshot_filters_invalid_entries_without_discarding_valid_ones():
+    client = CinnamonShellClient(
+        proxy=_proxy(
+            {
+                "windows": [_row()],
+                "workspaces": [
+                    None,
+                    {"id": 1, "number": 0},
+                    {"id": "bad-number", "number": True},
+                    {"id": "bad-name", "number": 1, "name": []},
+                    {"id": "0", "number": 0, "name": "Main", "active": True},
+                ],
+            }
+        )
+    )
+
+    assert client.list_windows() == (_row(),)
+    assert len(client.workspace_snapshots) == 1
+    snapshot = client.workspace_snapshots[0]
+    assert (snapshot.id, snapshot.number, snapshot.name, snapshot.active) == (
+        "0",
+        0,
+        "Main",
+        True,
+    )
 
 
 @pytest.mark.parametrize("result", ["ok", "not_found", "unsupported", None])

@@ -1128,3 +1128,28 @@ class TestTooltipIntegrationBranches:
         )
 
         assert tooltip._tooltip_window._moved == (-20, -30)
+
+
+def test_open_applet_popup_suppresses_and_cancels_its_tooltip(monkeypatch):
+    from types import SimpleNamespace
+
+    tooltip = _make_tooltip()
+    applet = SimpleNamespace(popup_visible=True)
+    tooltip._model.get_applet.return_value = applet
+    item = _make_item("System Tray")
+    item.desktop_id = "applet://systemtray"
+    frame = _frame_for_item(item, anchor_x=20.0, anchor_y=10.0)
+    tooltip._tooltip_window = MagicMock()
+    tooltip._pending_show_source = 77
+    removed = []
+    monkeypatch.setattr(tooltip_mod.GLib, "source_remove", removed.append)
+    scheduled = []
+    monkeypatch.setattr(
+        tooltip_mod.GLib, "idle_add", lambda callback: scheduled.append(callback) or 78
+    )
+    tooltip.update(item, frame)
+    assert removed == [77] and not scheduled
+    tooltip._tooltip_window.hide.assert_called_once()
+    applet.popup_visible = False
+    tooltip.update(item, frame)
+    assert len(scheduled) == 1

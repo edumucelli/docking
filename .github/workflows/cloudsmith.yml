@@ -32,7 +32,7 @@ jobs:
       CLOUDSMITH_REPOSITORY: ${{ vars.CLOUDSMITH_REPOSITORY }}
       RELEASE_TAG: ${{ inputs.release_tag }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Validate configuration and stable release
         env:
@@ -107,7 +107,7 @@ jobs:
       CLOUDSMITH_RPM_REPOSITORY: ${{ vars.CLOUDSMITH_RPM_REPOSITORY || 'docking-rpm' }}
       RELEASE_TAG: ${{ inputs.release_tag }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Validate configuration and stable release
         env:

@@ -10,8 +10,8 @@ from unittest.mock import Mock
 import pytest
 from gi.repository import GLib
 
-from docking.platform.status_notifier import backend
-from docking.platform.status_notifier.backend import (
+from docking.platform.tray.implementations.unix import status_notifier as backend
+from docking.platform.tray.implementations.unix.status_notifier import (
     RegisteredItemAddress,
     StatusNotifierBackend,
     TrayItem,
@@ -166,7 +166,7 @@ from unittest.mock import Mock
 
 from gi.repository import GLib
 
-from docking.platform.status_notifier.backend import (
+from docking.platform.tray.implementations.unix.status_notifier import (
     RegisteredItemAddress,
     _read_item,
     _tooltip_parts,

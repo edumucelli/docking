@@ -40,6 +40,7 @@ from typing import TYPE_CHECKING
 
 from docking.core.config import Config, effective_edge_gap
 from docking.core.theme import Theme
+from docking.platform.application_icons import ApplicationIcons
 from docking.platform.backends.base import (
     PreviewService,
     Rect,
@@ -50,6 +51,7 @@ from docking.platform.backends.base import (
 )
 from docking.platform.model import DockModel
 from docking.search.controller import GlobalSearchController
+from docking.search.services.platform import SearchIntegration
 from docking.ui.about import AboutDialogController
 from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.display import window_screen_position
@@ -93,6 +95,9 @@ class DockUi:
     def start(self) -> None:
         """Start the composed dock UI lifecycle."""
         self.input_controller.start()
+        # Startup may occur with the pointer already outside the dock, so no
+        # crossing event will arrive to initialize autohide.
+        self.window.on_hide_mode_changed()
         self.search.start()
         self.startup_popups.start()
 
@@ -108,6 +113,7 @@ class DockUi:
 def build_dock_window(
     *,
     config: Config,
+    search_integration: SearchIntegration,
     model: DockModel,
     renderer: DockRenderer,
     theme: Theme,
@@ -136,6 +142,9 @@ def build_dock_window(
         surface_service=surface_service,
         session_backend=session_backend,
     )
+    window.preview.set_application_icons(
+        ApplicationIcons(model=model, registry=application_registry, loader=icon_loader)
+    )
     update_checker = UpdateCheckController(window=window, config=config)
     runtime = DockRuntime(window, update_checker=update_checker)
     about = AboutDialogController(parent=window)
@@ -147,6 +156,7 @@ def build_dock_window(
         application_registry=application_registry,
     )
     search = GlobalSearchController(
+        integration=search_integration,
         config=config,
         model=model,
         windows=window_tracker,
@@ -155,6 +165,7 @@ def build_dock_window(
         application_launcher=application_launcher,
         icon_loader=icon_loader,
         target_service=target_service,
+        surface_service=surface_service,
     )
     folder_stack = FolderStackController(
         config=config,

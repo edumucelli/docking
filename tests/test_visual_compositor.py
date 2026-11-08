@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 from PIL import Image, ImageDraw
 
-from tools.visual_compositor import behaviour, compare, scenarios
+from tools.linux.visual import behaviour, compare, scenarios
 
 
 @pytest.mark.parametrize("dock", ["correct", "over-panel", "absent"])
@@ -133,7 +133,7 @@ def test_real_window_switching_rejects_incomplete_or_wrong_effects(
 
 @pytest.mark.parametrize("passed", [False, True])
 def test_stack_case_requires_native_endpoint_and_action_proof(tmp_path, passed):
-    from tools.visual_compositor.behaviour import check_action
+    from tools.linux.visual.behaviour import check_action
 
     case = scenarios.STACK_CASES[0]
     report = {
@@ -146,7 +146,7 @@ def test_stack_case_requires_native_endpoint_and_action_proof(tmp_path, passed):
         ],
         "reason": "popup corner clipped",
     }
-    from tools.visual_compositor.probes.stack_probe import CORNER_COLORS
+    from tools.linux.visual.probes.stack_probe import CORNER_COLORS
 
     for phase in ("first", "last", "action"):
         image = Image.new("RGB", (80, 100), "black")
@@ -162,7 +162,7 @@ def test_stack_case_requires_native_endpoint_and_action_proof(tmp_path, passed):
 
 @pytest.mark.parametrize("missing", ["native_clicks", "native_scroll", "results"])
 def test_stack_case_rejects_incomplete_input_evidence(tmp_path, missing):
-    from tools.visual_compositor.behaviour import check_action
+    from tools.linux.visual.behaviour import check_action
 
     case = scenarios.STACK_CASES[0]
     report = {
@@ -178,7 +178,7 @@ def test_stack_case_rejects_incomplete_input_evidence(tmp_path, missing):
 
 @pytest.mark.parametrize("corner", range(4))
 def test_popup_oracle_rejects_each_clipped_corner(tmp_path, corner):
-    from tools.visual_compositor.probes.stack_probe import CORNER_COLORS, popup_bounds
+    from tools.linux.visual.probes.stack_probe import CORNER_COLORS, popup_bounds
 
     image = Image.new("RGB", (80, 100), "black")
     draw = ImageDraw.Draw(image)
@@ -194,7 +194,7 @@ def test_popup_oracle_rejects_each_clipped_corner(tmp_path, corner):
 
 
 def test_popup_oracle_checks_native_scale_without_resampling(tmp_path):
-    from tools.visual_compositor.probes.stack_probe import CORNER_COLORS, popup_bounds
+    from tools.linux.visual.probes.stack_probe import CORNER_COLORS, popup_bounds
 
     image = Image.new("RGB", (160, 200), "black")
     draw = ImageDraw.Draw(image)
@@ -385,7 +385,7 @@ def test_missing_panel_metadata_cannot_produce_a_trusted_baseline(evidence, pane
 
 
 def test_sway_selects_one_panel_implementation(tmp_path):
-    scripts = compare.REPO_ROOT / "tools" / "visual_compositor" / "adapters"
+    scripts = compare.REPO_ROOT / "tools" / "linux" / "visual" / "adapters"
     completed = subprocess.run(
         [
             "bash",
@@ -415,7 +415,7 @@ grep -q 'height 40' "$SWAY_CONFIG"
 def test_cosmic_probe_matches_the_production_backend(tmp_path):
     from docking.platform.backends.wayland.cosmic_session import CosmicSessionBackend
 
-    scripts = compare.REPO_ROOT / "tools" / "visual_compositor" / "adapters"
+    scripts = compare.REPO_ROOT / "tools" / "linux" / "visual" / "adapters"
     completed = subprocess.run(
         [
             "bash",
@@ -444,7 +444,7 @@ adapter_capabilities
 
 @pytest.mark.skipif(shutil.which("jq") is None, reason="adapter probe requires jq")
 def test_niri_does_not_claim_a_native_dock_frame(tmp_path):
-    scripts = compare.REPO_ROOT / "tools" / "visual_compositor" / "adapters"
+    scripts = compare.REPO_ROOT / "tools" / "linux" / "visual" / "adapters"
     completed = subprocess.run(
         [
             "bash",
@@ -479,7 +479,7 @@ def test_geometry_mode_checks_assertions_without_recording_pixels(evidence):
 
 @pytest.mark.parametrize("action", ["menu", "tooltip", "zoom"])
 def test_interaction_requires_a_visible_effect(tmp_path, action):
-    from tools.visual_compositor.behaviour import check_action
+    from tools.linux.visual.behaviour import check_action
 
     case = SimpleNamespace(name="interaction", action=action)
     for phase in ("resting", "effect"):
@@ -495,7 +495,7 @@ def test_interaction_requires_a_visible_effect(tmp_path, action):
 
 
 def test_tooltip_cannot_masquerade_as_zoom(tmp_path):
-    from tools.visual_compositor.behaviour import check_action
+    from tools.linux.visual.behaviour import check_action
 
     before = Image.new("RGB", (1280, 720), "black")
     ImageDraw.Draw(before).rectangle((400, 680, 879, 719), fill="white")
@@ -513,7 +513,7 @@ def test_tooltip_cannot_masquerade_as_zoom(tmp_path):
 
 @pytest.mark.parametrize("popup", [True, False])
 def test_tooltip_requires_popup_above_dock_not_cursor(tmp_path, popup):
-    from tools.visual_compositor.behaviour import check_action
+    from tools.linux.visual.behaviour import check_action
 
     before = Image.new("RGB", (1280, 720), "black")
     ImageDraw.Draw(before).rectangle((400, 680, 879, 719), fill="white")
@@ -533,7 +533,7 @@ def test_tooltip_requires_popup_above_dock_not_cursor(tmp_path, popup):
 
 @pytest.mark.parametrize("hidden", [True, False])
 def test_autohide_requires_both_hide_transitions(tmp_path, hidden):
-    from tools.visual_compositor.behaviour import check_action
+    from tools.linux.visual.behaviour import check_action
 
     visible = Image.new("RGB", (1280, 720), "black")
     ImageDraw.Draw(visible).rectangle((400, 680, 879, 719), fill="white")

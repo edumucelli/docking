@@ -22,6 +22,7 @@ from docking.platform.applications.types import (
     ApplicationOrigin,
 )
 from docking.platform.model import DockModel
+from tests.platform_factories import make_dock_model
 
 
 def _make_running(**kw) -> RunningAppInfo:
@@ -39,6 +40,7 @@ class _ModelDependencies:
 
 def _make_dependencies(*desktop_ids: str) -> _ModelDependencies:
     registry = MagicMock(spec=ApplicationRegistry)
+    registry.initial_discovery_pending = False
     infos = {}
     for did in desktop_ids:
         stem = did.removesuffix(".desktop")
@@ -81,7 +83,7 @@ def _make_model(
         dependencies.application_registry,
         RecentApplicationsPersistence(config),
     )
-    return DockModel(
+    return make_dock_model(
         config=config,
         applet_services=applet_services,
         application_registry=dependencies.application_registry,

@@ -39,7 +39,6 @@ import sys
 from pathlib import Path
 
 from docking.log import get_logger
-from docking.platform.libraries import load_library
 
 log = get_logger(name="environment")
 
@@ -159,8 +158,23 @@ def detect_desktop() -> Desktop:
 
 
 def is_bsd() -> bool:
-    """Return True on the supported FreeBSD and OpenBSD operating systems."""
-    return sys.platform.startswith(("freebsd", "openbsd"))
+    """Return True on the supported FreeBSD, OpenBSD and NetBSD hosts."""
+    return is_freebsd() or is_openbsd() or is_netbsd()
+
+
+def is_freebsd() -> bool:
+    """Return True on FreeBSD, including versioned platform names."""
+    return sys.platform.startswith("freebsd")
+
+
+def is_openbsd() -> bool:
+    """Return True on OpenBSD, including versioned platform names."""
+    return sys.platform.startswith("openbsd")
+
+
+def is_netbsd() -> bool:
+    """Return True on NetBSD, including versioned platform names."""
+    return sys.platform.startswith("netbsd")
 
 
 def is_wayland_session() -> bool:
@@ -252,34 +266,10 @@ def backend_name(*, display: object | None = None) -> str:
 
 
 def compositor_active(*, display: object | None = None) -> bool | None:
-    """Return compositor status for X11 backends, or None when unavailable."""
-    try:
-        import ctypes
+    """Read the selected desktop adapter's compositor capability."""
+    from docking.platform.desktop.selection import desktop_services
 
-        if display is None:
-            from gi.repository import GdkX11
-
-            display = GdkX11.X11Display.get_default()
-        if display is None or not is_x11_backend(display=display):
-            return None
-
-        xlib = load_library("X11", "libX11.so.6")
-        xdisplay = ctypes.c_void_p(hash(display.get_xdisplay()))
-
-        xlib.XDefaultScreen.restype = ctypes.c_int
-        xlib.XDefaultScreen.argtypes = [ctypes.c_void_p]
-        xlib.XInternAtom.restype = ctypes.c_ulong
-        xlib.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-        xlib.XGetSelectionOwner.restype = ctypes.c_ulong
-        xlib.XGetSelectionOwner.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
-
-        screen_num = xlib.XDefaultScreen(xdisplay)
-        atom = xlib.XInternAtom(xdisplay, f"_NET_WM_CM_S{screen_num}".encode(), 0)
-        owner = xlib.XGetSelectionOwner(xdisplay, atom)
-        return bool(owner != 0)
-    except Exception as exc:
-        log.warning("failed to check compositor status: %s", exc)
-        return None
+    return desktop_services().compositor_active(display=display)
 
 
 def log_runtime_snapshot(

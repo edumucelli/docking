@@ -20,13 +20,15 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, Gio, GLib, Gtk
+from gi.repository import GdkPixbuf, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.trash import meta
 from docking.core.icons import IconSource
@@ -34,7 +36,7 @@ from docking.i18n import _
 from docking.log import get_logger, with_context
 from docking.platform.environment import detect_desktop
 
-from .backend import TrashBackend, TrashEmptyResult, select_trash_backend
+from .backend import TrashBackend, TrashEmptyResult
 from .render import add_trash_warning_badge, create_trash_icon, trash_tooltip
 
 if TYPE_CHECKING:
@@ -43,7 +45,7 @@ if TYPE_CHECKING:
 log = with_context(get_logger(name="trash"), applet_id=meta.id)
 
 
-class TrashApplet(Applet):
+class TrashApplet(PlatformServicesApplet):
     """Shows trash state icon; click opens, menu allows emptying."""
 
     id = meta.id
@@ -51,16 +53,21 @@ class TrashApplet(Applet):
     icon_name = "user-trash"
     icon_source_options = (IconSource.DOCKING, IconSource.SYSTEM)
 
-    def __init__(self, icon_size: int, config: Config) -> None:
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
         self._desktop = detect_desktop()
-        self._backend: TrashBackend = select_trash_backend(desktop=self._desktop)
+        self._backend: TrashBackend = self._platform.backends.trash()
         self._item_count = self._backend.count_items()
-        self._monitors: list[Gio.FileMonitor] = []
-        self._volume_monitor: Gio.VolumeMonitor | None = None
-        self._volume_monitor_handlers: list[int] = []
+        self._stop_watch: Callable[[], None] | None = None
         self._action_error = ""
         self._empty_attention = False
-        super().__init__(icon_size, config)
+        super().__init__(icon_size, config, platform_services=platform_services)
         self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -92,33 +99,11 @@ class TrashApplet(Applet):
         return True
 
     def on_drop_uris(self, uris: list[str]) -> bool:
-        """Move dropped local files/folders to Trash."""
-        moved = False
-        failed = False
-        for uri in uris:
-            file = self._file_from_drop_uri(uri)
-            if file is None:
-                failed = True
-                continue
-            try:
-                if file.trash(None):
-                    moved = True
-                else:
-                    failed = True
-            except GLib.Error as exc:
-                failed = True
-                log.bind(action="drop_to_trash").warning(
-                    "Failed to move dropped item to trash: %s",
-                    exc,
-                )
-
+        """Move dropped files through the selected native trash backend."""
+        moved = self._backend.trash_uris(uris)
         if moved:
             self._item_count = self._backend.count_items()
             self.present()
-        elif failed:
-            log.bind(action="drop_to_trash").debug(
-                "Drop did not contain a local trashable file"
-            )
         return moved
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
@@ -142,42 +127,14 @@ class TrashApplet(Applet):
         )
 
     def start(self, notify: Callable[[], None]) -> None:
-        """Start trash monitoring for real-time icon updates."""
         super().start(notify)
-        self._start_trash_monitors()
-        self._volume_monitor = Gio.VolumeMonitor.get()
-        self._volume_monitor_handlers = [
-            self._volume_monitor.connect("mount-added", self._on_mounts_changed),
-            self._volume_monitor.connect("mount-removed", self._on_mounts_changed),
-        ]
+        self._stop_watch = self._backend.watch_changes(self._on_trash_changed)
 
     def stop(self) -> None:
-        """Cancel the trash file monitor."""
-        self._cancel_trash_monitors()
-        if self._volume_monitor is not None:
-            for handler_id in self._volume_monitor_handlers:
-                self._volume_monitor.disconnect(handler_id)
-            self._volume_monitor = None
-            self._volume_monitor_handlers = []
+        if self._stop_watch is not None:
+            self._stop_watch()
+            self._stop_watch = None
         super().stop()
-
-    def _start_trash_monitors(self) -> None:
-        for file in self._backend.monitor_files():
-            try:
-                monitor = file.monitor(Gio.FileMonitorFlags.NONE, None)
-            except GLib.Error as exc:
-                log.bind(action="monitor_trash").warning(
-                    "Could not start file monitor for trash: %s",
-                    exc,
-                )
-                continue
-            monitor.connect("changed", self._on_trash_changed)
-            self._monitors.append(monitor)
-
-    def _cancel_trash_monitors(self) -> None:
-        for monitor in self._monitors:
-            monitor.cancel()
-        self._monitors = []
 
     def _on_trash_changed(self, *_args: object) -> None:
         """File monitor callback: re-count items and update icon."""
@@ -185,12 +142,6 @@ class TrashApplet(Applet):
         if self._item_count == 0:
             self._clear_empty_attention()
         self.present()
-
-    def _on_mounts_changed(self, *_args: object) -> None:
-        """Mount changes can add or remove per-volume trash directories."""
-        self._cancel_trash_monitors()
-        self._start_trash_monitors()
-        self._on_trash_changed()
 
     def _empty_trash(self) -> None:
         """Empty trash through the selected backend."""
@@ -234,21 +185,6 @@ class TrashApplet(Applet):
                 "Some items may require administrator permissions."
             )
         return _("Could not empty Trash.")
-
-    @staticmethod
-    def _file_from_drop_uri(uri: str) -> Gio.File | None:
-        text = uri.strip()
-        if not text:
-            return None
-        if text.startswith("file://"):
-            file = Gio.File.new_for_uri(text)
-        elif text.startswith("/"):
-            file = Gio.File.new_for_path(text)
-        else:
-            return None
-        if file.get_path() is None:
-            return None
-        return file
 
     def _confirm_empty_trash(self) -> bool:
         dialog = Gtk.MessageDialog(

@@ -116,3 +116,11 @@ def test_special_device_preview_never_reads_until_eof() -> None:
 
     assert preview.kind == "special"
     assert preview.body == str(device)
+
+
+def test_windows_line_endings_are_displayed_as_normal_preview_lines(tmp_path):
+    path = tmp_path / "windows-notes.txt"
+    path.write_bytes(b"First line\r\nSecond line\r\n")
+    preview = preview_local_target(target=path.as_uri(), title=path.name)
+    assert preview.kind == "text"
+    assert preview.body == "First line\nSecond line"

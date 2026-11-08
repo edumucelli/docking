@@ -376,7 +376,7 @@ def test_wayfire_window_picker_uses_geometry_and_pid(monkeypatch):
     )
     killed = MagicMock(return_value=True)
     monkeypatch.setattr(
-        "docking.applets.windowkiller.state.kill_pid",
+        "docking.platform.backends.unix.processes.kill_pid",
         killed,
     )
     service = WayfireWindowPickService(client=client)

@@ -46,7 +46,8 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import GdkPixbuf, Gtk
+gi.require_version("Pango", "1.0")
+from gi.repository import GdkPixbuf, Gtk, Pango
 
 from docking.applets.base import Applet
 from docking.applets.calculator import meta
@@ -133,6 +134,8 @@ class CalculatorApplet(Applet):
         self._entry.set_alignment(1.0)
         self._entry.connect("activate", lambda _: self._do_evaluate())
         font_desc = self._entry.get_pango_context().get_font_description()
+        if font_desc is None:
+            font_desc = Pango.FontDescription()
         font_desc.set_family("monospace")
         self._entry.override_font(font_desc)
         box.pack_start(self._entry, False, False, 0)

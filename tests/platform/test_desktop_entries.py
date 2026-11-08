@@ -6,7 +6,9 @@ import logging
 import stat
 from pathlib import Path
 
-from docking.platform.applications import entries as desktop_entries
+from docking.platform.applications.implementations.unix import (
+    entries as desktop_entries,
+)
 
 
 def _make_executable(path) -> None:
@@ -244,6 +246,27 @@ class TestWineAliasRecovery:
 
 
 class TestDesktopDirs:
+    def test_native_defaults_find_pkgsrc_applications(self, tmp_path, monkeypatch):
+        share = tmp_path / "usr/pkg/share"
+        (share / "applications").mkdir(parents=True)
+        standard = tmp_path / "usr/share"
+        (standard / "applications").mkdir(parents=True)
+        monkeypatch.delenv("XDG_DATA_DIRS", raising=False)
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "empty"))
+        monkeypatch.setattr(
+            desktop_entries.GLib, "get_system_data_dirs", lambda: [str(share)]
+        )
+        monkeypatch.setattr(desktop_entries, "HOST_XDG_DATA_DIRS", ())
+        monkeypatch.setattr(desktop_entries, "DEFAULT_XDG_DATA_DIRS", str(standard))
+        monkeypatch.setattr(desktop_entries, "is_flatpak", lambda: False)
+        assert desktop_entries.desktop_dirs() == [
+            share / "applications",
+            standard / "applications",
+        ]
+
+        monkeypatch.setenv("XDG_DATA_DIRS", str(tmp_path / "override"))
+        assert desktop_entries.desktop_dirs() == []
+
     def test_user_dirs_precede_system_and_host_dirs(self, tmp_path, monkeypatch):
         data_home = tmp_path / "data"
         (data_home / "applications").mkdir(parents=True)

@@ -2,7 +2,7 @@
 
 The injected script intentionally uses browser-facing APIs and coarse DOM
 landmarks only. It does not import private modules, inspect conversations, or
-move message/contact data across the WebKit process boundary.
+move message/contact data across the browser process boundary.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ MAX_BRIDGE_MESSAGE_BYTES = 4096
 MAX_BADGE_COUNT = 999_999
 
 AuthState = Literal["unknown", "login_required", "ready"]
-BridgeKind = Literal["badge", "status"]
+BridgeKind = Literal["badge", "status", "activate"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +47,8 @@ def parse_bridge_message(raw: str) -> BridgeEvent | None:
         return None
 
     kind = payload.get("kind")
+    if kind == "activate":
+        return BridgeEvent(kind="activate")
     if kind == "badge":
         visible = payload.get("visible")
         count = payload.get("count")
@@ -91,7 +93,9 @@ def build_bridge_script(
             enumerable: false,
         }});
 
-        const handler = window.webkit?.messageHandlers?.{handler};
+        const handler = window.__dockingBrowserBridge
+            ?? window.webkit?.messageHandlers?.{handler}
+            ?? window.chrome?.webview;
         if (!handler) return;
 
         const post = (payload) => {{

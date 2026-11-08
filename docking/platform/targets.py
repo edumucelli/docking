@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import unquote, urlparse
@@ -14,7 +13,10 @@ from gi.repository import GdkPixbuf, Gio, GLib
 
 from docking.core.paths import local_path_from_uri_or_path
 from docking.log import get_logger, with_context
-from docking.platform.environment import flatpak, is_flatpak
+from docking.platform.applications.associations import AssociationStatus
+from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.desktop.selection import desktop_services
+from docking.platform.files import file_for_uri
 from docking.platform.icons import IconLoader, fallback_file_icon_name
 
 log = with_context(get_logger(name="targets"))
@@ -65,62 +67,21 @@ def open_target(target: str) -> bool:
         return False
     if parsed.scheme in ALLOWED_URI_SCHEMES:
         uri = target
-    elif parsed.scheme and parsed.scheme != "file":
-        return False
     else:
         uri = normalize_file_target(target)
     if uri is None:
         return False
-    if is_flatpak() and urlparse(uri).scheme == "file":
-        # Local files may be host-visible but not sandbox-openable; ask the
-        # host desktop's gio to choose the default application.
-        host_cmd = flatpak.host_command(["gio", "open", uri])
-        if host_cmd is not None:
-            try:
-                subprocess.Popen(
-                    host_cmd,
-                    start_new_session=True,
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                return True
-            except OSError as exc:
-                log.bind(target=target, action="open_target").warning(
-                    "Failed to open host target %s: %s",
-                    target,
-                    exc,
-                )
-    try:
-        Gio.AppInfo.launch_default_for_uri(uri, None)
-        return True
-    except GLib.Error as exc:
-        log.bind(target=target, action="open_target").warning(
-            f"Failed to open target {target}: {exc}"
-        )
-        return False
-
-
-def default_directory_app_name() -> str | None:
-    """Return the display name of the default application for folders."""
-    try:
-        app_info = Gio.AppInfo.get_default_for_type("inode/directory", False)
-    except GLib.Error as exc:
-        log.bind(action="default_directory_app_name").warning(
-            "Failed to resolve default directory app: %s",
-            exc,
-        )
-        return None
-    if app_info is None:
-        return None
-    return app_info.get_display_name() or None
+    return desktop_services().open_uri(uri)
 
 
 class TargetService:
     """Resolve target metadata using its owned icon-loading service."""
 
-    def __init__(self, *, icon_loader: IconLoader) -> None:
+    def __init__(
+        self, *, icon_loader: IconLoader, application_registry: ApplicationRegistry
+    ) -> None:
         self._icon_loader = icon_loader
+        self._application_registry = application_registry
 
     def normalize_file_target(self, target: str) -> str | None:
         """Delegate target normalization to the canonical module function."""
@@ -138,7 +99,7 @@ class TargetService:
         if uri is None:
             return None
         try:
-            gfile = Gio.File.new_for_uri(uri)
+            gfile = file_for_uri(uri)
             info = gfile.query_info(
                 "standard::display-name,standard::icon,standard::type,standard::content-type",
                 Gio.FileQueryInfoFlags.NONE,
@@ -192,13 +153,13 @@ class TargetService:
 
     def default_directory_app_name(self) -> str | None:
         """Return the presentation name of the default folder handler."""
-        return default_directory_app_name()
+        result = self._application_registry.directory_application_name()
+        return result.name if result.status is AssociationStatus.READY else None
 
 
 __all__ = [
     "FileTargetInfo",
     "TargetService",
-    "default_directory_app_name",
     "normalize_file_target",
     "open_target",
 ]

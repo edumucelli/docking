@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -17,6 +18,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+import docking.ui.folder._browser as folder_browser_mod
 import docking.ui.folder.stack as folder_stack_mod
 import docking.ui.menu as menu_mod
 import docking.ui.stack as stack_mod
@@ -27,9 +29,16 @@ from docking.platform.backends.base import (
     DisplayServer,
     PreviewImage,
     WindowId,
+    WindowService,
     WindowSnapshot,
 )
 from docking.platform.model import DockItem
+
+
+def _mock_file_factory(monkeypatch, constructor):
+    """Supply fake files at the UI's platform boundary, on every native OS."""
+    for module in (menu_mod, folder_stack_mod, folder_browser_mod):
+        monkeypatch.setattr(module, "file_for_uri", constructor)
 
 
 class FakeFontDescription:
@@ -272,6 +281,14 @@ class FakeRadioMenuItem(FakeCheckMenuItem):
 class FakeSeparatorMenuItem(FakeMenuItem):
     def __init__(self) -> None:
         super().__init__(label="---")
+
+
+class FakeWindowMenuRow(FakeMenuItem):
+    pass
+
+
+class FakeWindowRowsSeparator(FakeSeparatorMenuItem):
+    pass
 
 
 class FakeImage:
@@ -730,6 +747,8 @@ def _frame(*, item=None, item_index: int = -1, insert_index: int = 0):
 @pytest.fixture
 def handler(monkeypatch):
     monkeypatch.setattr(menu_mod, "Gtk", FakeGtk)
+    monkeypatch.setattr(menu_mod, "_WindowMenuRow", FakeWindowMenuRow)
+    monkeypatch.setattr(menu_mod, "_WindowRowsSeparator", FakeWindowRowsSeparator)
     monkeypatch.setattr(menu_mod, "Pango", FakePango)
     monkeypatch.setattr(folder_stack_mod, "Gtk", FakeGtk)
     monkeypatch.setattr(folder_stack_mod, "Pango", FakePango)
@@ -771,6 +790,9 @@ def handler(monkeypatch):
         recent_apps_opacity=0.85,
     )
     tracker = MagicMock()
+    tracker.defer_menu_row_removal.side_effect = (
+        WindowService.defer_menu_row_removal.__get__(tracker)
+    )
     tracker.list_windows.return_value = []
     preview_service = MagicMock()
     preview_service.thumbnail.return_value = None
@@ -1090,7 +1112,9 @@ class TestItemMenus:
         row.activate()
         assert opened == ["file:///tmp/docs/empty"]
 
-    def test_directory_rows_prefer_system_gicon(self, handler, monkeypatch):
+    def test_directory_rows_prefer_system_gicon(self, handler, monkeypatch, tmp_path):
+        root_uri = (tmp_path / "root").as_uri()
+        child_uri = (tmp_path / "root" / "docs").as_uri()
         gicon = MagicMock()
         info = MagicMock()
         info.get_name.return_value = "docs"
@@ -1106,9 +1130,9 @@ class TestItemMenus:
         folder = MagicMock()
         folder.enumerate_children.return_value = enumerator
         child = MagicMock()
-        child.get_uri.return_value = "file:///tmp/docs"
+        child.get_uri.return_value = child_uri
         folder.get_child.return_value = child
-        monkeypatch.setattr(menu_mod.Gio.File, "new_for_uri", lambda _uri: folder)
+        _mock_file_factory(monkeypatch, lambda _uri: folder)
         monkeypatch.setattr(
             handler._folder_stack._browser,
             "directory_has_visible_children",
@@ -1116,19 +1140,17 @@ class TestItemMenus:
         )
         handler._target_service.resolve_file_icon.return_value = "folder-pixbuf"
         item = DockItem(
-            desktop_id="file:///tmp/root",
+            desktop_id=root_uri,
             kind=FOLDER_KIND,
-            target="file:///tmp/root",
-            prefs_key="file:///tmp/root",
+            target=root_uri,
+            prefs_key=root_uri,
         )
 
-        rows = handler._folder_stack.list_directory(
-            folder_item=item, target="file:///tmp/root"
-        )
+        rows = handler._folder_stack.list_directory(folder_item=item, target=root_uri)
 
         assert rows[0]["icon"] == "folder-pixbuf"
         handler._target_service.resolve_file_icon.assert_called_once_with(
-            target="file:///tmp/docs",
+            target=child_uri,
             gicon=gicon,
             content_type="inode/directory",
             size=16,
@@ -1136,8 +1158,10 @@ class TestItemMenus:
         )
 
     def test_list_directory_reuses_cached_rows_for_same_folder(
-        self, handler, monkeypatch
+        self, handler, monkeypatch, tmp_path
     ):
+        root_uri = (tmp_path / "root").as_uri()
+        child_uri = (tmp_path / "root" / "docs").as_uri()
         gicon = MagicMock()
         info = MagicMock()
         info.get_name.return_value = "docs"
@@ -1153,9 +1177,9 @@ class TestItemMenus:
         folder = MagicMock()
         folder.enumerate_children.return_value = enumerator
         child = MagicMock()
-        child.get_uri.return_value = "file:///tmp/docs"
+        child.get_uri.return_value = child_uri
         folder.get_child.return_value = child
-        monkeypatch.setattr(menu_mod.Gio.File, "new_for_uri", lambda _uri: folder)
+        _mock_file_factory(monkeypatch, lambda _uri: folder)
         monkeypatch.setattr(
             handler._folder_stack._browser,
             "directory_has_visible_children",
@@ -1163,18 +1187,14 @@ class TestItemMenus:
         )
         handler._target_service.resolve_file_icon.return_value = "folder-pixbuf"
         item = DockItem(
-            desktop_id="file:///tmp/root",
+            desktop_id=root_uri,
             kind=FOLDER_KIND,
-            target="file:///tmp/root",
-            prefs_key="file:///tmp/root",
+            target=root_uri,
+            prefs_key=root_uri,
         )
 
-        first = handler._folder_stack.list_directory(
-            folder_item=item, target="file:///tmp/root"
-        )
-        second = handler._folder_stack.list_directory(
-            folder_item=item, target="file:///tmp/root"
-        )
+        first = handler._folder_stack.list_directory(folder_item=item, target=root_uri)
+        second = handler._folder_stack.list_directory(folder_item=item, target=root_uri)
 
         assert first == second
         folder.enumerate_children.assert_called_once()
@@ -1253,7 +1273,7 @@ class TestItemMenus:
         assert row.destroyed is True
         assert row not in menu.children
         assert not any(
-            getattr(child, "_window_rows_separator", False) for child in menu.children
+            isinstance(child, FakeWindowRowsSeparator) for child in menu.children
         )
         assert menu.popdown_called is True
         assert menu.shown is True
@@ -1332,7 +1352,7 @@ class TestItemMenus:
         handler._config.window_list_sort = "default"
         handler._build_item_menu(menu=menu, item=item)
 
-        rows = [c for c in menu.children if getattr(c, "_window_row", False)]
+        rows = [c for c in menu.children if isinstance(c, FakeWindowMenuRow)]
         labels = [r.get_child().children[1].label for r in rows]
         assert labels == ["Charlie", "Alpha", "Bravo"]
 
@@ -1357,7 +1377,7 @@ class TestItemMenus:
         handler._config.window_list_sort = "alphabetical"
         handler._build_item_menu(menu=menu, item=item)
 
-        rows = [c for c in menu.children if getattr(c, "_window_row", False)]
+        rows = [c for c in menu.children if isinstance(c, FakeWindowMenuRow)]
         labels = [r.get_child().children[1].label for r in rows]
         assert labels == ["Alpha", "Bravo", "Charlie"]
 
@@ -1545,6 +1565,7 @@ class TestDockMenu:
         assert captured_menu.shown is True
         assert captured_menu.popup_event is event
         handler._runtime.menu_popup_opened.assert_called_once()
+        handler._runtime.prepare_menu_popup.assert_called_once_with(captured_menu)
         captured_menu.emit("deactivate")
         handler._runtime.menu_popup_closed.assert_called_once()
 
@@ -1992,15 +2013,20 @@ class TestMenuCallbacks:
         assert timeout_calls[0][0] == 120
         assert handler._folder_stack._folder_stack_refresh_source == 77
 
-    def test_folder_stack_change_invalidates_cached_layout(self, handler, monkeypatch):
+    def test_folder_stack_change_invalidates_cached_layout(
+        self, handler, monkeypatch, tmp_path
+    ):
+        uri = (tmp_path / "docs").as_uri()
         item = DockItem(
-            desktop_id="file:///tmp/docs",
+            desktop_id=uri,
             kind=FOLDER_KIND,
-            target="file:///tmp/docs",
+            target=uri,
         )
         handler._folder_stack._folder_stack_item = item
+        canonical_uri = handler._target_service.normalize_file_target(item.target)
+        assert canonical_uri is not None
         handler._folder_stack._folder_stack_cache.layouts[
-            ("file:///tmp/docs", 0, "name", False, 48, None)
+            (canonical_uri, 0, "name", False, 48, None)
         ] = folder_stack_mod.FolderStackLayout(
             cards=(),
             popup_w=1,
@@ -2085,12 +2111,13 @@ class TestMenuCallbacks:
         assert window.visible is True
 
     def test_schedule_folder_stack_prewarm_deduplicates_target(
-        self, handler, monkeypatch
+        self, handler, monkeypatch, tmp_path
     ):
+        uri = (tmp_path / "docs").as_uri()
         item = DockItem(
-            desktop_id="file:///tmp/docs",
+            desktop_id=uri,
             kind=FOLDER_KIND,
-            target="file:///tmp/docs",
+            target=uri,
         )
         idle_calls: list[object] = []
         monkeypatch.setattr(
@@ -2191,7 +2218,7 @@ class TestMenuCallbacks:
             def monitor_directory(self, *_args):
                 raise RuntimeError("boom")
 
-        monkeypatch.setattr(menu_mod.Gio.File, "new_for_uri", lambda _uri: _Folder())
+        _mock_file_factory(monkeypatch, lambda _uri: _Folder())
 
         handler._folder_stack._track_folder_stack("file:///tmp/docs")
 
@@ -2209,7 +2236,7 @@ class TestMenuCallbacks:
             def monitor_directory(self, *_args):
                 return monitor
 
-        monkeypatch.setattr(menu_mod.Gio.File, "new_for_uri", lambda _uri: _Folder())
+        _mock_file_factory(monkeypatch, lambda _uri: _Folder())
 
         handler._folder_stack._track_folder_stack("file:///tmp/docs")
 
@@ -2230,7 +2257,7 @@ class TestMenuCallbacks:
             def monitor_directory(self, *_args):
                 return replacement
 
-        monkeypatch.setattr(menu_mod.Gio.File, "new_for_uri", lambda _uri: _Folder())
+        _mock_file_factory(monkeypatch, lambda _uri: _Folder())
 
         handler._folder_stack._track_folder_stack("file:///tmp/docs")
 
@@ -2646,7 +2673,7 @@ class TestMenuCallbacks:
             def query_exists(self, _arg):
                 raise RuntimeError("boom")
 
-        monkeypatch.setattr(menu_mod.Gio.File, "new_for_uri", lambda _uri: _BadFolder())
+        _mock_file_factory(monkeypatch, lambda _uri: _BadFolder())
         assert (
             handler._folder_stack._browser.target_state("file:///tmp/docs") == "missing"
         )
@@ -2736,9 +2763,8 @@ class TestMenuCallbacks:
             "normalize_file_target",
             lambda _t: "file:///tmp/docs",
         )
-        monkeypatch.setattr(
-            menu_mod.Gio.File,
-            "new_for_uri",
+        _mock_file_factory(
+            monkeypatch,
             lambda _uri: _Folder([_Info(True), _Info(False)]),
         )
         assert (
@@ -2748,9 +2774,7 @@ class TestMenuCallbacks:
             is True
         )
 
-        monkeypatch.setattr(
-            menu_mod.Gio.File, "new_for_uri", lambda _uri: _Folder([_Info(True)])
-        )
+        _mock_file_factory(monkeypatch, lambda _uri: _Folder([_Info(True)]))
         assert (
             handler._folder_stack._browser.directory_has_visible_children(
                 "file:///tmp/docs", False
@@ -2781,3 +2805,54 @@ class TestMenuCallbacks:
         handler._on_folder_sort_changed(active, item, "modified")
 
         update_pref.assert_called_once_with(item, "sort", "modified")
+
+
+def test_asynchronous_menu_thumbnail_updates_after_mapping_and_cleans_timer(
+    handler, monkeypatch
+):
+    row, image = FakeMenuItem(), MagicMock()
+    previous = None
+    captured = []
+    removed = []
+
+    def schedule(_delay, callback):
+        captured.append(callback)
+        return 100 + len(captured)
+
+    monkeypatch.setattr(menu_mod.GLib, "timeout_add", schedule)
+    monkeypatch.setattr(menu_mod.GLib, "source_remove", removed.append)
+    handler._watch_window_thumbnail(
+        row, image, WindowId(DisplayServer.X11, 100), previous
+    )
+    assert not captured
+    row.emit("map")
+    row.emit("map")
+    assert len(captured) == 1
+    handler._preview_service.thumbnail.return_value = None
+    assert captured[0]()
+    image.set_from_pixbuf.assert_not_called()
+    pixbuf = object()
+    handler._preview_service.thumbnail.return_value = PreviewImage(pixbuf, 28, 20)
+    assert captured[0]() and captured[0]()
+    image.set_from_pixbuf.assert_called_once_with(pixbuf)
+    row.emit("unmap")
+    row.emit("destroy")
+    assert removed == [101]
+
+
+@pytest.mark.skipif(not menu_mod.Gtk.init_check()[0], reason="GTK display required")
+def test_closing_the_last_window_removes_its_separator_after_gtk_takes_ownership():
+    menu = menu_mod.Gtk.Menu()
+    row = menu_mod._WindowMenuRow()
+    separator = menu_mod._WindowRowsSeparator()
+    menu.append(row)
+    menu.append(separator)
+    del row, separator
+    gc.collect()
+    try:
+        row = menu.get_children()[0]
+        handler = object.__new__(menu_mod.MenuHandler)
+        handler._remove_window_row(row, refresh_popup=False)
+        assert menu.get_children() == []
+    finally:
+        menu.destroy()

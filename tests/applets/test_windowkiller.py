@@ -8,27 +8,8 @@ from unittest.mock import MagicMock
 import docking.applets.windowkiller.applet as windowkiller_applet_mod
 from docking.applets.services import AppletServices
 from docking.applets.windowkiller.applet import WindowKillerApplet
-from docking.applets.windowkiller.state import kill_pid
 from docking.core.config import Config
 from docking.platform.backends.base import ActionResult, WindowId, WindowSnapshot
-
-
-class TestKillPid:
-    def test_returns_false_for_zero(self):
-        assert kill_pid(pid=0) is False
-
-    def test_returns_false_for_negative(self):
-        assert kill_pid(pid=-1) is False
-
-    def test_returns_false_on_os_error(self, monkeypatch):
-        monkeypatch.setattr("os.kill", MagicMock(side_effect=OSError("no process")))
-        assert kill_pid(pid=99999) is False
-
-    def test_returns_true_on_success(self, monkeypatch):
-        killed = MagicMock()
-        monkeypatch.setattr("os.kill", killed)
-        assert kill_pid(pid=1234) is True
-        killed.assert_called_once()
 
 
 class TestAppletCreation:

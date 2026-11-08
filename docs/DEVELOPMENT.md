@@ -7,6 +7,10 @@ Run commands from the repository root. Install the
 the development environment. For native Wayland protocol clients, also install
 the `[wayland]` extra described there.
 
+Shared development scripts live directly in `tools/`; platform-specific scripts
+live in `tools/linux/` and `tools/bsd/`, each with its visual harness under
+`visual/`. See the [tools guide](../tools/README.md) for entry points and coverage.
+
 ## Source Setup
 
 ```bash
@@ -54,12 +58,22 @@ DOCKING_LOG_LEVEL=DEBUG python run.py
 # Run all tests
 pytest tests/ -v
 
+# Run the no-GI smoke suite in a separate process
+pytest tests/smoke/test_python314_smoke.py -q
+
 # Run specific module
 pytest tests/applets/test_clock.py -v
 
 # Coverage report
 pytest tests/ -v --cov=docking --cov-report=term-missing
 ```
+
+Run the smoke command separately: imports cached during full-suite collection
+can hide incomplete smoke fixtures.
+
+CI also checks pull requests targeting prerequisite branches, so stacked changes
+receive the same checks before their base reaches master. Release jobs remain
+restricted to master.
 
 For the GUI/integration-oriented slice under a headless X11 session:
 
@@ -89,6 +103,96 @@ You can also pass explicit pytest targets:
 bash tools/test_gui_headless.sh tests/ui/test_pointer_scenarios.py
 ```
 
+## Platform boundaries
+
+Shared application policy lives in `platform/applications/`, applet policy and
+GTK wiring in each `applets/<name>/` directory, and concrete adapters in the
+owning domain's `implementations/<family>/` package. Use `unix` for shared
+Linux/BSD protocols and tools, `linux` or `bsd` for kernel APIs, and `shared`
+for portable native tools. Keep package initializers lightweight.
+
+Within BSD adapters, keep OS-specific behavior in matching `freebsd.py`,
+`openbsd.py`, and `netbsd.py` modules. Dispatch through the owning backend using
+`is_freebsd()`, `is_openbsd()`, and `is_netbsd()` from `platform/environment/`.
+Keep behavior common to all three BSDs shared.
+
+`platform/host/` supplies paths, storage durability, file locking, hook commands,
+and mounted-filesystem facts without importing GI. Host selection is cached;
+XDG variables are read when directory helpers are called. Desktop file/URI
+operations and GUI lifecycle hooks live separately in `platform/desktop/`.
+Window-management sessions remain under `platform/backends/`; an OS and its
+GTK display/session are separate choices.
+
+`platform/composition/` assembles these interfaces at startup. Only entry points
+use the complete `PlatformProvider`. Registries, launchers, the model, applets,
+and Search receive the narrow dependencies they need. Native discovery sources
+and desktop monitors stay in their adapters. Association lookups return an
+`AssociationResolution`: inspect its status and use `.listing` or `.name`.
+Unix lookups remain synchronous, and ready-empty differs from unavailable.
+
+`platform/applications/backend.py` collects the application platform contracts
+and their catalog, launch, and registration results. Each capability remains
+independently injected. Canonical application values stay in `types.py`, and
+association requests/statuses/resolutions stay in `associations.py`. The common
+contract module imports no GI or native implementations.
+
+Owned platform contracts use `ABC` and `@abstractmethod`. Implementations and
+backend test doubles inherit their contracts explicitly; an incomplete adapter
+must fail at construction. Required metadata uses abstract read-only properties,
+which concrete properties or class constants can implement. Shared Unix host,
+provider, and applet factory classes remain abstract where Linux/BSD supply the
+remaining operations. Preserve structural protocols for callable factories
+(`BrowserFactory`), external native handles, and consumer views. Keep native
+resource acquisition in concrete implementations and retain their existing
+method signatures and lifetimes.
+
+Keep each domain's contracts in its root `backend.py`, separate from state and
+native code. Import canonical modules directly; avoid import-only compatibility
+files or forwarding modules with a single caller. Shared native helpers expose
+public functions when other implementation modules call them. Tests patch I/O
+at the module that owns it. Tray consumers import `platform/tray/`; SNI transport
+lives under `platform/tray/implementations/unix/`.
+
+Create one shared `TrayService` before constructing applets. Consumers borrow
+it and unsubscribe on stop; composition owns shutdown. Stateful backend
+factories produce independent instances. A serial worker queues related native
+I/O and finalizes resources on its own thread, including when stopped before its
+first job. Always guard replies across stop/restart. Stop UI and applet consumers
+before session, tray, and registry providers, including on startup failure.
+
+For a complete regression run without a desktop session:
+
+```bash
+xvfb-run -a dbus-run-session -- .venv/bin/python -m pytest tests/ -q
+.venv/bin/python -m pytest tests/smoke/test_python314_smoke.py -q
+xvfb-run -a dbus-run-session -- .venv/bin/behave -q
+```
+
+Run the smoke file in its own process. Full-suite import caches can hide
+incomplete no-GI fixtures. The type-checker configuration explicitly prioritizes
+this checkout over system-installed Docking releases.
+
+Missing-import checks remain enabled, with an explicit allowlist for system
+Cairo, BSD-only psutil, native GI namespaces, and optional PyWayland modules
+that lack stubs in some installations. Strict generic narrowing requires callers
+to validate container contents instead of treating an arbitrary mapping as
+having known key/value types. Strict equality semantics keeps equality tests
+from silently narrowing values to literal types.
+Use rule-specific `ty: ignore[...]` comments when suppression is necessary;
+legacy `type: ignore` comments do not suppress ty diagnostics.
+
+Attribute checks apply to all handwritten application code, including native
+adapters and GTK wiring. Generated Wayland bindings retain their source exclusion.
+The `typings/` search path supplies the GTK 3 GdkX11 APIs used by Docking because
+upstream GdkX11 stubs target GTK 4. Keep this small overlay aligned with the native
+API; remove it when upstream provides matching GTK 3 stubs. Remove native
+namespaces from the missing-import allowlist when their stubs become available.
+
+When changing platform interfaces, migrate Behave callers in `features/steps/`
+as well as pytest fixtures. The shared test factories deliberately construct
+Linux adapters for deterministic filesystem/command fixtures; tests reading the
+real host must explicitly use the native backend from composition.
+
 ## D-Bus Remote Control
 
 Docking exposes the `org.docking.Docking.Items1` session-bus interface for item
@@ -99,6 +203,58 @@ reference, examples, and expected responses.
 
 Build dependencies, commands, output paths, and local installation steps for
 every package format live in the [packaging guide](../packaging/README.md).
+
+## Website
+
+The website uses Node.js 22 or later to generate static English, Portuguese,
+French and Spanish pages. Run from the repository root:
+
+```bash
+npm --prefix website ci
+npm --prefix website run dev
+```
+
+Open `http://127.0.0.1:8000`. The development command builds all language pages
+and serves them using Python 3. Restart it after editing website sources to
+rebuild. From the `website` directory, use `npm run dev` directly. Run
+`npm --prefix website test` to check the generated pages. Both `npm test` and
+`npm run test:browser` rebuild the site automatically before running checks.
+
+Hetzner hosts `website/dist` through a dedicated native Komodo Stack. The website
+workflow promotes tested website inputs to `deploy/docking-cc`; unrelated desktop
+commits do not trigger or block website deployment. Runtime/dependency/workflow
+changes require operational review. The root `netlify.toml` retains the old deploy
+for DNS propagation and skips new automatic Netlify builds.
+Publish the built directory, not the source `website` directory. Build output
+and `node_modules` are ignored by Git. Tailwind runs at build time; visitors
+do not download a CSS compiler. Applet icons come from the repository, and the
+original `website/hero.gif` is copied without recompression.
+
+Edit the English template in `website/index.html` and the corresponding strings
+in `website/translations.json`. Translation keys are the exact English text;
+builds fail on missing translations. Keep shell commands and technical names
+unchanged. The build generates `/`, `/pt/`, `/fr/` and `/es/`, with reciprocal
+`hreflang` links and a self-canonical URL for each language. All content remains
+readable without JavaScript. Browser-language detection suggests a version;
+explicit language links and remembered choices take precedence over detection.
+
+Keep `website/sitemap.xml` synchronized with published pages. Update each
+`lastmod` only when that page's content changes, not on every build. The public
+sitemap to submit in Google Search Console is `https://docking.cc/sitemap.xml`.
+Submit new language URLs for inspection after deploying the generated pages.
+
+Browser checks cover all languages on desktop and mobile, JavaScript disabled,
+accent-insensitive applet search, language preferences and reduced motion:
+
+```bash
+cd website
+npx playwright install chromium
+npm run test:browser
+```
+
+To use an existing Chrome installation, set `CHROME_PATH` to its executable
+instead of installing Chromium. The website workflow runs both the static SEO
+checks and browser checks on relevant changes.
 
 ## Contributing
 
@@ -115,16 +271,35 @@ See also [custom applet development](APPLET_DEVELOPMENT.md),
 
 ## BSD package and desktop checks
 
-CI builds and installs packages in actual FreeBSD and OpenBSD VMs, then runs
-core/platform and BSD applet tests plus 13 X11 visual scenarios. Download the
-`bsd-visual-freebsd` or `bsd-visual-openbsd` artifact and open `index.html` to
-review screenshots, per-case settings, package logs, JUnit, and JSON results
+CI builds and installs packages in actual FreeBSD, OpenBSD, and NetBSD VMs, then
+runs core/platform, BSD applet, and battery/volume lifecycle tests plus 13 X11
+visual scenarios. NetBSD also verifies package upgrade, removal, and
+reinstallation. Download the `bsd-visual-freebsd`, `bsd-visual-openbsd`, or
+`bsd-visual-netbsd` artifact and open `index.html` to review screenshots,
+per-case settings, package logs, JUnit, and JSON results
 without a BSD machine. The weekly/manual **BSD desktops** workflow runs the
 same checks. Hardware readings, audio devices and power actions need physical
 hardware validation; the reference desktop is compositing Xfce.
 
+The NetBSD target is 11.0/amd64 with pkgsrc Python 3.12. When changing this target,
+update the X11 SHA512 pins in `tools/bsd/visual/checksums/` from the signed NetBSD
+release hash list. The installer verifies each archive before extraction.
+The CI workflow sets the following environment. Export it before running the
+NetBSD VM scripts manually:
+
+```bash
+export DOCKING_BSD_PYTHON=/usr/pkg/bin/python3.12
+export PATH="/usr/pkg/bin:/usr/pkg/sbin:/usr/X11R7/bin:$PATH"
+```
+
+Packages and installed visual checks use `/usr/pkg`; keep native
+GTK/GI/Cairo/psutil packages visible with
+`--system-site-packages`. NetBSD sensor tests cover envsys units and unavailable
+readings without requiring a laptop or temperature sensor in the VM.
+
 For a local Linux/BSD X11 control, install GTK3/Cairo/Wnck GI bindings, Xvfb,
-Xfwm, D-Bus and XTest, then run `python3 -m tools.bsd_visual.run --pytest`.
+Xfwm, D-Bus and XTest, then run
+`"${DOCKING_BSD_PYTHON:-python3}" -m tools.bsd.visual.run --pytest`.
 `--case placement-bottom` selects one scenario, and `--dock-command` can point
 at an installed executable. The default output is a timestamped directory under
 `artifacts/bsd-visual/`; an explicit `--output` must be empty.

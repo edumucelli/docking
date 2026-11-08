@@ -528,7 +528,8 @@ class WayfireWindowService(WindowService):
         self._matcher.sync_visible_items(self._model.visible_items())
         records: dict[int, WayfireWindowRecord] = {}
         for item in views:
-            if not isinstance(item, Mapping):
+            item = as_json_object(item)
+            if item is None:
                 continue
             record = _record_from_view(
                 item,
@@ -754,7 +755,8 @@ class WayfireWorkspaceService(WorkspaceService):
         records: list[WayfireWorkspaceRecord] = []
         output_items = outputs if isinstance(outputs, list) else []
         for output in output_items:
-            if not isinstance(output, Mapping):
+            output = as_json_object(output)
+            if output is None:
                 continue
             records.extend(
                 _workspace_records_from_output(
@@ -917,7 +919,8 @@ class WayfireVisibilityMonitor(VisibilityMonitor):
         outputs = _load_outputs(self._client)
         windows: list[tuple[Rect | None, bool, bool, bool]] = []
         for item in views if isinstance(views, list) else []:
-            if not isinstance(item, Mapping):
+            item = as_json_object(item)
+            if item is None:
                 continue
             record = _record_from_view(
                 item, matcher=_NullMatcher(), focused_id=focused_id
@@ -1093,7 +1096,7 @@ class WayfireWindowPickService(WindowPickService):
         return record.pid if record.pid and record.pid > 0 else None
 
     def kill(self, window_id: WindowId) -> ActionResult:
-        from docking.applets.windowkiller.state import kill_pid
+        from docking.platform.backends.unix.processes import kill_pid
 
         pid = self.pid_for(window_id)
         if pid is None:
@@ -1111,7 +1114,8 @@ class WayfireWindowPickService(WindowPickService):
         self._outputs = _load_outputs(self._client)
         records: dict[int, WayfireWindowRecord] = {}
         for item in views if isinstance(views, list) else []:
-            if not isinstance(item, Mapping):
+            item = as_json_object(item)
+            if item is None:
                 continue
             record = _record_from_view(
                 item,

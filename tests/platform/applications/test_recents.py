@@ -35,6 +35,8 @@ class _Config:
 
 
 class _Registry:
+    initial_discovery_pending = False
+
     def __init__(self, origins: dict[str, ApplicationOrigin]) -> None:
         self.origins = origins
         self.get_calls: list[str] = []
@@ -171,6 +173,31 @@ def test_load_applies_maximum_and_retention_without_saving():
         RecentAppRecord(desktop_id="first.desktop", last_closed=NOW),
     )
     assert config.recent_apps == _wire(("first.desktop", NOW))
+    assert config.saved_values == []
+
+
+def test_saved_history_waits_for_initial_catalog_but_excludes_runtime_records():
+    config = _Config(
+        recent_apps=_wire(
+            ("Native.Late", NOW), ("Native.Removed", NOW - 1), ("runtime", NOW - 2)
+        )
+    )
+    registry = _Registry({"runtime": ApplicationOrigin.RUNTIME})
+    registry.initial_discovery_pending = True
+    service = _service(config, registry=registry)
+
+    service.load()
+
+    assert [record.desktop_id for record in service.snapshot()] == [
+        "Native.Late",
+        "Native.Removed",
+    ]
+    registry.origins["Native.Late"] = ApplicationOrigin.INSTALLED
+    registry.initial_discovery_pending = False
+    service.load()
+    assert service.snapshot() == (
+        RecentAppRecord(desktop_id="Native.Late", last_closed=NOW),
+    )
     assert config.saved_values == []
 
 

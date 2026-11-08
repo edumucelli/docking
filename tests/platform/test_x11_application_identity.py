@@ -7,12 +7,11 @@ import pytest
 
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
-    ProcessIdentityService,
 )
-from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.applications.types import MatchMethod
 from docking.platform.backends.diagnostics import IdentityHintStatus, WindowIdentityHint
 from docking.platform.backends.x11.impl.window_tracker import WindowMatcher
+from tests.platform_factories import make_application_registry, make_process_identity
 
 
 @pytest.fixture
@@ -62,11 +61,11 @@ def identity_fixture(tmp_path):
         (directory / desktop_id).write_text(
             f"[Desktop Entry]\nType=Application\nName={name}\nExec={command}\n{extra}"
         )
-    registry = ApplicationRegistry(
+    registry = make_application_registry(
         application_source=lambda: (), desktop_directories_source=lambda: (user, system)
     )
-    registry._desktop_app_info_for_id = lambda _id: None
-    registry._desktop_app_info_from_filename = lambda _path: None
+    registry._catalog._desktop_app_info_for_id = lambda _id: None
+    registry._catalog._desktop_app_info_from_filename = lambda _path: None
     registry.refresh()
     grayjay = proc / "12" / "root"
     grayjay.mkdir(parents=True)
@@ -76,7 +75,7 @@ def identity_fixture(tmp_path):
     (gufw / "cmdline").write_bytes(
         b"/usr/bin/python3\0/usr/share/gufw/gufw.py\0PRIVATE\0"
     )
-    processes = ProcessIdentityService(
+    processes = make_process_identity(
         LaunchProvenanceStore(), proc_root=proc, executable_resolver=lambda _pid: None
     )
     return registry, processes

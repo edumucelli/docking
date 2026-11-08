@@ -13,9 +13,10 @@ gi.require_version("GLib", "2.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.menu import disabled_menu_item, menu_sections
-from docking.applets.webapp.browser import WebAppBrowser
+from docking.applets.platform import AppletPlatformServices
+from docking.applets.webapp.profile import BrowserProfile
 from docking.applets.webapp.state import BrowserPhase, WebAppState
 from docking.i18n import _
 from docking.platform import targets
@@ -26,10 +27,10 @@ if TYPE_CHECKING:
 STARTUP_DELAY_S = 2
 
 
-class WebAppApplet(Applet):
+class WebAppApplet(PlatformServicesApplet):
     """Run one persistent browser session from a dock applet."""
 
-    browser_factory: ClassVar[Callable[..., WebAppBrowser]]
+    profile: ClassVar[BrowserProfile]
     state_factory = WebAppState
     web_url = ""
     open_label = ""
@@ -39,18 +40,27 @@ class WebAppApplet(Applet):
     disconnect_description = ""
     disconnect_error = ""
 
-    def __init__(self, icon_size: int, config: Config) -> None:
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
         self._state = self.state_factory()
         self._startup_source_id = 0
         self._running = False
-        self._browser = self.browser_factory(
+        self._browser = platform_services.backends.browser()(
+            profile=self.profile,
             on_phase=self._on_browser_phase,
             on_title=self._on_browser_title,
             on_badge=self._on_browser_badge,
             on_notification=self._on_browser_notification,
             on_attention_cleared=self._clear_notification_attention,
         )
-        super().__init__(icon_size=icon_size, config=config)
+        super().__init__(
+            icon_size=icon_size, config=config, platform_services=platform_services
+        )
         self.present()
 
     def _tooltip_text(self) -> str:
@@ -187,6 +197,6 @@ class WebAppApplet(Applet):
             buttons=Gtk.ButtonsType.OK,
             text=self.disconnect_error,
         )
-        dialog.format_secondary_text(error or _("Unknown WebKit error"))
+        dialog.format_secondary_text(error or _("Unknown browser error"))
         dialog.run()
         dialog.destroy()

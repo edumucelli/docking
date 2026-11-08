@@ -21,6 +21,7 @@ meta = AppletMeta(
     id="camshield",
     name="Cam Shield",
     category=AppletCategory.SYSTEM,
+    unsupported_platforms=("netbsd",),
 )
 
 __all__ = ["meta"]

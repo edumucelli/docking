@@ -53,7 +53,7 @@ NOISE_SOUNDS: list[Sound] = [
 ALL_SOUNDS: list[Sound] = FILE_SOUNDS + NOISE_SOUNDS
 
 NOISE_WAVES: dict[str, int] = {
-    "white-noise": 0,  # audiotestsrc wave=white-noise
+    "white-noise": 5,  # audiotestsrc wave=white-noise (0 is a sine tone)
     "pink-noise": 6,  # audiotestsrc wave=pink-noise (tpd)
 }
 

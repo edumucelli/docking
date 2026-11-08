@@ -1265,6 +1265,7 @@ class DockHarness:
         application_registry = MagicMock()
         application_registry.get.return_value = None
         application_registry.resolve_by_desktop_file.return_value = None
+        application_registry.resolve_by_export_file.return_value = None
         application_launcher = MagicMock()
         icon_loader = MagicMock()
         target_service = MagicMock()
@@ -1417,6 +1418,9 @@ class DockHarness:
         self._preview_popup._preview_refresh_timer_id = 0
         self._preview_popup._thumbnail_images = {}
         self._preview_popup._current_desktop_id = ""
+        self._preview_popup._application_icons = None
+        self._preview_popup._unsubscribe_icons = None
+        self._preview_popup._fallback_icons = {}
         self._preview_popup._thumbnail_outline_enabled = lambda: False
         self._preview_popup._outline = None
         self._preview_popup._outline_enabled = lambda: False

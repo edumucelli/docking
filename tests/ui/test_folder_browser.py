@@ -1,5 +1,7 @@
 """Real directory enumeration contracts for partial thumbnail hydration."""
 
+import ctypes
+import os
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -7,16 +9,29 @@ import pytest
 
 from docking.core.config import Config
 from docking.core.items import DockItem
-from docking.platform.targets import TargetService
 from docking.ui.folder._browser import FolderBrowser, FolderPrefs
 from docking.ui.folder.stack import FolderStackController
+from tests.platform_factories import make_target_service
+
+
+def _write_hidden_file(path):
+    """Use the host filesystem's hidden-file convention."""
+    path.write_text("hidden")
+    if os.name == "nt":
+        from ctypes import wintypes
+
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel.SetFileAttributesW.argtypes = (wintypes.LPCWSTR, wintypes.DWORD)
+        kernel.SetFileAttributesW.restype = wintypes.BOOL
+        if not kernel.SetFileAttributesW(str(path), 2):
+            raise ctypes.WinError(ctypes.get_last_error())
 
 
 @pytest.fixture
 def folder(tmp_path):
     for index in range(30):
         (tmp_path / f"file-{index:02d}.txt").write_text("x" * (30 - index))
-    (tmp_path / ".hidden").write_text("hidden")
+    _write_hidden_file(tmp_path / ".hidden")
     return tmp_path
 
 
@@ -24,7 +39,7 @@ def folder(tmp_path):
 def browser():
     loader = MagicMock()
     loader.resolve_file_icon.side_effect = lambda **kwargs: kwargs["target"]
-    return FolderBrowser(target_service=TargetService(icon_loader=loader)), loader
+    return FolderBrowser(target_service=make_target_service(icon_loader=loader)), loader
 
 
 @pytest.mark.parametrize("sort", ["name", "kind", "size", "created", "modified"])
@@ -120,7 +135,7 @@ def test_missing_empty_negative_limit_and_child_visibility(tmp_path, browser):
     assert subject.list_directory(target=str(tmp_path), **options) == []
     child = tmp_path / "child"
     child.mkdir()
-    (child / ".hidden").write_text("x")
+    _write_hidden_file(child / ".hidden")
     subject.invalidate_target(str(tmp_path))
     rows = subject.list_directory(target=str(tmp_path), **options)
     assert rows[0].is_dir and not rows[0].has_children
@@ -164,3 +179,16 @@ def test_production_stack_requests_only_visible_icons_and_menu_requests_all(
         == 30
     )
     assert loader.resolve_file_icon.call_count == 30
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Native Windows hidden attribute")
+def test_windows_hidden_attribute_controls_visibility_without_a_dot_prefix(
+    tmp_path, browser
+):
+    _write_hidden_file(tmp_path / "private.txt")
+    subject, _loader = browser
+    assert subject.list_directory(target=str(tmp_path), prefs=FolderPrefs()) == []
+    rows = subject.list_directory(
+        target=str(tmp_path), prefs=FolderPrefs(show_hidden=True)
+    )
+    assert [row.name for row in rows] == ["private.txt"]

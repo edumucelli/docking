@@ -9,7 +9,8 @@ from pathlib import Path
 import cairo
 import numpy as np
 from PIL import Image, ImageChops
-from skimage.metrics import peak_signal_noise_ratio, structural_similarity
+
+from tests.visual.metrics import peak_signal_noise_ratio, structural_similarity
 
 BASELINE_DIR = Path(__file__).resolve().parent / "baselines"
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
@@ -56,20 +57,11 @@ def compute_metrics(expected: Image.Image, actual: Image.Image) -> VisualMetrics
     """Compute SSIM and PSNR for two equal-sized RGBA images."""
     expected_pixels = np.asarray(expected, dtype=np.float32)
     actual_pixels = np.asarray(actual, dtype=np.float32)
-    ssim = structural_similarity(
-        expected_pixels,
-        actual_pixels,
-        channel_axis=-1,
-        data_range=255.0,
-    )
+    ssim = structural_similarity(expected_pixels, actual_pixels)
     if np.array_equal(expected_pixels, actual_pixels):
         psnr = float("inf")
     else:
-        psnr = peak_signal_noise_ratio(
-            expected_pixels,
-            actual_pixels,
-            data_range=255.0,
-        )
+        psnr = peak_signal_noise_ratio(expected_pixels, actual_pixels)
     return VisualMetrics(ssim=float(ssim), psnr=float(psnr))
 
 

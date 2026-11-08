@@ -111,6 +111,16 @@ class FakeBox:
         self.orientation = orientation
         self.spacing = spacing
         self.children: list[object] = []
+        self._style_context = FakeStyleContext()
+
+    def get_style_context(self) -> FakeStyleContext:
+        return self._style_context
+
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
+
+    def set_halign(self, _value) -> None:
+        return
 
     def set_margin_start(self, _value: int) -> None:
         return
@@ -138,8 +148,11 @@ class FakeBox:
 
 
 class FakeStyleContext:
-    def add_class(self, _klass: str) -> None:
-        return
+    def __init__(self) -> None:
+        self.classes: set[str] = set()
+
+    def add_class(self, klass: str) -> None:
+        self.classes.add(klass)
 
 
 class FakeEventBox:
@@ -161,6 +174,9 @@ class FakeEventBox:
 
 
 class FakeImage:
+    def __init__(self) -> None:
+        self.size_request: tuple[int, int] | None = None
+
     @classmethod
     def new_from_pixbuf(cls, _pixbuf):
         return cls()
@@ -169,8 +185,8 @@ class FakeImage:
     def new_from_icon_name(cls, _icon_name: str, _icon_size: int):
         return cls()
 
-    def set_size_request(self, _width: int, _height: int) -> None:
-        return
+    def set_size_request(self, width: int, height: int) -> None:
+        self.size_request = (width, height)
 
 
 class FakeLabel:
@@ -222,8 +238,12 @@ def _make_popup():
     popup._pointer_inside_dock = None
     popup._hide_timer_id = 0
     popup._preview_refresh_timer_id = 0
+    popup._relayout = None
     popup._thumbnail_images = {}
     popup._current_desktop_id = ""
+    popup._application_icons = None
+    popup._unsubscribe_icons = None
+    popup._fallback_icons = {}
     popup._thumbnail_outline_enabled = lambda: False
     popup._thumbnail_width = lambda: preview_mod.THUMB_W
     popup._outline = None
@@ -379,25 +399,34 @@ class TestPreviewPopupIntegration:
     def test_configured_width_reaches_snapshot_request_and_size_request(
         self, monkeypatch
     ):
-        sizes = []
-
-        class RecordingImage(FakeImage):
-            def set_size_request(self, width: int, height: int) -> None:
-                sizes.append((width, height))
-
-        self._patch_thumbnail_toolkit(monkeypatch, RecordingImage)
+        self._patch_thumbnail_toolkit(monkeypatch)
         popup = _make_popup()
         popup._thumbnail_width = lambda: 320
         popup._preview_service.capture.return_value = None
 
-        preview_mod.PreviewPopup._make_thumbnail_for_window(
+        widget = preview_mod.PreviewPopup._make_thumbnail_for_window(
             popup, window=_snapshot(7), fallback_icon_name="app"
         )
 
         popup._preview_service.capture.assert_called_once_with(
             _snapshot(7).id, width=320, height=240
         )
-        assert sizes == [(320, 240)]
+        assert widget.child.size_request == (320, -1)
+
+    def test_thumbnail_highlight_frame_contains_only_image(self, monkeypatch):
+        self._patch_thumbnail_toolkit(monkeypatch)
+        popup = _make_popup()
+
+        widget = preview_mod.PreviewPopup._make_thumbnail_for_window(
+            popup, window=_snapshot(7), fallback_icon_name="app"
+        )
+
+        image_frame, label = widget.child.children
+        assert "preview-thumb" in widget.get_style_context().classes
+        assert "preview-image" in image_frame.get_style_context().classes
+        assert image_frame.children == [popup._thumbnail_images[_snapshot(7).id][0]]
+        assert image_frame.children[0].size_request is None
+        assert "preview-image" not in label.get_style_context().classes
 
     def test_wider_thumbnail_keeps_more_of_the_title(self, monkeypatch):
         self._patch_thumbnail_toolkit(monkeypatch)

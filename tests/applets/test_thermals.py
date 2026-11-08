@@ -8,17 +8,21 @@ from unittest.mock import MagicMock, patch
 import gi
 import pytest
 
+from tests.platform_factories import make_applet_platform
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 import docking.applets.thermals.applet as thermals_applet_mod
 from docking.applets.thermals.applet import ThermalsApplet
-from docking.applets.thermals.render import render_icon
-from docking.applets.thermals.state import (
+from docking.applets.thermals.implementations.linux.readers import (
     FallbackThermalsBackend,
-    FanReading,
     SensorsThermalsBackend,
     SysfsThermalsBackend,
+)
+from docking.applets.thermals.render import render_icon
+from docking.applets.thermals.state import (
+    FanReading,
     TemperatureUnit,
     ThermalReading,
     ThermalSnapshot,
@@ -29,12 +33,12 @@ from docking.applets.thermals.state import (
     parse_sensors_output,
     prefs_from_mapping,
     prefs_payload,
-    read_thermal_snapshot,
     reading_label,
     thermal_color,
     thermal_level,
 )
 from docking.core.config import Config
+from tests.platform_factories import read_thermal_snapshot
 
 
 class _ImmediateWorker:
@@ -74,7 +78,9 @@ def _snapshot() -> ThermalSnapshot:
 
 def _make_applet(config: Config | None = None) -> ThermalsApplet:
     with patch("docking.applets.thermals.applet.BackgroundWorker", _ImmediateWorker):
-        return ThermalsApplet(48, config=config or Config())
+        return ThermalsApplet(
+            48, config=config or Config(), platform_services=make_applet_platform()
+        )
 
 
 class TestThermalsState:

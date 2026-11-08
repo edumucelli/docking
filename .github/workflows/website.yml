@@ -1,0 +1,76 @@
+name: Website
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths: ["website/**", "netlify.toml", "docking/assets/icons/applets/**", "packaging/deb/icons/**", ".github/workflows/website.yml"]
+  pull_request:
+    paths: ["website/**", "netlify.toml", "docking/assets/icons/applets/**", "packaging/deb/icons/**", ".github/workflows/website.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  website:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+
+  promote:
+    name: Approve tested website for Komodo
+    needs: website
+    if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: docking-website-promotion
+      queue: max
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Promote only tested current website inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TESTED: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch https://github.com/"$REPO".git master
+          latest=$(git rev-parse FETCH_HEAD)
+          git merge-base --is-ancestor "$TESTED" "$latest"
+          inputs=(website docking/assets/icons/applets packaging/deb/icons netlify.toml .github/workflows/website.yml)
+          tested_inputs=$(git ls-tree -r "$TESTED" -- "${inputs[@]}" | sha256sum)
+          latest_inputs=$(git ls-tree -r "$latest" -- "${inputs[@]}" | sha256sum)
+          if [ "$tested_inputs" != "$latest_inputs" ]; then
+            echo "Newer website inputs await their checks."
+            exit 0
+          fi
+          if gh api "repos/$REPO/git/ref/heads/deploy/docking-cc" >/dev/null 2>&1; then
+            git fetch https://github.com/"$REPO".git refs/heads/deploy/docking-cc
+            deployed=$(git rev-parse FETCH_HEAD)
+            if git merge-base --is-ancestor "$TESTED" "$deployed"; then
+              echo "This commit or a newer approval is already promoted."
+              exit 0
+            fi
+            gh api --method PATCH "repos/$REPO/git/refs/heads/deploy/docking-cc" -f sha="$TESTED" -F force=false >/dev/null
+          else
+            gh api --method POST "repos/$REPO/git/refs" -f ref=refs/heads/deploy/docking-cc -f sha="$TESTED" >/dev/null
+          fi

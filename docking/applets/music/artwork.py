@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 import urllib.error
@@ -119,7 +120,9 @@ class CoverArtResolver:
         if not state.available:
             return ""
         parts = [
+            state.player_id,
             state.player_name,
+            hashlib.sha256(state.art_data).hexdigest() if state.art_data else "",
             state.artist,
             state.album,
             state.title,
@@ -129,6 +132,10 @@ class CoverArtResolver:
         return "|".join(parts).strip("|")
 
     def _resolve_uncached(self, state: MusicState) -> GdkPixbuf.Pixbuf | None:
+        if state.art_data and len(state.art_data) <= _REMOTE_MAX_BYTES:
+            pixbuf = self._pixbuf_from_bytes(state.art_data)
+            if pixbuf is not None:
+                return pixbuf
         if state.art_url:
             pixbuf = self._load_from_uri(uri=state.art_url)
             if pixbuf is not None:
@@ -227,16 +234,16 @@ class CoverArtResolver:
             return None
 
     def _load_from_uri(self, uri: str) -> GdkPixbuf.Pixbuf | None:
+        # Native drive paths must be resolved before URL parsing treats C: as
+        # a scheme; the shared path helper also owns file-URI/UNC decoding.
+        path = self._path_from_uri_or_path(value=uri)
+        if path is not None:
+            return self._load_from_path(path=path)
         try:
             parsed = urllib.parse.urlparse(uri)
         except ValueError as exc:
             log.debug("Invalid artwork URI %r: %s", uri, exc)
             return None
-        if parsed.scheme in ("", "file"):
-            path = self._path_from_uri_or_path(value=uri)
-            if path is None:
-                return None
-            return self._load_from_path(path=path)
         if parsed.scheme in ("http", "https"):
             payload = self._download_bytes(uri=uri, require_image=True)
             if payload is None:

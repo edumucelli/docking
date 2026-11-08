@@ -2,7 +2,9 @@
 
 import pytest
 
-from docking.platform.applications.flatpak import flatpak_app_id_from_exec
+from docking.platform.applications.implementations.unix.flatpak import (
+    flatpak_app_id_from_exec,
+)
 
 
 @pytest.mark.parametrize(

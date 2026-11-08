@@ -138,9 +138,10 @@ class UrlShortenerApplet(Applet):
         self._result_label = None
         self._copy_btn = None
 
-        def on_response(_dlg: Gtk.Dialog, _response_id: int) -> None:
-            self._dialog.destroy()
-            self._dialog = None
+        def on_response(dialog: Gtk.Dialog, _response_id: int) -> None:
+            dialog.destroy()
+            if self._dialog is dialog:
+                self._dialog = None
 
         self._dialog.connect("response", on_response)
         self._dialog.show_all()

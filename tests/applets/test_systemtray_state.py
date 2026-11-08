@@ -1,11 +1,11 @@
 """Tests for System Tray presentation state."""
 
 from docking.applets.systemtray.state import tooltip_text
-from docking.platform.status_notifier import StatusTrayState
-from docking.platform.status_notifier.backend import (
+from docking.platform.tray.implementations.unix.status_notifier import (
     RegisteredItemAddress,
     tray_item_from_properties,
 )
+from docking.platform.tray.state import TrayState as StatusTrayState
 
 
 class TestTooltipText:
@@ -13,21 +13,21 @@ class TestTooltipText:
         text = tooltip_text(
             StatusTrayState(
                 available=False,
-                watcher_mode="unavailable",
+                mode="unavailable",
                 items=(),
                 error="",
-                legacy_tray_owner="",
+                legacy_owner="",
             )
         )
-        assert "D-Bus unavailable" in text
+        assert "System Tray unavailable" in text
 
     def test_watcher_mode_no_items_default_message(self):
         text = tooltip_text(
             StatusTrayState(
                 available=True,
-                watcher_mode="watcher",
+                mode="watcher",
                 items=(),
-                legacy_tray_owner="",
+                legacy_owner="",
             )
         )
         assert "no tray apps" in text
@@ -43,7 +43,7 @@ class TestTooltipText:
         text = tooltip_text(
             StatusTrayState(
                 available=True,
-                watcher_mode="watcher",
+                mode="watcher",
                 items=items,
             )
         )

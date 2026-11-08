@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from docking.applets.caffeine.applet import CaffeineApplet
-from docking.applets.caffeine.inhibit import CompositeInhibitor
+from docking.applets.caffeine.inhibit import CompositeInhibitor, Inhibitor
 from docking.applets.caffeine.state import (
     DEFAULT_DURATION,
     INDEFINITE,
@@ -29,9 +29,10 @@ from docking.applets.caffeine.state import (
     tooltip_text,
 )
 from docking.core.config import Config
+from tests.platform_factories import make_applet_platform
 
 
-class FakeInhibitor:
+class FakeInhibitor(Inhibitor):
     """In-memory inhibitor recording acquire/release calls."""
 
     def __init__(self) -> None:
@@ -53,7 +54,7 @@ class FakeInhibitor:
         self.acquired = False
 
 
-class FakePart:
+class FakePart(Inhibitor):
     """Inhibitor part used to exercise CompositeInhibitor fan-out."""
 
     def __init__(self, succeeds: bool) -> None:
@@ -200,7 +201,9 @@ class TestPrefs:
     def test_unusable_persisted_duration_does_not_remove_the_applet(self, stored):
         """A raising constructor used to take the caffeine tile off the dock."""
         applet = CaffeineApplet(
-            48, config=Config(applet_prefs={"caffeine": {"duration_min": stored}})
+            48,
+            config=Config(applet_prefs={"caffeine": {"duration_min": stored}}),
+            platform_services=make_applet_platform(),
         )
 
         assert applet._data.duration_min == DEFAULT_DURATION
@@ -236,25 +239,51 @@ class TestCompositeInhibitor:
 
 
 class TestApplet:
+    @pytest.fixture(autouse=True)
+    def inline_requests(self, monkeypatch):
+        from tests.applets.test_brightness import _ImmediateWorker
+
+        monkeypatch.setattr("docking.applets.worker.BackgroundWorker", _ImmediateWorker)
+
     def test_creates_with_icon(self):
-        applet = CaffeineApplet(48, inhibitor=FakeInhibitor(), config=Config())
+        applet = CaffeineApplet(
+            48,
+            inhibitor=FakeInhibitor(),
+            config=Config(),
+            platform_services=make_applet_platform(),
+        )
         assert applet.item.icon is not None
 
     def test_icon_renders_at_various_sizes(self):
         for size in [32, 48, 64]:
-            applet = CaffeineApplet(size, inhibitor=FakeInhibitor(), config=Config())
+            applet = CaffeineApplet(
+                size,
+                inhibitor=FakeInhibitor(),
+                config=Config(),
+                platform_services=make_applet_platform(),
+            )
             pixbuf = applet.create_icon(size=size)
             assert pixbuf is not None
             assert pixbuf.get_width() == size
 
     def test_starts_off(self):
-        applet = CaffeineApplet(48, inhibitor=FakeInhibitor(), config=Config())
+        applet = CaffeineApplet(
+            48,
+            inhibitor=FakeInhibitor(),
+            config=Config(),
+            platform_services=make_applet_platform(),
+        )
         assert applet._data.active is False
         assert applet.item.name == "Caffeine: off"
 
     def test_click_toggles_and_acquires(self):
         inhibitor = FakeInhibitor()
-        applet = CaffeineApplet(48, inhibitor=inhibitor, config=Config())
+        applet = CaffeineApplet(
+            48,
+            inhibitor=inhibitor,
+            config=Config(),
+            platform_services=make_applet_platform(),
+        )
 
         applet.on_clicked()
 
@@ -264,7 +293,12 @@ class TestApplet:
 
     def test_second_click_releases(self):
         inhibitor = FakeInhibitor()
-        applet = CaffeineApplet(48, inhibitor=inhibitor, config=Config())
+        applet = CaffeineApplet(
+            48,
+            inhibitor=inhibitor,
+            config=Config(),
+            platform_services=make_applet_platform(),
+        )
 
         applet.on_clicked()
         applet.on_clicked()
@@ -275,7 +309,12 @@ class TestApplet:
 
     def test_timed_tick_to_zero_releases(self):
         inhibitor = FakeInhibitor()
-        applet = CaffeineApplet(48, inhibitor=inhibitor, config=Config())
+        applet = CaffeineApplet(
+            48,
+            inhibitor=inhibitor,
+            config=Config(),
+            platform_services=make_applet_platform(),
+        )
         applet._data = CaffeineState(active=True, duration_min=1, remaining=1)
         inhibitor.acquire()
 
@@ -287,7 +326,12 @@ class TestApplet:
 
     def test_stop_releases(self):
         inhibitor = FakeInhibitor()
-        applet = CaffeineApplet(48, inhibitor=inhibitor, config=Config())
+        applet = CaffeineApplet(
+            48,
+            inhibitor=inhibitor,
+            config=Config(),
+            platform_services=make_applet_platform(),
+        )
         applet.on_clicked()
 
         applet.stop()
@@ -295,7 +339,12 @@ class TestApplet:
         assert inhibitor.active is False
 
     def test_menu_lists_duration_choices(self):
-        applet = CaffeineApplet(48, inhibitor=FakeInhibitor(), config=Config())
+        applet = CaffeineApplet(
+            48,
+            inhibitor=FakeInhibitor(),
+            config=Config(),
+            platform_services=make_applet_platform(),
+        )
         labels = [
             item.get_label() for item in applet.get_menu_items() if item.get_label()
         ]
@@ -303,7 +352,12 @@ class TestApplet:
         assert "30 min" in labels
 
     def test_menu_shows_status_header(self):
-        applet = CaffeineApplet(48, inhibitor=FakeInhibitor(), config=Config())
+        applet = CaffeineApplet(
+            48,
+            inhibitor=FakeInhibitor(),
+            config=Config(),
+            platform_services=make_applet_platform(),
+        )
         labels = [item.get_label() for item in applet.get_menu_items()]
         assert "Off" in labels
 
@@ -317,13 +371,17 @@ class TestApplet:
 
 class TestScreenSaverInhibitor:
     def test_initial_state_inactive(self):
-        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            ScreenSaverInhibitor,
+        )
 
         inh = ScreenSaverInhibitor()
         assert inh.active is False
 
     def test_acquire_releases_then_release_is_noop(self):
-        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            ScreenSaverInhibitor,
+        )
 
         inh = ScreenSaverInhibitor()
         # Release when never acquired is a no-op
@@ -331,7 +389,9 @@ class TestScreenSaverInhibitor:
         assert inh.active is False
 
     def test_release_after_manual_clear_is_noop(self):
-        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            ScreenSaverInhibitor,
+        )
 
         inh = ScreenSaverInhibitor()
         inh._cookie = 42  # Simulate acquired state
@@ -345,20 +405,26 @@ class TestScreenSaverInhibitor:
 
 class TestSystemdSleepInhibitor:
     def test_initial_state_inactive(self):
-        from docking.applets.caffeine.inhibit import SystemdSleepInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            SystemdSleepInhibitor,
+        )
 
         inh = SystemdSleepInhibitor()
         assert inh.active is False
 
     def test_release_when_never_acquired_is_noop(self):
-        from docking.applets.caffeine.inhibit import SystemdSleepInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            SystemdSleepInhibitor,
+        )
 
         inh = SystemdSleepInhibitor()
         inh.release()
         assert inh.active is False
 
     def test_release_when_proc_already_finished_is_noop(self):
-        from docking.applets.caffeine.inhibit import SystemdSleepInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            SystemdSleepInhibitor,
+        )
 
         inh = SystemdSleepInhibitor()
         fake_proc = MagicMock()
@@ -368,7 +434,9 @@ class TestSystemdSleepInhibitor:
         assert inh.active is False
 
     def test_release_terminate_oserror_is_handled(self):
-        from docking.applets.caffeine.inhibit import SystemdSleepInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            SystemdSleepInhibitor,
+        )
 
         inh = SystemdSleepInhibitor()
         fake_proc = MagicMock()
@@ -381,12 +449,17 @@ class TestSystemdSleepInhibitor:
     def test_release_timeout_triggers_kill(self):
         import subprocess
 
-        from docking.applets.caffeine.inhibit import SystemdSleepInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            SystemdSleepInhibitor,
+        )
 
         inh = SystemdSleepInhibitor()
         fake_proc = MagicMock()
         fake_proc.poll.return_value = None  # Still running
-        fake_proc.wait.side_effect = subprocess.TimeoutExpired(cmd="test", timeout=2)
+        fake_proc.wait.side_effect = [
+            subprocess.TimeoutExpired(cmd="test", timeout=2),
+            0,
+        ]
         inh._proc = fake_proc
         inh.release()
         fake_proc.kill.assert_called_once()
@@ -395,9 +468,12 @@ class TestSystemdSleepInhibitor:
 
 class TestCompositeInhibitorParts:
     def test_default_constructor_creates_parts(self):
-        from docking.applets.caffeine.inhibit import CompositeInhibitor
 
-        comp = CompositeInhibitor()
+        from docking.applets.caffeine.implementations.unix.backend import (
+            default_inhibitor,
+        )
+
+        comp = default_inhibitor()
         assert len(comp._parts) == 2  # ScreenSaver + SystemdSleep
 
     def test_active_property_when_none_active(self):
@@ -419,20 +495,20 @@ class TestCompositeInhibitorParts:
         comp.acquire()
         assert comp.active is True
 
-    def test_default_inhibitor_returns_composite(self):
-        from docking.applets.caffeine.inhibit import (
-            CompositeInhibitor,
-            default_inhibitor,
-        )
+    def test_default_unix_inhibitor_returns_composite(self, monkeypatch):
+        from docking.applets.caffeine.inhibit import CompositeInhibitor
+        from docking.platform.composition.linux import LinuxAppletBackendFactories
 
-        inh = default_inhibitor()
+        inh = LinuxAppletBackendFactories().caffeine()
         assert isinstance(inh, CompositeInhibitor)
         assert len(inh._parts) == 2
 
 
 class TestScreenSaverInhibitorDBus:
     def test_acquire_already_active_returns_true(self):
-        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            ScreenSaverInhibitor,
+        )
 
         inh = ScreenSaverInhibitor()
         inh._cookie = 42
@@ -443,11 +519,13 @@ class TestScreenSaverInhibitorDBus:
     def test_acquire_no_session_bus_returns_false(self, monkeypatch):
         from gi.repository import GLib
 
-        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            ScreenSaverInhibitor,
+        )
 
         inh = ScreenSaverInhibitor()
         monkeypatch.setattr(
-            "docking.applets.caffeine.inhibit.Gio.bus_get_sync",
+            "docking.applets.caffeine.implementations.unix.backend.Gio.bus_get_sync",
             lambda *a: (_ for _ in ()).throw(
                 GLib.Error(message="no bus", domain="g-io-error-quark", code=0)
             ),
@@ -455,13 +533,15 @@ class TestScreenSaverInhibitorDBus:
         assert inh.acquire() is False
 
     def test_acquire_calls_dbus_and_succeeds(self, monkeypatch):
-        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            ScreenSaverInhibitor,
+        )
 
         inh = ScreenSaverInhibitor()
         fake_conn = MagicMock()
         fake_conn.call_sync.return_value.unpack.return_value = (42,)
         monkeypatch.setattr(
-            "docking.applets.caffeine.inhibit.Gio.bus_get_sync",
+            "docking.applets.caffeine.implementations.unix.backend.Gio.bus_get_sync",
             lambda *a: fake_conn,
         )
         assert inh.acquire() is True
@@ -471,7 +551,9 @@ class TestScreenSaverInhibitorDBus:
     def test_acquire_all_targets_fail_returns_false(self, monkeypatch):
         from gi.repository import GLib
 
-        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            ScreenSaverInhibitor,
+        )
 
         inh = ScreenSaverInhibitor()
         fake_conn = MagicMock()
@@ -479,13 +561,15 @@ class TestScreenSaverInhibitorDBus:
             message="fail", domain="g-io-error-quark", code=0
         )
         monkeypatch.setattr(
-            "docking.applets.caffeine.inhibit.Gio.bus_get_sync",
+            "docking.applets.caffeine.implementations.unix.backend.Gio.bus_get_sync",
             lambda *a: fake_conn,
         )
         assert inh.acquire() is False
 
     def test_release_calls_uninhibit(self, monkeypatch):
-        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            ScreenSaverInhibitor,
+        )
 
         inh = ScreenSaverInhibitor()
         fake_conn = MagicMock()
@@ -503,7 +587,9 @@ class TestScreenSaverInhibitorDBus:
     def test_release_uninhibit_glib_error_is_handled(self, monkeypatch):
         from gi.repository import GLib
 
-        from docking.applets.caffeine.inhibit import ScreenSaverInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            ScreenSaverInhibitor,
+        )
 
         inh = ScreenSaverInhibitor()
         fake_conn = MagicMock()
@@ -524,7 +610,9 @@ class TestScreenSaverInhibitorDBus:
 
 class TestSystemdSleepInhibitorProc:
     def test_acquire_already_active_returns_true(self):
-        from docking.applets.caffeine.inhibit import SystemdSleepInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            SystemdSleepInhibitor,
+        )
 
         inh = SystemdSleepInhibitor()
         fake_proc = MagicMock()
@@ -535,7 +623,9 @@ class TestSystemdSleepInhibitorProc:
     def test_acquire_oserror_returns_false(self, monkeypatch):
         import subprocess
 
-        from docking.applets.caffeine.inhibit import SystemdSleepInhibitor
+        from docking.applets.caffeine.implementations.unix.backend import (
+            SystemdSleepInhibitor,
+        )
 
         inh = SystemdSleepInhibitor()
         monkeypatch.setattr(

@@ -1,4 +1,4 @@
-"""Import the installed .deb runtime using the wrapper's private paths."""
+"""Check the installed runtime and desktop assets using the wrapper's paths."""
 
 from __future__ import annotations
 
@@ -8,6 +8,11 @@ import importlib.util
 import sys
 from pathlib import Path
 
+import gi
+
+gi.require_version("GdkPixbuf", "2.0")
+from gi.repository import GdkPixbuf, Gio
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--require-wayland", action="store_true")
 args = parser.parse_args()
@@ -16,11 +21,18 @@ python_minor = f"{sys.version_info.major}.{sys.version_info.minor}"
 paths = [
     Path(f"/usr/lib/docking/vendor-python{python_minor}"),
     Path("/usr/lib/docking/python"),
-    Path("/usr/lib/docking/vendor"),
 ]
 sys.path[:0] = [str(path) for path in paths if path.is_dir()]
 
-for module in ("openmeteo_requests", "requests_cache", "retry_requests", "docking.app"):
+assert Gio.SettingsSchemaSource.get_default() is not None, "Missing GSettings cache"
+clock_svg = Path(
+    "/usr/lib/docking/python/docking/assets/clock/Default/clock-drop-shadow.svg"
+)
+pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(str(clock_svg), 32, 32)
+assert pixbuf.get_width() == 32 and pixbuf.get_height() == 32
+print("Decoded the installed clock SVG and found the GSettings cache")
+
+for module in ("docking.applets.weather.api", "docking.app"):
     imported = importlib.import_module(module)
     print(f"Imported {module} from {imported.__file__}")
 

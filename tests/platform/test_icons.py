@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import os
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from types import SimpleNamespace
 from unittest.mock import MagicMock, call
 
 import pytest
+
+from tests.platform_factories import make_icon_loader
 
 try:
     import gi  # noqa: F401
@@ -22,7 +26,7 @@ from docking.platform.applications.types import (
     ApplicationLocation,
     ApplicationOrigin,
 )
-from docking.platform.icons import FileIconInfo, IconLoader
+from docking.platform.icons import FileIconInfo
 
 
 @pytest.mark.parametrize("image_format", ["png", "jpeg"])
@@ -35,7 +39,7 @@ def test_file_thumbnail_provenance_survives_cache_and_pixbuf_wrapper(
     )
     pixbuf.fill(0x4684DCFF)
     pixbuf.savev(str(path), image_format, [], [])
-    loader = IconLoader()
+    loader = make_icon_loader()
     args = {
         "target": path.as_uri(),
         "gicon": None,
@@ -59,7 +63,7 @@ def test_failed_image_thumbnail_keeps_fallback_icon_unstyled(
     path = tmp_path / "broken.png"
     if failure != "missing":
         path.write_bytes(b"not an image")
-    loader = IconLoader()
+    loader = make_icon_loader()
     fallback = object()
     load_gicon = MagicMock(return_value=fallback)
     monkeypatch.setattr(loader, "load_gicon", load_gicon)
@@ -92,7 +96,7 @@ def test_file_thumbnail_can_load_larger_source_without_enlarging_themed_icons(tm
     )
     pixbuf.fill(0x4684DCFF)
     pixbuf.savev(str(path), "png", [], [])
-    loader = IconLoader()
+    loader = make_icon_loader()
 
     result = loader.resolve_file_icon_info(
         target=path.as_uri(),
@@ -126,8 +130,25 @@ def _application(**changes) -> ApplicationInfo:
     return ApplicationInfo(**values)
 
 
+def test_canonical_application_file_uri_artwork_keeps_unicode_and_literal_uri_characters(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "résumé # 100% + icon.png"
+    source = icons_mod.GdkPixbuf.Pixbuf.new(
+        icons_mod.GdkPixbuf.Colorspace.RGB, True, 8, 48, 48
+    )
+    source.fill(0x32A864FF)
+    source.savev(str(path), "png", [], [])
+    loader = make_icon_loader()
+    monkeypatch.setattr(loader, "_source_application_icon", lambda *_args: None)
+    actual = loader.load_desktop_icon(_application(declared_icon=path.as_uri()), 32)
+    assert actual is not None
+    assert (actual.get_width(), actual.get_height()) == (32, 32)
+    assert bytes(actual.get_pixels())[:4] == bytes(source.get_pixels())[:4]
+
+
 def test_missing_steam_cache_art_uses_game_theme_icon(monkeypatch):
-    loader = IconLoader()
+    loader = make_icon_loader()
     pixbuf = object()
     load = MagicMock(side_effect=[None, pixbuf])
     monkeypatch.setattr(loader, "_try_load_icon_without_fallback", load)
@@ -142,6 +163,24 @@ def test_missing_steam_cache_art_uses_game_theme_icon(monkeypatch):
         call(icon_name="/missing/440_icon.jpg", size=48),
         call(icon_name="steam_icon_440", size=48),
     ]
+
+
+def test_distinct_byte_icons_without_serialized_names_keep_distinct_pixels():
+    loader = make_icon_loader()
+    actual = []
+    for color in (0xCC4422FF, 0x2288CCFF):
+        image = icons_mod.GdkPixbuf.Pixbuf.new(
+            icons_mod.GdkPixbuf.Colorspace.RGB, True, 8, 16, 16
+        )
+        image.fill(color)
+        ok, data = image.save_to_bufferv("png", [], [])
+        assert ok
+        icon = icons_mod.Gio.BytesIcon.new(icons_mod.GLib.Bytes.new(data))
+        assert icon.to_string() is None
+        loaded = loader.load_gicon(icon, 16)
+        assert loaded is not None
+        actual.append(bytes(loaded.get_pixels())[:4])
+    assert actual == [b"\xcc\x44\x22\xff", b"\x22\x88\xcc\xff"]
 
 
 def test_default_file_normalizer_handles_only_local_targets(tmp_path):
@@ -162,7 +201,7 @@ def test_default_file_normalizer_handles_only_local_targets(tmp_path):
 
 
 def test_named_icon_cache_preserves_pixbuf_identity(monkeypatch):
-    loader = IconLoader()
+    loader = make_icon_loader()
     pixbuf = object()
     load = MagicMock(return_value=pixbuf)
     monkeypatch.setattr(loader, "_try_load_icon", load)
@@ -194,20 +233,61 @@ def test_host_icon_candidates_and_theme_search_paths(tmp_path, monkeypatch):
         (str(existing), str(pixmaps), str(tmp_path / "missing")),
     )
 
-    assert icons_mod._host_icon_file_candidates("/opt/example/icon.png") == [
-        Path("/opt/example/icon.png"),
-        Path("/run/host/opt/example/icon.png"),
-    ]
-    assert icons_mod._host_icon_file_candidates("/run/host/opt/example/icon.png") == [
-        Path("/run/host/opt/example/icon.png")
-    ]
+    if os.name == "nt":
+        assert icons_mod._host_icon_file_candidates("/opt/example/icon.png") == []
+        native_icon = tmp_path / "icon.png"
+        assert icons_mod._host_icon_file_candidates(str(native_icon)) == [native_icon]
+    else:
+        assert icons_mod._host_icon_file_candidates("/opt/example/icon.png") == [
+            Path("/opt/example/icon.png"),
+            Path("/run/host/opt/example/icon.png"),
+        ]
+        assert icons_mod._host_icon_file_candidates(
+            "/run/host/opt/example/icon.png"
+        ) == [Path("/run/host/opt/example/icon.png")]
     assert icons_mod._host_icon_file_candidates("example") == []
     assert icons_mod._create_icon_theme() is theme
     theme.append_search_path.assert_called_once_with(str(pixmaps))
 
 
+@pytest.mark.parametrize(
+    "flavour,separator,target,expected",
+    [
+        (PurePosixPath, "/", "relative/icon.png", []),
+        (
+            PurePosixPath,
+            "/",
+            "/opt/icon.png",
+            ["/opt/icon.png", "/run/host/opt/icon.png"],
+        ),
+        (PurePosixPath, "/", "/run/host/opt/icon.png", ["/run/host/opt/icon.png"]),
+        (PureWindowsPath, "\\", r"C:\Icons\résumé.png", [r"C:\Icons\résumé.png"]),
+        (
+            PureWindowsPath,
+            "\\",
+            r"\\server\share\icon.png",
+            [r"\\server\share\icon.png"],
+        ),
+        (PureWindowsPath, "\\", r"relative\icon.png", []),
+        (PureWindowsPath, "\\", r"C:Icons\icon.png", []),
+        (PureWindowsPath, "\\", r"\Icons\icon.png", []),
+    ],
+)
+def test_file_candidates_preserve_posix_drive_unc_and_relative_semantics(
+    monkeypatch, flavour, separator, target, expected
+):
+    # Pure path flavours let each host verify both filesystem grammars without
+    # changing the process OS or touching the filesystem.
+    monkeypatch.setattr(icons_mod, "Path", flavour)
+    monkeypatch.setattr(icons_mod, "os", SimpleNamespace(sep=separator))
+    monkeypatch.setattr(icons_mod, "HOST_FILESYSTEM_ROOT", flavour("/run/host"))
+    assert icons_mod._host_icon_file_candidates(target) == [
+        flavour(name) for name in expected
+    ]
+
+
 def test_gicon_lookup_is_cached_by_string_identity(monkeypatch):
-    loader = IconLoader()
+    loader = make_icon_loader()
     pixbuf = object()
     icon_info = MagicMock()
     icon_info.load_icon.return_value = pixbuf
@@ -232,7 +312,7 @@ def test_gicon_lookup_is_cached_by_string_identity(monkeypatch):
 def test_desktop_icon_tries_executable_basename_before_generic_fallback(
     monkeypatch,
 ):
-    loader = IconLoader()
+    loader = make_icon_loader()
     pixbuf = object()
     lookup = MagicMock(side_effect=[None, pixbuf])
     fallback = MagicMock()
@@ -256,7 +336,7 @@ def test_desktop_icon_tries_executable_basename_before_generic_fallback(
 
 def test_missing_icon_uses_and_caches_fallback_or_absence(monkeypatch):
     fallback_pixbuf = object()
-    loader = IconLoader()
+    loader = make_icon_loader()
     lookup = MagicMock(return_value=None)
     fallback = MagicMock(return_value=fallback_pixbuf)
     monkeypatch.setattr(loader, "_try_load_icon_without_fallback", lookup)
@@ -267,7 +347,7 @@ def test_missing_icon_uses_and_caches_fallback_or_absence(monkeypatch):
     lookup.assert_called_once()
     fallback.assert_called_once()
 
-    absent_loader = IconLoader()
+    absent_loader = make_icon_loader()
     absent_lookup = MagicMock(return_value=None)
     absent_fallback = MagicMock(return_value=None)
     monkeypatch.setattr(
@@ -297,7 +377,7 @@ def test_file_thumbnail_cache_is_lru(tmp_path, monkeypatch):
         raising=False,
     )
     monkeypatch.setattr(icons_mod, "FILE_ICON_CACHE_MAX_ENTRIES", 2)
-    loader = IconLoader()
+    loader = make_icon_loader()
 
     first = loader.load_icon_file(paths[0], 48)
     second = loader.load_icon_file(paths[1], 48)
@@ -312,7 +392,7 @@ def test_file_thumbnail_cache_is_lru(tmp_path, monkeypatch):
 
 
 def test_application_metadata_reuses_desktop_cache_identity(monkeypatch):
-    loader = IconLoader()
+    loader = make_icon_loader()
     pixbuf = object()
     lookup = MagicMock(return_value=pixbuf)
     monkeypatch.setattr(loader, "_try_load_icon_without_fallback", lookup)

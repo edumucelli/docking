@@ -23,11 +23,14 @@ from docking.platform.backends.base import (
     WindowSnapshot,
 )
 from docking.search.controller import GlobalSearchController
-from docking.search.services.global_shortcuts import (
+from docking.search.services.global_shortcuts import GlobalShortcutService
+from docking.search.services.implementations.unix.platform import UnixSearchIntegration
+from docking.search.services.implementations.unix.shortcuts import (
     GlobalShortcutBinding,
     GlobalShortcutsState,
     GlobalShortcutsStatus,
 )
+from docking.search.services.platform import ShortcutFallback
 from docking.search.types import (
     SearchAction,
     SearchIdentity,
@@ -171,7 +174,7 @@ def _make_controller(
         list_windows=lambda _desktop_id: (),
         icon_name_for_desktop=lambda _desktop_id: "application-x-executable",
     )
-    shortcuts = MagicMock()
+    shortcuts = MagicMock(spec=GlobalShortcutService)
     config = Config()
 
     if schedule_idle is None:
@@ -214,6 +217,7 @@ def _make_controller(
         applications if application_registry is None else application_registry
     )
     controller = GlobalSearchController(
+        integration=UnixSearchIntegration(),
         config=config,
         model=cast(Any, model),
         windows=cast(Any, windows),
@@ -426,7 +430,7 @@ def test_shortcut_status_uses_concise_text_and_summary(
 
 
 def test_x11_fallback_activates_when_portal_is_unavailable(monkeypatch) -> None:
-    fallback = MagicMock()
+    fallback = MagicMock(spec=ShortcutFallback)
     fallback.active = False
     fallback.error = None
 
@@ -459,7 +463,7 @@ def test_x11_fallback_activates_when_portal_is_unavailable(monkeypatch) -> None:
 
 
 def test_x11_fallback_does_not_override_portal_denial(monkeypatch) -> None:
-    fallback = MagicMock(active=False, error=None)
+    fallback = MagicMock(spec=ShortcutFallback, active=False, error=None)
     controller, _window, _apps, _recent, _shortcuts = _make_controller(
         monkeypatch,
         shortcut_fallback=fallback,
@@ -474,7 +478,7 @@ def test_x11_fallback_does_not_override_portal_denial(monkeypatch) -> None:
 
 
 def test_x11_shortcut_conflict_is_actionable(monkeypatch) -> None:
-    fallback = MagicMock()
+    fallback = MagicMock(spec=ShortcutFallback)
     fallback.active = False
     fallback.error = "shortcut is already in use"
     controller, _window, _apps, _recent, _shortcuts = _make_controller(
@@ -727,7 +731,7 @@ def test_shortcut_status_names_the_trigger_when_the_desktop_reports_one(
 def test_shortcut_status_distinguishes_fallback_failures(monkeypatch) -> None:
     """A shortcut conflict needs different advice than a generic failure."""
     controller, *_ = _make_controller(monkeypatch)
-    fallback = MagicMock()
+    fallback = MagicMock(spec=ShortcutFallback)
     fallback.active = False
     controller._shortcut_fallback = fallback
 
@@ -777,3 +781,71 @@ def test_shortcut_status_notifications_do_not_leak_a_slow_listener(
     controller._notify_shortcut_status()
 
     assert seen == ["first", "second"]
+
+
+def test_window_preview_cache_rejects_closed_and_reused_process_identity(monkeypatch):
+    from dataclasses import replace
+
+    controller, _window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
+    window_id = WindowId(DisplayServer.X11, 100)
+    snapshot = WindowSnapshot(
+        id=window_id, desktop_id="fixture", pid=101, can_preview=True
+    )
+    windows = MagicMock(list_all_windows=MagicMock(return_value=(snapshot,)))
+    controller._windows = windows
+    first = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, 28, 20)
+    second = first.copy()
+    controller._preview_service = MagicMock(
+        capture=MagicMock(return_value=PreviewImage(first, 28, 20))
+    )
+    preview = SearchPreview(
+        title="Fixture", body="Native window", kind="window", target=str(window_id)
+    )
+    assert controller._load_dynamic_preview(preview, 28, 20).pixbuf is first
+    windows.list_all_windows.return_value = ()
+    assert controller._load_dynamic_preview(preview, 28, 20) is None
+    windows.list_all_windows.return_value = (replace(snapshot, pid=202),)
+    controller._preview_service.capture.return_value = PreviewImage(second, 28, 20)
+    assert controller._load_dynamic_preview(preview, 28, 20).pixbuf is second
+
+
+def test_windows_shortcut_conflict_uses_existing_actionable_feedback(monkeypatch):
+    controller, _window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
+    controller._shortcut_status = GlobalShortcutsStatus(
+        state=GlobalShortcutsState.ERROR, message="shortcut is already in use"
+    )
+    assert controller.shortcut_status_text() == "Shortcut already in use"
+    assert controller.shortcut_status_summary() == "Conflict"
+
+
+def test_shortcut_composition_uses_shared_platform_factories(monkeypatch):
+    primary, fallback = MagicMock(), MagicMock()
+    controller = SimpleNamespace(
+        _integration=SimpleNamespace(primary=primary, fallback=fallback),
+        _config=Config(),
+        _on_global_shortcut=MagicMock(),
+        _on_shortcut_status=MagicMock(),
+        _on_fallback_shortcut=MagicMock(),
+        _schedule_idle=MagicMock(),
+    )
+    assert (
+        GlobalSearchController._new_shortcut_service(controller) is primary.return_value
+    )
+    assert (
+        GlobalSearchController._new_shortcut_fallback(controller)
+        is fallback.return_value
+    )
+    assert primary.call_args.kwargs == {
+        "app_id": controller_mod.application_id(),
+        "preferred_trigger": "CTRL+ALT+space",
+        "trigger_description": "Ctrl+Alt+Space",
+        "on_activated": controller._on_global_shortcut,
+        "on_status_changed": controller._on_shortcut_status,
+        "schedule_idle": controller._schedule_idle,
+        "remove_source": controller_mod.GLib.source_remove,
+    }
+    assert fallback.call_args.kwargs == {
+        "shortcut": "CTRL+ALT+space",
+        "on_activated": controller._on_fallback_shortcut,
+        "schedule_idle": controller._schedule_idle,
+    }

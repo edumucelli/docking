@@ -91,6 +91,8 @@ def _bind_geometry_signature(stub):
 
 
 def _controller(stub):
+    if not hasattr(stub, "surface_service"):
+        stub.surface_service = SimpleNamespace(input_region_alpha=0.0)
     interactions = getattr(stub, "_interactions", MagicMock())
     interactions.show_applet_stack.return_value = False
     controller = SimpleNamespace(

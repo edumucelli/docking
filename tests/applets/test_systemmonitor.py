@@ -5,18 +5,24 @@ import subprocess
 import pytest
 
 import docking.applets.systemmonitor.applet as systemmonitor_mod
-import docking.applets.systemmonitor.gpu as gpu_mod
-import docking.applets.systemmonitor.linux as linux_mod
+import docking.applets.systemmonitor.implementations.linux.backend as linux_mod
+import docking.applets.systemmonitor.implementations.linux.temperature as native_systemmonitor_temperature
 import docking.applets.systemmonitor.temperature as temperature_mod
 from docking.applets.systemmonitor.applet import SystemMonitorApplet
 from docking.applets.systemmonitor.gpu import (
-    GpuReader,
     GpuStats,
     gpu_summary,
     parse_nvidia_smi_output,
 )
-from docking.applets.systemmonitor.linux import (
+from docking.applets.systemmonitor.implementations.linux.backend import (
     LinuxTemperatureReader as TemperatureReader,
+)
+from docking.applets.systemmonitor.implementations.linux.gpu import GpuReader
+from docking.applets.systemmonitor.implementations.linux.temperature import (
+    discover_available_commands,
+    discover_sysfs_temperature_path,
+    read_command_temperature,
+    read_temperature_file,
 )
 from docking.applets.systemmonitor.state import (
     CpuSample,
@@ -32,17 +38,14 @@ from docking.applets.systemmonitor.state import (
 )
 from docking.applets.systemmonitor.temperature import (
     CommandBackend,
-    discover_available_commands,
-    discover_sysfs_temperature_path,
     parse_acpi_output,
     parse_sensors_output,
     parse_sysfs_temperature,
     parse_vcgencmd_output,
-    read_command_temperature,
-    read_temperature_file,
 )
 from docking.applets.worker import BackgroundWorker
 from docking.core.config import Config
+from tests.platform_factories import make_applet_platform
 
 
 @pytest.fixture
@@ -324,7 +327,7 @@ class TestTemperatureDiscovery:
 
     def test_run_command_success_error_and_exception(self, monkeypatch):
         monkeypatch.setattr(
-            temperature_mod.subprocess,
+            native_systemmonitor_temperature.subprocess,
             "run",
             lambda *_args, **_kwargs: subprocess.CompletedProcess(
                 args=["sensors"],
@@ -332,10 +335,10 @@ class TestTemperatureDiscovery:
                 stdout="ok",
             ),
         )
-        assert temperature_mod._run_command(["sensors"], 0.1) == "ok"
+        assert native_systemmonitor_temperature._run_command(["sensors"], 0.1) == "ok"
 
         monkeypatch.setattr(
-            temperature_mod.subprocess,
+            native_systemmonitor_temperature.subprocess,
             "run",
             lambda *_args, **_kwargs: subprocess.CompletedProcess(
                 args=["sensors"],
@@ -343,13 +346,17 @@ class TestTemperatureDiscovery:
                 stdout="bad",
             ),
         )
-        assert temperature_mod._run_command(["sensors"], 0.1) is None
+        assert native_systemmonitor_temperature._run_command(["sensors"], 0.1) is None
 
         def fail(*_args, **_kwargs):
             raise OSError("nope")
 
-        monkeypatch.setattr(temperature_mod.subprocess, "run", fail)
-        assert temperature_mod._run_command(["sensors"], 0.1) is None
+        monkeypatch.setattr(
+            native_systemmonitor_temperature.subprocess,
+            "run",
+            fail,
+        )
+        assert native_systemmonitor_temperature._run_command(["sensors"], 0.1) is None
 
     def test_score_and_pick_best_helpers(self, tmp_path):
         assert temperature_mod._score_text("CPU package", (("cpu", 10),)) == 10
@@ -481,7 +488,7 @@ class TestGpuReader:
 
     def test_reader_returns_none_when_driver_unavailable(self):
         def fake_run(*_args, **_kwargs):
-            return gpu_mod.subprocess.CompletedProcess(
+            return native_systemmonitor_temperature.subprocess.CompletedProcess(
                 args=["nvidia-smi"],
                 returncode=9,
                 stdout="",
@@ -543,20 +550,26 @@ class TestCpuHueRgb:
 class TestSystemMonitorRendering:
     @pytest.mark.parametrize("size", [32, 48, 64])
     def test_renders_valid_pixbuf(self, size):
-        applet = SystemMonitorApplet(size, config=Config())
+        applet = SystemMonitorApplet(
+            size, config=Config(), platform_services=make_applet_platform()
+        )
         pixbuf = applet.create_icon(size)
         assert pixbuf is not None
         assert pixbuf.get_width() == size
         assert pixbuf.get_height() == size
 
     def test_menu_has_show_disk(self):
-        applet = SystemMonitorApplet(48, config=Config())
+        applet = SystemMonitorApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         items = applet.get_menu_items()
         assert items[0].get_label() == "Show Disk Usage"
         assert items[1].get_label() == "Temperature Unit"
 
     def test_tooltip_format(self):
-        applet = SystemMonitorApplet(48, config=Config())
+        applet = SystemMonitorApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         applet._cpu = 0.423
         applet._mem = 0.671
         applet._temperature_c = 58.4
@@ -573,7 +586,9 @@ class TestSystemMonitorRendering:
         assert "GPU: 33%" in applet.item.name
 
     def test_tooltip_uses_selected_temperature_unit(self):
-        applet = SystemMonitorApplet(48, config=Config())
+        applet = SystemMonitorApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         applet._cpu = 0.423
         applet._mem = 0.671
         applet._temperature_c = 58.4
@@ -586,7 +601,9 @@ class TestSystemMonitorRendering:
         from docking.core.config import Config
 
         config = Config(applet_prefs={})
-        applet = SystemMonitorApplet(48, config=config)
+        applet = SystemMonitorApplet(
+            48, config=config, platform_services=make_applet_platform()
+        )
         item = systemmonitor_mod.Gtk.RadioMenuItem(label="Fahrenheit")
         item.set_active(True)
 
@@ -601,7 +618,9 @@ class TestSystemMonitorRendering:
         }
 
     def test_icon_has_visible_content(self):
-        applet = SystemMonitorApplet(48, config=Config())
+        applet = SystemMonitorApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         applet._cpu = 0.5
         applet._mem = 0.3
         pixbuf = applet.create_icon(48)
@@ -612,7 +631,9 @@ class TestSystemMonitorRendering:
 
 class TestSystemMonitorLifecycle:
     def test_start_registers_timer(self, monkeypatch):
-        applet = SystemMonitorApplet(48, config=Config())
+        applet = SystemMonitorApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         monkeypatch.setattr(
             systemmonitor_mod.GLib, "timeout_add_seconds", lambda _s, _cb: 123
         )
@@ -620,7 +641,9 @@ class TestSystemMonitorLifecycle:
         assert applet._timer_id == 123
 
     def test_stop_removes_timer(self, monkeypatch):
-        applet = SystemMonitorApplet(48, config=Config())
+        applet = SystemMonitorApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         applet._timer_id = 77
         removed = []
         monkeypatch.setattr(
@@ -643,7 +666,9 @@ class TestSystemMonitorLifecycle:
             encoding="utf-8",
         )
 
-        applet = SystemMonitorApplet(48, config=Config())
+        applet = SystemMonitorApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         start_polling(applet)
         monkeypatch.setattr(linux_mod, "_PROC_STAT", proc_stat)
         monkeypatch.setattr(linux_mod, "_PROC_MEMINFO", proc_meminfo)
@@ -659,7 +684,9 @@ class TestSystemMonitorLifecycle:
     def test_tick_handles_proc_stat_read_error(
         self, tmp_path, monkeypatch, start_polling
     ):
-        applet = SystemMonitorApplet(48, config=Config())
+        applet = SystemMonitorApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         start_polling(applet)
         monkeypatch.setattr(linux_mod, "_PROC_STAT", tmp_path / "missing-stat")
         assert applet._tick() is True
@@ -670,7 +697,9 @@ class TestSystemMonitorLifecycle:
         proc_stat = tmp_path / "stat"
         proc_stat.write_text("cpu  200 0 100 100 0 0 0\n", encoding="utf-8")
 
-        applet = SystemMonitorApplet(48, config=Config())
+        applet = SystemMonitorApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         start_polling(applet)
         monkeypatch.setattr(linux_mod, "_PROC_STAT", proc_stat)
         monkeypatch.setattr(
@@ -692,7 +721,9 @@ class TestSystemMonitorLifecycle:
             encoding="utf-8",
         )
 
-        applet = SystemMonitorApplet(48, config=Config())
+        applet = SystemMonitorApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         start_polling(applet)
         applet._cpu = 0.5
         applet._mem = 0.25
@@ -726,7 +757,9 @@ class TestSystemMonitorLifecycle:
             encoding="utf-8",
         )
 
-        applet = SystemMonitorApplet(48, config=Config())
+        applet = SystemMonitorApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         start_polling(applet)
         applet._cpu = 0.5
         applet._mem = 0.25
@@ -762,7 +795,9 @@ class TestSystemMonitorLifecycle:
             encoding="utf-8",
         )
 
-        applet = SystemMonitorApplet(48, config=Config())
+        applet = SystemMonitorApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
         start_polling(applet)
         applet._cpu = 0.5
         applet._mem = 0.25

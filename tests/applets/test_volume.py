@@ -2,23 +2,31 @@
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 import docking.applets.volume.applet as volume_applet_mod
-import docking.applets.volume.command as volume_command_mod
-import docking.applets.volume.linux as linux_mod
-import docking.applets.volume.pulseaudio as pulseaudio_mod
-import docking.applets.volume.state as volume_state_mod
+import docking.applets.volume.implementations.linux.backend as linux_mod
+import docking.applets.volume.implementations.unix.command as volume_command_mod
+import docking.applets.volume.implementations.unix.desktop_settings as volume_settings_mod
+import docking.applets.volume.implementations.unix.pulseaudio as pulseaudio_mod
 from docking.applets.volume.applet import VolumeApplet
-from docking.applets.volume.backend import create_backend
-from docking.applets.volume.state import (
-    VolumeState,
-    _parse_amixer,
-    _parse_pactl_mute,
-    _parse_pactl_volume,
-    _volume_icon_name,
+from docking.applets.volume.backend import VolumeBackend, VolumeSettings
+from docking.applets.volume.implementations.linux.backend import _parse_amixer
+from docking.applets.volume.implementations.unix.desktop_settings import (
     open_volume_settings,
     volume_settings_command,
 )
+from docking.applets.volume.implementations.unix.pulseaudio import (
+    _parse_pactl_mute,
+    _parse_pactl_volume,
+)
+from docking.applets.volume.state import (
+    VolumeState,
+    _volume_icon_name,
+)
 from docking.core.config import Config
+from docking.platform import environment
+from tests.platform_factories import TestAppletBackendFactories, make_applet_platform
 
 
 class _ImmediateWorker:
@@ -38,6 +46,9 @@ class _ImmediateWorker:
     def run_guarded(self, *, key, **kwargs):
         self.run(**kwargs)
         return True
+
+    def stop(self):
+        pass
 
 
 # -- Parsers ------------------------------------------------------------------
@@ -131,24 +142,51 @@ class TestVolumeIconName:
 
 
 class TestDetectBackend:
+    @pytest.fixture(autouse=True)
+    def unix_environment(self, monkeypatch):
+
+        monkeypatch.setattr(environment, "is_bsd", lambda: False)
+
     def test_returns_first_available(self):
         with patch(
-            "docking.applets.volume.linux.shutil.which",
+            "docking.applets.volume.implementations.linux.backend.shutil.which",
             side_effect=[None, "/usr/bin/amixer"],
         ):
-            result = create_backend()
-        assert result is not None
-        assert result.command == "amixer"
+            result = TestAppletBackendFactories().volume()
+        assert result.controls is not None
+        assert result.controls.command == "amixer"
 
     def test_returns_none_when_nothing_found(self):
-        with patch("docking.applets.volume.linux.shutil.which", return_value=None):
-            assert create_backend() is None
+        with patch(
+            "docking.applets.volume.implementations.linux.backend.shutil.which",
+            return_value=None,
+        ):
+            assert TestAppletBackendFactories().volume().controls is None
+
+    def test_settings_work_without_mixer_commands(self, monkeypatch):
+        launched = []
+        monkeypatch.setattr(
+            linux_mod.shutil,
+            "which",
+            lambda cmd: (
+                "/bin/mate-volume-control" if cmd == "mate-volume-control" else None
+            ),
+        )
+        monkeypatch.setattr(
+            volume_settings_mod.subprocess,
+            "Popen",
+            lambda cmd, **_kwargs: launched.append(cmd),
+        )
+        backend = TestAppletBackendFactories().volume()
+        assert backend.controls is None and backend.settings.available()
+        assert backend.settings.open()
+        assert launched == [["mate-volume-control"]]
 
 
 class TestVolumeSettingsLauncher:
     def test_prefers_first_available_volume_settings_command(self, monkeypatch):
         monkeypatch.setattr(
-            volume_state_mod.shutil,
+            volume_settings_mod.shutil,
             "which",
             lambda cmd: (
                 "/usr/bin/gnome-control-center"
@@ -160,19 +198,19 @@ class TestVolumeSettingsLauncher:
         assert volume_settings_command() == ["gnome-control-center", "sound"]
 
     def test_returns_none_when_no_volume_settings_tool_exists(self, monkeypatch):
-        monkeypatch.setattr(volume_state_mod.shutil, "which", lambda _cmd: None)
+        monkeypatch.setattr(volume_settings_mod.shutil, "which", lambda _cmd: None)
 
         assert volume_settings_command() is None
 
     def test_open_volume_settings_launches_detected_command(self, monkeypatch):
         launched: list[list[str]] = []
         monkeypatch.setattr(
-            volume_state_mod,
+            volume_settings_mod,
             "volume_settings_command",
             lambda: ["mate-volume-control"],
         )
         monkeypatch.setattr(
-            volume_state_mod.subprocess,
+            volume_settings_mod.subprocess,
             "Popen",
             lambda cmd, **_kwargs: launched.append(cmd),
         )
@@ -190,22 +228,95 @@ def _make_applet(
     state: VolumeState = _MOCK_STATE,
     *,
     config: Config | None = None,
+    worker_factory=_ImmediateWorker,
 ) -> VolumeApplet:
     """Create applet with mocked backend."""
+    controls = MagicMock()
+    controls.command = "pactl"
+    controls.get_state.return_value = state
+    backend = VolumeBackend(controls, VolumeSettings(lambda: False, lambda: False))
     with (
-        patch("docking.applets.volume.applet.BackgroundWorker", _ImmediateWorker),
-        patch("docking.applets.volume.applet.create_backend") as mock_detect,
+        patch("docking.applets.volume.applet.SerialWorker", worker_factory),
+        patch(
+            "tests.platform_factories.TestAppletBackendFactories.volume",
+            return_value=backend,
+        ),
     ):
-        mock_backend = mock_detect.return_value
-        mock_backend.command = "pactl"
-        mock_backend.get_state.return_value = state
-        applet = VolumeApplet(48, config=config or Config())
-    # Re-attach the mock backend so tests can inspect calls
-    applet._backend = mock_backend
-    return applet
+        applet = VolumeApplet(
+            48, config=config or Config(), platform_services=make_applet_platform()
+        )
+        applet._tick()
+        return applet
 
 
 class TestVolumeApplet:
+    @pytest.mark.parametrize("steps", [1, 3])
+    def test_scroll_before_initial_reply_uses_the_mixer_volume(self, steps):
+        jobs = []
+        worker = MagicMock()
+        worker.run_guarded.side_effect = lambda **task: jobs.append(task) or True
+        worker.run.side_effect = lambda **task: jobs.append(task)
+        applet = _make_applet(
+            VolumeState(80, False), worker_factory=lambda **_kwargs: worker
+        )
+        controls = applet._backend.controls
+        controls.set_volume.side_effect = lambda value: setattr(
+            controls.get_state, "return_value", VolumeState(value, False)
+        )
+        initial = jobs.pop(0)
+        old_state = initial["fn"]()
+        for _ in range(steps):
+            applet.on_scroll(True)
+        controls.set_volume.assert_not_called()
+        initial["on_result"](old_state)
+        assert not applet._available
+        for task in jobs:
+            task["on_result"](task["fn"]())
+        assert applet._volume == 80 + 5 * steps
+        assert applet._available
+        assert controls.set_volume.call_args_list[0].args == (85,)
+        applet.stop()
+
+    @pytest.mark.parametrize("action", ["scroll", "mute"])
+    def test_unverified_change_is_unavailable_until_a_successful_read(self, action):
+        applet = _make_applet(VolumeState(80, False))
+        applet._backend.controls.get_state.return_value = None
+        if action == "scroll":
+            applet.on_scroll(True)
+        else:
+            applet.on_clicked()
+        assert not applet._available
+        assert applet.item.name == "Volume\nUnavailable"
+        applet._on_poll_result(VolumeState(75, False))
+        assert applet._available and applet.item.name == "Volume: 75%"
+
+    def test_native_commands_are_deferred_and_old_scroll_results_do_not_rewind(self):
+        jobs = []
+        worker = MagicMock()
+        worker.run_guarded.side_effect = lambda **task: jobs.append(task) or True
+        worker.run.side_effect = lambda **task: jobs.append(task)
+        applet = _make_applet(worker_factory=lambda **_kwargs: worker)
+        controls = applet._backend.controls
+        controls.get_state.assert_not_called()
+        initial = jobs.pop(0)
+        initial["on_result"](initial["fn"]())
+        controls.set_volume.side_effect = lambda value: setattr(
+            controls.get_state, "return_value", VolumeState(value, False)
+        )
+        applet.on_scroll(True)
+        applet.on_scroll(True)
+        controls.set_volume.assert_not_called()
+        assert applet._volume == 55
+        first, second = jobs
+        first["on_result"](first["fn"]())
+        assert applet._volume == 55
+        second["on_result"](second["fn"]())
+        assert [call.args[0] for call in controls.set_volume.call_args_list] == [50, 55]
+        applet.stop()
+        worker.stop.assert_called_once()
+        second["on_result"](VolumeState(20, False))
+        assert applet._volume == 55
+
     def test_creates_with_icon(self):
         applet = _make_applet()
         assert applet.item.icon is not None
@@ -230,58 +341,57 @@ class TestVolumeApplet:
     def test_on_clicked_toggles_mute(self):
         applet = _make_applet()
         applet.on_clicked()
-        applet._backend.toggle_mute.assert_called_once()
+        applet._backend.controls.toggle_mute.assert_called_once()
 
     def test_scroll_up_increases_volume(self):
         applet = _make_applet()
         applet.on_scroll(direction_up=True)
-        applet._backend.set_volume.assert_called_once_with(50)
+        applet._backend.controls.set_volume.assert_called_once_with(50)
 
     def test_scroll_down_decreases_volume(self):
         applet = _make_applet()
         applet.on_scroll(direction_up=False)
-        applet._backend.set_volume.assert_called_once_with(40)
+        applet._backend.controls.set_volume.assert_called_once_with(40)
 
     def test_scroll_clamps_at_100(self):
         applet = _make_applet(state=VolumeState(volume=98, muted=False))
         applet.on_scroll(direction_up=True)
-        applet._backend.set_volume.assert_called_once_with(100)
+        applet._backend.controls.set_volume.assert_called_once_with(100)
 
     def test_scroll_clamps_at_0(self):
         applet = _make_applet(state=VolumeState(volume=2, muted=False))
         applet.on_scroll(direction_up=False)
-        applet._backend.set_volume.assert_called_once_with(0)
+        applet._backend.controls.set_volume.assert_called_once_with(0)
 
-    def test_menu_shows_volume_settings_when_available(self, monkeypatch):
-        opened: list[str] = []
-        monkeypatch.setattr(
-            volume_applet_mod,
-            "volume_settings_command",
-            lambda: ["mate-volume-control"],
-        )
-        monkeypatch.setattr(
-            volume_applet_mod,
-            "open_volume_settings",
-            lambda: opened.append("opened") or True,
-        )
-
+    def test_menu_shows_volume_settings_when_available(self):
         applet = _make_applet()
+        opened = MagicMock(return_value=True)
+        applet._backend = applet._backend._replace(
+            settings=VolumeSettings(lambda: True, opened)
+        )
         items = applet.get_menu_items()
-
         assert [item.get_label() for item in items] == [
             "Show Level",
             "",
             "Volume Settings",
         ]
-        callback, args = items[2]._signals["activate"][0]
-        callback(None, *args)
-        assert opened == ["opened"]
+        items[2].activate()
+        opened.assert_called_once_with()
 
-    def test_menu_keeps_show_level_without_volume_settings_tool(self, monkeypatch):
-        monkeypatch.setattr(volume_applet_mod, "volume_settings_command", lambda: None)
-
+    def test_menu_keeps_show_level_without_volume_settings_tool(self):
         applet = _make_applet()
         assert [item.get_label() for item in applet.get_menu_items()] == ["Show Level"]
+
+    def test_settings_remain_available_without_an_audio_mixer(self):
+        applet = _make_applet_no_backend()
+        opened = MagicMock(return_value=True)
+        applet._backend = VolumeBackend(None, VolumeSettings(lambda: True, opened))
+        items = applet.get_menu_items()
+        items[-1].activate()
+        opened.assert_called_once_with()
+        applet.on_clicked()
+        applet.on_scroll(direction_up=True)
+        assert applet._tick()
 
     def test_toggle_show_level_saves_and_refreshes(self, tmp_path):
         path = tmp_path / "dock.json"
@@ -301,8 +411,13 @@ class TestVolumeApplet:
 
 
 def _make_applet_no_backend() -> VolumeApplet:
-    with patch("docking.applets.volume.applet.create_backend", return_value=None):
-        return VolumeApplet(48, config=Config())
+    with patch(
+        "tests.platform_factories.TestAppletBackendFactories.volume",
+        return_value=VolumeBackend(None, VolumeSettings(lambda: False, lambda: False)),
+    ):
+        return VolumeApplet(
+            48, config=Config(), platform_services=make_applet_platform()
+        )
 
 
 class TestVolumeStateBackendHelpers:
@@ -311,45 +426,45 @@ class TestVolumeStateBackendHelpers:
         monkeypatch.setattr(
             volume_command_mod.subprocess, "run", lambda *a, **k: result
         )
-        assert volume_command_mod._run(["echo", "ok"], "test") == "ok"
+        assert volume_command_mod.run_command(["echo", "ok"], "test") == "ok"
 
     def test_run_returns_none_on_nonzero_exit(self, monkeypatch):
         result = MagicMock(returncode=1, stdout="")
         monkeypatch.setattr(
             volume_command_mod.subprocess, "run", lambda *a, **k: result
         )
-        assert volume_command_mod._run(["bad"], "test") is None
+        assert volume_command_mod.run_command(["bad"], "test") is None
 
     def test_run_returns_none_on_oserror(self, monkeypatch):
         def boom(*_a, **_k):
             raise OSError("boom")
 
         monkeypatch.setattr(volume_command_mod.subprocess, "run", boom)
-        assert volume_command_mod._run(["bad"], "test") is None
+        assert volume_command_mod.run_command(["bad"], "test") is None
 
     def test_pactl_get_state_success(self, monkeypatch):
         calls = [
             "Volume: mono: 12345 / 70% / 0.00 dB",
             "Mute: no",
         ]
-        monkeypatch.setattr(pulseaudio_mod, "_run", lambda *a, **k: calls.pop(0))
+        monkeypatch.setattr(pulseaudio_mod, "run_command", lambda *a, **k: calls.pop(0))
         assert pulseaudio_mod._pactl_get_state() == VolumeState(volume=70, muted=False)
 
     def test_pactl_get_state_returns_none_on_invalid_parse(self, monkeypatch):
         calls = ["no volume", "Mute: ???"]
-        monkeypatch.setattr(pulseaudio_mod, "_run", lambda *a, **k: calls.pop(0))
+        monkeypatch.setattr(pulseaudio_mod, "run_command", lambda *a, **k: calls.pop(0))
         assert pulseaudio_mod._pactl_get_state() is None
 
     def test_pactl_get_state_returns_none_on_missing_command_output(self, monkeypatch):
         calls = [None, "Mute: yes"]
-        monkeypatch.setattr(pulseaudio_mod, "_run", lambda *a, **k: calls.pop(0))
+        monkeypatch.setattr(pulseaudio_mod, "run_command", lambda *a, **k: calls.pop(0))
         assert pulseaudio_mod._pactl_get_state() is None
 
     def test_pactl_set_and_toggle_call_run(self, monkeypatch):
         seen = []
         monkeypatch.setattr(
             pulseaudio_mod,
-            "_run",
+            "run_command",
             lambda cmd, action: seen.append((cmd, action)),
         )
         pulseaudio_mod._pactl_set_volume(33)
@@ -358,14 +473,14 @@ class TestVolumeStateBackendHelpers:
         assert seen[1][0] == ["pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"]
 
     def test_amixer_get_state_none_when_run_fails(self, monkeypatch):
-        monkeypatch.setattr(linux_mod, "_run", lambda *a, **k: None)
+        monkeypatch.setattr(linux_mod, "run_command", lambda *a, **k: None)
         assert linux_mod._amixer_get_state() is None
 
     def test_amixer_set_and_toggle_call_run(self, monkeypatch):
         seen = []
         monkeypatch.setattr(
             linux_mod,
-            "_run",
+            "run_command",
             lambda cmd, action: seen.append((cmd, action)),
         )
         linux_mod._amixer_set_volume(55)
@@ -401,6 +516,9 @@ class TestVolumeAppletInternals:
     def test_on_poll_result_handles_none_and_no_change(self):
         applet = _make_applet()
         assert applet._on_poll_result(None) is False
+        assert not applet._available
+        assert applet._on_poll_result(VolumeState(45, False)) is False
+        assert applet._available
         applet._volume = 45
         applet._muted = False
         applet.present = MagicMock()
@@ -419,7 +537,9 @@ class TestVolumeAppletInternals:
 
     def test_tick_worker_posts_idle_callback(self, monkeypatch):
         applet = _make_applet()
-        applet._backend.get_state.return_value = VolumeState(volume=70, muted=True)
+        applet._backend.controls.get_state.return_value = VolumeState(
+            volume=70, muted=True
+        )
         calls = []
         monkeypatch.setattr(
             applet,

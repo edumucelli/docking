@@ -398,7 +398,10 @@ class TestAppletPopup:
         assert applet._last_expr == "5"
         applet.stop()
 
-    def test_build_popup_content_creates_entry_and_button_grid(self, monkeypatch):
+    @pytest.mark.parametrize("has_font", [True, False])
+    def test_build_popup_content_creates_entry_and_button_grid(
+        self, monkeypatch, has_font
+    ):
         applet = _make_applet()
         applet._last_expr = "7*6"
         monkeypatch.setattr(
@@ -411,6 +414,16 @@ class TestAppletPopup:
                 Orientation=SimpleNamespace(VERTICAL=1, HORIZONTAL=2),
             ),
         )
+
+        if not has_font:
+            monkeypatch.setattr(
+                _FakeBuildPangoContext, "get_font_description", lambda _self: None
+            )
+            monkeypatch.setattr(
+                calculator_applet_mod.Pango,
+                "FontDescription",
+                _FakeBuildFontDescription,
+            )
 
         box = calculator_applet_mod.CalculatorApplet._build_popup_content(applet)
 

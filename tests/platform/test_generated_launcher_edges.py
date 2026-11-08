@@ -5,11 +5,13 @@ import time
 import pytest
 from gi.repository import Gio
 
-from docking.platform.applications import entries
 from docking.platform.applications.identity import LaunchProvenanceStore
-from docking.platform.applications.launcher import ApplicationLauncher
+from docking.platform.applications.implementations.unix import entries
 from docking.platform.applications.projections import dock_icon_name
-from docking.platform.applications.registry import ApplicationRegistry
+from tests.platform_factories import (
+    make_application_launcher,
+    make_application_registry,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -50,7 +52,7 @@ def test_generated_launcher_executes_selected_file(
     context = Gio.AppLaunchContext()
     context.setenv("DOCKING_AUDIT_MARKER", str(marker))
 
-    registry = ApplicationRegistry(
+    registry = make_application_registry(
         application_source=lambda: (),
         desktop_directories_source=lambda: (generated.path.parent,),
     )
@@ -59,7 +61,7 @@ def test_generated_launcher_executes_selected_file(
         assert app_info.launch([], context)
     else:
         monkeypatch.setenv("DOCKING_AUDIT_MARKER", str(marker))
-        launcher = ApplicationLauncher(registry, LaunchProvenanceStore())
+        launcher = make_application_launcher(registry, LaunchProvenanceStore())
         assert launcher.launch(generated.desktop_id)
     deadline = time.monotonic() + 3
     while time.monotonic() < deadline:
@@ -101,7 +103,7 @@ def test_stale_exec_home_cannot_abort_the_application_catalog(tmp_path):
     (directory / "valid.desktop").write_text(
         "[Desktop Entry]\nType=Application\nName=Valid\nExec=/bin/true\n"
     )
-    registry = ApplicationRegistry(
+    registry = make_application_registry(
         application_source=lambda: (), desktop_directories_source=lambda: (directory,)
     )
 

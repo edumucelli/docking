@@ -14,6 +14,7 @@ provider is invoked.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from docking.i18n import _
 from docking.platform.backends.base import WindowId, WindowService
@@ -32,15 +33,21 @@ from docking.search.types import (
     SearchResult,
 )
 
+if TYPE_CHECKING:
+    from docking.platform.applications.registry import ApplicationRegistry
+
 
 class WindowSearchProvider:
     """Produce live window matches and dispatch activate or close actions."""
 
     provider_id = "windows"
 
-    def __init__(self, *, windows: WindowService) -> None:
+    def __init__(
+        self, *, windows: WindowService, registry: ApplicationRegistry | None = None
+    ) -> None:
         """Retain the active backend-neutral service used for window actions."""
         self._windows = windows
+        self._registry = registry
         self._window_ids: dict[str, WindowId] = {}
 
     def search(self, request: SearchRequest) -> Iterable[SearchBatch]:
@@ -86,11 +93,17 @@ class WindowSearchProvider:
                 )
             if not result_actions:
                 continue
+            application = (
+                self._registry.get(window.desktop_id)
+                if self._registry is not None
+                else None
+            )
+            application_name = application.name if application is not None else ""
             results.append(
                 SearchResult(
                     identity=SearchIdentity(self.provider_id, key),
                     title=window.title or _("Window"),
-                    description=window.desktop_id,
+                    description=application_name,
                     score=score,
                     icon_name=self._windows.icon_name_for_desktop(window.desktop_id),
                     source=_("Windows"),
@@ -102,7 +115,7 @@ class WindowSearchProvider:
                     ),
                     preview=SearchPreview(
                         title=window.title or _("Window"),
-                        body=window.desktop_id,
+                        body=application_name,
                         kind="window" if window.can_preview else "text",
                         target=key if window.can_preview else "",
                     ),

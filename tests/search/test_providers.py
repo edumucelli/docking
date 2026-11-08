@@ -431,13 +431,19 @@ def test_window_provider_activates_title_match() -> None:
         can_preview=True,
     )
     windows = _Windows((window,))
-    provider = WindowSearchProvider(windows=cast(Any, windows))
+    provider = WindowSearchProvider(
+        windows=cast(Any, windows),
+        registry=cast(
+            Any, SimpleNamespace(get=lambda _id: SimpleNamespace(name="Editor"))
+        ),
+    )
 
     result = _results(provider, "global plan")[0]
 
     assert result.state == "Active"
     assert result.preview is not None
     assert result.preview.kind == "window"
+    assert result.description == result.preview.body == "Editor"
     assert provider.invoke(
         result_identity=result.identity,
         action_identity=result.actions[0].identity,
@@ -667,7 +673,11 @@ def test_recent_file_provider_searches_and_opens() -> None:
     [
         ("notes.txt", False),
         ("résumé.txt", False),
-        (os.fsdecode(b"notes-\xff.txt"), True),
+        pytest.param(
+            b"notes-\xff.txt".decode("utf-8", errors="surrogateescape"),
+            True,
+            marks=pytest.mark.skipif(os.name == "nt", reason="POSIX byte filenames"),
+        ),
     ],
 )
 def test_direct_path_provider_uses_existing_path(tmp_path, filename, copy_uri) -> None:

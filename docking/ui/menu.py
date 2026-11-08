@@ -156,6 +156,8 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import gi
 
+from docking.platform.files import file_for_uri
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
@@ -184,7 +186,6 @@ from docking.i18n import _
 from docking.log import get_logger
 from docking.platform import icon_overrides
 from docking.platform.applications.recent_documents import recent_documents_for
-from docking.platform.backends.base import DisplayServer
 from docking.ui.about import AboutDialogController
 from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.folder.stack import FolderStackController
@@ -296,6 +297,14 @@ def _set_menu_item_icon(
     item.add(row)
 
 
+class _WindowMenuRow(Gtk.MenuItem):
+    """Running-window row whose identity survives native GTK ownership."""
+
+
+class _WindowRowsSeparator(Gtk.SeparatorMenuItem):
+    """Separator removed together with the final running-window row."""
+
+
 class MenuHandler:
     """Builds and shows context menus for dock items."""
 
@@ -353,15 +362,15 @@ class MenuHandler:
         """
         item = None if force_background else frame.item_at_point(event.x, event.y)
 
+        menu = self._new_popup_menu()
         if item:
-            menu = self._new_popup_menu()
             self._build_item_menu(menu=menu, item=item)
         else:
-            menu = self._new_popup_menu()
             insert_idx = self._insert_index(cursor_main=cursor_main, frame=frame)
             self._build_dock_menu(menu=menu, insert_index=insert_idx)
 
         menu.show_all()
+        self._runtime.prepare_menu_popup(menu)
         menu.popup_at_pointer(event)
 
     def _invalidate_folder_target_cache(self, target: str) -> None:
@@ -821,13 +830,12 @@ class MenuHandler:
             windows = sorted(windows, key=lambda window: window.title.lower())
         for window in windows:
             menu.append(self._build_window_menu_row(window=window))
-        separator = Gtk.SeparatorMenuItem()
-        separator._window_rows_separator = True
+        separator = _WindowRowsSeparator()
         menu.append(separator)
 
     def _build_window_menu_row(self, window: WindowSnapshot) -> Gtk.MenuItem:
         title = window.title or _("Window")
-        row = Gtk.MenuItem()
+        row = _WindowMenuRow()
         row.set_label(title)
 
         box = Gtk.Box(
@@ -864,13 +872,42 @@ class MenuHandler:
         if child is not None:
             row.remove(child)
         row.add(box)
-        row._window_row = True
+        if self._preview_service.asynchronous is True:
+            self._watch_window_thumbnail(row, image, window.id, thumbnail)
         row.connect("button-press-event", self._on_window_row_button_press, window.id)
         row.connect(
             "button-release-event", self._on_window_row_button_release, window.id
         )
         row.connect("activate", lambda *_a: self._tracker.activate(window.id))
         return row
+
+    def _watch_window_thumbnail(self, row, image, window_id, previous) -> None:
+        source = 0
+
+        def refresh() -> bool:
+            nonlocal previous
+            thumbnail = self._preview_service.thumbnail(
+                window_id, width=WINDOW_MENU_THUMB_W, height=WINDOW_MENU_THUMB_H
+            )
+            if thumbnail is not None and thumbnail is not previous:
+                image.set_from_pixbuf(cast(GdkPixbuf.Pixbuf, thumbnail.image))
+                previous = thumbnail
+            return True
+
+        def mapped(*_args) -> None:
+            nonlocal source
+            if not source:
+                source = GLib.timeout_add(200, refresh)
+
+        def unmapped(*_args) -> None:
+            nonlocal source
+            if source:
+                GLib.source_remove(source)
+                source = 0
+
+        row.connect("map", mapped)
+        row.connect("unmap", unmapped)
+        row.connect("destroy", unmapped)
 
     def _window_close_zone_hit(
         self, widget: Gtk.Widget, event: Gdk.EventButton
@@ -893,7 +930,7 @@ class MenuHandler:
         if not self._window_close_zone_hit(widget=widget, event=event):
             return False
         self._tracker.close(window_id)
-        if window_id.backend is DisplayServer.WAYLAND:
+        if self._tracker.defer_menu_row_removal(window_id):
             GLib.idle_add(self._remove_window_row_deferred, widget, event)
         else:
             self._remove_window_row(widget=widget, event=event)
@@ -919,9 +956,9 @@ class MenuHandler:
         parent.remove(widget)
         widget.destroy()
         children = list(parent.get_children())
-        if not any(getattr(child, "_window_row", False) for child in children):
+        if not any(isinstance(child, _WindowMenuRow) for child in children):
             for child in children:
-                if getattr(child, "_window_rows_separator", False):
+                if isinstance(child, _WindowRowsSeparator):
                     child.hide()
                     parent.remove(child)
                     child.destroy()
@@ -933,6 +970,8 @@ class MenuHandler:
         parent.check_resize()
         parent.queue_draw()
         if refresh_popup:
+            self._runtime.menu_popup_opened()
+            self._runtime.prepare_menu_popup(parent)
             parent.popup_at_pointer(event)
 
     def _on_add_applet_activate(self, _widget: Gtk.MenuItem, applet_id: str) -> None:
@@ -1009,7 +1048,7 @@ class MenuHandler:
         if uri is None:
             return
         try:
-            folder = Gio.File.new_for_uri(uri)
+            folder = file_for_uri(uri)
             monitor = folder.monitor_directory(Gio.FileMonitorFlags.NONE, None)
             monitor.connect("changed", self._on_folder_menu_changed, menu_id)
             self._folder_menu_monitors[menu_id] = monitor
@@ -1087,7 +1126,7 @@ class MenuHandler:
         self._folder_stack.update_folder_pref(item, key, value)
 
     def _on_folder_sort_changed(
-        self, widget: Gtk.MenuItem, item: DockItem, value: str
+        self, widget: Gtk.RadioMenuItem, item: DockItem, value: str
     ) -> None:
         if widget.get_active():
             self._update_folder_pref(item, "sort", value)

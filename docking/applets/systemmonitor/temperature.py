@@ -16,11 +16,8 @@
 from __future__ import annotations
 
 import re
-import subprocess
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from docking.log import get_logger
 
@@ -98,100 +95,6 @@ def parse_sysfs_temperature(text: str) -> float | None:
     return value
 
 
-class TemperatureReader:
-    """Read CPU temperature through the selected OS backend."""
-
-    def __init__(self, **kwargs: Any) -> None:
-        from docking.applets.systemmonitor.backend import create_backend
-
-        self._reader = create_backend().temperature_reader(**kwargs)
-
-    def read(self) -> float | None:
-        return self._reader.read()
-
-
-def discover_sysfs_temperature_path(
-    *,
-    thermal_root: Path,
-    hwmon_root: Path,
-) -> Path | None:
-    """Find the most CPU-like temperature file in Linux sysfs."""
-    best: tuple[int, float, Path] | None = None
-
-    for zone in sorted(thermal_root.glob("thermal_zone*")):
-        temp_path = zone / "temp"
-        zone_type = _safe_read_text(zone / "type") or ""
-        score = _score_text(zone_type, _THERMAL_TYPE_SCORES)
-        if score <= 0:
-            continue
-        temperature = read_temperature_file(temp_path)
-        if temperature is None:
-            continue
-        best = _pick_best(best, score=score, temperature=temperature, path=temp_path)
-
-    for hwmon in sorted(hwmon_root.glob("hwmon*")):
-        chip_name = (_safe_read_text(hwmon / "name") or "").strip()
-        chip_score = _score_text(chip_name, _CHIP_HINT_SCORES)
-        for temp_path in sorted(hwmon.glob("temp*_input")):
-            stem = temp_path.name.removesuffix("_input")
-            label = (_safe_read_text(hwmon / f"{stem}_label") or "").strip()
-            score = max(chip_score, _score_text(label, _LABEL_HINT_SCORES))
-            if chip_score > 0 and temp_path.name == "temp1_input":
-                score = max(score, chip_score)
-            if score <= 0:
-                continue
-            temperature = read_temperature_file(temp_path)
-            if temperature is None:
-                continue
-            best = _pick_best(
-                best,
-                score=score,
-                temperature=temperature,
-                path=temp_path,
-            )
-
-    if best is None:
-        return None
-    return best[2]
-
-
-def discover_available_commands(
-    *, which: Callable[[str], str | None]
-) -> tuple[CommandBackend, ...]:
-    """Return installed command backends in preference order."""
-    available: list[CommandBackend] = []
-    for backend in _COMMAND_BACKENDS:
-        if which(backend.command):
-            available.append(backend)
-    return tuple(available)
-
-
-def read_temperature_file(path: Path) -> float | None:
-    """Read one sysfs temperature file."""
-    text = _safe_read_text(path)
-    if text is None:
-        return None
-    return parse_sysfs_temperature(text)
-
-
-def read_command_temperature(
-    *,
-    backend: CommandBackend,
-    run_command: Callable[[list[str], float], str | None],
-) -> float | None:
-    """Run one command backend and parse its temperature output."""
-    text = run_command(list(backend.argv), CPU_TEMP_COMMAND_TIMEOUT_S)
-    if text is None:
-        return None
-    if backend.command == "sensors":
-        return parse_sensors_output(text)
-    if backend.command == "vcgencmd":
-        return parse_vcgencmd_output(text)
-    if backend.command == "acpi":
-        return parse_acpi_output(text)
-    return None
-
-
 def parse_sensors_output(text: str) -> float | None:
     """Parse lm-sensors output into the best CPU-like temperature."""
     best: tuple[int, float] | None = None
@@ -250,31 +153,6 @@ def parse_acpi_output(text: str) -> float | None:
     if not temperatures:
         return None
     return max(temperatures)
-
-
-def _run_command(cmd: list[str], timeout_s: float) -> str | None:
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout_s,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        log.debug("Failed to run temperature command %s: %s", cmd, exc)
-        return None
-    if result.returncode != 0:
-        return None
-    return result.stdout
-
-
-def _safe_read_text(path: Path) -> str | None:
-    try:
-        return path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError) as exc:
-        log.debug("Failed to read temperature file %s: %s", path, exc)
-        return None
 
 
 def _score_text(text: str, hints: tuple[tuple[str, int], ...]) -> int:

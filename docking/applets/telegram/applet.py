@@ -6,9 +6,13 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf
 
 from docking.applets.telegram import meta
-from docking.applets.telegram.browser import TelegramBrowser
 from docking.applets.telegram.render import render_icon
-from docking.applets.telegram.state import TELEGRAM_WEB_URL, TelegramState, tooltip_text
+from docking.applets.telegram.state import (
+    PROFILE,
+    TELEGRAM_WEB_URL,
+    TelegramState,
+    tooltip_text,
+)
 from docking.applets.webapp.applet import WebAppApplet
 from docking.i18n import _
 
@@ -17,7 +21,7 @@ class TelegramApplet(WebAppApplet):
     id = meta.id
     name = _("Telegram")
     icon_name = "telegram"
-    browser_factory = TelegramBrowser
+    profile = PROFILE
     state_factory = TelegramState
     web_url = TELEGRAM_WEB_URL
     open_label = _("Open Telegram")

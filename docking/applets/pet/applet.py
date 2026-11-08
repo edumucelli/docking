@@ -20,10 +20,12 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.pet import meta
 from docking.applets.pet.render import render_icon
 from docking.applets.pet.state import (
@@ -35,7 +37,6 @@ from docking.applets.pet.state import (
     tick,
     tooltip_text,
 )
-from docking.applets.systemmonitor.backend import create_backend
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -45,19 +46,28 @@ if TYPE_CHECKING:
 log = with_context(get_logger(name="pet"), applet_id=meta.id)
 
 
-class PetApplet(Applet):
+class PetApplet(PlatformServicesApplet):
     """Tamagotchi-style blob that reacts to CPU load and idle time."""
 
     id = meta.id
     name = _("Pet")
     icon_name = "face-smile"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
         self._state = PetState()
-        self._backend = create_backend()
+        self._backend = self._platform.backends.systemmonitor()
         self._prev_sample: CpuSample | None = None
         self._timer_id: int = 0
-        super().__init__(icon_size=icon_size, config=config)
+        super().__init__(
+            icon_size=icon_size, config=config, platform_services=platform_services
+        )
         self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:

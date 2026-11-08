@@ -11,7 +11,7 @@ from gi.repository import Gio
 from docking.platform.applications.listing import (
     activate_listing,
     gicon_from_icon_name,
-    listing_desktop_file_uri,
+    listing_drag_file_uri,
     listing_gicon,
     visible_listings,
 )
@@ -140,7 +140,7 @@ def test_listing_gicon_falls_back_to_themed_and_file_icons(tmp_path: Path) -> No
     assert isinstance(themed, Gio.ThemedIcon)
     assert themed.to_string() == "applications-utilities"
     assert isinstance(absolute_file, Gio.FileIcon)
-    assert absolute_file.get_file().get_path() == str(icon_file)
+    assert Path(absolute_file.get_file().get_path()).samefile(icon_file)
     assert isinstance(uri_file, Gio.FileIcon)
     assert uri_file.get_file().get_uri() == icon_file.as_uri()
     assert gicon_from_icon_name("") is None
@@ -153,6 +153,6 @@ def test_desktop_file_uri_uses_exact_recorded_path_without_lookup(
     application = _application(desktop_file=recorded)
     unidentified = _unidentified(desktop_file=recorded)
 
-    assert listing_desktop_file_uri(application) == recorded.as_uri()
-    assert listing_desktop_file_uri(unidentified) == recorded.as_uri()
-    assert listing_desktop_file_uri(_application()) is None
+    assert listing_drag_file_uri(application) == recorded.as_uri()
+    assert listing_drag_file_uri(unidentified) == recorded.as_uri()
+    assert listing_drag_file_uri(_application()) is None

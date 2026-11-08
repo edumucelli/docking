@@ -336,7 +336,7 @@ def create_music_icon(
     size: int,
     playback_status: str,
     album_art: GdkPixbuf.Pixbuf | None,
-    volume_percent: int = 0,
+    volume_percent: int | None = 0,
     available: bool = True,
 ) -> GdkPixbuf.Pixbuf | None:
     """Render music icon using album art/fallback and status badge."""
@@ -353,6 +353,7 @@ def create_music_icon(
         _draw_idle_music_tile(cr=cr, size=size)
 
     if available:
-        _draw_volume_badge(cr=cr, size=size, volume_percent=volume_percent)
+        if volume_percent is not None:
+            _draw_volume_badge(cr=cr, size=size, volume_percent=volume_percent)
         _draw_status_badge(cr=cr, size=size, playback_status=playback_status)
     return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)

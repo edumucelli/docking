@@ -11,9 +11,12 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.platform.applications.matcher as app_matcher_mod
 from docking.platform.applications.constants import GNOME_APP_PREFIX
 from docking.platform.applications.identity import LaunchProvenance, ProcessIdentity
+from docking.platform.applications.implementations.unix import entries as native_entries
 from docking.platform.applications.matcher import (
     AppIdMatcher,
     _app_id_candidates,
@@ -34,6 +37,11 @@ from docking.platform.applications.types import (
 def _registry(*, resolve_by_wm_class=None, resolve=None):
     """Build a registry fake with configurable canonical resolution."""
     registry = MagicMock()
+    from docking.platform.applications.implementations.unix.registration import (
+        UnixExecutableRegistrationBackend,
+    )
+
+    registry.registrations = UnixExecutableRegistrationBackend()
     registry.generation = 0
     registry.resolve_steam_app_id.return_value = None
     registry.resolve_steam_executable.return_value = None
@@ -463,9 +471,7 @@ class TestExecutableIdentity:
         result = matcher.match_result("SharedTool", process_id=43)
 
         assert result is not None
-        expected_id = app_matcher_mod.desktop_entries.generated_desktop_id_for_path(
-            running
-        )
+        expected_id = native_entries.generated_desktop_id_for_path(running)
         assert result.desktop_id == expected_id
         assert isinstance(result, ApplicationMatch)
         assert isinstance(result.application, ApplicationInfo)
@@ -1017,3 +1023,33 @@ class TestBackendIntegration:
         matcher.sync_visible_items([])
 
         assert _match_id(matcher, "org.gnome.Nautilus") == "org.gnome.Nautilus.desktop"
+
+
+class TestUnlistedExecutablePolicy:
+    @pytest.fixture
+    def unlisted(self, tmp_path):
+        executable = tmp_path / "Portable résumé.exe"
+        header = bytearray(64)
+        header[:2] = b"MZ"
+        header[0x3C:0x40] = (64).to_bytes(4, "little")
+        executable.write_bytes(header + b"PE\0\0")
+        identity = ProcessIdentity(pid=42, executable_path=executable)
+        identities = SimpleNamespace(identity_for_pid=lambda _pid: identity)
+        return executable, identities
+
+    def test_existing_backend_policy_keeps_unlisted_programs_unmatched(self, unlisted):
+        executable, identities = unlisted
+        matcher = AppIdMatcher(_registry(), identities)
+        assert matcher.match_result(executable.stem, process_id=42) is None
+
+    def test_catalog_match_keeps_priority_over_unlisted_executable(self, unlisted):
+        executable, identities = unlisted
+        installed = _application("portable.desktop", wm_class=executable.stem)
+        matcher = AppIdMatcher(
+            _registry(resolve_by_wm_class=installed),
+            identities,
+            allow_unlisted_executables=True,
+        )
+        match = matcher.match_result(executable.stem, process_id=42)
+        assert match.desktop_id == installed.desktop_id
+        assert match.application.origin is ApplicationOrigin.INSTALLED

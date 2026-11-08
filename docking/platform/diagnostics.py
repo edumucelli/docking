@@ -23,7 +23,7 @@ import shutil
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 from docking import __version__
 from docking.platform.applications.types import ApplicationDiscoveryDiagnostic
@@ -39,6 +39,8 @@ from docking.platform.environment import (
 )
 
 if TYPE_CHECKING:
+    from gi.repository import Gdk
+
     from docking.core.config import Config
     from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.backends.base import SessionBackend
@@ -726,6 +728,8 @@ def _supports_window_killer(capabilities: PlatformCapabilities) -> bool:
 def _monitor_rows(*, display: object | None) -> tuple[MonitorDiagnostic, ...]:
     if display is None:
         return ()
+    # Optional native displays enter diagnostics through a toolkit-free API.
+    display = cast("Gdk.Display", display)
     try:
         count = int(display.get_n_monitors())
     except Exception:
@@ -734,9 +738,14 @@ def _monitor_rows(*, display: object | None) -> tuple[MonitorDiagnostic, ...]:
     for index in range(count):
         try:
             monitor = display.get_monitor(index)
+            if monitor is None:
+                continue
             geometry = monitor.get_geometry()
             connector = _optional_monitor_detail(monitor, "get_connector")
-            workarea = _optional_monitor_detail(monitor, "get_workarea")
+            workarea = cast(
+                "Gdk.Rectangle | None",
+                _optional_monitor_detail(monitor, "get_workarea"),
+            )
             rows.append(
                 MonitorDiagnostic(
                     index=index,

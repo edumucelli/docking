@@ -6,12 +6,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tools.bsd_visual import run
-from tools.bsd_visual.pixels import Frame, placement
-from tools.bsd_visual.run import private_environment, report
+from tools.bsd.visual import run
+from tools.bsd.visual.pixels import Frame, placement
+from tools.bsd.visual.run import private_environment, report
 
 
-def frame(width=200, height=160, rect=None, channels=3, padding=0):
+def frame(
+    width=200, height=160, rect=None, channels=3, padding=0, color=(30, 190, 220)
+):
     stride = width * channels + padding
     pixels = bytearray(stride * height)
     if rect:
@@ -19,15 +21,31 @@ def frame(width=200, height=160, rect=None, channels=3, padding=0):
         for y in range(top, bottom):
             for x in range(left, right):
                 start = y * stride + x * channels
-                pixels[start : start + 3] = bytes((30, 190, 220))
+                pixels[start : start + 3] = bytes(color)
     return Frame(width, height, channels, stride, bytes(pixels))
 
 
 @pytest.mark.parametrize("channels,padding", [(3, 0), (3, 2), (4, 4)])
-def test_markers_respect_channels_and_row_padding(channels, padding):
-    image = frame(rect=(80, 120, 120, 150), channels=channels, padding=padding)
+@pytest.mark.parametrize("color", [(30, 190, 220), (35, 224, 255)])
+def test_markers_respect_channels_row_padding_and_hover_brightness(
+    channels, padding, color
+):
+    image = frame(
+        rect=(80, 120, 120, 150), channels=channels, padding=padding, color=color
+    )
     assert placement(image, "bottom")["count"] == 1200
     assert placement(image, "bottom")["distance"] == 10
+
+
+def test_window_manager_titlebar_blue_is_not_a_dock_marker():
+    image = frame(rect=(80, 120, 120, 150))
+    pixels = bytearray(image.pixels)
+    for x in range(image.width):
+        pixels[x * 3 : x * 3 + 3] = bytes((60, 180, 235))
+    decorated = Frame(
+        image.width, image.height, image.channels, image.stride, bytes(pixels)
+    )
+    assert placement(decorated, "bottom") == placement(image, "bottom")
 
 
 @pytest.mark.parametrize(

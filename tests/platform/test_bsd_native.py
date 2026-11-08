@@ -1,12 +1,14 @@
 """Read the actual BSD guest's kernel APIs; these are not mocked checks."""
 
+import os
+import sys
 from pathlib import Path
 
 import pytest
 
-from docking.applets.network import bsd as network_bsd
-from docking.applets.systemmonitor import bsd as system_bsd
-from docking.applets.trash import backend as trash_backend
+from docking.applets.network.implementations.bsd import backend as network_bsd
+from docking.applets.systemmonitor.implementations.bsd import backend as system_bsd
+from docking.applets.trash.implementations.unix import backend as trash_backend
 from docking.platform import environment
 
 pytestmark = pytest.mark.skipif(
@@ -36,3 +38,53 @@ def test_actual_x11_idle_time_is_available():
 
     idle = _get_idle_ms()
     assert idle is not None and idle >= 0
+
+
+def test_actual_host_selection_and_process_executable():
+    from docking.platform.applications.implementations.bsd.process import (
+        process_executable,
+    )
+    from docking.platform.composition.bsd import BsdPlatformProvider
+    from docking.platform.composition.selection import platform_provider
+    from docking.platform.host.base import HostFamily
+    from docking.platform.host.selection import host_services
+
+    assert host_services().family is HostFamily.BSD
+    assert isinstance(platform_provider(), BsdPlatformProvider)
+    assert process_executable(os.getpid()) == Path(sys.executable).resolve()
+
+
+@pytest.mark.skipif(
+    not environment.is_netbsd(),
+    reason="requires NetBSD pkgsrc desktop dependencies",
+)
+def test_actual_netbsd_icons_and_application_discovery(monkeypatch):
+    import gi
+
+    gi.require_version("GdkPixbuf", "2.0")
+    gi.require_version("Gtk", "3.0")
+    from gi.repository import GdkPixbuf, Gtk
+
+    from docking.platform.applications.implementations.unix.entries import desktop_dirs
+
+    monkeypatch.delenv("XDG_DATA_DIRS", raising=False)
+    asset = Path(__file__).resolve().parents[2] / "docking/assets/poof.svg"
+    assert GdkPixbuf.Pixbuf.new_from_file(str(asset)).get_width() > 0
+    assert Gtk.IconTheme.get_default().has_icon("folder")
+    assert Path("/usr/pkg/share/applications") in desktop_dirs()
+
+
+@pytest.mark.skipif(
+    not environment.is_netbsd(), reason="requires NetBSD kernel pathname API"
+)
+def test_actual_netbsd_executable_does_not_use_procfs(monkeypatch):
+    import psutil
+
+    from docking.platform.applications.implementations.bsd.process import (
+        process_executable,
+    )
+
+    monkeypatch.setattr(
+        psutil.Process, "exe", lambda _self: pytest.fail("procfs executable lookup")
+    )
+    assert process_executable(os.getpid()) == Path(sys.executable).resolve()

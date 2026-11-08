@@ -1,0 +1,29 @@
+"""Brightness controls shared by the platform implementations."""
+
+from abc import ABC, abstractmethod
+from pathlib import Path
+
+from docking.applets.brightness.state import BrightnessState
+
+
+class BrightnessBackend(ABC):
+    @abstractmethod
+    def get_state(self) -> BrightnessState: ...
+
+    @abstractmethod
+    def set_brightness(self, *, value: float, target: str) -> BrightnessState:
+        """Apply to the named display and return the actual current state."""
+        ...
+
+    def stop(self) -> None:
+        """Prevent new requests after the applet has been removed."""
+        return
+
+
+class BacklightSource(ABC):
+    @abstractmethod
+    def find(self) -> Path | None: ...
+    @abstractmethod
+    def read(self, path: Path) -> float | None: ...
+    @abstractmethod
+    def write(self, path: Path, value: float) -> bool: ...

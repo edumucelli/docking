@@ -1,8 +1,10 @@
 """BSD integration regression tests at their owning boundaries."""
 
+import sys
+
 import pytest
 
-from docking.applets.session import bsd
+from docking.applets.session.implementations.bsd import backend as bsd
 
 
 @pytest.mark.parametrize(
@@ -12,12 +14,19 @@ from docking.applets.session import bsd
         ("freebsd15", ["systemctl", "suspend"], ["acpiconf", "-s", "3"]),
         ("openbsd7", ["systemctl", "poweroff"], ["shutdown", "-hp", "now"]),
         ("freebsd15", ["systemctl", "poweroff"], ["shutdown", "-p", "now"]),
+        (
+            "netbsd11",
+            ["systemctl", "suspend"],
+            ["sysctl", "-w", "hw.acpi.sleep.state=3"],
+        ),
+        ("netbsd11", ["systemctl", "poweroff"], ["shutdown", "-p", "now"]),
+        ("netbsd11", ["systemctl", "reboot"], ["shutdown", "-r", "now"]),
     ],
 )
 def test_session_actions_select_native_commands_without_elevation(
     monkeypatch, system, original, expected
 ):
-    monkeypatch.setattr(bsd.sys, "platform", system)
+    monkeypatch.setattr(sys, "platform", system)
     monkeypatch.setattr(bsd.shutil, "which", lambda command: f"/sbin/{command}")
     assert bsd.command_for(original[-1]) == expected
 

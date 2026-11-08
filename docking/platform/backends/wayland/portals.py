@@ -96,7 +96,7 @@ class XdgDesktopPortalColorPicker:
         ) -> None:
             response, results = parameters.unpack()
             if response == 0 and "color" in results:
-                picked["color"] = tuple(results["color"])  # type: ignore[assignment]
+                picked["color"] = tuple(results["color"])
             loop.quit()
 
         signal_id = bus.signal_subscribe(

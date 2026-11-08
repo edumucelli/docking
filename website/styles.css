@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+
+body {
+  font-family: "Instrument Sans", sans-serif;
+  background:
+    radial-gradient(circle at 16% 14%, rgba(239, 68, 68, 0.18), transparent 22%),
+    radial-gradient(circle at 80% 14%, rgba(59, 130, 246, 0.19), transparent 24%),
+    radial-gradient(circle at 52% 74%, rgba(245, 158, 11, 0.16), transparent 26%),
+    linear-gradient(180deg, #111a2c 0%, #152035 52%, #121b2e 100%);
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.grid-fade {
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.07) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(circle at center, black 35%, transparent 78%);
+}
+
+.glow-ring {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 30px rgba(239, 68, 68, 0.12),
+    0 0 60px rgba(245, 158, 11, 0.14),
+    0 0 52px rgba(59, 130, 246, 0.08);
+}
+
+.code-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.code-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+}
+
+.marquee-mask {
+  mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+}
+[hidden] { display: none !important; }
+section[id] { scroll-margin-top: 6rem; }
+:focus-visible { outline: 2px solid #fbbf24; outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

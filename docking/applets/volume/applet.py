@@ -20,25 +20,24 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.menu import menu_sections
 from docking.applets.volume import meta
-from docking.applets.worker import BackgroundWorker
+from docking.applets.worker import SerialWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
-from .backend import create_backend
 from .render import create_volume_icon
 from .state import (
     STEP,
     VolumeState,
     _volume_icon_name,
-    open_volume_settings,
-    volume_settings_command,
 )
 
 if TYPE_CHECKING:
@@ -47,32 +46,44 @@ if TYPE_CHECKING:
 log = with_context(get_logger(name="volume"), applet_id=meta.id)
 
 
-class VolumeApplet(Applet):
+class VolumeApplet(PlatformServicesApplet):
     """Volume control via scroll and click."""
 
     id = meta.id
     name = _("Volume")
     icon_name = "audio-volume-medium"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
-        self._backend = create_backend()
-        if not self._backend:
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
+        self._backend = self._platform.backends.volume()
+        if not self._backend.controls:
             log.bind(action="detect_backend").warning(
                 "No audio backend found",
             )
         self._volume = 0
         self._muted = False
+        self._available = False
         self._show_level = False
         self._timer_id: int = 0
         self._poll_generation = 0
-        self._worker = BackgroundWorker(logger=log)
+        self._stopped = False
+        self._worker = SerialWorker(on_close=lambda: None, logger=log)
         prefs = config.applet_prefs.get(meta.id, {})
         self._show_level = bool(prefs.get("show_level", False))
-        self._poll()
-        super().__init__(icon_size, config)
+        super().__init__(icon_size, config, platform_services=platform_services)
         self.present()
 
     def _update_tooltip(self) -> None:
+        if not self._available:
+            self.item.name = self.name + "\n" + _("Unavailable")
+            self.item.icon_name = "audio-volume-muted"
+            return
         self.item.name = (
             _("Muted") if self._muted else _("Volume: {pct}%").format(pct=self._volume)
         )
@@ -84,17 +95,23 @@ class VolumeApplet(Applet):
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         return create_volume_icon(
             size=size,
-            volume=self._volume,
-            muted=self._muted,
-            show_level=self._show_level,
+            volume=self._volume if self._available else 0,
+            muted=self._muted if self._available else False,
+            show_level=self._show_level and self._available,
         )
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify)
+        if self._stopped:
+            self._stopped = False
+            self._worker = SerialWorker(on_close=lambda: None, logger=log)
+        self._tick()
         self._timer_id = GLib.timeout_add_seconds(1, self._tick)
 
     def stop(self) -> None:
+        self._stopped = True
         self._poll_generation += 1
+        self._worker.stop()
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -102,26 +119,52 @@ class VolumeApplet(Applet):
 
     def on_clicked(self) -> None:
         """Toggle mute on left-click."""
-        if self._backend:
-            self._poll_generation += 1
-            self._backend.toggle_mute()
-            self._poll()
-            self._update_tooltip()
-            self.present()
+        if self._backend.controls and not self._stopped:
+            self._muted = not self._muted
+            self._change_volume(self._backend.controls.toggle_mute)
 
     def on_scroll(self, direction_up: bool) -> None:
         """Adjust volume ±5% on scroll."""
-        if not self._backend:
+        if not self._backend.controls or self._stopped:
             return
-        self._poll_generation += 1
+        controls = self._backend.controls
+        if not self._available:
+            # The first poll may still be waiting for GTK. Resolve the delta
+            # from the mixer on the serial worker instead of using zero.
+            def adjust() -> None:
+                state = controls.get_state()
+                if state is not None:
+                    delta = STEP if direction_up else -STEP
+                    controls.set_volume(max(0, min(100, state.volume + delta)))
+
+            self._change_volume(adjust)
+            return
         if direction_up:
             new = min(100, self._volume + STEP)
         else:
             new = max(0, self._volume - STEP)
-        self._backend.set_volume(new)
-        self._poll()
-        self._update_tooltip()
+        self._volume = new
+        self._change_volume(lambda: controls.set_volume(new))
+
+    def _change_volume(self, change: Callable[[], None]) -> None:
+        """Serialize a change and show its verified mixer state on GTK."""
+        controls = self._backend.controls
+        if controls is None:
+            return
+        self._poll_generation += 1
+        generation = self._poll_generation
         self.present()
+
+        def apply() -> VolumeState | None:
+            change()
+            return controls.get_state()
+
+        self._worker.run(
+            name="volume-change",
+            fn=apply,
+            on_result=lambda state: self._on_poll_result(state, generation=generation),
+            on_error=lambda _error: self._on_poll_result(None, generation=generation),
+        )
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         show = Gtk.CheckMenuItem(label=_("Show Level"))
@@ -129,10 +172,11 @@ class VolumeApplet(Applet):
         show.connect("toggled", self._on_toggle_level)
 
         settings: list[Gtk.MenuItem] = []
-        cmd = volume_settings_command()
-        if cmd is not None:
+        if self._backend.settings.available():
             volume_settings = Gtk.MenuItem(label=_("Volume Settings"))
-            volume_settings.connect("activate", lambda _widget: open_volume_settings())
+            volume_settings.connect(
+                "activate", lambda _widget: self._backend.settings.open()
+            )
             settings.append(volume_settings)
         return menu_sections(display=[show], settings=settings, gtk=Gtk)
 
@@ -141,25 +185,17 @@ class VolumeApplet(Applet):
         self.save_prefs(prefs={"show_level": self._show_level})
         self.present()
 
-    def _poll(self) -> None:
-        """Read current volume state from backend."""
-        if not self._backend:
-            return
-        state = self._backend.get_state()
-        if state is not None:
-            self._volume = state.volume
-            self._muted = state.muted
-
     def _tick(self) -> bool:
         """Periodic poll - fetch state in background thread."""
-        if not self._backend:
+        if not self._backend.controls or self._stopped:
             return True
         generation = self._poll_generation
         self._worker.run_guarded(
             key="volume-poll",
             name="volume-poll",
-            fn=self._backend.get_state,
+            fn=self._backend.controls.get_state,
             on_result=lambda state: self._on_poll_result(state, generation=generation),
+            on_error=lambda _error: self._on_poll_result(None, generation=generation),
         )
         return True
 
@@ -167,11 +203,18 @@ class VolumeApplet(Applet):
         self, state: VolumeState | None, *, generation: int | None = None
     ) -> bool:
         """Apply polled state on main thread, refresh if changed."""
-        if state is None or (
-            generation is not None and generation != self._poll_generation
-        ):
+        if generation is not None and generation != self._poll_generation:
             return False
-        if (state.volume, state.muted) != (self._volume, self._muted):
+        if state is None:
+            if self._available:
+                self._available = False
+                self.present()
+            return False
+        if not self._available or (state.volume, state.muted) != (
+            self._volume,
+            self._muted,
+        ):
+            self._available = True
             self._volume = state.volume
             self._muted = state.muted
             self._update_tooltip()

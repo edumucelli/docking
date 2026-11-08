@@ -20,27 +20,26 @@ from typing import TYPE_CHECKING
 
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import PlatformServicesApplet
 from docking.applets.menu import menu_sections, radio_submenu
 from docking.applets.systemmonitor import meta
-from docking.applets.systemmonitor.backend import create_backend
-from docking.applets.systemmonitor.gpu import GpuReader, GpuStats
+from docking.applets.systemmonitor.gpu import GpuStats
 from docking.applets.systemmonitor.render import render_icon
 from docking.applets.systemmonitor.state import (
     CPU_THRESHOLD,
     MEM_THRESHOLD,
     CpuSample,
     cpu_percent,
-    disk_usage,
     prefs_from_mapping,
     prefs_payload,
     tooltip_text,
 )
-from docking.applets.systemmonitor.temperature import TemperatureReader
 from docking.applets.temperature import TemperatureUnit, temperature_unit_label
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
@@ -55,32 +54,41 @@ log = with_context(
 )
 
 
-class SystemMonitorApplet(Applet):
+class SystemMonitorApplet(PlatformServicesApplet):
     """Circular gauge: CPU radial fill + memory arc at edge."""
 
     id = meta.id
     name = _("System Monitor")
     icon_name = "utilities-system-monitor"
 
-    def __init__(self, icon_size: int, config: Config) -> None:
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
         self._timer_id: int = 0
         self._sampling_active = False
         self._sample_generation = 0
         self._worker = BackgroundWorker(logger=log)
-        self._backend = create_backend()
+        self._backend = self._platform.backends.systemmonitor()
         self._prev_sample: CpuSample | None = None
         self._cpu: float = 0.0
         self._mem: float = 0.0
         self._temperature_c: float | None = None
-        self._temperature_reader = TemperatureReader()
+        self._temperature_reader = self._backend.temperature_reader()
         self._gpu: GpuStats | None = None
-        self._gpu_reader = GpuReader()
+        self._gpu_reader = self._platform.backends.gpu()
         self._last_drawn_cpu: float = -1.0
         self._last_drawn_mem: float = -1.0
         prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
         self._show_disk = prefs.show_disk
         self._temperature_unit = prefs.temperature_unit
-        super().__init__(icon_size=icon_size, config=config)
+        super().__init__(
+            icon_size=icon_size, config=config, platform_services=platform_services
+        )
         self.present()
 
     def create_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
@@ -92,7 +100,7 @@ class SystemMonitorApplet(Applet):
             cpu=self._cpu,
             mem=self._mem,
             temperature_c=self._temperature_c,
-            disks=disk_usage() if self._show_disk else None,
+            disks=self._backend.disk_usage() if self._show_disk else None,
             gpu=self._gpu,
             temperature_unit=self._temperature_unit,
         )

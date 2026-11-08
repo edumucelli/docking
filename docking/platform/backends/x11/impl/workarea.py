@@ -223,11 +223,11 @@ class ExternalWorkareaTracker:
         self._xlib: ctypes.CDLL | None = None
         self._gdk_lib: ctypes.CDLL | None = None
         self._xdisplay: ctypes.c_void_p | None = None
-        self._gdk_display: object | None = None
+        self._gdk_display: GdkX11.X11Display | None = None
         self._root: int = 0
         self._own_xid: int = 0
         self._atoms: dict[bytes, int] = {}
-        self._tracked_windows: dict[int, object] = {}
+        self._tracked_windows: dict[int, GdkX11.X11Window] = {}
         self._snapshot = ExternalStrutSnapshot(False, 0, 0, ())
         self._change_handler: Callable[[], None] | None = None
         self._refresh_source: int = 0

@@ -144,13 +144,16 @@ fi
 For subsequent updates, run `sudo dnf upgrade` or `sudo zypper update`. Existing
 `.rpm` installations can upgrade directly through the repository.
 
-## FreeBSD and OpenBSD
+<a id="freebsd-and-openbsd"></a>
+
+## FreeBSD, OpenBSD, and NetBSD
 
 
 BSD packages are published as GitHub Release assets, starting with the first
 release containing BSD support. Current build targets are FreeBSD 15.1/amd64
-(Python 3.12) and OpenBSD 7.9/amd64 (Python 3.13). Use a package matching the OS
-release and architecture. The package includes Docking, translations, icons, and
+(Python 3.12), OpenBSD 7.9/amd64 (Python 3.13), and NetBSD 11.0/amd64
+(Python 3.12). Use a package matching the OS release and architecture. The
+package includes Docking, translations, icons, and
 its Python runtime dependencies; GTK, Cairo, GI and psutil use native packages.
 
 Run the dependency installation and package-manager commands as root. Downloads
@@ -162,6 +165,7 @@ On FreeBSD 15.1/amd64:
 pkg install python312 py312-pygobject py312-pycairo py312-psutil \
   gtk3 libwnck3 dbus libXScrnSaver polkit xterm
 FILE=docking-latest-freebsd-15.1-amd64.pkg
+PYTHON=python3
 BASE=https://github.com/edumucelli/docking/releases/latest/download
 fetch "$BASE/$FILE"
 fetch "$BASE/$FILE.json"
@@ -172,6 +176,21 @@ On OpenBSD 7.9/amd64:
 ```sh
 pkg_add py3-gobject3 py3-cairo py3-psutil gtk+3 libwnck3 dbus polkit
 FILE=docking-latest-openbsd-7.9-amd64.tgz
+PYTHON=python3
+BASE=https://github.com/edumucelli/docking/releases/latest/download
+ftp -o "$FILE" "$BASE/$FILE"
+ftp -o "$FILE.json" "$BASE/$FILE.json"
+```
+
+On NetBSD 11.0/amd64, configure a matching pkgsrc binary repository and a
+compositing X11 desktop (the reference desktop is Xfce). Then:
+
+```sh
+export PATH="/usr/pkg/bin:/usr/pkg/sbin:/usr/X11R7/bin:$PATH"
+pkg_add python312 py312-gobject3 py312-cairo py312-psutil gtk3+ libwnck3 dbus polkit \
+  librsvg adwaita-icon-theme
+FILE=docking-latest-netbsd-11.0-amd64.tgz
+PYTHON=/usr/pkg/bin/python3.12
 BASE=https://github.com/edumucelli/docking/releases/latest/download
 ftp -o "$FILE" "$BASE/$FILE"
 ftp -o "$FILE.json" "$BASE/$FILE.json"
@@ -180,7 +199,7 @@ ftp -o "$FILE.json" "$BASE/$FILE.json"
 Verify the downloaded bytes against the release manifest before installing:
 
 ```sh
-python3 - "$FILE" <<'PYTHON'
+"$PYTHON" - "$FILE" <<'PYTHON'
 import hashlib, json, sys
 from pathlib import Path
 package = Path(sys.argv[1])
@@ -200,11 +219,17 @@ pkg add "./$FILE"
 VERSION=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["version"])' "$FILE.json")
 mv "$FILE" "docking-${VERSION}.tgz"
 pkg_add -D unsigned "./docking-${VERSION}.tgz"
+
+# NetBSD: use the archive's canonical package name.
+VERSION=$("$PYTHON" -c 'import json, sys; print(json.load(open(sys.argv[1]))["version"])' "$FILE.json")
+mv "$FILE" "docking-${VERSION}.tgz"
+pkg_add "./docking-${VERSION}.tgz"
 ```
 
 Start `docking` inside the desktop session. For updates, download and verify the
 new release, then use `pkg add -f` on FreeBSD or `pkg_add -u -D unsigned` on
-OpenBSD. These are direct release downloads; no third-party package repository
+OpenBSD, or `pkg_add -u` on NetBSD. NetBSD installs Docking under `/usr/pkg`;
+FreeBSD and OpenBSD use `/usr/local`. These are direct release downloads; no third-party package repository
 is configured. The release also includes versioned filenames and
 `SHA256SUMS-bsd`.
 
@@ -227,6 +252,14 @@ configuration. Power and connection changes request administrator authentication
 FreeBSD has no BlueZ trust property; trust and pairing removal are left to native
 system configuration. OpenBSD has no native Bluetooth stack, so its Bluetooth
 applet remains unavailable.
+
+NetBSD reuses the native BSD process, network-counter, filesystem, and system
+monitoring integrations. Battery and temperature readings use `envstat`;
+audio uses PulseAudio when installed, otherwise `mixerctl`. Sensor and audio
+availability depend on hardware and permissions. Suspend uses NetBSD's ACPI
+sleep control and requires the appropriate system privileges and working
+hardware support. Bluetooth and Cam Shield applets are unavailable on NetBSD
+until their native control integrations are implemented and verified.
 
 ## Release downloads
 
@@ -272,8 +305,8 @@ tar -C docking-nix-output -xf "docking-latest-linux-${ARCH}-nix-output.tar.gz"
 
 ## Source Requirements
 
-- Linux desktop with X11 or Wayland, or FreeBSD/OpenBSD with X11.
-- BSD native packages: [FreeBSD and OpenBSD](#freebsd-and-openbsd).
+- Linux desktop with X11 or Wayland, or FreeBSD/OpenBSD/NetBSD with composited X11.
+- BSD native packages: [FreeBSD, OpenBSD, and NetBSD](#freebsd-and-openbsd).
 - Python 3.10+
 - Wayland backends:
   - GNOME / Mutter 45+ through the companion `docking-bridge@docking.org` extension

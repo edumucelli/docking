@@ -10,6 +10,7 @@ import pytest
 
 from docking.core.config import Config
 from docking.platform.backends.base import ActionResult, DisplayServer, Rect, WindowId
+from docking.platform.backends.kwin import preview as preview_mod
 from docking.platform.backends.kwin import session
 from docking.platform.backends.kwin.bridge import (
     KWinBridgeClient,
@@ -176,6 +177,36 @@ def test_capture_setup_failure_does_not_leak_fds(monkeypatch):
         is None
     )
     assert fd_count() == before
+    assert service._capture is None
+
+
+@pytest.mark.parametrize("allocation_succeeds", [True, False])
+def test_scaled_capture_releases_resources_when_allocation_fails(
+    monkeypatch, allocation_succeeds
+):
+    operation = MagicMock(finished=True, success=True, data=b"pixels", metadata={})
+    monkeypatch.setattr(preview_mod, "_Capture", lambda *_: operation)
+    pixbuf = MagicMock()
+    pixbuf.get_width.return_value = pixbuf.get_height.return_value = 200
+    scaled = MagicMock() if allocation_succeeds else None
+    if scaled is not None:
+        scaled.get_width.return_value = scaled.get_height.return_value = 100
+    pixbuf.scale_simple.return_value = scaled
+    monkeypatch.setattr(preview_mod, "decode_raw_image", lambda *_: pixbuf)
+    service = KWinPreviewService()
+    service._bus = MagicMock()
+
+    result = service.capture(
+        WindowId(DisplayServer.WAYLAND, f"kwin:{IDENTIFIER}"), width=100, height=100
+    )
+
+    if allocation_succeeds:
+        assert result is not None
+        assert result.image is scaled
+        assert result.width == result.height == 100
+    else:
+        assert result is None
+    operation.close.assert_called_once_with()
     assert service._capture is None
 
 

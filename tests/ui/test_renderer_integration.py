@@ -1420,3 +1420,47 @@ class TestRendererHelpers:
                 original_edge_center + count_inset * expected_direction
             )
             assert calls[0]["cy"] == pytest.approx(original_main_center)
+
+
+@pytest.mark.parametrize("alpha", [0.0, 1.0 / 255.0])
+def test_platform_input_alpha_only_fills_cursor_region_without_changing_content(
+    monkeypatch, alpha
+):
+    import sys
+    from types import SimpleNamespace
+
+    import cairo
+
+    renderer = renderer_mod.DockRenderer()
+
+    def content(*, cr, **_kwargs):
+        cr.set_source_rgba(1, 0, 0, 1)
+        cr.rectangle(4, 4, 2, 2)
+        cr.fill()
+
+    monkeypatch.setattr(renderer, "_draw_content", content)
+    target = cairo.ImageSurface(cairo.FORMAT_ARGB32, 20, 20)
+    frame = SimpleNamespace(cursor_rect=SimpleNamespace(x=2, y=3, w=10, h=5))
+    widget = SimpleNamespace(
+        get_allocation=lambda: SimpleNamespace(width=20, height=20)
+    )
+    renderer.draw(
+        cairo.Context(target),
+        widget,
+        frame,
+        MagicMock(),
+        MagicMock(),
+        renderer_mod.RenderState(input_region_alpha=alpha),
+    )
+    target.flush()
+
+    def pixel(x, y):
+        offset = y * target.get_stride() + x * 4
+        return int.from_bytes(
+            bytes(target.get_data()[offset : offset + 4]), sys.byteorder
+        )
+
+    assert pixel(4, 4) == 0xFFFF0000
+    assert pixel(1, 3) == pixel(12, 7) == pixel(0, 0) == 0
+    expected = 0x01000000 if alpha else 0
+    assert pixel(2, 3) == pixel(11, 7) == expected

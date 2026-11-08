@@ -54,7 +54,8 @@ docking
 
 - **Runtime deps**: system GTK/GI packages plus `python3 (>= 3.10)`.
   Native Wayland placement is included through Debian/Ubuntu's
-  `gir1.2-gtklayershell-0.1` package.
+  `gir1.2-gtklayershell-0.1` package. `librsvg2-common` supplies the SVG loader
+  required by the default clock and other artwork, including minimal installs.
 - **PyWayland**: the package recommends distro `python3-pywayland` where it is
   available. Release builds supply native Python 3.10–3.14 fallbacks under
   `/usr/lib/docking/vendor-pythonX.Y/` on both architectures. These avoid missing
@@ -66,9 +67,8 @@ docking
 - **Application code**: installed to `/usr/lib/docking/python/` and loaded via the
   `/usr/bin/docking` wrapper so the package stays compatible across supported
   Python 3 minors on the same architecture.
-- **Vendored deps**: all pip dependencies go to `/usr/lib/docking/vendor/` to avoid
-  file conflicts with Ubuntu's python3-* packages. The entrypoint adds this path to
-  `sys.path` at startup.
+- **Weather**: HTTP, JSON parsing, retries, and persistent caching use the Python
+  standard library; no separate weather packages are installed.
 - **Assets**: theme JSON files, clock SVG layers, and weather city database are
   declared as package data in `pyproject.toml`. Installed to
   `/usr/lib/docking/python/docking/assets/`.
@@ -80,7 +80,8 @@ docking
   `org.docking.Docking-symbolic` only to avoid launcher/app-menu icon collisions.
 - **Tests**: skipped during deb build (no pytest in build env); run in CI instead.
 - **CI validation**: native amd64 and arm64 packages are installed on Ubuntu
-  22.04/24.04/26.04 and Debian 12/13. Checks launch Docking on X11 and headless
+  22.04/24.04/26.04 and Debian 12/13 with `--no-install-recommends`. Checks decode
+  a bundled clock SVG, verify GSettings caches, launch Docking on X11 and headless
   Sway, require its D-Bus API to respond, verify native Wayland protocols, and
   require graceful shutdown. Publication also verifies signed APT downloads,
   fresh installs, and upgrades from the previous stable release.
@@ -267,7 +268,8 @@ Notes:
 - Build script: `packaging/rpm/build.sh`
 - The RPM is architecture-specific because the packaged vendored Python wheels can include native binaries.
 - CI builds the RPM on both x86_64 and ARM64 runners and publishes both variants.
-- Python API dependencies used by weather are vendored under `/usr/lib/docking/vendor`.
+- Weather uses the Python standard library. PyWayland fallbacks are installed
+  under `/usr/lib/docking/vendor-pythonX.Y/`.
 - `Requires` in the spec serve Fedora and openSUSE from one artifact, so the
   names that differ between them are written as RPM boolean dependencies, such as
   `(gtk3 or typelib-1_0-Gtk-3_0)`.
@@ -292,6 +294,12 @@ sudo pacman -S --needed base-devel git python python-pip gettext
 sudo pacman -U artifacts/docking-*.pkg.tar.*
 ```
 
+CI installs the x86_64 package in Arch and CachyOS containers, then runs the
+shared X11 and headless Wayland package checks. `packaging/arch/runtime-smoke.sh`
+rebuilds MIME and GSettings caches before testing because pacman hooks can be
+blocked by Docker's network namespace restrictions. This preparation applies
+only to the test container; it does not change the installed launcher.
+
 ## Nix
 
 ```bash
@@ -308,7 +316,10 @@ sudo pacman -U artifacts/docking-*.pkg.tar.*
 `packaging/bsd/build.py` runs in the prepared BSD VM with `.venv-bsd/bin/python`.
 It vendors the resolved Python runtime dependencies, keeps GI/Cairo/psutil as
 native dependencies, compiles translations, and uses `pkg create` on FreeBSD or
-`pkg_create` on OpenBSD. Each package is installed before its visual tests run.
+`pkg_create` on OpenBSD or NetBSD. NetBSD uses pkgsrc's staging prefix and real
+prefix options, records native dependencies and build information, and installs
+under `/usr/pkg`; the other BSD targets use `/usr/local`. Each package is
+installed before its visual tests run.
 The main CI release job requires these checks and stages the original package
 bytes, manifests, latest aliases, and `SHA256SUMS-bsd` through
 `packaging/bsd/release.py`. Distribution uses GitHub Releases.

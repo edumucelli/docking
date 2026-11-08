@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 from gi.repository import GLib
 
-from docking.platform.status_notifier.dbusmenu import (
+from docking.platform.tray.implementations.unix.dbusmenu import (
     DBusMenuClient,
     DBusMenuItem,
     parse_menu_node,

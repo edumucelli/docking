@@ -13,7 +13,7 @@ _EXTERNAL_SCHEMES = frozenset({"http", "https", "mailto", "tel"})
 
 
 class BrowserPhase(str, Enum):
-    """High-level WebKit lifecycle visible to the applet."""
+    """High-level browser lifecycle visible to the applet."""
 
     STOPPED = "stopped"
     STARTING = "starting"

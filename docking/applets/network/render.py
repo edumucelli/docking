@@ -126,7 +126,7 @@ def create_icon(
     size: int,
     is_connected: bool,
     is_wifi: bool,
-    signal_strength: int,
+    signal_strength: int | None,
     rx_speed: float,
     tx_speed: float,
     speed_overlay: str = "none",
@@ -141,7 +141,7 @@ def create_icon(
     cr.paint()
 
     if is_wifi:
-        if not is_connected:
+        if not is_connected or signal_strength is None:
             active_arcs = 0
         # Each threshold enables one more arc: 3=strong, 2=medium, 1=weak
         elif signal_strength >= 80:
@@ -158,6 +158,15 @@ def create_icon(
             connected=is_connected,
             active_arcs=active_arcs,
         )
+        if (
+            is_connected
+            and signal_strength is None
+            and not (
+                (speed_overlay == "download" and rx_speed > 0)
+                or (speed_overlay == "upload" and tx_speed > 0)
+            )
+        ):
+            draw_icon_label(cr=cr, text="?", size=size)
     else:
         _draw_wired_icon(cr=cr, size=size, connected=is_connected)
 

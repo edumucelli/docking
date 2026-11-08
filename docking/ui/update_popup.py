@@ -51,6 +51,7 @@ from docking.ui.tooltip import compute_tooltip_position
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.ui.dock_window import DockWindow
 
 log = get_logger("updates")
 
@@ -74,7 +75,7 @@ class UpdateCheckController:
         self,
         *,
         config: Config,
-        window: Gtk.Window,
+        window: DockWindow,
     ) -> None:
         self._window = window
         self._config = config
@@ -85,7 +86,7 @@ class UpdateCheckController:
         self._request_show: Callable[[str], None] | None = None
         self._visibility_changed: Callable[[str, bool], None] | None = None
 
-    def set_window(self, window: Gtk.Window) -> None:
+    def set_window(self, window: DockWindow) -> None:
         """Attach the dock window used as popup parent and anchor."""
         self._window = window
 

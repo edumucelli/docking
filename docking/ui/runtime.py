@@ -47,6 +47,9 @@ class DockRuntime:
         self._window = window
         self._update_checker = update_checker
 
+    def prepare_menu_popup(self, menu: object) -> None:
+        self._window.surface_service.prepare_menu_popup(menu)
+
     def menu_popup_opened(self) -> None:
         self._window.interaction.menu_popup_opened()
 

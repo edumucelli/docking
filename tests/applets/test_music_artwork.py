@@ -25,7 +25,7 @@ def _state(**overrides: object) -> MusicState:
     base = MusicState(
         available=True,
         player_name="Player",
-        player_bus_name="org.mpris.MediaPlayer2.player",
+        player_id="org.mpris.MediaPlayer2.player",
         playback_status="Playing",
         title="Track",
         artist="Artist",
@@ -161,7 +161,7 @@ class TestCoverArtResolver:
         assert resolver.resolve(state) is None
         assert calls["count"] == 1
 
-    def test_cache_key_and_path_parsing(self):
+    def test_cache_key_and_path_parsing(self, tmp_path):
         resolver = CoverArtResolver()
         assert resolver._cache_key(_state(available=False)) == ""
         assert (
@@ -169,10 +169,9 @@ class TestCoverArtResolver:
             != ""
         )
         assert resolver._path_from_uri_or_path("  ") is None
-        assert resolver._path_from_uri_or_path("file:///tmp/a%20b.mp3") == Path(
-            "/tmp/a b.mp3"
-        )
-        assert resolver._path_from_uri_or_path("/tmp/song.mp3") == Path("/tmp/song.mp3")
+        track = tmp_path / "a b.mp3"
+        assert resolver._path_from_uri_or_path(track.as_uri()) == track
+        assert resolver._path_from_uri_or_path(str(track)) == track
         assert resolver._path_from_uri_or_path("https://example.com/x") is None
 
     def test_find_local_cover_invalid_folder(self, tmp_path: Path):
@@ -234,7 +233,7 @@ class TestCoverArtResolver:
 
         monkeypatch.setattr(resolver, "_load_from_path", lambda path: _pixbuf())
         assert resolver._load_from_uri(image.as_posix()) is not None
-        assert resolver._load_from_uri(f"file://{image}") is not None
+        assert resolver._load_from_uri(image.as_uri()) is not None
 
         monkeypatch.setattr(
             resolver, "_download_bytes", lambda uri, require_image: b"abc"

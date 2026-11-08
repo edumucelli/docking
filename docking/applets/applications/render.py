@@ -170,6 +170,7 @@ def make_menu_item_with_icon(
     label: str,
     icon_name: str | None = None,
     gicon: Gio.Icon | None = None,
+    image: Gtk.Image | None = None,
 ) -> Gtk.MenuItem:
     """Create a Gtk.MenuItem with an optional icon using non-deprecated widgets."""
     item = Gtk.MenuItem()
@@ -178,11 +179,11 @@ def make_menu_item_with_icon(
     row.set_margin_start(0)
     row.set_margin_end(0)
 
-    image: Gtk.Image | None = None
-    if gicon is not None:
-        image = Gtk.Image.new_from_gicon(gicon, Gtk.IconSize.MENU)
-    elif icon_name:
-        image = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.MENU)
+    if image is None:
+        if gicon is not None:
+            image = Gtk.Image.new_from_gicon(gicon, Gtk.IconSize.MENU)
+        elif icon_name:
+            image = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.MENU)
 
     if image is not None:
         normalize_menu_icon(image=image)

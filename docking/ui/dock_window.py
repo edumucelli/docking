@@ -189,6 +189,7 @@ current codebase.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import ceil, floor
 from typing import TYPE_CHECKING
 
 import gi
@@ -613,6 +614,14 @@ class DockWindow(Gtk.Window):
             y=anchor_y,
             position=self.config.pos,
             parent=self,
+            bounds=Rect(
+                floor(item_geometry.draw_rect.x),
+                floor(item_geometry.draw_rect.y),
+                ceil(item_geometry.draw_rect.x + item_geometry.draw_rect.w)
+                - floor(item_geometry.draw_rect.x),
+                ceil(item_geometry.draw_rect.y + item_geometry.draw_rect.h)
+                - floor(item_geometry.draw_rect.y),
+            ),
         )
 
     def update_input_region(self, frame: DockGeometryFrame | None = None) -> None:

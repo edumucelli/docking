@@ -100,15 +100,23 @@ class CinnamonColorPickerService(ScreenCaptureService):
         self._busy = True
         try:
             point = self._selection.select(pick_body="return [x, y];")
+            if not isinstance(point, list) or len(point) != 2:
+                return None
+            point_x, point_y = point
             if (
-                not isinstance(point, list)
-                or len(point) != 2
-                or not all(
-                    isinstance(v, (float, int)) and math.isfinite(v) for v in point
-                )
+                isinstance(point_x, bool)
+                or isinstance(point_y, bool)
+                or not isinstance(point_x, (float, int))
+                or not isinstance(point_y, (float, int))
             ):
                 return None
-            return self._sample(int(point[0]), int(point[1]))
+            try:
+                finite = math.isfinite(point_x) and math.isfinite(point_y)
+            except OverflowError:
+                return None
+            if not finite:
+                return None
+            return self._sample(int(point_x), int(point_y))
         finally:
             self._busy = False
 
@@ -165,12 +173,17 @@ class CinnamonColorPickerService(ScreenCaptureService):
             )
             if not isinstance(state, dict) or state.get("done"):
                 value = state.get("value") if isinstance(state, dict) else None
-                if (
-                    isinstance(value, list)
-                    and len(value) == 3
-                    and all(type(v) is int and 0 <= v <= 255 for v in value)
-                ):
-                    picked.append(tuple(value))
+                if isinstance(value, list) and len(value) == 3:
+                    red, green, blue = value
+                    if (
+                        type(red) is int
+                        and type(green) is int
+                        and type(blue) is int
+                        and 0 <= red <= 255
+                        and 0 <= green <= 255
+                        and 0 <= blue <= 255
+                    ):
+                        picked.append((red, green, blue))
                 loop.quit()
             return True
 

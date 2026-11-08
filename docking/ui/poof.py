@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
@@ -30,6 +31,39 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 log = with_context(get_logger(name="poof"))
 
 POOF_DURATION_MS = 300
+
+
+@dataclass(slots=True)
+class _PoofAnimation:
+    """Own one sprite animation's state and its GTK/GLib callbacks."""
+
+    pixbuf: GdkPixbuf.Pixbuf
+    frame_size: int
+    num_frames: int
+    frame: int = 0
+
+    def draw(self, _widget: Gtk.Widget, cr: cairo.Context) -> bool:
+        """Draw the current sprite frame over a transparent background."""
+        cr.set_operator(cairo.OPERATOR_SOURCE)
+        cr.set_source_rgba(0, 0, 0, 0)
+        cr.paint()
+        cr.set_operator(cairo.OPERATOR_OVER)
+
+        frame = min(self.frame, self.num_frames - 1)
+        Gdk.cairo_set_source_pixbuf(cr, self.pixbuf, 0, -self.frame_size * frame)
+        cr.rectangle(0, 0, self.frame_size, self.frame_size)
+        cr.fill()
+        return True
+
+    def tick(self, window: Gtk.Window) -> bool:
+        """Advance the animation and release its window after the last frame."""
+        self.frame += 1
+        log.bind(action="animate").debug(f"tick: frame={self.frame}/{self.num_frames}")
+        if self.frame >= self.num_frames:
+            window.destroy()
+            return False
+        window.queue_draw()
+        return True
 
 
 @lru_cache(maxsize=1)
@@ -70,42 +104,15 @@ def show_poof(x: int, y: int) -> None:
     if visual:
         win.set_visual(visual)
 
-    # Store animation state on the window to prevent GC issues
-    win.poof = {
-        "frame": 0,
-        "pixbuf": pixbuf,
-        "frame_size": frame_size,
-        "num_frames": num_frames,
-    }
-
-    def on_draw(widget: Gtk.Widget, cr: cairo.Context) -> bool:
-        cr.set_operator(cairo.OPERATOR_SOURCE)
-        cr.set_source_rgba(0, 0, 0, 0)
-        cr.paint()
-        cr.set_operator(cairo.OPERATOR_OVER)
-
-        p = widget.poof
-        f = min(p["frame"], p["num_frames"] - 1)
-        Gdk.cairo_set_source_pixbuf(cr, p["pixbuf"], 0, -p["frame_size"] * f)
-        cr.rectangle(0, 0, p["frame_size"], p["frame_size"])
-        cr.fill()
-        return True
-
-    def tick(w: Gtk.Window) -> bool:
-        p = w.poof
-        p["frame"] += 1
-        log.bind(action="animate").debug(f"tick: frame={p['frame']}/{p['num_frames']}")
-        if p["frame"] >= p["num_frames"]:
-            w.destroy()
-            return False
-        w.queue_draw()
-        return True
-
-    win.connect("draw", on_draw)
+    animation = _PoofAnimation(
+        pixbuf=pixbuf, frame_size=frame_size, num_frames=num_frames
+    )
+    # Bound callbacks keep this animation alive until the window and timer finish.
+    win.connect("draw", animation.draw)
     win.move(x - frame_size // 2, y - frame_size // 2)
     win.show_all()
     interval_ms = POOF_DURATION_MS // num_frames
     log.bind(action="show").debug(
         f"shown at ({x},{y}) frames={num_frames} interval={interval_ms}ms"
     )
-    GLib.timeout_add(POOF_DURATION_MS // num_frames, tick, win)
+    GLib.timeout_add(interval_ms, animation.tick, win)

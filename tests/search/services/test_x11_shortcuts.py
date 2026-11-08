@@ -6,11 +6,12 @@ import os
 
 import pytest
 
-import docking.search.services.x11_shortcuts as x11_mod
-from docking.search.services.x11_shortcuts import (
+import docking.search.services.implementations.unix.x11_shortcuts as x11_mod
+from docking.search.services.implementations.unix.x11_shortcuts import (
     CONTROL_MASK,
     MOD1_MASK,
     MOD4_MASK,
+    ShortcutWorker,
     X11GlobalShortcutService,
     is_x11_session,
     parse_xdg_shortcut,
@@ -66,7 +67,7 @@ def test_session_detection_falls_back_to_display_variables() -> None:
     assert not is_x11_session({"XDG_SESSION_TYPE": "wayland", "DISPLAY": ":0"})
 
 
-class _FakeWorker:
+class _FakeWorker(ShortcutWorker):
     def __init__(self, *, starts: bool = True, error: str | None = None) -> None:
         self.starts = starts
         self._error = error

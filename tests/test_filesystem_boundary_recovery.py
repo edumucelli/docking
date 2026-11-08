@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from docking.applets.trash import backend as trash_backend
+from docking.applets.trash.implementations.unix import backend as trash_backend
 from docking.core.config import Config
 from docking.core.items import FOLDER_KIND
 

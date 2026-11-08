@@ -24,6 +24,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GObject, Gtk
 
 from docking.i18n import _
+from docking.platform.desktop.selection import desktop_services
 
 _XDG_MODIFIERS = ("CTRL", "ALT", "SHIFT", "LOGO", "NUM")
 _MODIFIER_KEYVALS = {
@@ -39,13 +40,19 @@ _MODIFIER_KEYVALS = {
     Gdk.KEY_Meta_R,
     Gdk.KEY_Hyper_L,
     Gdk.KEY_Hyper_R,
+    Gdk.KEY_ISO_Level3_Shift,
+    Gdk.KEY_Mode_switch,
 }
 _KEY_NAME_RE = re.compile(r"^[A-Za-z0-9_]+$")
 
 
 def shortcut_from_key_event(keyval: int, state: Gdk.ModifierType) -> str | None:
     """Convert a safe GDK key event to canonical freedesktop syntax."""
-    if keyval in _MODIFIER_KEYVALS:
+    if (
+        keyval in _MODIFIER_KEYVALS
+        or state & Gdk.ModifierType.MOD5_MASK
+        or desktop_services().text_modifier_active()
+    ):
         return None
     if keyval == Gdk.KEY_ISO_Left_Tab:
         keyval = Gdk.KEY_Tab

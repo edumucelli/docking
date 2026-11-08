@@ -61,7 +61,7 @@ def _build_file_pipeline(path: Path, volume: float) -> Gst.Element | None:
     playbin = Gst.ElementFactory.make("playbin", "ambient-playbin")
     if not playbin:
         return None
-    playbin.set_property("uri", path.as_uri())
+    playbin.set_property("uri", Gst.filename_to_uri(str(path)))
     playbin.set_property("volume", volume)
     return playbin
 
@@ -200,11 +200,17 @@ class AmbientApplet(Applet):
         self._bus_watching = False
         if sound.kind == "file":
             bus = self._pipeline.get_bus()
-            bus.add_signal_watch()
-            bus.connect("message::eos", self._on_eos)
-            self._bus_watching = True
+            if bus is not None:
+                bus.add_signal_watch()
+                bus.connect("message::eos", self._on_eos)
+                self._bus_watching = True
 
-        self._pipeline.set_state(Gst.State.PLAYING)
+        if self._pipeline.set_state(Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
+            log.warning(
+                "Failed to start playback for %s", sound_label(self._state.current)
+            )
+            self._stop_playback()
+            return
         self._state = set_playing(state=self._state, playing=True)
 
     def _stop_playback(self) -> None:
@@ -233,7 +239,7 @@ class AmbientApplet(Applet):
         # playbin has a volume property directly
         if self._pipeline.find_property("volume"):
             self._pipeline.set_property("volume", self._state.volume)
-        else:
+        elif isinstance(self._pipeline, Gst.Bin):
             # noise pipeline: find the volume element by name
             volume_element = self._pipeline.get_by_name("vol")
             if volume_element:

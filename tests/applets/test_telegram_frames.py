@@ -106,7 +106,7 @@ def test_background_frame_callback_lifecycle(javascript, scenario):
 
 
 def test_real_hidden_webkit_runs_startup_frame_and_public_badging_api():
-    from docking.applets.webapp.browser import webkit_available
+    from docking.applets.webapp.implementations.unix.backend import webkit_available
 
     if not webkit_available() or not all(
         shutil.which(name) for name in ("xvfb-run", "dbus-run-session")

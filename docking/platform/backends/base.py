@@ -25,6 +25,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum
+from typing import Protocol
 
 from .diagnostics import WindowTrackingDiagnostic
 
@@ -276,6 +277,10 @@ class Service(ABC):
 class WindowService(Service):
     """Taskbar/window state and window actions."""
 
+    def defer_menu_row_removal(self, window_id: WindowId) -> bool:
+        """Keep popup removal compatible with the identity's session transport."""
+        return window_id.backend is DisplayServer.WAYLAND
+
     def refresh(self) -> None:
         """Refresh polled state before launching; event-driven services need no scan."""
 
@@ -339,8 +344,64 @@ class WindowService(Service):
         """Toggle focus/minimize behavior for an app."""
 
 
+class OverlayWindow(Protocol):
+    """Toolkit-neutral operations used to place an external overlay window."""
+
+    def get_scale_factor(self) -> int: ...
+    def move(self, x: int, y: int) -> None: ...
+    def resize(self, width: int, height: int) -> None: ...
+
+
 class SurfaceService(Service):
     """Dock surface role, screen reservation, and platform edge integration."""
+
+    def popups_require_managed_windows(self) -> bool:
+        """Use GTK toplevels when temporary windows cannot receive keyboard focus."""
+        return False
+
+    def prepare_menu_popup(self, menu: object) -> None:
+        """Prepare any platform-specific keyboard focus for a root menu."""
+
+    def restore_popup_focus(
+        self,
+        window: object,
+        claim: Callable[[], bool],
+        *,
+        validate: Callable[[], bool],
+    ) -> bool:
+        """Restore an owned popup only after claiming a current provider request.
+
+        Called on the GTK thread. Implementations must invoke ``claim`` at the
+        final focus boundary, before mapping, presenting or foregrounding the
+        popup. Recheck ``validate`` after mapping, immediately before focusing.
+        Return False without showing it when the claim is rejected.
+        """
+        return False
+
+    def prepare_file_drag_source(
+        self,
+        widget: object,
+        *,
+        application_id: str,
+        data: tuple[tuple[str, bytes], ...],
+    ) -> bool:
+        """Own a prepared file drag, or return False to use GTK's default source."""
+        return False
+
+    def prepare_capture_overlay(self, overlay: object) -> None:
+        """Prepare focus and shutdown handling for an owned input-capture surface."""
+
+    def capture_source_window(self) -> WindowSnapshot | None:
+        """Return the window which was active before an owned menu took focus."""
+        return None
+
+    def screen_rectangle(self, window: object, rect: Rect) -> Rect | None:
+        """Map a GTK client rectangle into the platform's desktop coordinates.
+
+        Called on the GTK thread. Return None when this backend does not publish
+        native screen geometry.
+        """
+        return None
 
     def set_pointer_leave_handler(self, callback: Callable[[], None] | None) -> None:
         """Register an optional compositor fallback for missing GTK exit events."""
@@ -395,6 +456,11 @@ class SurfaceService(Service):
         """Set or clear a compositor blur hint, if supported."""
 
     @property
+    def input_region_alpha(self) -> float:
+        """Minimum rendered alpha needed where hit testing follows pixel alpha."""
+        return 0.0
+
+    @property
     def compositor_sizes_main_axis(self) -> bool:
         """Whether content must fit the compositor-assigned stretched axis."""
         return False
@@ -437,7 +503,7 @@ class SurfaceService(Service):
     def prepare_overlay_window(self, window: object) -> None:
         """Give a transient overlay window its platform role before realize."""
 
-    def place_overlay(self, window: object, rect: Rect) -> None:
+    def place_overlay(self, window: OverlayWindow, rect: Rect) -> None:
         """Place a prepared overlay window at ``rect`` in global coordinates.
 
         The default suits backends reporting device pixels and where
@@ -448,6 +514,10 @@ class SurfaceService(Service):
         logical = rect.device_to_logical(window.get_scale_factor())
         window.move(logical.x, logical.y)
         window.resize(logical.width, logical.height)
+
+    def monitor_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
+        """Current logical work area, including this dock's screen reservation."""
+        return monitor.workarea or monitor.geometry
 
     def external_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
         """Return monitor space excluding other edge-reserving surfaces.
@@ -553,7 +623,7 @@ class ScreenCaptureService(Service):
 
     @abstractmethod
     def pick_color(self, *, x: int, y: int) -> tuple[int, int, int] | None:
-        """Pick a screen color in RGB byte values."""
+        """Pick RGB bytes at GTK logical root coordinates (ignored when interactive)."""
 
 
 class IdleService(Service):

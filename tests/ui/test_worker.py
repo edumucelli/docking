@@ -141,3 +141,82 @@ def test_run_guarded_delivers_errors_and_releases_key():
         )
         is True
     )
+
+
+def test_serial_worker_orders_io_and_closes_on_its_thread_without_gtk_delivery():
+    import threading
+
+    from docking.applets.worker import SerialWorker
+
+    entered, resume, closed = (threading.Event() for _ in range(3))
+    observed, replies = [], []
+
+    def finish():
+        observed.append(("close", threading.get_ident()))
+        closed.set()
+
+    worker = SerialWorker(
+        on_close=finish, idle_add=lambda cb, *args: replies.append((cb, args))
+    )
+
+    def first():
+        entered.set()
+        assert resume.wait(3)
+        observed.append(("first", threading.get_ident()))
+        return 1
+
+    try:
+        worker.run(name="first", fn=first, on_result=lambda _value: None)
+        assert entered.wait(3)
+        worker.run(
+            name="second", fn=lambda: observed.append(("second", threading.get_ident()))
+        )
+        worker.stop()  # GTK need not wait for the outstanding IO.
+        assert not closed.is_set()
+        resume.set()
+        assert closed.wait(3)
+        assert [row[0] for row in observed] == ["first", "second", "close"]
+        assert len({row[1] for row in observed}) == 1
+        assert observed[0][1] != threading.get_ident()
+        assert len(replies) == 1  # No GTK reply was needed for cleanup.
+        with pytest.raises(RuntimeError, match="stopped"):
+            worker.run(name="late", fn=lambda: None)
+    finally:
+        resume.set()
+        worker.stop()
+        if worker._thread is not None:
+            worker._thread.join(3)
+
+
+def test_serial_worker_retries_failed_start_without_executing_abandoned_request():
+    import threading
+
+    from docking.applets.worker import SerialWorker
+
+    attempts, observed, closed = [], [], threading.Event()
+
+    def thread_factory(**kwargs):
+        attempts.append(kwargs)
+        if len(attempts) == 1:
+            raise RuntimeError("No thread available")
+        return threading.Thread(**kwargs)
+
+    worker = SerialWorker(
+        on_close=closed.set,
+        thread_factory=thread_factory,
+        idle_add=lambda cb, *args: cb(*args),
+    )
+    try:
+        with pytest.raises(RuntimeError, match="No thread"):
+            worker.run_guarded(
+                key="poll", name="old", fn=lambda: observed.append("old")
+            )
+        assert worker.run_guarded(
+            key="poll", name="retry", fn=lambda: observed.append("retry")
+        )
+    finally:
+        worker.stop()
+        assert closed.wait(3)
+        worker._thread.join(3)
+    assert observed == ["retry"]
+    assert not attempts[-1]["daemon"]

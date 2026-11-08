@@ -117,6 +117,7 @@ class WindowKillerApplet(Applet):
             click_handler=self._on_overlay_click,
             key_handler=self._on_overlay_key,
             cursor_type=Gdk.CursorType.PIRATE,
+            anchor=self.popup_anchor,
         )
 
     @staticmethod

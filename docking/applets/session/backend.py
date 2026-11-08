@@ -1,22 +1,14 @@
-"""Session action contract and OS selection."""
+"""Semantic session actions independent of OS command representations."""
 
 from abc import ABC, abstractmethod
-
-from docking.platform import environment
+from collections.abc import Collection
 
 
 class SessionBackend(ABC):
     @abstractmethod
-    def command_for(self, action: str) -> list[str] | None: ...
+    def available_actions(self) -> Collection[str]: ...
     @abstractmethod
-    def lock_commands(self) -> tuple[tuple[str, ...], ...]: ...
+    def perform(self, action: str) -> bool: ...
 
-
-def create_backend() -> SessionBackend:
-    if environment.is_bsd():
-        from docking.applets.session.bsd import BsdSessionBackend
-
-        return BsdSessionBackend()
-    from docking.applets.session.linux import LinuxSessionBackend
-
-    return LinuxSessionBackend()
+    @abstractmethod
+    def stop(self) -> None: ...

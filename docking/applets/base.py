@@ -71,6 +71,8 @@ from typing import TYPE_CHECKING, Any
 import cairo
 import gi
 
+from docking.applets.platform import AppletPlatformServices
+
 gi.require_version("Gtk", "3.0")
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
@@ -465,6 +467,11 @@ class Applet(ABC):
         """Handle left-click (default: no-op)."""
         return
 
+    @property
+    def popup_visible(self) -> bool:
+        """Whether this applet's interactive popup should suppress its tooltip."""
+        return False
+
     def stack_content(self, icon_size: int) -> StackContent | None:
         """Return reusable stack content, or None for normal click handling."""
         _ = icon_size
@@ -530,7 +537,7 @@ class Applet(ABC):
 
 
 class ApplicationServicesApplet(Applet):
-    """Applet base that guarantees application services from construction."""
+    """Applet with application services and native factories from construction."""
 
     def __init__(
         self,
@@ -539,9 +546,11 @@ class ApplicationServicesApplet(Applet):
         *,
         application_registry: ApplicationRegistry,
         application_launcher: ApplicationLauncher,
+        platform_services: AppletPlatformServices,
     ) -> None:
         self._application_registry = application_registry
         self._application_launcher = application_launcher
+        self._platform = platform_services
         super().__init__(icon_size=icon_size, config=config)
 
 
@@ -558,4 +567,18 @@ class TargetServicesApplet(Applet):
     ) -> None:
         self._icon_loader = icon_loader
         self._target_service = target_service
+        super().__init__(icon_size=icon_size, config=config)
+
+
+class PlatformServicesApplet(Applet):
+    """Applet with stable native factories supplied before its first read."""
+
+    def __init__(
+        self,
+        icon_size: int,
+        config: Config,
+        *,
+        platform_services: AppletPlatformServices,
+    ) -> None:
+        self._platform = platform_services
         super().__init__(icon_size=icon_size, config=config)

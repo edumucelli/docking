@@ -7,23 +7,22 @@ from unittest.mock import MagicMock
 
 import pytest
 
-import docking.platform.status_notifier.service as service_mod
-from docking.platform.status_notifier import (
-    StatusNotifierNotificationBridge,
-    StatusNotifierService,
-    StatusTrayState,
-)
-from docking.platform.status_notifier.backend import (
+import docking.platform.tray.service as service_mod
+from docking.platform.tray.backend import TrayBackend
+from docking.platform.tray.implementations.unix.status_notifier import (
     RegisteredItemAddress,
     tray_item_from_properties,
-    unavailable_state,
 )
-from docking.platform.status_notifier.notifications import (
+from docking.platform.tray.notifications import (
     SLACK_DESKTOP_ID,
+    TrayNotificationBridge,
     parse_slack_notification_count,
     status_notifier_desktop_id,
 )
-from docking.platform.status_notifier.service import POLL_INTERVAL_S
+from docking.platform.tray.service import POLL_INTERVAL_S
+from docking.platform.tray.service import TrayService as StatusNotifierService
+from docking.platform.tray.state import TrayState
+from tests.platform_factories import make_tray_service
 
 
 def _tray_item(
@@ -47,32 +46,62 @@ def _tray_item(
     )
 
 
-def _available_state(*items) -> StatusTrayState:
-    return StatusTrayState(
+from docking.platform.tray.state import unavailable_state
+
+
+def _available_state(*items) -> TrayState:
+    return TrayState(
         available=True,
-        watcher_mode="watcher",
+        mode="watcher",
         items=tuple(items),
     )
 
 
-class _Backend:
-    def __init__(self, state: StatusTrayState) -> None:
+class _Backend(TrayBackend):
+    def __init__(self, state: TrayState) -> None:
         self.state = state
         self.close_calls = 0
         self.get_state_calls = 0
 
-    def get_state(self) -> StatusTrayState:
+    def set_focus_handler(self, handler) -> None:
+        self.focus_handler = handler
+
+    def get_state(self) -> TrayState:
         self.get_state_calls += 1
         return self.state
 
     def close(self) -> None:
         self.close_calls += 1
 
+    def initial_state(self):
+        return unavailable_state()
+
+    def activate(self, identifier):
+        raise AssertionError("Notification overlays must not activate tray items")
+
+    def context_menu(self, identifier):
+        raise AssertionError("Notification overlays must not open tray menus")
+
+    def set_geometry(self, bounds):
+        pass
+
+    def pointer(self, identifier, *, point=None, anchor=None):
+        raise AssertionError("Notification overlays must not move the pointer")
+
+    def double_click(self, identifier, *, anchor=None):
+        raise AssertionError("Notification overlays must not activate tray items")
+
+    def menu_client(self, identifier):
+        raise AssertionError("Notification overlays must not request tray menus")
+
 
 class _RaisingBackend(_Backend):
-    def get_state(self) -> StatusTrayState:
+    def get_state(self) -> TrayState:
         self.get_state_calls += 1
         raise RuntimeError("D-Bus unavailable")
+
+    def initial_state(self):
+        return unavailable_state()
 
 
 class _ImmediateWorker:
@@ -123,7 +152,7 @@ def _registry(*, exact=None, alias=None):
 
 
 def _service(*, backend, worker=None) -> StatusNotifierService:
-    return StatusNotifierService(
+    return make_tray_service(
         backend=backend,
         worker=worker if worker is not None else _ImmediateWorker(),
     )
@@ -136,11 +165,11 @@ def _bridge(
     application_registry=None,
     worker=None,
     service=None,
-) -> StatusNotifierNotificationBridge:
+) -> TrayNotificationBridge:
     registry = application_registry if application_registry is not None else _registry()
     if service is None:
         service = _service(backend=backend, worker=worker)
-    return StatusNotifierNotificationBridge(
+    return TrayNotificationBridge(
         model=model,
         application_registry=registry,
         service=service,
@@ -227,7 +256,7 @@ class TestSlackTrayParsing:
         )
 
 
-class TestStatusNotifierNotificationBridge:
+class TestTrayNotificationBridge:
     def test_start_applies_overlays_and_stop_clears_them(self, timers):
         model = MagicMock()
         backend = _Backend(_available_state(_tray_item()))
@@ -244,7 +273,8 @@ class TestStatusNotifierNotificationBridge:
             badge_count=2,
         )
         assert backend.get_state_calls == 1
-        assert timers.added == [(POLL_INTERVAL_S, service._tick)]
+        assert len(timers.added) == 1
+        assert timers.added[0][0] == POLL_INTERVAL_S and callable(timers.added[0][1])
 
         bridge.stop()
 
@@ -255,26 +285,9 @@ class TestStatusNotifierNotificationBridge:
         assert service._running is True
         assert timers.removed == []
 
-    def test_bridge_without_service_owns_its_lifetime(self, monkeypatch, timers):
-        model = MagicMock()
-        backend = _Backend(_available_state(_tray_item()))
-        monkeypatch.setattr(service_mod, "StatusNotifierBackend", lambda: backend)
-        monkeypatch.setattr(
-            service_mod,
-            "BackgroundWorker",
-            lambda **_kwargs: _ImmediateWorker(),
-        )
-        bridge = StatusNotifierNotificationBridge(
-            model=model,
-            application_registry=_registry(),
-        )
-
-        bridge.start()
-        bridge.stop()
-
-        assert backend.get_state_calls == 1
-        assert backend.close_calls == 1
-        assert timers.removed == [77]
+    def test_bridge_requires_a_shared_service(self):
+        with pytest.raises(TypeError, match="service"):
+            TrayNotificationBridge(model=MagicMock(), application_registry=_registry())
 
     def test_exact_registry_match_uses_canonical_desktop_id(self):
         model = MagicMock()

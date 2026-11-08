@@ -1,27 +1,23 @@
-"""Select the thermal reader for the operating system."""
+"""Thermal reader contract without presentation or native runtime imports."""
 
-import shutil
-import subprocess
-from collections.abc import Callable
-from pathlib import Path
+from __future__ import annotations
 
-from docking.applets.thermals.state import HWMON_DIR, THERMAL_DIR, ThermalsBackend
-from docking.platform import environment
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .state import ThermalSnapshot
 
 
-def create_backend(
-    *,
-    which: Callable[[str], str | None] = shutil.which,
-    run: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
-    hwmon_dir: Path = HWMON_DIR,
-    thermal_dir: Path = THERMAL_DIR,
-) -> ThermalsBackend:
-    if environment.is_bsd() and hwmon_dir == HWMON_DIR and thermal_dir == THERMAL_DIR:
-        from docking.applets.thermals.bsd import BsdThermalsBackend
+class ThermalsBackend(ABC):
+    """Backend interface for reading current thermal state."""
 
-        return BsdThermalsBackend()
-    from docking.applets.thermals.linux import LinuxThermalsBackend
+    @abstractmethod
+    def get_snapshot(self) -> ThermalSnapshot:
+        """Read current thermal state."""
+        raise NotImplementedError
 
-    return LinuxThermalsBackend(
-        which=which, run=run, hwmon_dir=hwmon_dir, thermal_dir=thermal_dir
-    )
+    @staticmethod
+    def has_readings(snapshot: ThermalSnapshot) -> bool:
+        """Return whether a snapshot contains live thermal data."""
+        return snapshot.hottest is not None or snapshot.fan is not None

@@ -8,8 +8,8 @@ from typing import cast
 
 import pytest
 
-import docking.search.services.global_shortcuts as shortcuts_mod
-from docking.search.services.global_shortcuts import (
+import docking.search.services.implementations.unix.shortcuts as shortcuts_mod
+from docking.search.services.implementations.unix.shortcuts import (
     DBUS_BUS_NAME,
     DBUS_INTERFACE,
     DBUS_OBJECT_PATH,

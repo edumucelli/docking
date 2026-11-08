@@ -807,12 +807,14 @@ class TestCodexTranscript:
         old.write_text("{}", encoding="utf-8")
         current = sessions_dir / "current.jsonl"
         current.write_text(json.dumps({"type": "turn_context", "payload": {}}))
-        os.utime(old, (1000, 1000))
-        os.utime(current, (2000, 2000))
+        today = "2026-04-29"
+        today_start = datetime.datetime.fromisoformat(today).timestamp()
+        os.utime(old, (today_start - 2, today_start - 2))
+        os.utime(current, (today_start + 2, today_start + 2))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         monkeypatch.setattr(
             "docking.applets.aiusage.backends.codex._today_iso",
-            lambda: "1970-01-01",
+            lambda: today,
         )
 
         assert codex_backend.query_today() == {}
@@ -1326,7 +1328,9 @@ class TestClaudeHookRegistration:
         logger.warning.assert_called_once()
 
     def test_has_hook_detects_existing_command(self):
-        assert claude_backend._has_hook(
+        from docking.applets.aiusage.implementations.unix.hooks import _has_hook
+
+        assert _has_hook(
             entries=[{"hooks": [{"command": "prefix value"}]}],
             needle="prefix",
         )
@@ -1341,7 +1345,10 @@ class TestCodexHookRegistration:
         codex_backend.register_hook()
 
         content = config_path.read_text()
-        assert "docking.applets.aiusage.hook" in content
+        if os.name == "nt":
+            assert "hook_runner.py" in content
+        else:
+            assert "docking.applets.aiusage.hook" in content
         assert "notify" in content
 
     def test_skips_if_codex_sync_present(self, tmp_path, monkeypatch):
@@ -1491,3 +1498,20 @@ class TestRender:
 
         assert result == "pixbuf"
         draw_label.assert_not_called()
+
+
+def test_codex_hook_preserves_unicode_source_directory(tmp_path, monkeypatch):
+    from docking.applets.aiusage.backends import codex
+
+    config = tmp_path / "config.toml"
+    config.write_text('model = "example"\n', encoding="utf-8")
+    root = tmp_path / "source-😀"
+    monkeypatch.setattr(codex, "_CODEX_CONFIG", config)
+    monkeypatch.setattr(
+        codex, "__file__", str(root / "docking/applets/aiusage/backends/codex.py")
+    )
+    codex.register_hook()
+    content = config.read_text(encoding="utf-8")
+    assert str(root) in content
+    assert r"\ud83d" not in content
+    assert 'model = "example"' in content

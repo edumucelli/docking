@@ -21,7 +21,7 @@ meta = AppletMeta(
     id="bluetooth",
     name="Bluetooth",
     category=AppletCategory.SYSTEM,
-    unsupported_platforms=("openbsd",),
+    unsupported_platforms=("openbsd", "netbsd"),
 )
 
 __all__ = ["meta"]

@@ -5,8 +5,8 @@ import os
 
 import pytest
 
-from docking.applets.micshield import state as mic
-from docking.applets.volume import pulseaudio as volume
+import docking.applets.micshield.implementations.unix.backend as native_micshield
+from docking.applets.volume.implementations.unix import pulseaudio as volume
 from docking.applets.volume.state import VolumeState
 
 
@@ -63,11 +63,13 @@ def test_localized_pactl_output_is_parsed(pactl, kind):
     if kind == "volume":
         assert volume._pactl_get_state() == VolumeState(volume=50, muted=True)
     elif kind == "mic_mute":
-        state = mic.probe_mic_state()
+        state = native_micshield.probe_mic_state()
         assert state.available
         assert state.muted
     else:
-        assert [stream.stream_id for stream in mic.active_source_outputs()] == [42]
+        assert [
+            stream.stream_id for stream in native_micshield.active_source_outputs()
+        ] == [42]
 
 
 def test_unmute_also_restores_a_paused_recording(pactl, monkeypatch):
@@ -76,10 +78,10 @@ def test_unmute_also_restores_a_paused_recording(pactl, monkeypatch):
     state.update(corked=True, stream_muted=True)
     pactl.write_text(json.dumps(state))
 
-    assert mic.set_mic_muted(muted=False)
+    assert native_micshield.set_mic_muted(muted=False)
 
     assert not json.loads(pactl.read_text())["stream_muted"]
-    assert mic.active_source_outputs() == ()
+    assert native_micshield.active_source_outputs() == ()
 
 
 @pytest.mark.parametrize("known_mute", [True, False])
@@ -90,9 +92,9 @@ def test_partial_mute_query_disables_toggle(pactl, monkeypatch, known_mute):
     state["sources"]["unread_microphone"] = None
     pactl.write_text(json.dumps(state))
 
-    actual = mic.probe_mic_state()
+    actual = native_micshield.probe_mic_state()
 
     assert not actual.available
     assert not actual.muted
-    assert not mic.toggle_mic_mute()
+    assert not native_micshield.toggle_mic_mute()
     assert json.loads(pactl.read_text())["sources"] == state["sources"]

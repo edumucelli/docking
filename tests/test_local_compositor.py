@@ -12,13 +12,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @pytest.mark.parametrize(
     "script,args",
-    [("native_services.sh", ["phoc", "foreign"]), ("wayfire_services.sh", [])],
+    [
+        ("native_services.sh", ["phoc", "foreign"]),
+        ("wayfire_services.sh", []),
+        ("cinnamon_services.sh", []),
+    ],
 )
 def test_service_runner_creates_evidence_in_fresh_checkout(tmp_path, script, args):
-    scripts = tmp_path / "checkout/tools/visual_compositor"
+    scripts = tmp_path / "checkout/tools/linux/visual"
     scripts.mkdir(parents=True)
     destination = scripts / script
-    shutil.copy2(ROOT / "tools/visual_compositor" / script, destination)
+    shutil.copy2(ROOT / "tools/linux/visual" / script, destination)
     commands = tmp_path / "commands"
     commands.mkdir()
     docker = commands / "docker"
@@ -39,7 +43,10 @@ def test_service_runner_creates_evidence_in_fresh_checkout(tmp_path, script, arg
 
     assert result.returncode == 0, result.stderr
     assert (scripts / "evidence").is_dir()
-    assert len(calls.read_text().splitlines()) == 3
+    docker_calls = calls.read_text().splitlines()
+    assert len(docker_calls) == 3
+    assert f"{tmp_path / 'checkout'}:/src:ro" in docker_calls[-1]
+    assert f"/src/tools/linux/visual/{script} --session" in docker_calls[-1]
 
 
 @pytest.mark.parametrize("no_xwayland", [False, True])
@@ -55,7 +62,7 @@ def test_phoc_adapter_accepts_old_and_new_command_line_options(tmp_path, no_xway
             "-c",
             'set -eu; source "$1"; adapter_prepare; printf "%s" "${PHOC_LAB_ARGS[*]}"',
             "test",
-            str(ROOT / "tools/visual_compositor/adapters/phoc.sh"),
+            str(ROOT / "tools/linux/visual/adapters/phoc.sh"),
         ],
         env={
             **os.environ,
@@ -85,7 +92,7 @@ def test_gnome_adapter_preserves_nested_and_supports_headless(tmp_path, nested):
                 'printf "%s|%s" "$GNOME_LAB_MODE" "$LAB_CAPTURE_MODE"'
             ),
             "test",
-            str(ROOT / "tools/visual_compositor/adapters/gnome.sh"),
+            str(ROOT / "tools/linux/visual/adapters/gnome.sh"),
         ],
         env={
             **os.environ,
@@ -103,7 +110,7 @@ def test_gnome_adapter_preserves_nested_and_supports_headless(tmp_path, nested):
 
 def test_virtual_pointer_binding_imports_with_supported_pywayland():
     pytest.importorskip("pywayland")
-    from tools.visual_compositor.probes.generated.wlr_virtual_pointer_unstable_v1 import (
+    from tools.linux.visual.probes.generated.wlr_virtual_pointer_unstable_v1 import (
         ZwlrVirtualPointerManagerV1,
     )
 
@@ -118,7 +125,7 @@ def test_virtual_pointer_binding_imports_with_supported_pywayland():
 
 def test_local_runner_rejects_unknown_mode_before_starting_a_compositor():
     result = subprocess.run(
-        ["bash", str(ROOT / "tools/visual_compositor/local_run.sh"), "unknown", "sway"],
+        ["bash", str(ROOT / "tools/linux/visual/local_run.sh"), "unknown", "sway"],
         capture_output=True,
         text=True,
     )
@@ -133,7 +140,7 @@ def test_stack_capture_uses_the_compositor_screenshot_backend(
     import importlib
     from unittest.mock import MagicMock
 
-    monkeypatch.syspath_prepend(str(ROOT / "tools/visual_compositor/probes"))
+    monkeypatch.syspath_prepend(str(ROOT / "tools/linux/visual/probes"))
     module = importlib.import_module("stack_action")
     run = MagicMock()
     monkeypatch.setattr(module.subprocess, "run", run)
@@ -181,7 +188,7 @@ def test_autohide_stimulus_uses_the_usable_edge(tmp_path, has_workarea):
                 ]
             ),
             "test",
-            str(ROOT / "tools/visual_compositor/actions.sh"),
+            str(ROOT / "tools/linux/visual/actions.sh"),
         ],
         env={
             **os.environ,
@@ -213,7 +220,7 @@ def test_cinnamon_capture_waits_for_a_complete_png(monkeypatch, tmp_path):
     pytest.importorskip("gi")
     from PIL import Image
 
-    monkeypatch.syspath_prepend(str(ROOT / "tools/visual_compositor/probes"))
+    monkeypatch.syspath_prepend(str(ROOT / "tools/linux/visual/probes"))
     module = importlib.import_module("cinnamon_probe")
     encoded = io.BytesIO()
     Image.new("RGB", (20, 20), "red").save(encoded, format="PNG")
