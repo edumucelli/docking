@@ -45,9 +45,16 @@ assert.equal(calls[1][1].headers['X-Test'], 'preserved');
 assert.equal(calls[1][2], callback);
 assert.deepEqual(options, { timeout: 1000, headers: { 'X-Test': 'preserved' } });
 
+for (const [version, id] of [['0.7.4', 658797422], ['0.7.5', 662367953]]) {
+  namespace.get(`https://github.com/anyvm-org/anyvm/releases/download/v${version}/anyvm.py`, callback);
+  assert.equal(calls.at(-1)[0], `https://api.github.com/repos/anyvm-org/anyvm/releases/assets/${id}`);
+  assert.equal(calls.at(-1)[1].headers.Accept, 'application/octet-stream');
+  assert.equal(calls.at(-1)[2], callback);
+}
+
 // Leave other versions, VM images, and normal HTTPS traffic untouched.
 for (const url of [
-  'https://github.com/anyvm-org/anyvm/releases/download/v0.7.5/anyvm.py',
+  'https://github.com/anyvm-org/anyvm/releases/download/v0.7.6/anyvm.py',
   'https://api.github.com/repos/anyvm-org/freebsd-builder/releases',
 ]) {
   namespace.get(url, options, callback);

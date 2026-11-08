@@ -1,16 +1,27 @@
-// FreeBSD's action pins AnyVM v0.7.2, whose browser download can return 504.
-// Keep the same release asset while using GitHub's release-asset API.
+// The BSD actions pin these AnyVM versions, whose browser downloads can return
+// 504. Keep the same release assets while using GitHub's release-asset API.
 import https from "node:https";
 import { syncBuiltinESMExports } from "node:module";
 
-const browserUrl =
-  "https://github.com/anyvm-org/anyvm/releases/download/v0.7.2/anyvm.py";
-const assetUrl =
-  "https://api.github.com/repos/anyvm-org/anyvm/releases/assets/589232152";
+const assetUrls = new Map([
+  [
+    "https://github.com/anyvm-org/anyvm/releases/download/v0.7.2/anyvm.py",
+    "https://api.github.com/repos/anyvm-org/anyvm/releases/assets/589232152",
+  ],
+  [
+    "https://github.com/anyvm-org/anyvm/releases/download/v0.7.4/anyvm.py",
+    "https://api.github.com/repos/anyvm-org/anyvm/releases/assets/658797422",
+  ],
+  [
+    "https://github.com/anyvm-org/anyvm/releases/download/v0.7.5/anyvm.py",
+    "https://api.github.com/repos/anyvm-org/anyvm/releases/assets/662367953",
+  ],
+]);
 const originalGet = https.get;
 
 https.get = (url, ...args) => {
-  if (url !== browserUrl) {
+  const assetUrl = assetUrls.get(url);
+  if (!assetUrl) {
     return originalGet(url, ...args);
   }
   const [options = {}, callback] =
