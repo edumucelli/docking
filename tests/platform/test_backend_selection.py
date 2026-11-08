@@ -4,8 +4,35 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from docking.platform.backends import selection
+from docking.platform.host.implementations.linux.backend import LinuxHostServices
+from docking.platform.host.implementations.windows.backend import WindowsHostServices
 from tests.platform.application_fakes import identity_services
+
+
+@pytest.fixture(autouse=True)
+def unix_selection_host(monkeypatch):
+    """Desktop fixtures model Unix unless a test explicitly selects Windows."""
+    monkeypatch.setattr(selection, "host_services", LinuxHostServices)
+
+
+def test_windows_selection_precedes_unix_display_probes(monkeypatch):
+    from docking.platform.backends.base import DisplayServer
+
+    monkeypatch.delenv("DOCKING_BACKEND", raising=False)
+    monkeypatch.setattr(selection, "host_services", WindowsHostServices)
+
+    def unexpected_x11_probe():
+        raise AssertionError("Windows selection must not probe an X11 display")
+
+    monkeypatch.setattr(selection, "is_x11_backend", unexpected_x11_probe)
+    backend = selection.create_session_backend(
+        config=MagicMock(), model=MagicMock(), **identity_services()
+    )
+    assert backend.display_server is DisplayServer.WINDOWS
+    assert backend.name == "windows"
 
 
 def test_create_session_backend_selects_x11_backend(monkeypatch):
@@ -513,3 +540,32 @@ def test_create_session_backend_auto_selects_treeland_before_generic_wayland(
     assert result is backend
     create_treeland.assert_called_once()
     create_wayland.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "requested", ["x11", "wayland", "gnome-shell", "cinnamon", "unknown"]
+)
+def test_windows_rejects_incompatible_overrides_before_loading_a_transport(
+    monkeypatch, requested
+):
+    monkeypatch.setattr(selection, "host_services", WindowsHostServices)
+    monkeypatch.setenv("DOCKING_BACKEND", requested)
+    with pytest.raises(ValueError, match="unavailable on Windows"):
+        selection.create_session_backend(
+            config=object(),
+            model=object(),
+            application_registry=object(),
+            process_identity_service=object(),
+        )
+
+
+@pytest.mark.parametrize("requested", ["windows", "win32"])
+def test_unix_rejects_native_windows_overrides(monkeypatch, requested):
+    monkeypatch.setenv("DOCKING_BACKEND", requested)
+    with pytest.raises(ValueError, match="requires a Windows host"):
+        selection.create_session_backend(
+            config=object(),
+            model=object(),
+            application_registry=object(),
+            process_identity_service=object(),
+        )

@@ -1,0 +1,6 @@
+# Use only for first installation. The base compose file boots the persistent
+# installed disk without keeping a large installer ISO mounted on the host.
+services:
+  windows:
+    volumes:
+      - ${DOCKING_WINDOWS_ISO:?Set the official Windows 11 x64 ISO path}:/custom.iso:ro

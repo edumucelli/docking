@@ -174,6 +174,7 @@ class FakeMenuItem:
         self._submenu = None
         self._child = None
         self._sensitive = True
+        self._tooltip_text = None
         self.hidden = False
         self.destroyed = False
         self.parent = None
@@ -214,6 +215,9 @@ class FakeMenuItem:
 
     def set_sensitive(self, sensitive: bool) -> None:
         self._sensitive = sensitive
+
+    def set_tooltip_text(self, text: str) -> None:
+        self._tooltip_text = text
 
     def get_child(self):
         return self._child
@@ -1383,6 +1387,47 @@ class TestItemMenus:
 
 
 class TestDockMenu:
+    @pytest.mark.parametrize(
+        ("platform_name", "available"),
+        [
+            ("linux", True),
+            ("freebsd15", True),
+            ("openbsd7", True),
+            ("netbsd11", True),
+            ("win32", False),
+        ],
+    )
+    def test_kdeconnect_menu_requires_the_session_bus_backend(
+        self, handler, monkeypatch, platform_name, available
+    ):
+        from docking.applets import identity
+        from docking.applets.kdeconnect import meta
+
+        monkeypatch.setattr(
+            identity,
+            "host_services",
+            lambda: SimpleNamespace(platform_name=platform_name),
+        )
+        monkeypatch.setattr(menu_mod, "get_applet_catalog", lambda: {meta.id: meta})
+        monkeypatch.setattr(menu_mod, "load_catalog_icon", lambda applet_id, size: None)
+        handler._model.pinned_items = []
+        menu = FakeMenu()
+
+        handler._build_dock_menu(menu=menu, insert_index=0)
+
+        add_applet = next(
+            item
+            for item in menu.children
+            if item.get_label() == menu_mod._("Add Applet")
+        )
+        category = add_applet.get_submenu().get_children()[0]
+        item = category.get_submenu().get_children()[0]
+        assert item.get_label() == "KDE Connect"
+        assert item._sensitive is available
+        assert item._tooltip_text == (
+            None if available else menu_mod._("Unavailable on this desktop")
+        )
+
     def test_build_dock_menu_wires_separator_quit_and_applets(
         self, handler, monkeypatch
     ):
@@ -2822,7 +2867,7 @@ def test_asynchronous_menu_thumbnail_updates_after_mapping_and_cleans_timer(
     monkeypatch.setattr(menu_mod.GLib, "timeout_add", schedule)
     monkeypatch.setattr(menu_mod.GLib, "source_remove", removed.append)
     handler._watch_window_thumbnail(
-        row, image, WindowId(DisplayServer.X11, 100), previous
+        row, image, WindowId(DisplayServer.WINDOWS, 100), previous
     )
     assert not captured
     row.emit("map")

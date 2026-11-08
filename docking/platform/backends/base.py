@@ -36,6 +36,7 @@ class DisplayServer(Enum):
     NONE = "none"
     X11 = "x11"
     WAYLAND = "wayland"
+    WINDOWS = "windows"
 
 
 class ActionResult(Enum):
