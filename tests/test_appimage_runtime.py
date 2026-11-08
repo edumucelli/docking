@@ -89,7 +89,8 @@ def test_reuses_only_verified_cached_runtime(apprun, tmp_path, monkeypatch):
 def test_failed_download_never_populates_cache(apprun, failure, tmp_path, monkeypatch):
     def download(request, *, timeout):
         if failure == "http" or (
-            failure == "fallback_checksum" and "api.github.com" in request.full_url
+            failure == "fallback_checksum"
+            and request.full_url.startswith("https://api.github.com/")
         ):
             raise HTTPError(request.full_url, 504, "Gateway timeout", None, None)
         return io.BytesIO(b"unexpected asset contents")
