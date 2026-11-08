@@ -192,6 +192,7 @@ generations remain private to their owning backend.
 | --- | --- | --- |
 | System Monitor | Windows backend is selected. | CPU, memory, disk, GPU and temperature acquisition are **unimplemented**; sources return unavailable/empty data. |
 | Thermals | Windows backend is selected. | Native thermal acquisition is **unimplemented**. |
+| KDE Connect | Unavailable in the Windows applet menu. | The existing backend requires a Unix session bus. A Windows integration is **unimplemented**. |
 | Battery | Native system power state/rate and device-container accessory properties. | Physical batteries, UPS, AC/resume transitions and accessory readings need hardware acceptance. |
 | Brightness | Identity-matched DDC/CI or WMI backlight, readback and unavailable state. | Real laptop/DDC displays, OEM behavior, HDR and display changes need acceptance. |
 | Network and VPN | Adapter/routes/counters, saved-profile Wi-Fi, software radio, native Settings and exact RAS VPN connect/disconnect. | No global network switch. Physical Wi-Fi and broader VPN methods/policies need acceptance. |
