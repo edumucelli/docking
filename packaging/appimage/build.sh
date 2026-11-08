@@ -27,6 +27,8 @@ case "$(uname -m)" in
     ;;
 esac
 
+build_dir="${ROOT_DIR}/appimage-builder-build"
+
 tmp_recipe="$(mktemp)"
 trap 'rm -f "${tmp_recipe}"' EXIT
 
@@ -39,7 +41,8 @@ sed \
   "${RECIPE_TEMPLATE}" > "${tmp_recipe}"
 
 run_appimage_builder() {
-  python3 - "${tmp_recipe}" <<'PY'
+  python3 "${ROOT_DIR}/packaging/appimage/fetch_apprun.py" "${appimage_arch}" "${build_dir}" || return
+  python3 - "${tmp_recipe}" "${build_dir}" <<'PY'
 import runpy
 import sys
 
@@ -58,7 +61,10 @@ apt_package.Package.__lt__ = lambda self, other: _compare_versions(self, other) 
 apt_package.Package.__ge__ = lambda self, other: _compare_versions(self, other) >= 0
 apt_package.Package.__le__ = lambda self, other: _compare_versions(self, other) <= 0
 
-sys.argv = ["appimage-builder", "--recipe", sys.argv[1], "--skip-test"]
+sys.argv = [
+    "appimage-builder", "--recipe", sys.argv[1],
+    "--build-dir", sys.argv[2], "--skip-test",
+]
 runpy.run_module("appimagebuilder", run_name="__main__")
 PY
 }

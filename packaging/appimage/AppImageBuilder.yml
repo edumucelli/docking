@@ -64,6 +64,7 @@ AppDir:
       - hicolor-icon-theme
 
   runtime:
+    version: v2.0.0
     env:
       PYTHONPATH: $APPDIR/usr/lib/python3/dist-packages
       GI_TYPELIB_PATH: __GI_TYPELIB_PATH__
