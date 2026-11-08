@@ -56,6 +56,8 @@ jobs:
       - name: FreeBSD desktop checks
         if: matrix.os == 'freebsd'
         uses: vmactions/freebsd-vm@v1
+        env:
+          NODE_OPTIONS: --import=${{ github.workspace }}/tools/bsd/visual/github_asset_transport.mjs
         with:
           release: "15.1"
           sync: rsync
@@ -72,6 +74,8 @@ jobs:
       - name: OpenBSD desktop checks
         if: matrix.os == 'openbsd'
         uses: vmactions/openbsd-vm@v1
+        env:
+          NODE_OPTIONS: --import=${{ github.workspace }}/tools/bsd/visual/github_asset_transport.mjs
         with:
           release: "7.9"
           sync: rsync
@@ -84,6 +88,8 @@ jobs:
       - name: NetBSD desktop checks
         if: matrix.os == 'netbsd'
         uses: vmactions/netbsd-vm@v1
+        env:
+          NODE_OPTIONS: --import=${{ github.workspace }}/tools/bsd/visual/github_asset_transport.mjs
         with:
           release: "11.0"
           sync: rsync
