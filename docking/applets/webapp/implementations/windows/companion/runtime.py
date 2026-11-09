@@ -134,7 +134,9 @@ class Page(QWebEnginePage):
             and navigation_type
             == QWebEnginePage.NavigationType.NavigationTypeLinkClicked
         ):
-            self.runtime.emit(OpenExternal(uri))
+            event = OpenExternal.for_uri(uri)
+            if event is not None:
+                self.runtime.emit(event)
         return False
 
     def javaScriptConsoleMessage(self, _level, _message, _line, _source) -> None:  # noqa: N802 - Qt virtual method.
@@ -348,7 +350,9 @@ class Runtime:
             and navigation_target(uri, self.configuration.profile.host)
             is NavigationTarget.EXTERNAL
         ):
-            self.emit(OpenExternal(uri))
+            event = OpenExternal.for_uri(uri)
+            if event is not None:
+                self.emit(event)
 
     def _permission(self, request) -> None:
         if (

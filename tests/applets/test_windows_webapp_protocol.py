@@ -101,6 +101,18 @@ def test_outbound_records_also_validate_fields(message):
         p.encode(message)
 
 
+@pytest.mark.parametrize("uri", [None, 1, "https://example.test/" + "x" * 32768])
+def test_external_uri_producers_drop_invalid_fields_before_enqueueing(uri):
+    assert p.OpenExternal.for_uri(uri) is None
+
+
+def test_external_uri_at_field_limit_can_still_be_written():
+    uri = "https://example.test/".ljust(32768, "x")
+    event = p.OpenExternal.for_uri(uri)
+    assert event == p.OpenExternal(uri)
+    assert p.read_event(io.BytesIO(p.encode(event))) == event
+
+
 @pytest.mark.parametrize(
     "change",
     [

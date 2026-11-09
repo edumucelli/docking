@@ -86,6 +86,11 @@ class AttentionCleared:
 class OpenExternal:
     uri: str
 
+    @classmethod
+    def for_uri(cls, uri: object) -> OpenExternal | None:
+        """Drop invalid URI fields before they reach the event writer."""
+        return cls(uri) if isinstance(uri, str) and len(uri) <= 32768 else None
+
 
 @dataclass(frozen=True)
 class RestartRequested:
@@ -193,9 +198,7 @@ def decode_event(packet: dict[str, object]) -> Event | None:
         case "attention":
             return AttentionCleared()
         case "external":
-            uri = packet.get("uri")
-            if isinstance(uri, str) and len(uri) <= 32768:
-                return OpenExternal(uri)
+            return OpenExternal.for_uri(packet.get("uri"))
         case "restart" | "cleared":
             if isinstance(identifier, int) and _request_id(identifier):
                 if packet["event"] == "restart":

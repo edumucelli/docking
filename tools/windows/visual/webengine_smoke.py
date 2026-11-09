@@ -204,6 +204,20 @@ def main():
                 lambda: report.get("view_origin"), "View origin absent"
             )
             point = script(
+                '(()=>{const a=document.createElement("a");'
+                'a.href="https://example.test/"+"x".repeat(32768);'
+                'a.textContent="Oversized external link";'
+                "document.body.prepend(a);const r=a.getBoundingClientRect();"
+                "return {x:r.x+r.width/2,y:r.y+r.height/2}})()"
+            )
+            native.click(
+                round((origin["x"] + point["x"]) * origin["scale"]),
+                round((origin["y"] + point["y"]) * origin["scale"]),
+            )
+            assert script("document.readyState") == "complete"
+            assert call(lambda: browser.phase.value) == "ready"
+            stage("oversized-external-link-keeps-companion-output-alive")
+            point = script(
                 '(()=>{const r=document.getElementById("input")'
                 ".getBoundingClientRect();"
                 "return {x:r.x+r.width/2,y:r.y+r.height/2}})()"
