@@ -172,12 +172,39 @@ def main() -> None:
 
     from PySide6.QtCore import QPoint
     from PySide6.QtNetwork import QSslCertificate
-    from PySide6.QtWebEngineCore import QWebEngineUrlRequestInterceptor
+    from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineUrlRequestInterceptor
 
-    from docking.applets.webapp.implementations.windows.companion.runtime import Runtime
+    from docking.applets.webapp.implementations.windows.companion import (
+        runtime as companion_runtime,
+    )
+    from docking.applets.webapp.implementations.windows.companion.runtime import (
+        Page,
+        Runtime,
+    )
     from docking.applets.webapp.implementations.windows.companion.runtime import (
         main as run,
     )
+    from tools.windows.visual.webengine_protocol import (
+        FixtureMessage,
+        fixture_event,
+        install_child_codec,
+    )
+
+    install_child_codec()
+
+    class FixturePage(Page):
+        def acceptNavigationRequest(self, url, navigation_type, main_frame) -> bool:  # noqa: N802 - Qt virtual method.
+            accepted = super().acceptNavigationRequest(url, navigation_type, main_frame)
+            if (
+                main_frame
+                and navigation_type
+                == QWebEnginePage.NavigationType.NavigationTypeLinkClicked
+                and url.toString().startswith("https://example.test/")
+            ):
+                self.runtime.emit("fixture_navigation", length=len(url.toString()))
+            return accepted
+
+    companion_runtime.Page = FixturePage
 
     class Requests(QWebEngineUrlRequestInterceptor):
         def interceptRequest(self, request) -> None:  # noqa: N802 - Qt virtual method.
@@ -206,7 +233,18 @@ def main() -> None:
             self.profile.setUrlRequestInterceptor(self._requests)
             self.emit("fixture", pid=os.getpid(), gi_imported="gi" in sys.modules)
 
+        def emit(self, event, **values) -> None:
+            if isinstance(event, str):
+                if not self._send(fixture_event(event, **values)):
+                    self.stop()
+            else:
+                super().emit(event)
+
         def command(self, packet) -> None:
+            if not isinstance(packet, FixtureMessage):
+                super().command(packet)
+                return
+            packet = packet.values
             if packet.get("op") == "fixture-downloads":
                 rows = []
                 for transfer in self.downloads.transfers:
@@ -261,7 +299,6 @@ def main() -> None:
                 time.sleep(60)
                 return
             if packet.get("op") != "probe":
-                super().command(packet)
                 return
             identifier = packet["id"]
 

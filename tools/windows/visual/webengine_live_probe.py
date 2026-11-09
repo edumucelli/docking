@@ -14,6 +14,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from docking.applets.webapp.implementations.windows.companion.runtime import Runtime
 from docking.applets.webapp.implementations.windows.companion.runtime import main as run
+from tools.windows.visual.webengine_protocol import (
+    FixtureMessage,
+    fixture_event,
+    install_child_codec,
+)
+
+install_child_codec()
+
 
 SUMMARY = r"""
 JSON.stringify((()=>{
@@ -54,18 +62,23 @@ class Observe(Runtime):
             self.page.triggerAction(QWebEnginePage.WebAction.ReloadAndBypassCache)
 
     def command(self, packet) -> None:
+        if not isinstance(packet, FixtureMessage):
+            super().command(packet)
+            return
+        packet = packet.values
         if packet.get("op") == "inspect-service":
 
             def completed(raw):
-                self.emit(
-                    "service_probe",
-                    id=packet["id"],
-                    summary=json.loads(raw) if raw else {},
-                )
+                if not self._send(
+                    fixture_event(
+                        "service_probe",
+                        id=packet["id"],
+                        summary=json.loads(raw) if raw else {},
+                    )
+                ):
+                    self.stop()
 
             self.page.runJavaScript(SUMMARY, completed)
-        else:
-            super().command(packet)
 
 
 if __name__ == "__main__":
