@@ -141,7 +141,9 @@ def test_executable_reader_reuses_path_primitive_without_querying_aumid(native):
     kernel.CloseHandle.assert_called_once_with(17)
 
 
-@pytest.mark.parametrize("pid", [0, -1, True, False, 1.0, "1", None])
+@pytest.mark.parametrize(
+    "pid", [0, -1, 2**32, 2**32 + 123, True, False, 1.0, "1", None]
+)
 def test_invalid_pid_does_not_load_native_functions(native, pid):
     _state, _kernel, load = native
     assert mod.read_process_metadata(pid) is None
@@ -191,3 +193,18 @@ def test_consumers_preserve_path_case_and_unavailable_metadata(monkeypatch, meta
         ((123,), {"include_aumid": False}),
         ((123,), {"include_aumid": False}),
     ]
+
+
+def test_oversized_pid_cannot_wrap_to_another_native_process(native):
+    _state, kernel, _load = native
+    opened = []
+
+    @ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_uint32, ctypes.c_int32, ctypes.c_uint32)
+    def open_process(_access, _inherit, pid):
+        opened.append(pid)
+        return 17
+
+    # Unlike a Mock, this boundary performs the Win32 unsigned-PID conversion.
+    kernel.OpenProcess = open_process
+    assert mod.read_process_metadata(2**32 + 123) is None
+    assert not opened

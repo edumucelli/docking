@@ -103,7 +103,7 @@ def read_process_metadata(
     pid: int, *, include_aumid: bool = True
 ) -> WindowsProcessMetadata | None:
     """Read related facts through one handle; unavailable fields remain absent."""
-    if type(pid) is not int or pid <= 0:
+    if type(pid) is not int or not 0 < pid < 2**32:
         return None
     try:
         return _process_api().read(pid, include_aumid=include_aumid)
