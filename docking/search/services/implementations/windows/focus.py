@@ -11,13 +11,13 @@ import ctypes
 import os
 from collections.abc import Callable
 from ctypes import wintypes
-from pathlib import PureWindowsPath
 
 from gi.repository import GLib
 
 from docking.platform.desktop.implementations.windows.menus import WindowsMenuFocus
 from docking.platform.native.windows.ffi import bind as _bind
 from docking.platform.native.windows.ffi import windows_ctypes
+from docking.platform.native.windows.process import read_process_metadata
 from docking.search.services.platform import WindowFocus
 
 _EXPLORER_CLASSES = {"Shell_TrayWnd", "Shell_SecondaryTrayWnd", "Progman", "WorkerW"}
@@ -37,7 +37,6 @@ class WindowsShellFocus(WindowsMenuFocus):
     def __init__(self):
         super().__init__()
         user = windows_ctypes.WinDLL("user32", use_last_error=True)
-        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
         self._last_input = _bind(
             user, "GetLastInputInfo", wintypes.BOOL, ctypes.POINTER(_LastInputInfo)
         )
@@ -57,24 +56,6 @@ class WindowsShellFocus(WindowsMenuFocus):
             wintypes.LPWSTR,
             ctypes.c_int,
         )
-        self._open = _bind(
-            kernel,
-            "OpenProcess",
-            wintypes.HANDLE,
-            wintypes.DWORD,
-            wintypes.BOOL,
-            wintypes.DWORD,
-        )
-        self._executable = _bind(
-            kernel,
-            "QueryFullProcessImageNameW",
-            wintypes.BOOL,
-            wintypes.HANDLE,
-            wintypes.DWORD,
-            wintypes.LPWSTR,
-            ctypes.POINTER(wintypes.DWORD),
-        )
-        self._close = _bind(kernel, "CloseHandle", wintypes.BOOL, wintypes.HANDLE)
 
     def input_time(self) -> int | None:
         info = _LastInputInfo(size=ctypes.sizeof(_LastInputInfo))
@@ -86,17 +67,9 @@ class WindowsShellFocus(WindowsMenuFocus):
         return value.value
 
     def _process(self, pid):
-        handle = self._open(0x1000, False, pid)
-        if not handle:
-            return ""
-        try:
-            size = wintypes.DWORD(32768)
-            value = ctypes.create_unicode_buffer(size.value)
-            if self._executable(handle, 0, value, ctypes.byref(size)):
-                return PureWindowsPath(value.value).stem.casefold()
-            return ""
-        finally:
-            self._close(handle)
+        metadata = read_process_metadata(pid, include_aumid=False)
+        path = metadata.executable_path if metadata is not None else None
+        return path.stem.casefold() if path is not None else ""
 
     def shell_return(self, identity):
         return bool(
