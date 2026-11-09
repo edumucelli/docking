@@ -178,6 +178,13 @@ def main() -> None:
     from docking.applets.webapp.implementations.windows.companion.runtime import (
         main as run,
     )
+    from tools.windows.visual.webengine_protocol import (
+        FixtureMessage,
+        fixture_event,
+        install_child_codec,
+    )
+
+    install_child_codec()
 
     class Requests(QWebEngineUrlRequestInterceptor):
         def interceptRequest(self, request) -> None:  # noqa: N802 - Qt virtual method.
@@ -206,7 +213,18 @@ def main() -> None:
             self.profile.setUrlRequestInterceptor(self._requests)
             self.emit("fixture", pid=os.getpid(), gi_imported="gi" in sys.modules)
 
+        def emit(self, event, **values) -> None:
+            if isinstance(event, str):
+                if not self._send(fixture_event(event, **values)):
+                    self.stop()
+            else:
+                super().emit(event)
+
         def command(self, packet) -> None:
+            if not isinstance(packet, FixtureMessage):
+                super().command(packet)
+                return
+            packet = packet.values
             if packet.get("op") == "fixture-downloads":
                 rows = []
                 for transfer in self.downloads.transfers:
@@ -261,7 +279,6 @@ def main() -> None:
                 time.sleep(60)
                 return
             if packet.get("op") != "probe":
-                super().command(packet)
                 return
             identifier = packet["id"]
 

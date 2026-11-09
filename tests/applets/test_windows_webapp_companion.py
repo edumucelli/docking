@@ -16,9 +16,19 @@ from docking.applets.webapp.implementations.windows.companion import (
 )
 from docking.applets.webapp.implementations.windows.companion.protocol import (
     MAX_PACKET_BYTES,
+    ClearSession,
     Configuration,
+    Hide,
+    Notification,
+    Reload,
+    SessionCleared,
+    Show,
+    Started,
+    TitleChanged,
+    VisibilityChanged,
     encode,
-    read,
+    read_configuration,
+    read_event,
 )
 from docking.applets.webapp.implementations.windows.companion.text_input import (
     PacketText,
@@ -76,9 +86,9 @@ def test_windows_utf16_packet_order_and_focus_reset():
 
 
 def test_private_protocol_preserves_unicode_and_rejects_partial_frames():
-    packet = {"event": "title", "value": "résumé 🌱"}
-    assert read(io.BytesIO(encode(packet))) == {**packet, "version": 1}
-    assert read(io.BytesIO()) is None
+    packet = TitleChanged("résumé 🌱")
+    assert read_event(io.BytesIO(encode(packet))) == packet
+    assert read_event(io.BytesIO()) is None
     for data in (
         b"{}",
         b"{}\n",
@@ -89,9 +99,9 @@ def test_private_protocol_preserves_unicode_and_rejects_partial_frames():
         b"x" * (MAX_PACKET_BYTES + 1),
     ):
         with pytest.raises(ValueError):
-            read(io.BytesIO(data))
+            read_event(io.BytesIO(data))
     with pytest.raises(ValueError):
-        encode({"value": "x" * MAX_PACKET_BYTES})
+        encode(TitleChanged("x" * MAX_PACKET_BYTES))
 
 
 @pytest.mark.parametrize(
@@ -107,7 +117,7 @@ def test_private_protocol_preserves_unicode_and_rejects_partial_frames():
 def test_companion_configuration_requires_the_real_https_service_origin(tmp_path, uri):
     configuration = Configuration(replace(PROFILE, url=uri), tmp_path)
     with pytest.raises(ValueError):
-        Configuration.parse(configuration.packet())
+        read_configuration(io.BytesIO(encode(configuration)))
 
 
 def test_configuration_round_trip_keeps_profiles_isolated(tmp_path):
@@ -121,20 +131,23 @@ def test_configuration_round_trip_keeps_profiles_isolated(tmp_path):
         ),
         tmp_path / "telegram",
     )
-    assert Configuration.parse(first.packet()) == first
-    assert Configuration.parse(second.packet()) == second
+    assert read_configuration(io.BytesIO(encode(first))) == first
+    assert read_configuration(io.BytesIO(encode(second))) == second
 
 
 def child(tmp_path, source):
     entrypoint = tmp_path / "browser_child.py"
     entrypoint.write_text(
         "import json,sys,time\nconfiguration=json.loads(sys.stdin.buffer.readline())\n"
-        + source
+        + source,
+        encoding="utf-8",
     )
     packets, closed = queue.Queue(), threading.Event()
     process = transport.BrowserProcess(
         Path(sys.executable),
-        Configuration(PROFILE, tmp_path / "profile"),
+        Configuration(
+            replace(PROFILE, bridge_script="résumé 🌱"), tmp_path / "profile"
+        ),
         entrypoint=entrypoint,
         on_packet=packets.put,
         on_closed=closed.set,
@@ -148,18 +161,21 @@ def test_real_companion_pipes_preserve_order_and_reap_normal_exit(tmp_path):
         tmp_path,
         """
 assert configuration['profile']['url']=='https://web.whatsapp.com/'
+assert configuration['profile']['bridge_script']=='résumé 🌱'
 print(json.dumps({'version':1,'event':'started'}),flush=True)
+values=iter(['résumé','🌱','last'])
 for line in sys.stdin.buffer:
     command=json.loads(line)
     if command['op']=='stop':break
-    print(json.dumps({'version':1,'event':'echo','value':command['value']}),flush=True)
+    assert command['op']=='reload'
+    print(json.dumps({'version':1,'event':'title','value':next(values)}),flush=True)
 """,
     )
     try:
-        assert packets.get(timeout=5)["event"] == "started"
-        for value in ("résumé", "🌱", "last"):
-            process.send({"op": "echo", "value": value})
-        assert [packets.get(timeout=5)["value"] for _ in range(3)] == [
+        assert packets.get(timeout=5) == Started()
+        for _ in range(3):
+            process.send(Reload())
+        assert [packets.get(timeout=5).title for _ in range(3)] == [
             "résumé",
             "🌱",
             "last",
@@ -169,6 +185,25 @@ for line in sys.stdin.buffer:
         assert closed.wait(5)
     assert process._process.poll() is not None
     assert process._process.stdin.closed and process._process.stdout.closed
+
+
+def test_ignored_real_child_events_do_not_disconnect_the_companion(tmp_path):
+    process, packets, closed = child(
+        tmp_path,
+        """
+print(json.dumps({'version':1,'event':'future-event'}),flush=True)
+print(json.dumps({'version':1,'event':'visible','value':'true'}),flush=True)
+print(json.dumps({'version':1,'event':'title','value':'valid'}),flush=True)
+for line in sys.stdin.buffer:
+    if json.loads(line)['op']=='stop':break
+""",
+    )
+    try:
+        assert packets.get(timeout=5) == TitleChanged("valid")
+        assert packets.empty() and not closed.is_set()
+    finally:
+        process.stop()
+        assert closed.wait(5)
 
 
 @pytest.mark.parametrize(
@@ -193,7 +228,7 @@ def test_real_hung_child_has_bounded_shutdown(tmp_path, monkeypatch):
         tmp_path,
         "print(json.dumps({'version':1,'event':'started'}),flush=True)\ntime.sleep(60)\n",
     )
-    assert packets.get(timeout=5)["event"] == "started"
+    assert packets.get(timeout=5) == Started()
     process.stop()
     assert closed.wait(5)
     assert process._process.poll() is not None
@@ -224,7 +259,7 @@ def test_disconnect_reaps_real_child_before_removing_profile_and_restarting(tmp_
         tmp_path,
         """
 import os
-print(json.dumps({'version':1,'event':'started','pid':os.getpid()}),flush=True)
+print(json.dumps({'version':1,'event':'title','value':str(os.getpid())}),flush=True)
 for line in sys.stdin.buffer:
     command=json.loads(line)
     if command['op']=='clear':
@@ -237,15 +272,12 @@ for line in sys.stdin.buffer:
         first = packets.get(timeout=5)
         marker = process._configuration.directory / "owned-session"
         marker.write_text("generated session data")
-        process.send({"op": "clear", "id": 7})
-        assert packets.get(timeout=5) == {
-            "version": 1,
-            "event": "cleared",
-            "id": 7,
-            "ok": True,
-        }
+        process.send(ClearSession(7))
+        assert packets.get(timeout=5) == SessionCleared(7, True)
         replacement = packets.get(timeout=5)
-        assert replacement["event"] == "started" and replacement["pid"] != first["pid"]
+        assert (
+            isinstance(replacement, TitleChanged) and replacement.title != first.title
+        )
         assert not marker.exists() and not closed.is_set()
     finally:
         process.stop()
@@ -308,14 +340,14 @@ def test_hidden_start_and_show_wait_for_actual_companion_readiness(setup):
     assert process.started and not browser.visible and not process.commands
     browser.show()
     assert len(processes) == 1 and not process.commands
-    process.on_packet({"event": "started"})
+    process.on_packet(Started())
     delivery.drain()
-    assert process.commands == [{"op": "show"}]
-    process.on_packet({"event": "visible", "value": True})
+    assert process.commands == [Show()]
+    process.on_packet(VisibilityChanged(True))
     delivery.drain()
     assert browser.visible
     browser.hide()
-    assert process.commands[-1] == {"op": "hide"}
+    assert process.commands[-1] == Hide()
 
 
 def test_stopped_or_replaced_process_cannot_publish_page_or_clear_results(setup):
@@ -325,9 +357,9 @@ def test_stopped_or_replaced_process_cannot_publish_page_or_clear_results(setup)
     browser.stop()
     browser.start()
     callbacks["on_title"].reset_mock()
-    old.on_packet({"event": "title", "value": "stale"})
-    old.on_packet({"event": "visible", "value": True})
-    old.on_packet({"event": "notification"})
+    old.on_packet(TitleChanged("stale"))
+    old.on_packet(VisibilityChanged(True))
+    old.on_packet(Notification())
     delivery.drain()
     assert not browser.visible and browser.phase is BrowserPhase.STARTING
     callbacks["on_title"].assert_not_called()
@@ -339,14 +371,14 @@ def test_disconnect_is_serialized_and_completion_cannot_survive_stop(setup):
     complete = Mock()
     browser.clear_session(complete)
     process = processes[0]
-    process.on_packet({"event": "started"})
+    process.on_packet(Started())
     delivery.drain()
-    assert process.commands == [{"op": "clear", "id": 1}]
+    assert process.commands == [ClearSession(1)]
     browser.clear_session(Mock())
-    process.on_packet({"event": "cleared", "id": 99, "ok": True})
+    process.on_packet(SessionCleared(99, True))
     delivery.drain()
     complete.assert_not_called()
-    process.on_packet({"event": "cleared", "id": 1, "ok": True})
+    process.on_packet(SessionCleared(1, True))
     delivery.publish()
     complete.assert_not_called()
     browser.stop()
@@ -369,13 +401,13 @@ def test_packets_from_confirmed_dead_process_cannot_revive_ui(setup, monkeypatch
     monkeypatch.setattr(mod.GLib, "timeout_add", lambda *_args: 42)
     browser.start()
     process = processes[0]
-    process.on_packet({"event": "started"})
+    process.on_packet(Started())
     delivery.drain()
     callbacks["on_title"].reset_mock()
     process.on_closed()
     delivery.publish()
-    process.on_packet({"event": "visible", "value": True})
-    process.on_packet({"event": "title", "value": "late"})
+    process.on_packet(VisibilityChanged(True))
+    process.on_packet(TitleChanged("late"))
     delivery.drain()
     assert not browser.visible and browser.phase is BrowserPhase.ERROR
     callbacks["on_title"].assert_not_called()
@@ -386,12 +418,12 @@ def test_successful_disconnect_completes_once_after_ui_delivery(setup):
     completed = Mock()
     browser.clear_session(completed)
     process = processes[0]
-    process.on_packet({"event": "started"})
+    process.on_packet(Started())
     delivery.drain()
-    process.on_packet({"event": "cleared", "id": 1, "ok": True})
+    process.on_packet(SessionCleared(1, True))
     delivery.drain()
     completed.assert_called_once_with(True, "")
-    process.on_packet({"event": "cleared", "id": 1, "ok": True})
+    process.on_packet(SessionCleared(1, True))
     delivery.drain()
     completed.assert_called_once_with(True, "")
 
@@ -404,9 +436,9 @@ def test_clear_result_remains_deliverable_when_the_process_then_exits(
     completed = Mock()
     browser.clear_session(completed)
     process = processes[0]
-    process.on_packet({"event": "started"})
+    process.on_packet(Started())
     delivery.drain()
-    process.on_packet({"event": "cleared", "id": 1, "ok": False})
+    process.on_packet(SessionCleared(1, False))
     process.on_closed()
     delivery.drain()
     completed.assert_called_once_with(False, "Could not disconnect WhatsApp")

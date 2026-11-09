@@ -58,7 +58,12 @@ def main():
     )
     from docking.applets.whatsapp.state import PROFILE as WHATSAPP
     from tools.windows.visual.desktop_driver import WindowsDesktop
+    from tools.windows.visual.webengine_protocol import (
+        FixtureMessage,
+        install_parent_codec,
+    )
 
+    install_parent_codec()
     native = WindowsDesktop()
     assert not any(row["title"] == "Docking" for row in native.windows())
     baseline, explorer = native.workarea(), native.explorer()
@@ -75,10 +80,13 @@ def main():
     original_packet = WindowsCompanionBrowser._packet
 
     def packet(browser, values, lifetime):
+        if not isinstance(values, FixtureMessage):
+            return original_packet(browser, values, lifetime)
+        values = values.values
         if browser._lifetime == lifetime and values.get("event") == "service_probe":
             probe_values.append(values["summary"])
             probe_done.set()
-        return original_packet(browser, values, lifetime)
+        return False
 
     if args.diagnostic:
         WindowsCompanionBrowser._packet = packet
@@ -133,7 +141,11 @@ def main():
                 return
             if args.diagnostic and call(lambda: browser._ready):
                 probe_done.clear()
-                call(lambda: browser._process.send({"op": "inspect-service", "id": 1}))
+                call(
+                    lambda: browser._process.send(
+                        FixtureMessage({"op": "inspect-service", "id": 1})
+                    )
+                )
                 assert probe_done.wait(20), "Live diagnostic did not reply"
                 report["summary"] = probe_values[-1]
                 publish()

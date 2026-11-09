@@ -8,7 +8,7 @@ import queue
 import sys
 import threading
 from collections.abc import Callable
-from typing import Any, TypeVar, cast
+from typing import TypeVar, cast
 
 from PySide6.QtCore import QFile, QIODevice, QLockFile, QObject, Qt, QUrl, Signal, Slot
 from PySide6.QtGui import QKeySequence, QShortcut
@@ -37,14 +37,35 @@ from docking.applets.webapp.implementations.windows.companion.notifications impo
     DesktopNotifier,
 )
 from docking.applets.webapp.implementations.windows.companion.protocol import (
+    AttentionCleared,
+    BridgeMessage,
+    ClearSession,
+    Command,
     Configuration,
+    Event,
+    Hide,
+    Notification,
+    OpenExternal,
+    PhaseChanged,
+    Reload,
+    RestartRequested,
+    Show,
+    Started,
+    Stop,
+    TitleChanged,
+    VisibilityChanged,
     encode,
-    read,
+    read_command,
+    read_configuration,
 )
 from docking.applets.webapp.implementations.windows.companion.user_agent import (
     chromium_user_agent,
 )
-from docking.applets.webapp.state import NavigationTarget, navigation_target
+from docking.applets.webapp.state import (
+    BrowserPhase,
+    NavigationTarget,
+    navigation_target,
+)
 from docking.i18n import _
 
 _F = TypeVar("_F", bound=Callable[..., object])
@@ -89,11 +110,11 @@ class BrowserWindow(QMainWindow):
 
     def showEvent(self, event) -> None:  # noqa: N802 - Qt virtual method.
         super().showEvent(event)
-        self.runtime.emit("visible", value=True)
+        self.runtime.emit(VisibilityChanged(True))
 
     def hideEvent(self, event) -> None:  # noqa: N802 - Qt virtual method.
         super().hideEvent(event)
-        self.runtime.emit("visible", value=False)
+        self.runtime.emit(VisibilityChanged(False))
 
 
 class Page(QWebEnginePage):
@@ -113,7 +134,7 @@ class Page(QWebEnginePage):
             and navigation_type
             == QWebEnginePage.NavigationType.NavigationTypeLinkClicked
         ):
-            self.runtime.emit("external", uri=uri)
+            self.runtime.emit(OpenExternal(uri))
         return False
 
     def javaScriptConsoleMessage(self, _level, _message, _line, _source) -> None:  # noqa: N802 - Qt virtual method.
@@ -123,7 +144,7 @@ class Page(QWebEnginePage):
 
 class Runtime:
     def __init__(
-        self, configuration: Configuration, send: Callable[[dict[str, Any]], bool]
+        self, configuration: Configuration, send: Callable[[Event], bool]
     ) -> None:
         self.configuration, self._send = configuration, send
         self.dispatch = Dispatch()
@@ -132,7 +153,7 @@ class Runtime:
         )
         self._closing = self._clearing = self._disposed = False
         self._has_status = False
-        self._last: dict[str, Any] = {}
+        self._last: dict[type[Event], Event] = {}
         self._lock = QLockFile(str(configuration.directory.with_suffix(".lock")))
         if not self._lock.tryLock(0):
             raise OSError("Browser profile is already in use")
@@ -141,12 +162,15 @@ class Runtime:
     def post(self, callback: Callable[[], None]) -> None:
         self.dispatch.invoke.emit(callback)
 
-    def emit(self, event: str, **values) -> None:
-        packet = {"event": event, **values}
-        if event in {"title", "visible", "bridge"} and self._last.get(event) == values:
+    def emit(self, event: Event) -> None:
+        kind = type(event)
+        if (
+            isinstance(event, (TitleChanged, VisibilityChanged, BridgeMessage))
+            and self._last.get(kind) == event
+        ):
             return
-        self._last[event] = values
-        if not self._send(packet):
+        self._last[kind] = event
+        if not self._send(event):
             self.stop()
 
     def _build(self) -> None:
@@ -197,7 +221,7 @@ class Runtime:
             directory,
             post=self.post,
             on_activate=self._activate,
-            on_shown=lambda: self.emit("notification"),
+            on_shown=lambda: self.emit(Notification()),
         )
         self.profile.setNotificationPresenter(self.notifier.show)
         self.downloads = Downloads(self.window, self._download_allowed)
@@ -206,15 +230,15 @@ class Runtime:
         self.page.newWindowRequested.connect(self._new_window)
         self.page.windowCloseRequested.connect(self.window.hide)
         self.page.titleChanged.connect(
-            lambda title: self.emit("title", value=title[:4096])
+            lambda title: self.emit(TitleChanged(title[:4096]))
         )
         self.page.loadStarted.connect(self._load_started)
         self.page.loadFinished.connect(self._load_finished)
         self.page.renderProcessTerminated.connect(
-            lambda *_args: self.emit("phase", value="error")
+            lambda *_args: self.emit(PhaseChanged(BrowserPhase.ERROR))
         )
         self._install_bridge()
-        self.emit("started")
+        self.emit(Started())
         self.page.setUrl(QUrl(service.url))
 
     def _profile_builder(self):
@@ -297,25 +321,25 @@ class Runtime:
         if event is not None:
             if event.kind == "status":
                 self._has_status = True
-            self.emit("bridge", value=raw)
+            self.emit(BridgeMessage(raw))
 
     def _load_started(self) -> None:
         self._has_status = False
-        self.emit("phase", value="starting")
+        self.emit(PhaseChanged(BrowserPhase.STARTING))
 
     def _load_finished(self, ok: bool) -> None:
         if not self._closing and not self._clearing:
             if not ok:
-                self.emit("phase", value="error")
+                self.emit(PhaseChanged(BrowserPhase.ERROR))
             elif not self._has_status:
-                self.emit("phase", value="syncing")
+                self.emit(PhaseChanged(BrowserPhase.SYNCING))
 
     def _activate(self) -> None:
         if not self._closing and not self._clearing:
             self.window.show()
             self.window.raise_()
             self.window.activateWindow()
-            self.emit("attention")
+            self.emit(AttentionCleared())
 
     def _new_window(self, request) -> None:
         uri = request.requestedUrl().toString()
@@ -324,7 +348,7 @@ class Runtime:
             and navigation_target(uri, self.configuration.profile.host)
             is NavigationTarget.EXTERNAL
         ):
-            self.emit("external", uri=uri)
+            self.emit(OpenExternal(uri))
 
     def _permission(self, request) -> None:
         if (
@@ -379,25 +403,21 @@ class Runtime:
             and self.configuration.profile.allows_origin(self.page.url().toString())
         )
 
-    def command(self, packet: dict[str, Any]) -> None:
-        operation = packet.get("op")
-        if operation == "stop":
+    def command(self, command: Command) -> None:
+        if isinstance(command, Stop):
             self.stop()
         elif not self._closing and not self._clearing:
-            if operation == "show":
-                self._activate()
-            elif operation == "hide":
-                self.window.hide()
-            elif operation == "reload":
-                self.page.triggerAction(QWebEnginePage.WebAction.Reload)
-            elif (
-                operation == "clear"
-                and type(packet.get("id")) is int
-                and 0 < packet["id"] < 2**31
-            ):
-                self._clearing = True
-                self.emit("restart", id=packet["id"])
-                self.stop()
+            match command:
+                case Show():
+                    self._activate()
+                case Hide():
+                    self.window.hide()
+                case Reload():
+                    self.page.triggerAction(QWebEnginePage.WebAction.Reload)
+                case ClearSession(identifier):
+                    self._clearing = True
+                    self.emit(RestartRequested(identifier))
+                    self.stop()
 
     def _after_notifications(self) -> None:
         if self._disposed:
@@ -423,14 +443,14 @@ class Runtime:
 
 class Output:
     def __init__(self) -> None:
-        self._queue: queue.Queue[dict[str, Any] | None] = queue.Queue(128)
+        self._queue: queue.Queue[Event | None] = queue.Queue(128)
         self._failed = threading.Event()
         self._thread = threading.Thread(
             target=self._write, name="webapp-events", daemon=False
         )
         self._thread.start()
 
-    def send(self, packet: dict[str, Any]) -> bool:
+    def send(self, packet: Event) -> bool:
         if self._failed.is_set():
             return False
         try:
@@ -458,10 +478,9 @@ class Output:
 
 
 def main(runtime_type=Runtime) -> None:
-    packet = read(sys.stdin.buffer)
-    if packet is None:
+    configuration = read_configuration(sys.stdin.buffer)
+    if configuration is None:
         return
-    configuration = Configuration.parse(packet)
     app = QApplication([])
     app.setQuitOnLastWindowClosed(False)
     app.setApplicationName("Docking")
@@ -475,7 +494,7 @@ def main(runtime_type=Runtime) -> None:
             # daemon reader when the GUI exits independently of pipe EOF.
             stream = os.fdopen(os.dup(sys.stdin.fileno()), "rb", buffering=0)
             try:
-                while packet := read(stream):
+                while (packet := read_command(stream)) is not None:
                     runtime.post(lambda packet=packet: runtime.command(packet))
             except (OSError, ValueError):
                 pass

@@ -14,12 +14,16 @@ import time
 from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
-from typing import Any
 
 from docking.applets.webapp.implementations.windows.companion.protocol import (
+    Command,
     Configuration,
+    Event,
+    RestartRequested,
+    SessionCleared,
+    Stop,
     encode,
-    read,
+    read_event,
 )
 from docking.platform.native.windows.ffi import windows_ctypes
 
@@ -32,14 +36,14 @@ class BrowserProcess:
         executable: Path,
         configuration: Configuration,
         *,
-        on_packet: Callable[[dict[str, Any]], None],
+        on_packet: Callable[[Event], None],
         on_closed: Callable[[], None],
         entrypoint: Path | None = None,
     ) -> None:
         self._executable, self._configuration = executable, configuration
         self._entrypoint = entrypoint or Path(__file__).with_name("__main__.py")
         self._on_packet, self._on_closed = on_packet, on_closed
-        self._commands: queue.Queue[dict[str, Any] | None] = queue.Queue(128)
+        self._commands: queue.Queue[Command | None] = queue.Queue(128)
         self._process: subprocess.Popen[bytes] | None = None
         self._job = None
         self._lock = threading.Lock()
@@ -66,7 +70,7 @@ class BrowserProcess:
                     ctypes.c_uint32,
                 )(process.pid)
 
-    def send(self, packet: dict[str, Any]) -> None:
+    def send(self, packet: Command) -> None:
         if self._closing.is_set() or self.closed.is_set():
             raise OSError("Browser companion stopped")
         encode(packet)
@@ -79,7 +83,7 @@ class BrowserProcess:
     def _write(
         self,
         process: subprocess.Popen[bytes],
-        commands: queue.Queue[dict[str, Any] | None],
+        commands: queue.Queue[Command | None],
     ) -> None:
         try:
             assert process.stdin is not None
@@ -108,7 +112,7 @@ class BrowserProcess:
                 process.terminate()
 
     @staticmethod
-    def _discard(commands: queue.Queue[dict[str, Any] | None]) -> None:
+    def _discard(commands: queue.Queue[Command | None]) -> None:
         while True:
             try:
                 commands.get_nowait()
@@ -143,7 +147,7 @@ class BrowserProcess:
             # Child waits for configuration before constructing QApplication or
             # Chromium, so descendants inherit the assigned Windows job.
             assert process.stdin is not None
-            process.stdin.write(encode(self._configuration.packet()))
+            process.stdin.write(encode(self._configuration))
             process.stdin.flush()
             self._launched.set()
             writer = threading.Thread(
@@ -154,14 +158,9 @@ class BrowserProcess:
             )
             writer.start()
             assert process.stdout is not None
-            while packet := read(process.stdout):
-                identifier = packet.get("id")
-                if (
-                    packet.get("event") == "restart"
-                    and type(identifier) is int
-                    and 0 < identifier < 2**31
-                ):
-                    restart = identifier
+            while (packet := read_event(process.stdout)) is not None:
+                if isinstance(packet, RestartRequested):
+                    restart = packet.request_id
                     self._discard(commands)
                     threading.Thread(
                         target=self._deadline,
@@ -232,14 +231,10 @@ class BrowserProcess:
                     # profile mutex while deleting data and starting its replacement.
                     self._erase_profile()
                 except OSError:
-                    self._on_packet(
-                        {"version": 1, "event": "cleared", "id": restart, "ok": False}
-                    )
+                    self._on_packet(SessionCleared(restart, False))
                     break
                 self._commands = queue.Queue(128)
-                self._on_packet(
-                    {"version": 1, "event": "cleared", "id": restart, "ok": True}
-                )
+                self._on_packet(SessionCleared(restart, True))
         except (OSError, ValueError):
             pass
         finally:
@@ -260,7 +255,7 @@ class BrowserProcess:
                 self._commands.get_nowait()
             except queue.Empty:
                 break
-        self._commands.put_nowait({"op": "stop"})
+        self._commands.put_nowait(Stop())
         self._commands.put_nowait(None)
 
         def finish() -> None:
