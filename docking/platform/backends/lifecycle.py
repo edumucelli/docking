@@ -31,6 +31,7 @@ class ServiceLifecycle:
         self._stages: list[_Stage] = []
         self._cleanup = ExitStack()
         self._started = False
+        self._starting = False
         self._stopped = False
 
     def add(
@@ -49,11 +50,13 @@ class ServiceLifecycle:
         """Resolve the current service, including compositor bundle replacements."""
 
         def start() -> None:
+            """Start the service currently selected by the session."""
             current = service()
             if current is not None:
                 current.start()
 
         def stop() -> None:
+            """Stop the current service after compositor bundle replacement."""
             current = service()
             if current is not None:
                 current.stop()
@@ -62,28 +65,44 @@ class ServiceLifecycle:
 
     @staticmethod
     def _stop_stage(stage: _Stage) -> None:
+        """Keep cleanup failures from replacing a startup error or escaping stop."""
         try:
             stage.stop()
-        except Exception:
+        except BaseException:
+            # Shutdown must finish even if a callback interrupts or exits.
             log.exception("Could not stop session service %s", stage.name)
 
     def start(self) -> None:
         """Unwind all owned services if any startup callback fails."""
-        if self._started:
+        if self._started or self._starting:
             return
         if self._stopped:
             # Individual services retain their existing restart restrictions.
+            # Rebuild in declaration order: newly registered stages may already
+            # have queued callbacks from registration after the previous stop.
+            self._cleanup.pop_all()
             for stage in self._stages:
                 self._cleanup.callback(self._stop_stage, stage)
             self._stopped = False
+        self._starting = True
         try:
             for stage in self._stages:
                 if stage.start is not None:
-                    stage.start()
+                    try:
+                        stage.start()
+                    finally:
+                        if self._stopped:
+                            # A nested main loop can dispatch shutdown while a
+                            # start callback is still acquiring resources.
+                            self._stop_stage(stage)
+                    if self._stopped:
+                        return
+            self._started = True
         except BaseException:
             self.stop()
             raise
-        self._started = True
+        finally:
+            self._starting = False
 
     def stop(self) -> None:
         """Log cleanup failures and continue, without raising during shutdown."""

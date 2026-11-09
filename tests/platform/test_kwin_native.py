@@ -312,3 +312,23 @@ def test_workspace_numbers_are_positions_not_kwin_desktop_numbers():
     assert [workspace.id for workspace in workspaces] == [desktop_one, desktop_two]
     assert [workspace.number for workspace in workspaces] == [0, 1]
     assert service.active_workspace() == workspaces[1]
+
+
+def test_early_constructor_failure_releases_injected_runtime(monkeypatch):
+    from docking.platform.backends.wayland import services
+
+    runtime = _empty_runtime()
+    runtime.stop.side_effect = ValueError("cleanup failed")
+    original = OSError("surface construction failed")
+    monkeypatch.setattr(
+        services, "WaylandLayerShellSurfaceService", MagicMock(side_effect=original)
+    )
+    with pytest.raises(OSError) as error:
+        session.KWinSessionBackend(
+            layer_shell=_layer_shell(),
+            model=_model(),
+            **identity_services(),
+            protocol_runtime=runtime,
+        )
+    assert error.value is original
+    runtime.stop.assert_called_once_with()

@@ -245,6 +245,8 @@ class KWinSessionBackend(SessionBackend):
         lifecycle = ServiceLifecycle()
         with ExitStack() as construction:
             construction.callback(lifecycle.stop)
+            if protocol_runtime is not None:
+                lifecycle.add("wayland runtime", stop=protocol_runtime.stop)
             from docking.platform.backends.wayland.services import (
                 WaylandLayerShellSurfaceService,
             )
@@ -287,8 +289,6 @@ class KWinSessionBackend(SessionBackend):
             self._desktop_actions = KWinDesktopActionService.connect()
             self._screen_capture = load_portal_color_picker()
             self._runtime = protocol_runtime
-            if self._runtime is not None:
-                lifecycle.add("wayland runtime", stop=self._runtime.stop)
             if self._runtime is None:
                 runtime = WaylandProtocolRuntime()
                 lifecycle.add("wayland runtime", stop=runtime.stop)

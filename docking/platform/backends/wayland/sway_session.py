@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
@@ -28,42 +29,45 @@ class SwaySessionBackend(WaylandLayerShellSessionBackend):
         self, *, socket_path: str, config: Config | None = None, **kwargs
     ) -> None:
         super().__init__(**kwargs)
-        client = SwayIpcClient(socket_path)
-        runtime = self._services.protocol_runtime
-        protocol = runtime.preview_protocol if runtime is not None else None
-        handles = (
-            WaylandPreviewHandleTracker(
+        with ExitStack() as construction:
+            construction.callback(super().stop)
+            client = SwayIpcClient(socket_path)
+            runtime = self._services.protocol_runtime
+            protocol = runtime.preview_protocol if runtime is not None else None
+            handles = (
+                WaylandPreviewHandleTracker(
+                    model=kwargs["model"],
+                    application_registry=kwargs["application_registry"],
+                    process_identity_service=kwargs["process_identity_service"],
+                    protocol=protocol,
+                )
+                if protocol is not None
+                else None
+            )
+            windows = SwayWindowService(
+                client=client,
+                config=config,
+                preview_handles=handles,
                 model=kwargs["model"],
                 application_registry=kwargs["application_registry"],
                 process_identity_service=kwargs["process_identity_service"],
-                protocol=protocol,
             )
-            if protocol is not None
-            else None
-        )
-        windows = SwayWindowService(
-            client=client,
-            config=config,
-            preview_handles=handles,
-            model=kwargs["model"],
-            application_registry=kwargs["application_registry"],
-            process_identity_service=kwargs["process_identity_service"],
-        )
-        self._services = replace(
-            self._services,
-            windows=windows,
-            workspaces=SwayWorkspaceService(client=client, windows=windows),
-            visibility=SnapshotVisibilityService(
+            self._services = replace(
+                self._services,
                 windows=windows,
-                visible_windows=lambda _rect: windows.list_all_windows(),
-                config=config,
-            ),
-            # Sway container IDs are not foreign-toplevel handles. Never capture
-            # an unrelated window by treating them as protocol IDs.
-            previews=WaylandPreviewService(protocol=protocol, handles=handles)
-            if protocol is not None and handles is not None
-            else ReducedPreviewService(),
-        )
+                workspaces=SwayWorkspaceService(client=client, windows=windows),
+                visibility=SnapshotVisibilityService(
+                    windows=windows,
+                    visible_windows=lambda _rect: windows.list_all_windows(),
+                    config=config,
+                ),
+                # Sway container IDs are not foreign-toplevel handles. Never capture
+                # an unrelated window by treating them as protocol IDs.
+                previews=WaylandPreviewService(protocol=protocol, handles=handles)
+                if protocol is not None and handles is not None
+                else ReducedPreviewService(),
+            )
+            construction.pop_all()
 
     @property
     def name(self) -> str:

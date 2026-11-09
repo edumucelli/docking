@@ -22,6 +22,7 @@ from docking.platform.backends.reduced.services import (
     ReducedWindowService,
 )
 from docking.platform.backends.wayland import session as session_module
+from docking.platform.backends.wayland import sway_session
 from docking.platform.backends.wayland.hyprland_ipc import (
     HyprlandSocketPaths,
     HyprlandWindowService,
@@ -120,6 +121,23 @@ def test_runtime_start_failure_is_guarded_before_constructor_returns(monkeypatch
         WaylandLayerShellSessionBackend(
             layer_shell=_layer_shell(), model=MagicMock(), **identity_services()
         )
+    runtime.stop.assert_called_once_with()
+
+
+def test_sway_extension_failure_releases_the_constructed_base_session(monkeypatch):
+    runtime = _empty_runtime()
+    runtime.stop.side_effect = ValueError("cleanup failed")
+    original = OSError("Sway construction failed")
+    monkeypatch.setattr(sway_session, "SwayIpcClient", MagicMock(side_effect=original))
+    with pytest.raises(OSError) as error:
+        SwaySessionBackend(
+            socket_path="/fixture/sway.sock",
+            layer_shell=_layer_shell(),
+            model=MagicMock(),
+            **identity_services(),
+            protocol_runtime=runtime,
+        )
+    assert error.value is original
     runtime.stop.assert_called_once_with()
 
 

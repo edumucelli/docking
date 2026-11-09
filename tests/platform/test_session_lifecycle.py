@@ -100,3 +100,93 @@ def test_extension_failure_unwinds_children_before_parent_even_if_cleanup_fails(
     assert events == ["extension", "windows", "runtime"]
     extension.stop()
     assert len(events) == 3
+
+
+def test_registration_after_stop_cleans_each_stage_once_in_dependency_order():
+    lifecycle = ServiceLifecycle()
+    events = []
+    lifecycle.add("first", stop=lambda: events.append("first"))
+    lifecycle.stop()
+    lifecycle.add("second", stop=lambda: events.append("second"))
+    lifecycle.start()
+    lifecycle.stop()
+    assert events == ["first", "second", "first"]
+
+
+@pytest.mark.parametrize("cleanup_error", [KeyboardInterrupt, SystemExit])
+@pytest.mark.parametrize("startup_error", [None, OSError("startup failed")])
+def test_cleanup_interrupts_neither_escape_shutdown_nor_replace_startup_error(
+    cleanup_error, startup_error
+):
+    lifecycle = ServiceLifecycle()
+    before, after = Mock(), Mock()
+    failing = Mock(side_effect=cleanup_error("cleanup failed"))
+    startup = Mock(side_effect=startup_error)
+    lifecycle.add("before", stop=before)
+    lifecycle.add("failing", start=startup, stop=failing)
+    lifecycle.add("after", stop=after)
+    if startup_error is not None:
+        with pytest.raises(OSError) as error:
+            lifecycle.start()
+        assert error.value is startup_error
+    lifecycle.stop()
+    for callback in (before, failing, after):
+        callback.assert_called_once_with()
+
+
+@pytest.mark.parametrize("fail_after_stop", [False, True])
+def test_shutdown_during_start_releases_late_resources_and_skips_later_starts(
+    fail_after_stop,
+):
+    lifecycle = ServiceLifecycle()
+    resources = []
+    calls = []
+    later = Mock()
+    original = OSError("failed after shutdown")
+
+    def start():
+        lifecycle.stop()
+        resources.append("late resource")
+        lifecycle.start()  # A reentrant restart must not revive this startup.
+        if fail_after_stop:
+            raise original
+
+    def stop():
+        calls.append("stop")
+        resources.clear()
+
+    lifecycle.add("interrupted", start=start, stop=stop)
+    lifecycle.add_service("later", lambda: later)
+    if fail_after_stop:
+        with pytest.raises(OSError) as error:
+            lifecycle.start()
+        assert error.value is original
+    else:
+        lifecycle.start()
+    assert not resources
+    assert calls == ["stop", "stop"]
+    later.start.assert_not_called()
+    later.stop.assert_called_once_with()
+    lifecycle.stop()
+    assert calls == ["stop", "stop"]
+
+
+def test_base_failure_cleans_nested_lifecycles_without_replacing_original_error():
+    parent = ServiceLifecycle()
+    runtime, windows, child = Mock(), Mock(), Mock()
+    original = OSError("base startup failed")
+    windows.start.side_effect = original
+    windows.stop.side_effect = ValueError("windows cleanup failed")
+    child.stop.side_effect = ValueError("child cleanup failed")
+    parent.add("runtime", stop=runtime.stop)
+    parent.add_service("windows", lambda: windows)
+    extension = ServiceLifecycle()
+    extension.add("base session", start=parent.start, stop=parent.stop)
+    extension.add_service("extension", lambda: child)
+    with pytest.raises(OSError) as error:
+        extension.start()
+    assert error.value is original
+    child.start.assert_not_called()
+    extension.stop()
+    for service in (runtime, windows, child):
+        service.stop.assert_called_once_with()

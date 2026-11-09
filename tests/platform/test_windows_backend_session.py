@@ -55,7 +55,7 @@ def test_windows_composes_native_services_without_constructing_reduced_fallbacks
         monkeypatch.setattr(reduced, name, forbidden)
     services = {}
     factories = {}
-    for module, name, role in (
+    for module, name, service_role in (
         (windows, "WindowsWindowService", "windows"),
         (previews, "WindowsPreviewService", "previews"),
         (surface, "WindowsSurfaceService", "surface"),
@@ -67,9 +67,9 @@ def test_windows_composes_native_services_without_constructing_reduced_fallbacks
         (picking, "WindowsWindowPickService", "window_picker"),
     ):
         service = Mock()
-        services[role] = service
+        services[service_role] = service
         factory = Mock(return_value=service)
-        factories[role] = factory
+        factories[service_role] = factory
         monkeypatch.setattr(module, name, factory)
     model, config, registry, identity = Mock(), Mock(), Mock(), Mock()
     backend = WindowsSessionBackend(
