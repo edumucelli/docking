@@ -22,8 +22,8 @@ from docking.platform.native.windows.com import (
     release,
     value,
 )
-from docking.platform.native.windows.ffi import bind, windows_ctypes
-from docking.platform.native.windows.process import NativeProcessReader
+from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.process import read_process_metadata
 from docking.platform.native.windows.winrt import check
 
 log = get_logger("music.windows_audio")
@@ -74,43 +74,13 @@ class WindowsPlayerAudio:
         self, *, window_source_factory: Callable[[], WindowObservation]
     ) -> None:
         self._window_source_factory = window_source_factory
-        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
-        self._open = bind(
-            kernel,
-            "OpenProcess",
-            _POINTER,
-            ctypes.c_uint32,
-            ctypes.c_int32,
-            ctypes.c_uint32,
-        )
-        self._close = bind(kernel, "CloseHandle", ctypes.c_int32, _POINTER)
-        self._app_id = bind(
-            kernel,
-            "GetApplicationUserModelId",
-            ctypes.c_int32,
-            _POINTER,
-            ctypes.POINTER(ctypes.c_uint32),
-            ctypes.c_wchar_p,
-        )
-        self._processes = NativeProcessReader()
 
     def _process_identity(self, pid: int) -> tuple[str, str]:
-        process = self._open(0x1000, False, pid)
-        application = ""
-        if process:
-            try:
-                count = ctypes.c_uint32()
-                if (
-                    self._app_id(process, ctypes.byref(count), None) == 122
-                    and 0 < count.value <= 4096
-                ):
-                    buffer = ctypes.create_unicode_buffer(count.value)
-                    if self._app_id(process, ctypes.byref(count), buffer) == 0:
-                        application = str(buffer.value)
-            finally:
-                self._close(process)
-        executable = self._processes.executable(pid)
-        return application, str(executable) if executable is not None else ""
+        metadata = read_process_metadata(pid)
+        if metadata is None:
+            return "", ""
+        path = metadata.executable_path
+        return metadata.aumid or "", str(path) if path is not None else ""
 
     @contextmanager
     def _scan(self):

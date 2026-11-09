@@ -384,6 +384,11 @@ def test_windows_process_identity_handles_inaccessible_processes(monkeypatch):
             Error=PermissionError,
         ),
     )
+    monkeypatch.setattr(
+        windows_process.native_process,
+        "read_process_metadata",
+        lambda *_args, **_kw: None,
+    )
     backend = windows_process.WindowsProcessBackend()
     assert backend.executable(123) is None
     assert backend.script(123) is None

@@ -7,7 +7,6 @@ import os
 from collections.abc import Callable
 from ctypes import wintypes
 from dataclasses import replace
-from pathlib import PureWindowsPath
 from typing import TYPE_CHECKING
 
 from gi.repository import GLib
@@ -27,6 +26,7 @@ from docking.platform.native.windows.capture import (
 )
 from docking.platform.native.windows.ffi import MonitorInfo, windows_ctypes
 from docking.platform.native.windows.ffi import bind as _bind
+from docking.platform.native.windows.process import read_process_metadata
 
 from .ghosts import WindowsGhostWindows
 from .virtual_desktops import WindowWorkspace
@@ -61,7 +61,6 @@ class Win32WindowAPI(WindowObservation):
         self._last_foreground_window: WindowSnapshot | None = None
         user = windows_ctypes.WinDLL("user32", use_last_error=True)
         self._ghosts = WindowsGhostWindows(user)
-        kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
         dwm = windows_ctypes.WinDLL("dwmapi", use_last_error=True)
         self._callback_type = windows_ctypes.WINFUNCTYPE(
             wintypes.BOOL, wintypes.HWND, wintypes.LPARAM
@@ -129,34 +128,6 @@ class Win32WindowAPI(WindowObservation):
             ctypes.c_void_p,
             wintypes.DWORD,
         )
-        self._open_process = _bind(
-            kernel,
-            "OpenProcess",
-            wintypes.HANDLE,
-            wintypes.DWORD,
-            wintypes.BOOL,
-            wintypes.DWORD,
-        )
-        self._close_handle = _bind(
-            kernel, "CloseHandle", wintypes.BOOL, wintypes.HANDLE
-        )
-        self._executable = _bind(
-            kernel,
-            "QueryFullProcessImageNameW",
-            wintypes.BOOL,
-            wintypes.HANDLE,
-            wintypes.DWORD,
-            wintypes.LPWSTR,
-            ctypes.POINTER(wintypes.DWORD),
-        )
-        self._aumid = _bind(
-            kernel,
-            "GetApplicationUserModelId",
-            wintypes.LONG,
-            wintypes.HANDLE,
-            ctypes.POINTER(wintypes.UINT),
-            wintypes.LPWSTR,
-        )
         self._show = _bind(
             user, "ShowWindowAsync", wintypes.BOOL, wintypes.HWND, ctypes.c_int
         )
@@ -174,27 +145,11 @@ class Win32WindowAPI(WindowObservation):
         )
 
     def _process_identity(self, pid: int) -> tuple[str | None, str]:
-        process = self._open_process(0x1000, False, pid)  # query limited information
-        if not process:
+        metadata = read_process_metadata(pid)
+        if metadata is None:
             return None, ""
-        try:
-            application_id = None
-            size = wintypes.UINT()
-            status = self._aumid(process, ctypes.byref(size), None)
-            if status == 122 and 0 < size.value <= 4096:  # insufficient buffer
-                buffer = ctypes.create_unicode_buffer(size.value)
-                if self._aumid(process, ctypes.byref(size), buffer) == 0:
-                    application_id = str(buffer.value)
-            size = wintypes.DWORD(32768)
-            executable = ctypes.create_unicode_buffer(size.value)
-            path = (
-                executable.value
-                if self._executable(process, 0, executable, ctypes.byref(size))
-                else ""
-            )
-            return application_id, PureWindowsPath(path).stem.lower() if path else ""
-        finally:
-            self._close_handle(process)
+        path = metadata.executable_path
+        return metadata.aumid, path.stem.lower() if path is not None else ""
 
     def windows(self) -> tuple[WindowSnapshot, ...]:
         foreground = self._foreground()

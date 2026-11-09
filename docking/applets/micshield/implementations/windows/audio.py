@@ -11,7 +11,6 @@ import ctypes
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import dataclass
-from pathlib import PureWindowsPath
 
 from docking.applets.micshield.state import MicStream
 from docking.i18n import _
@@ -23,7 +22,8 @@ from docking.platform.native.windows.com import (
     method,
     release,
 )
-from docking.platform.native.windows.ffi import bind, windows_ctypes
+from docking.platform.native.windows.ffi import bind
+from docking.platform.native.windows.process import read_process_metadata
 
 log = get_logger("micshield.windows_audio")
 _POINTER = ctypes.c_void_p
@@ -143,33 +143,9 @@ def _count(pointer, index: int, kind, maximum: int) -> int:
 
 
 def _process_name(pid: int) -> str:
-    kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
-    process = bind(
-        kernel,
-        "OpenProcess",
-        _POINTER,
-        ctypes.c_uint32,
-        ctypes.c_int32,
-        ctypes.c_uint32,
-    )(0x1000, False, pid)
-    if not process:
-        return ""
-    try:
-        text = ctypes.create_unicode_buffer(32768)
-        size = ctypes.c_uint32(len(text))
-        if bind(
-            kernel,
-            "QueryFullProcessImageNameW",
-            ctypes.c_int32,
-            _POINTER,
-            ctypes.c_uint32,
-            ctypes.c_wchar_p,
-            ctypes.POINTER(ctypes.c_uint32),
-        )(process, 0, text, ctypes.byref(size)):
-            return PureWindowsPath(text.value).stem
-        return ""
-    finally:
-        bind(kernel, "CloseHandle", ctypes.c_int32, _POINTER)(process)
+    metadata = read_process_metadata(pid, include_aumid=False)
+    path = metadata.executable_path if metadata is not None else None
+    return path.stem if path is not None else ""
 
 
 def _stream(ole, stack, control, identity: str) -> MicStream:
