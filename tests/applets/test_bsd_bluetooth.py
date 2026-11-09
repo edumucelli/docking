@@ -2,13 +2,14 @@
 
 import shlex
 import subprocess
+import sys
 import threading
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-from docking.applets.bluetooth.implementations.bsd import backend as bsd
+from docking.applets.bluetooth.implementations.bsd import freebsd as bsd
 from docking.platform.composition.bsd import BsdAppletBackendFactories
 
 create_backend = BsdAppletBackendFactories().bluetooth
@@ -28,8 +29,8 @@ CONNECTIONS = (
 @pytest.fixture
 def backend(monkeypatch, tmp_path):
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
-    monkeypatch.setattr(bsd.sys, "platform", "freebsd15")
-    return bsd.BsdBluetoothBackend()
+    monkeypatch.setattr(sys, "platform", "freebsd15")
+    return bsd.FreeBsdBluetoothBackend()
 
 
 def test_controller_discovery_and_open_acl_connections(backend, monkeypatch):
@@ -58,20 +59,19 @@ def test_controller_discovery_and_open_acl_connections(backend, monkeypatch):
     assert bsd._connections(CONNECTIONS) == {ADDRESS: "41"}
 
 
-def test_missing_controller_and_openbsd_are_unavailable(backend, monkeypatch):
+def test_missing_controller_is_unavailable(backend, monkeypatch):
     monkeypatch.setattr(bsd, "_run", lambda argv, **kwargs: None)
     assert not backend.get_state().available
-    monkeypatch.setattr(bsd.sys, "platform", "openbsd7")
-    assert "OpenBSD" in backend.get_state().error
 
 
 def test_factory_selects_bsd_without_importing_bluez(monkeypatch):
-
+    monkeypatch.setattr(environment, "is_windows", lambda: False)
+    monkeypatch.setattr(sys, "platform", "freebsd15")
     monkeypatch.setattr(environment, "is_bsd", lambda: True)
     monkeypatch.setitem(
-        bsd.sys.modules, "docking.applets.bluetooth.implementations.linux.backend", None
+        sys.modules, "docking.applets.bluetooth.implementations.linux.backend", None
     )
-    assert isinstance(create_backend(), bsd.BsdBluetoothBackend)
+    assert isinstance(create_backend(), bsd.FreeBsdBluetoothBackend)
 
 
 @pytest.mark.parametrize(
@@ -175,7 +175,7 @@ def test_pairing_requires_native_config_completion(backend, monkeypatch, exit_st
     assert backend.pair_device(DEVICE, ADDRESS) is (exit_status == "0")
     assert (DEVICE in backend._paired) is (exit_status == "0")
     if exit_status == "0":
-        assert DEVICE in bsd.BsdBluetoothBackend()._paired
+        assert DEVICE in bsd.FreeBsdBluetoothBackend()._paired
 
 
 def test_failed_and_timed_out_native_commands_are_failures(monkeypatch):
@@ -195,10 +195,35 @@ def test_failed_and_timed_out_native_commands_are_failures(monkeypatch):
     assert bsd._run(["hccontrol"]) is None
 
 
-@pytest.mark.skipif(
-    not bsd.sys.platform.startswith("freebsd"), reason="requires FreeBSD"
-)
+@pytest.mark.skipif(not environment.is_freebsd(), reason="requires FreeBSD")
 def test_actual_freebsd_controller_query_without_hardware():
-    state = bsd.BsdBluetoothBackend().get_state()
+    state = bsd.FreeBsdBluetoothBackend().get_state()
     assert state.available == bool(state.adapters)
     assert state.devices == () or state.available
+
+
+@pytest.mark.parametrize(
+    "system,reason",
+    [
+        ("openbsd7", "OpenBSD has no Bluetooth stack"),
+        ("netbsd11", "NetBSD Bluetooth integration unavailable"),
+    ],
+)
+def test_unsupported_bluetooth_hosts_never_run_freebsd_commands(
+    monkeypatch, system, reason
+):
+    monkeypatch.setattr(sys, "platform", system)
+    monkeypatch.setattr(
+        bsd,
+        "_run",
+        lambda *args, **kwargs: pytest.fail("FreeBSD command on another host"),
+    )
+    backend = create_backend()
+    assert not backend.get_state().available
+    assert backend.get_state().error == reason
+    assert not backend.capabilities.power
+    assert not backend.set_adapter_power(NODE, True)
+    assert not backend.start_discovery(NODE)
+    assert not backend.connect_device(DEVICE)
+    assert not backend.pair_device(DEVICE)
+    backend.close()

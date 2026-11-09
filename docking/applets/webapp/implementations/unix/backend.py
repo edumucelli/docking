@@ -148,7 +148,7 @@ class WebAppBrowser(BrowserBackend):
 
     def clear_session(self, on_complete: ClearCallback) -> None:
         """Clear the dedicated website store, then return to the QR login page."""
-        if not self._ensure_runtime() or self._manager is None:
+        if not self._ensure_runtime() or self._manager is None or self._webkit is None:
             on_complete(False, _("WebKitGTK is unavailable"))
             return
         self._cancel_session_clear()
@@ -341,11 +341,14 @@ class WebAppBrowser(BrowserBackend):
         self._on_title(title)
 
     def _on_load_changed(self, view: Any, event: Any) -> None:
-        if event == self._webkit.LoadEvent.STARTED:
+        webkit = self._webkit
+        if webkit is None:
+            return
+        if event == webkit.LoadEvent.STARTED:
             self._last_bridge_badge = None
             self._last_bridge_status = None
             self._set_phase(BrowserPhase.STARTING)
-        elif event == self._webkit.LoadEvent.FINISHED:
+        elif event == webkit.LoadEvent.FINISHED:
             if self._last_bridge_status is None:
                 self._set_phase(BrowserPhase.SYNCING)
             title = str(view.get_title() or "")
@@ -398,13 +401,17 @@ class WebAppBrowser(BrowserBackend):
         decision: Any,
         decision_type: Any,
     ) -> bool:
-        if decision_type == self._webkit.PolicyDecisionType.RESPONSE:
+        webkit = self._webkit
+        if webkit is None:
+            decision.ignore()
+            return True
+        if decision_type == webkit.PolicyDecisionType.RESPONSE:
             return False
         request = getattr(decision, "get_request", lambda: None)()
         uri = str(request.get_uri() or "") if request is not None else ""
         target = navigation_target(uri, self.profile.host)
         if target is NavigationTarget.INTERNAL:
-            if decision_type == self._webkit.PolicyDecisionType.NEW_WINDOW_ACTION:
+            if decision_type == webkit.PolicyDecisionType.NEW_WINDOW_ACTION:
                 decision.ignore()
                 return True
             decision.use()
@@ -429,8 +436,11 @@ class WebAppBrowser(BrowserBackend):
             self._open_external_uri(uri)
 
     def _on_initialize_notification_permissions(self, context: Any) -> None:
+        webkit = self._webkit
+        if webkit is None:
+            return
         try:
-            origin = self._webkit.SecurityOrigin.new_for_uri(self.profile.url)
+            origin = webkit.SecurityOrigin.new_for_uri(self.profile.url)
             context.initialize_notification_permissions([origin], [])
         except Exception as exc:
             log.debug("Could not initialize web app notification permission: %s", exc)
@@ -453,12 +463,11 @@ class WebAppBrowser(BrowserBackend):
         return True
 
     def _confirm_media_permission(self, request: Any) -> bool:
-        wants_audio = bool(
-            self._webkit.user_media_permission_is_for_audio_device(request)
-        )
-        wants_video = bool(
-            self._webkit.user_media_permission_is_for_video_device(request)
-        )
+        webkit = self._webkit
+        if webkit is None:
+            return False
+        wants_audio = bool(webkit.user_media_permission_is_for_audio_device(request))
+        wants_video = bool(webkit.user_media_permission_is_for_video_device(request))
         if wants_audio and wants_video:
             device = _("camera and microphone")
         elif wants_video:

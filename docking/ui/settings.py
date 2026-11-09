@@ -140,6 +140,14 @@ SettingsRow = tuple[str, Gtk.Widget, str | None]
 ConfigScalar = bool | int | float | str
 
 
+class _InfoIcon(Gtk.EventBox):
+    """Information button with an owned popover and its displayed text."""
+
+    _docking_info_popover: Gtk.Popover
+    _docking_info_label: Gtk.Label
+    _docking_info_text: str
+
+
 @dataclass
 class _ScalarBinding:
     """Bind one scalar config attribute to one widget."""
@@ -1006,8 +1014,8 @@ class SettingsWindowController:
 
         return self._new_tab_scroller(outer, propagate_natural_width=True)
 
-    def _new_info_icon(self, tooltip: str = "") -> Gtk.EventBox:
-        icon = Gtk.EventBox()
+    def _new_info_icon(self, tooltip: str = "") -> _InfoIcon:
+        icon = _InfoIcon()
         icon.set_visible_window(False)
         icon.set_size_request(HIDE_MODE_INFO_ICON_WIDTH_PX, -1)
         icon.add_events(
@@ -1040,18 +1048,18 @@ class SettingsWindowController:
         self._set_info_icon_text(icon, tooltip)
         return icon
 
-    def _set_info_icon_text(self, icon: Gtk.Widget, text: str) -> None:
+    def _set_info_icon_text(self, icon: _InfoIcon, text: str) -> None:
         icon._docking_info_text = text
         icon._docking_info_label.set_label(text)
 
-    def _on_info_icon_enter(self, icon: Gtk.Widget, _event) -> bool:
+    def _on_info_icon_enter(self, icon: _InfoIcon, _event) -> bool:
         if not icon._docking_info_text:
             return False
         icon._docking_info_popover.show_all()
         icon._docking_info_popover.popup()
         return False
 
-    def _on_info_icon_leave(self, icon: Gtk.Widget, _event) -> bool:
+    def _on_info_icon_leave(self, icon: _InfoIcon, _event) -> bool:
         icon._docking_info_popover.popdown()
         return False
 

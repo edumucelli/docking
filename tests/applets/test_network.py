@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -1726,6 +1727,28 @@ class TestNetworkCommands:
         )
         assert open_edit_connections() is True
         assert launched == [("nm-connection-editor",)]
+
+    def test_failed_command_returns_false_and_logs_action(self, monkeypatch, caplog):
+        monkeypatch.setattr(
+            desktop_settings_mod,
+            "edit_connections_command",
+            lambda: ["nm-connection-editor"],
+        )
+
+        def fail_launch(*_args, **_kwargs):
+            raise PermissionError("Network editor cannot be launched")
+
+        monkeypatch.setattr(desktop_settings_mod.subprocess, "Popen", fail_launch)
+
+        with caplog.at_level(
+            logging.WARNING, logger="docking.network.desktop_settings"
+        ):
+            assert open_edit_connections() is False
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert record.__dict__["action"] == "open_edit_connections"
+        assert "Network editor cannot be launched" in record.getMessage()
 
     def test_open_hidden_wifi_settings_uses_editor_or_info_command(self, monkeypatch):
         launched: list[tuple[str, ...]] = []

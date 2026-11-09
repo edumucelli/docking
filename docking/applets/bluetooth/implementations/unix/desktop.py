@@ -6,9 +6,9 @@ import shutil
 import subprocess
 
 from docking.applets.bluetooth.backend import BluetoothAction
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 
-log = get_logger("bluetooth.unix_desktop")
+log = with_context(get_logger("bluetooth.unix_desktop"))
 
 _SEND_FILES_COMMANDS: tuple[tuple[str, ...], ...] = (
     ("blueman-sendto",),

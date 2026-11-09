@@ -15,12 +15,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from docking.applets.tooltip import structured_tooltip
 from docking.i18n import _
+
+if TYPE_CHECKING:
+    from gi.repository import Gio
 
 
 class RootLike(Protocol):
@@ -32,6 +35,15 @@ class DriveLike(Protocol):
     def get_name(self) -> str | None: ...
     def is_removable(self) -> bool: ...
     def can_eject(self) -> bool: ...
+    def eject_with_operation(
+        self,
+        flags: Gio.MountUnmountFlags,
+        _mount_operation: Gio.MountOperation | None,
+        cancellable: Gio.Cancellable | None,
+        callback: Callable[..., None],
+        user_data: object,
+        /,
+    ) -> None: ...
 
 
 class VolumeLike(Protocol):
@@ -44,6 +56,24 @@ class MountLike(Protocol):
     def get_volume(self) -> VolumeLike | None: ...
     def can_unmount(self) -> bool: ...
     def can_eject(self) -> bool: ...
+    def unmount_with_operation(
+        self,
+        flags: Gio.MountUnmountFlags,
+        _mount_operation: Gio.MountOperation | None,
+        cancellable: Gio.Cancellable | None,
+        callback: Callable[..., None],
+        user_data: object,
+        /,
+    ) -> None: ...
+    def eject_with_operation(
+        self,
+        flags: Gio.MountUnmountFlags,
+        _mount_operation: Gio.MountOperation | None,
+        cancellable: Gio.Cancellable | None,
+        callback: Callable[..., None],
+        user_data: object,
+        /,
+    ) -> None: ...
 
 
 class VolumeMonitorLike(Protocol):

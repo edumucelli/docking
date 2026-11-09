@@ -1,0 +1,3 @@
+# Install in a separate CPython x64 environment, alongside the GTK interpreter.
+# Qt 6.12 separates WebEngine/PDF wheels; this metapackage pins their matching set.
+PySide6==6.12.0

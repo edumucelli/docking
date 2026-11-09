@@ -1,6 +1,6 @@
 # Applets
 
-Docking includes 66 built-in applets that live alongside
+Docking includes 67 built-in applets that live alongside
 application launchers, files, and folders. Applets can launch workflows,
 show live information, adjust system settings, or provide small tools
 without opening a full application.
@@ -37,7 +37,8 @@ hidden from the menu.
 - **System & Power:** [Battery](#battery), [Bluetooth](#bluetooth),
   [Brightness](#brightness), [Caffeine](#caffeine), [Cam Shield](#cam-shield),
   [Caps Lock](#caps-lock), [Cert Watch](#cert-watch), [Devices](#devices),
-  [Docker](#docker), [Keyboard Layout](#keyboard-layout), [Mic Shield](#mic-shield),
+  [Docker](#docker), [KDE Connect](#kde-connect),
+  [Keyboard Layout](#keyboard-layout), [Mic Shield](#mic-shield),
   [Music](#music), [Network](#network), [Notifications](#notifications),
   [Power Profiles](#power-profiles), [Screenshot](#screenshot), [Session](#session),
   [Speedtest](#speedtest), [System Monitor](#system-monitor),
@@ -372,11 +373,24 @@ Camera privacy indicator. The icon shows a red dot while an app is using a camer
 - Active app list when available
 - Lock Camera / Unlock Camera
 - Refresh Now
+- Camera Settings on Windows
 
 **Tooltip:** Whether the camera is idle, active, or unavailable, plus the apps
 using it when they can be identified
 
-Locking blocks new camera access. Apps that are already using the camera may need to be closed first.
+Locking blocks new camera sessions. Apps that are already using the camera may need to be closed first.
+
+Windows provides Media Foundation camera inventory and process activity, plus
+the camera privacy Settings page. On Windows Pro, Enterprise and Education,
+Lock Camera requests administrator permission to block new sessions through
+the machine camera policy. Unlock restores the policy value Docking saved;
+it cannot remove a restriction that was already set elsewhere. Recovery stays
+available after cameras disconnect or Docking restarts. Existing capture apps
+can remain active while locked and continue to appear in the indicator.
+Unreadable or missing activity reports show unknown activity rather than idle.
+This indicator never opens the camera for a test capture.
+
+**Update interval:** 2 seconds
 
 ### Caps Lock
 
@@ -421,6 +435,27 @@ Shows Docker availability and container status when Docker is installed.
 
 **Click:** Refresh container state
 **Right-click:** Container actions when available
+
+### KDE Connect
+
+Connect a paired phone or another KDE Connect device to the dock. The icon shows
+the selected device's battery percentage and charging status. Paired devices
+remain in the menu when they go offline.
+
+**Click:** Open KDE Connect's device settings and pairing interface.
+
+**Right-click:** Choose a paired device, Ring Phone, Send Files, Refresh Now, or
+Open KDE Connect / Pair Device. Actions are enabled only when the selected
+device is online and the corresponding feature is enabled in KDE Connect.
+
+**Drop files:** Drop one or more local files onto the icon to send them to the
+selected device. The destination stays the same if that device goes offline or
+is unpaired; choose another device explicitly to send files elsewhere. Use KDE
+Connect to check transfer progress and confirm receipt.
+
+**Requires:** Install KDE Connect on the computer and phone, pair the devices,
+and enable the battery, find-phone, and file-sharing features you want to use in
+KDE Connect's settings. A KDE Plasma desktop is not required.
 
 ### Keyboard Layout
 
@@ -559,13 +594,26 @@ Circular gauge showing real-time CPU and memory usage. The fill color shifts fro
 
 ### System Tray
 
-Access tray icons for chat clients, sync tools, and other background apps.
+Tray host for chat clients, sync tools, background utilities and desktop services.
 
 **Click:** Show tray applications
 **Right-click options:**
 
-- Actions and menus provided by each app, when available
+- Registered tray app actions
+- Context menus exposed through DBusMenu when available
+- Native application menus on Windows
 - Refresh Now
+
+On Linux and BSD, the applet uses an existing StatusNotifier watcher or provides
+one so tray apps can register with the dock. The optional XEmbed host supports
+legacy X11 tray applications.
+
+On Windows, native notification icons appear in the popup alongside their
+status. Open sends a primary activation; double-click an icon for applications
+that require that gesture, such as Task Manager. Menu opens the application's
+native menu. Explorer's notification area continues to work when Docking closes.
+
+**Update interval:** 3 seconds
 
 ### Thermals
 

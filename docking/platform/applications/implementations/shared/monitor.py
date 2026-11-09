@@ -21,7 +21,7 @@ from ...handle_adapters import unique_paths
 log = with_context(get_logger(name="application_registry"))
 
 
-def _monitor_directory(path: Path) -> object:
+def _monitor_directory(path: Path) -> Gio.FileMonitor:
     file = Gio.File.new_for_path(str(path))
     return file.monitor_directory(Gio.FileMonitorFlags.NONE, None)
 
@@ -35,9 +35,9 @@ class GioCatalogMonitor(CatalogMonitor):
         self._extra_directories: tuple[Path, ...] = ()
         self._app_monitor_factory = Gio.AppInfoMonitor.get
         self._directory_monitor_factory = _monitor_directory
-        self._app_monitor: object | None = None
-        self._app_monitor_handler: object | None = None
-        self._directory_monitors: dict[Path, tuple[object, object | None]] = {}
+        self._app_monitor: Gio.AppInfoMonitor | None = None
+        self._app_monitor_handler: int | None = None
+        self._directory_monitors: dict[Path, tuple[Gio.FileMonitor, int | None]] = {}
 
     def start(self) -> None:
         self._connect_app_monitor()

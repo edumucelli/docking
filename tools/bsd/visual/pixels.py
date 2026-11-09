@@ -20,7 +20,9 @@ class Frame:
             for x in range(self.width):
                 offset = y * self.stride + x * self.channels
                 r, g, b = self.pixels[offset : offset + 3]
-                if r < 80 and 145 < g < 235 and b > 180:
+                # Keep the fixture's cyan hue through hover brightening while
+                # rejecting Xfwm's blue titlebar gradients.
+                if r < 80 and 145 < g < 235 and b > 180 and b - g <= 40 and g - r > 110:
                     left, top = min(left, x), min(top, y)
                     right, bottom = max(right, x), max(bottom, y)
                     count += 1

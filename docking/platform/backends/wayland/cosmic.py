@@ -269,28 +269,37 @@ class CosmicToplevelAdapter:
     # -- Action execution ----------------------------------------------------
 
     def activate(self, handle: object) -> None:
-        if not self.supports_action("activate", handle):
+        if (
+            not self.supports_action("activate", handle)
+            or self._toplevel_manager is None
+        ):
             return
         cosmic = self._cosmic_handles[handle]
         self._toplevel_manager.activate(cosmic, self._seat)
         self._flush_pending()
 
     def close(self, handle: object) -> None:
-        if not self.supports_action("close", handle):
+        if not self.supports_action("close", handle) or self._toplevel_manager is None:
             return
         cosmic = self._cosmic_handles[handle]
         self._toplevel_manager.close(cosmic)
         self._flush_pending()
 
     def set_minimized(self, handle: object) -> None:
-        if not self.supports_action("set_minimized", handle):
+        if (
+            not self.supports_action("set_minimized", handle)
+            or self._toplevel_manager is None
+        ):
             return
         cosmic = self._cosmic_handles[handle]
         self._toplevel_manager.set_minimized(cosmic)
         self._flush_pending()
 
     def unset_minimized(self, handle: object) -> None:
-        if not self.supports_action("set_minimized", handle):
+        if (
+            not self.supports_action("set_minimized", handle)
+            or self._toplevel_manager is None
+        ):
             return
         cosmic = self._cosmic_handles[handle]
         self._toplevel_manager.unset_minimized(cosmic)

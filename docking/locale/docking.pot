@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-11-01 21:35+0100\n"
+"POT-Creation-Date: 2026-11-08 01:46+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -23,6 +23,7 @@ msgid "AI Usage"
 msgstr ""
 
 #: docking/applets/aiusage/applet.py:137
+#: docking/applets/network/implementations/windows/backend.py:430
 msgid "Auto"
 msgstr ""
 
@@ -105,12 +106,16 @@ msgstr ""
 msgid "Add Alarm"
 msgstr ""
 
-#: docking/applets/alarm/applet.py:165 docking/applets/certwatch/state.py:243
-#: docking/applets/clock/applet.py:231 docking/applets/quicknote/applet.py:88
+#: docking/applets/alarm/applet.py:165
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:72
+#: docking/applets/certwatch/state.py:243 docking/applets/clock/applet.py:231
+#: docking/applets/quicknote/applet.py:88
 msgid "OK"
 msgstr ""
 
-#: docking/applets/alarm/applet.py:165 docking/applets/clock/applet.py:231
+#: docking/applets/alarm/applet.py:165
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:73
+#: docking/applets/clock/applet.py:231 docking/applets/kdeconnect/applet.py:241
 #: docking/applets/lastfm/applet.py:380 docking/applets/news/applet.py:514
 #: docking/applets/plantcare/applet.py:474
 #: docking/applets/quicknote/applet.py:87 docking/applets/reddit/applet.py:432
@@ -118,7 +123,8 @@ msgstr ""
 #: docking/applets/runcommand/applet.py:371
 #: docking/applets/sunrise/applet.py:187 docking/applets/trash/applet.py:200
 #: docking/applets/weather/applet.py:278 docking/applets/webapp/applet.py:179
-#: docking/ui/diagnostics.py:391 docking/ui/menu.py:450
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:97
+#: docking/ui/diagnostics.py:391 docking/ui/menu.py:458
 msgid "Cancel"
 msgstr ""
 
@@ -127,7 +133,7 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-#: docking/applets/alarm/applet.py:191 docking/ui/settings.py:987
+#: docking/applets/alarm/applet.py:191 docking/ui/settings.py:995
 msgid "Enabled"
 msgstr ""
 
@@ -343,6 +349,7 @@ msgstr ""
 #: docking/applets/certwatch/applet.py:156 docking/applets/crypto/applet.py:156
 #: docking/applets/currencyfx/applet.py:211 docking/applets/docker/applet.py:95
 #: docking/applets/hackernews/applet.py:209
+#: docking/applets/kdeconnect/applet.py:274
 #: docking/applets/lastfm/applet.py:197 docking/applets/micshield/applet.py:164
 #: docking/applets/moon/applet.py:136 docking/applets/news/applet.py:303
 #: docking/applets/plantcare/applet.py:129 docking/applets/quote/applet.py:105
@@ -372,24 +379,24 @@ msgstr ""
 msgid "Battery"
 msgstr ""
 
-#: docking/applets/battery/applet.py:123
+#: docking/applets/battery/applet.py:126
 msgid "No overlay"
 msgstr ""
 
-#: docking/applets/battery/applet.py:124
+#: docking/applets/battery/applet.py:127
 msgid "Percentage"
 msgstr ""
 
-#: docking/applets/battery/applet.py:125
+#: docking/applets/battery/applet.py:128
 msgid "Power (W)"
 msgstr ""
 
-#: docking/applets/battery/applet.py:134
+#: docking/applets/battery/applet.py:137
 msgid "Power Settings"
 msgstr ""
 
 #: docking/applets/battery/implementations/unix/upower.py:23
-#: docking/ui/settings.py:853
+#: docking/ui/settings.py:861
 msgid "Mouse"
 msgstr ""
 
@@ -501,6 +508,8 @@ msgid "{hours}h {minutes:02d}m"
 msgstr ""
 
 #: docking/applets/bluetooth/applet.py:76
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:67
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:118
 msgid "Bluetooth"
 msgstr ""
 
@@ -515,10 +524,13 @@ msgstr ""
 #: docking/applets/bluetooth/applet.py:216
 #: docking/applets/bluetooth/state.py:98
 #: docking/applets/camshield/implementations/linux/backend.py:109
+#: docking/applets/camshield/implementations/windows/backend.py:97
 #: docking/applets/deskpresence/state.py:185
 #: docking/applets/micshield/implementations/unix/backend.py:170
-#: docking/applets/powerprofiles/state.py:69 docking/ui/diagnostics.py:258
-#: docking/ui/diagnostics.py:445
+#: docking/applets/micshield/implementations/windows/audio.py:196
+#: docking/applets/powerprofiles/state.py:69
+#: docking/platform/tray/implementations/windows/backend.py:323
+#: docking/ui/diagnostics.py:258 docking/ui/diagnostics.py:445
 msgid "Unknown"
 msgstr ""
 
@@ -620,6 +632,36 @@ msgstr ""
 msgid "Battery: {percent}%"
 msgstr ""
 
+#: docking/applets/bluetooth/implementations/windows/backend.py:101
+msgid "Keep Connected"
+msgstr ""
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:103
+msgid "Connect Audio"
+msgstr ""
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Release Connection"
+msgstr ""
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:106
+msgid "Disconnect Audio"
+msgstr ""
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr ""
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr ""
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr ""
+
 #: docking/applets/bluetooth/state.py:90
 #, python-brace-format
 msgid "Bluetooth: {error}"
@@ -696,7 +738,7 @@ msgid "Brightness: {pct}%"
 msgstr ""
 
 #: docking/applets/brightness/applet.py:115
-#: docking/applets/volume/applet.py:133
+#: docking/applets/volume/applet.py:170
 msgid "Show Level"
 msgstr ""
 
@@ -716,14 +758,21 @@ msgstr ""
 #: docking/applets/caffeine/applet.py:127 docking/applets/crypto/state.py:559
 #: docking/applets/currencyfx/state.py:741 docking/applets/live_state.py:93
 #: docking/applets/music/applet.py:133 docking/applets/music/applet.py:217
+#: docking/applets/network/implementations/windows/connections.py:85
 #: docking/applets/screenshot/applet.py:125
 #: docking/applets/screenshot/preview.py:163
-#: docking/applets/weather/state.py:189 docking/search/controller.py:294
+#: docking/applets/volume/applet.py:84 docking/applets/weather/state.py:189
+#: docking/search/controller.py:294
 msgid "Unavailable"
 msgstr ""
 
 #: docking/applets/caffeine/applet.py:128
 msgid "Turn off after"
+msgstr ""
+
+#: docking/applets/caffeine/implementations/windows/backend.py:107
+#: docking/applets/caffeine/state.py:136
+msgid "Caffeine: keeping awake"
 msgstr ""
 
 #: docking/applets/caffeine/state.py:127
@@ -744,10 +793,6 @@ msgstr ""
 msgid "Caffeine: off"
 msgstr ""
 
-#: docking/applets/caffeine/state.py:136
-msgid "Caffeine: keeping awake"
-msgstr ""
-
 #: docking/applets/caffeine/state.py:137
 #, python-brace-format
 msgid "Caffeine: {time} remaining"
@@ -763,8 +808,8 @@ msgstr ""
 msgid "Active - {time} left"
 msgstr ""
 
-#: docking/applets/calculator/applet.py:78
-#: docking/applets/calculator/applet.py:96
+#: docking/applets/calculator/applet.py:79
+#: docking/applets/calculator/applet.py:97
 #: docking/search/providers/calculator.py:66
 #: docking/search/providers/calculator.py:85
 msgid "Calculator"
@@ -830,7 +875,7 @@ msgid "{command} (PID {pid}) using {devices}"
 msgstr ""
 
 #: docking/applets/camshield/state.py:80 docking/applets/devices/state.py:132
-#: docking/applets/micshield/state.py:71 docking/applets/usbwatch/state.py:99
+#: docking/applets/micshield/state.py:71 docking/applets/usbwatch/state.py:129
 #, python-brace-format
 msgid "{count} more"
 msgstr ""
@@ -1266,7 +1311,7 @@ msgstr ""
 msgid "No mounted devices"
 msgstr ""
 
-#: docking/applets/devices/state.py:135 docking/applets/usbwatch/state.py:102
+#: docking/applets/devices/state.py:135 docking/applets/usbwatch/state.py:132
 #, python-brace-format
 msgid "{count} mounted device(s)"
 msgstr ""
@@ -1425,7 +1470,7 @@ msgid "{verb} every {interval}"
 msgstr ""
 
 #: docking/applets/freshness.py:43 docking/applets/freshness.py:50
-#: docking/ui/settings.py:371
+#: docking/ui/settings.py:379
 msgid "Updates"
 msgstr ""
 
@@ -1546,6 +1591,142 @@ msgstr ""
 msgid "Next in {time}"
 msgstr ""
 
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr ""
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr ""
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr ""
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr ""
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
+msgstr ""
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr ""
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr ""
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr ""
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr ""
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr ""
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr ""
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr ""
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr ""
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr ""
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr ""
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr ""
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr ""
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr ""
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr ""
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr ""
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr ""
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr ""
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr ""
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr ""
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr ""
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr ""
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr ""
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr ""
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr ""
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr ""
+
 #: docking/applets/keyboardlayout/applet.py:55
 msgid "Keyboard Layout"
 msgstr ""
@@ -1593,6 +1774,7 @@ msgid "Scrobbler Settings"
 msgstr ""
 
 #: docking/applets/lastfm/applet.py:381 docking/applets/plantcare/applet.py:473
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:140
 #: docking/ui/diagnostics.py:390
 msgid "Save"
 msgstr ""
@@ -1813,6 +1995,7 @@ msgid "Volume Down"
 msgstr ""
 
 #: docking/applets/music/state.py:74
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
 msgid "Pause"
 msgstr ""
 
@@ -1820,8 +2003,8 @@ msgstr ""
 msgid "Play"
 msgstr ""
 
-#: docking/applets/network/applet.py:55 docking/applets/network/state.py:190
-#: docking/applets/network/state.py:208
+#: docking/applets/network/applet.py:55 docking/applets/network/state.py:196
+#: docking/applets/network/state.py:214
 msgid "Network"
 msgstr ""
 
@@ -1835,7 +2018,7 @@ msgstr ""
 msgid "Ethernet: {iface}"
 msgstr ""
 
-#: docking/applets/network/applet.py:119 docking/applets/network/state.py:191
+#: docking/applets/network/applet.py:119 docking/applets/network/state.py:197
 msgid "Not connected"
 msgstr ""
 
@@ -1904,6 +2087,11 @@ msgstr ""
 
 #: docking/applets/network/applet.py:280
 msgid "Unnamed VPN"
+msgstr ""
+
+#: docking/applets/network/implementations/windows/connections.py:85
+#: docking/search/controller.py:258
+msgid "Permission denied"
 msgstr ""
 
 #: docking/applets/news/applet.py:110
@@ -2701,8 +2889,9 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: docking/applets/plantcare/applet.py:244
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:97
 #: docking/search/providers/applications.py:193 docking/ui/diagnostics.py:137
-#: docking/ui/menu.py:585 docking/ui/startup_tips.py:216
+#: docking/ui/menu.py:593 docking/ui/startup_tips.py:217
 msgid "Close"
 msgstr ""
 
@@ -3037,7 +3226,7 @@ msgstr ""
 msgid "Hot"
 msgstr ""
 
-#: docking/applets/reddit/state.py:164 docking/ui/settings.py:1839
+#: docking/applets/reddit/state.py:164 docking/ui/settings.py:1847
 msgid "Top"
 msgstr ""
 
@@ -3125,11 +3314,11 @@ msgid "Run with file"
 msgstr ""
 
 #: docking/applets/runcommand/applet.py:372
-#: docking/applets/systemtray/applet.py:645
+#: docking/applets/systemtray/applet.py:646
 #: docking/search/providers/applications.py:159
 #: docking/search/providers/dock.py:80 docking/search/providers/recent.py:70
-#: docking/search/providers/web.py:93 docking/search/ui/window.py:772
-#: docking/ui/menu.py:452 docking/ui/menu.py:537
+#: docking/search/providers/web.py:93 docking/search/ui/window.py:774
+#: docking/ui/menu.py:460 docking/ui/menu.py:545
 msgid "Open"
 msgstr ""
 
@@ -3481,31 +3670,32 @@ msgstr ""
 msgid "Context Menu"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:554
-#: docking/applets/systemtray/applet.py:885
+#: docking/applets/systemtray/applet.py:555
+#: docking/applets/systemtray/applet.py:886
 #: docking/applets/systemtray/state.py:13
+#: docking/platform/tray/implementations/windows/backend.py:346
 msgid "System Tray unavailable"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:563
+#: docking/applets/systemtray/applet.py:564
 #: docking/applets/systemtray/state.py:20
 msgid "System Tray: waiting for tray apps"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:662
+#: docking/applets/systemtray/applet.py:663
 msgid "Menu"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:835
+#: docking/applets/systemtray/applet.py:836
 msgid "Menu Item"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:887
+#: docking/applets/systemtray/applet.py:888
 #, python-brace-format
 msgid "System Tray host: {n} item(s)"
 msgstr ""
 
-#: docking/applets/systemtray/applet.py:888
+#: docking/applets/systemtray/applet.py:889
 #: docking/applets/systemtray/state.py:22
 #, python-brace-format
 msgid "System Tray: {n} item(s)"
@@ -3565,27 +3755,33 @@ msgstr ""
 msgid "Unknown X11 tray error"
 msgstr ""
 
-#: docking/applets/systemtray/implementations/unix/presentation.py:128
+#: docking/applets/systemtray/implementations/unix/presentation.py:129
 msgid "Could not start the legacy tray"
 msgstr ""
 
-#: docking/applets/systemtray/implementations/unix/presentation.py:135
+#: docking/applets/systemtray/implementations/unix/presentation.py:136
 msgid "another tray"
 msgstr ""
 
-#: docking/applets/systemtray/implementations/unix/presentation.py:141
+#: docking/applets/systemtray/implementations/unix/presentation.py:143
 msgid "Take over the legacy tray?"
 msgstr ""
 
-#: docking/applets/systemtray/implementations/unix/presentation.py:143
+#: docking/applets/systemtray/implementations/unix/presentation.py:145
 msgid "Take Over"
 msgstr ""
 
-#: docking/applets/systemtray/implementations/unix/presentation.py:146
+#: docking/applets/systemtray/implementations/unix/presentation.py:148
 #, python-brace-format
 msgid ""
 "Docking will replace {owner} as the X11 system tray host. Existing legacy "
 "tray apps may need to be restarted before they dock into Docking."
+msgstr ""
+
+#: docking/applets/systemtray/implementations/windows/presentation.py:24
+#: docking/applets/systemtray/implementations/windows/presentation.py:37
+#: docking/applets/systemtray/state.py:21
+msgid "System Tray: no tray apps"
 msgstr ""
 
 #: docking/applets/systemtray/state.py:12
@@ -3596,10 +3792,6 @@ msgstr ""
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
 msgid "System Tray: legacy tray owned by {owner}"
-msgstr ""
-
-#: docking/applets/systemtray/state.py:21
-msgid "System Tray: no tray apps"
 msgstr ""
 
 #: docking/applets/systemtray/state.py:26
@@ -3875,26 +4067,26 @@ msgstr ""
 msgid "Shorten"
 msgstr ""
 
-#: docking/applets/urlshortener/applet.py:160
+#: docking/applets/urlshortener/applet.py:161
 msgid "Shortening..."
 msgstr ""
 
-#: docking/applets/urlshortener/applet.py:196
-#: docking/applets/urlshortener/applet.py:215
+#: docking/applets/urlshortener/applet.py:197
+#: docking/applets/urlshortener/applet.py:216
 #: docking/search/providers/temporal.py:65
 msgid "Copy"
 msgstr ""
 
-#: docking/applets/urlshortener/applet.py:210
+#: docking/applets/urlshortener/applet.py:211
 msgid "Copied!"
 msgstr ""
 
-#: docking/applets/usbwatch/applet.py:51 docking/applets/usbwatch/state.py:94
-#: docking/applets/usbwatch/state.py:101
+#: docking/applets/usbwatch/applet.py:51 docking/applets/usbwatch/state.py:124
+#: docking/applets/usbwatch/state.py:131
 msgid "USB Watch"
 msgstr ""
 
-#: docking/applets/usbwatch/applet.py:75 docking/applets/usbwatch/state.py:95
+#: docking/applets/usbwatch/applet.py:75 docking/applets/usbwatch/state.py:125
 msgid "No mounted USB devices"
 msgstr ""
 
@@ -3903,7 +4095,7 @@ msgstr ""
 msgid "Safely Remove {name}"
 msgstr ""
 
-#: docking/applets/usbwatch/state.py:109
+#: docking/applets/usbwatch/state.py:139
 msgid "Removable Drive"
 msgstr ""
 
@@ -3911,16 +4103,16 @@ msgstr ""
 msgid "Volume"
 msgstr ""
 
-#: docking/applets/volume/applet.py:83
+#: docking/applets/volume/applet.py:88
 msgid "Muted"
 msgstr ""
 
-#: docking/applets/volume/applet.py:83
+#: docking/applets/volume/applet.py:88
 #, python-brace-format
 msgid "Volume: {pct}%"
 msgstr ""
 
-#: docking/applets/volume/applet.py:139
+#: docking/applets/volume/applet.py:176
 msgid "Volume Settings"
 msgstr ""
 
@@ -3978,51 +4170,115 @@ msgid "WebKitGTK is unavailable"
 msgstr ""
 
 #: docking/applets/webapp/implementations/unix/backend.py:286
+#: docking/applets/webapp/implementations/windows/backend.py:165
 msgid "Docking applet"
 msgstr ""
 
 #: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:184
 #, python-brace-format
 msgid "Reload {service}"
 msgstr ""
 
-#: docking/applets/webapp/implementations/unix/backend.py:379
+#: docking/applets/webapp/implementations/unix/backend.py:382
+#: docking/applets/webapp/implementations/windows/backend.py:591
+#: docking/applets/webapp/implementations/windows/companion/browser.py:192
 msgid "browser process stopped"
 msgstr ""
 
-#: docking/applets/webapp/implementations/unix/backend.py:463
+#: docking/applets/webapp/implementations/unix/backend.py:472
 msgid "camera and microphone"
 msgstr ""
 
-#: docking/applets/webapp/implementations/unix/backend.py:465
+#: docking/applets/webapp/implementations/unix/backend.py:474
+#: docking/applets/webapp/implementations/windows/backend.py:503
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:346
 msgid "camera"
 msgstr ""
 
-#: docking/applets/webapp/implementations/unix/backend.py:467
+#: docking/applets/webapp/implementations/unix/backend.py:476
+#: docking/applets/webapp/implementations/windows/backend.py:503
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:344
 msgid "microphone"
 msgstr ""
 
-#: docking/applets/webapp/implementations/unix/backend.py:473
+#: docking/applets/webapp/implementations/unix/backend.py:482
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:355
 #, python-brace-format
 msgid "Allow {service} to use your {device}?"
 msgstr ""
 
-#: docking/applets/webapp/implementations/unix/backend.py:477
+#: docking/applets/webapp/implementations/unix/backend.py:486
+#: docking/applets/webapp/implementations/windows/backend.py:514
 msgid "Deny"
 msgstr ""
 
-#: docking/applets/webapp/implementations/unix/backend.py:478
+#: docking/applets/webapp/implementations/unix/backend.py:487
+#: docking/applets/webapp/implementations/windows/backend.py:515
 msgid "Allow"
 msgstr ""
 
-#: docking/applets/webapp/implementations/unix/backend.py:553
+#: docking/applets/webapp/implementations/unix/backend.py:562
 #, python-brace-format
 msgid "{service} requires WebKitGTK"
 msgstr ""
 
-#: docking/applets/webapp/implementations/unix/backend.py:557
+#: docking/applets/webapp/implementations/unix/backend.py:566
 msgid ""
 "Install the WebKitGTK 4.1 or 4.0 introspection package, then restart Docking."
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:239
+msgid "Could not open browser session"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:160
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:73
+#: docking/search/controller.py:298
+msgid "Cancelled"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:75
+#: docking/search/controller.py:273 docking/search/controller.py:300
+msgid "Failed"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:77
+msgid "Paused"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr ""
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
 msgstr ""
 
 #: docking/applets/whatsapp/applet.py:22
@@ -4423,13 +4679,9 @@ msgstr ""
 msgid "Assigned by desktop"
 msgstr ""
 
-#: docking/search/controller.py:256 docking/ui/menu.py:681
-#: docking/ui/settings.py:1686
+#: docking/search/controller.py:256 docking/ui/menu.py:689
+#: docking/ui/settings.py:1694
 msgid "Unavailable on this desktop"
-msgstr ""
-
-#: docking/search/controller.py:258
-msgid "Permission denied"
 msgstr ""
 
 #: docking/search/controller.py:260
@@ -4438,10 +4690,6 @@ msgstr ""
 
 #: docking/search/controller.py:272 docking/search/controller.py:281
 msgid "Conflict"
-msgstr ""
-
-#: docking/search/controller.py:273 docking/search/controller.py:300
-msgid "Failed"
 msgstr ""
 
 #: docking/search/controller.py:276 docking/search/controller.py:301
@@ -4454,10 +4702,6 @@ msgstr ""
 
 #: docking/search/controller.py:296
 msgid "Denied"
-msgstr ""
-
-#: docking/search/controller.py:298
-msgid "Cancelled"
 msgstr ""
 
 #: docking/search/controller.py:758
@@ -4502,16 +4746,16 @@ msgid "Open New Window"
 msgstr ""
 
 #: docking/search/providers/applications.py:184
-#: docking/search/providers/dock.py:96 docking/ui/menu.py:524
-#: docking/ui/menu.py:546 docking/ui/menu.py:569 docking/ui/menu.py:620
+#: docking/search/providers/dock.py:96 docking/ui/menu.py:532
+#: docking/ui/menu.py:554 docking/ui/menu.py:577 docking/ui/menu.py:628
 msgid "Remove from Dock"
 msgstr ""
 
-#: docking/search/providers/applications.py:184 docking/ui/menu.py:576
+#: docking/search/providers/applications.py:184 docking/ui/menu.py:584
 msgid "Keep in Dock"
 msgstr ""
 
-#: docking/search/providers/applications.py:193 docking/ui/menu.py:585
+#: docking/search/providers/applications.py:193 docking/ui/menu.py:593
 msgid "Close All"
 msgstr ""
 
@@ -4550,12 +4794,12 @@ msgid "Windows"
 msgstr ""
 
 #: docking/search/providers/applications.py:264 docking/search/ui/window.py:267
-#: docking/ui/settings.py:1093
+#: docking/ui/settings.py:1101
 msgid "Actions"
 msgstr ""
 
-#: docking/search/providers/applications.py:267 docking/ui/menu.py:811
-#: docking/ui/settings.py:965
+#: docking/search/providers/applications.py:267 docking/ui/menu.py:819
+#: docking/ui/settings.py:973
 msgid "Recent Documents"
 msgstr ""
 
@@ -4566,7 +4810,7 @@ msgstr ""
 
 #: docking/search/providers/applications.py:295
 #: docking/search/providers/windows.py:105
-#: docking/search/providers/windows.py:117 docking/ui/menu.py:830
+#: docking/search/providers/windows.py:117 docking/ui/menu.py:837
 msgid "Window"
 msgstr ""
 
@@ -4820,38 +5064,38 @@ msgstr ""
 msgid "No matching results"
 msgstr ""
 
-#: docking/search/ui/window.py:734
+#: docking/search/ui/window.py:736
 msgid "Unable to decode image preview"
 msgstr ""
 
-#: docking/search/ui/window.py:743
+#: docking/search/ui/window.py:745
 #, python-brace-format
 msgid "{width} × {height} · {format} · {size}"
 msgstr ""
 
-#: docking/search/ui/window.py:750
+#: docking/search/ui/window.py:752
 #, python-brace-format
 msgid "{width} × {height} · {format}"
 msgstr ""
 
-#: docking/search/ui/window.py:785
+#: docking/search/ui/window.py:787
 #, python-brace-format
 msgid "{count} results"
 msgstr ""
 
-#: docking/search/ui/window.py:787
+#: docking/search/ui/window.py:789
 msgid "Type to search"
 msgstr ""
 
-#: docking/search/ui/window.py:789
+#: docking/search/ui/window.py:791
 msgid "No results"
 msgstr ""
 
-#: docking/search/ui/window.py:791
+#: docking/search/ui/window.py:793
 msgid "Searching..."
 msgstr ""
 
-#: docking/search/ui/window.py:793
+#: docking/search/ui/window.py:795
 msgid "Some sources failed"
 msgstr ""
 
@@ -4859,7 +5103,7 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: docking/ui/diagnostics.py:86 docking/ui/menu.py:713
+#: docking/ui/diagnostics.py:86 docking/ui/menu.py:721
 msgid "Diagnostics"
 msgstr ""
 
@@ -5044,87 +5288,87 @@ msgstr ""
 msgid "%d More in Folder"
 msgstr ""
 
-#: docking/ui/menu.py:397
+#: docking/ui/menu.py:405
 msgid "Docking Icon"
 msgstr ""
 
-#: docking/ui/menu.py:398
+#: docking/ui/menu.py:406
 msgid "System Icon"
 msgstr ""
 
-#: docking/ui/menu.py:406 docking/ui/menu.py:415
+#: docking/ui/menu.py:414 docking/ui/menu.py:423
 msgid "Icon"
 msgstr ""
 
-#: docking/ui/menu.py:418
+#: docking/ui/menu.py:426
 msgid "Default Icon"
 msgstr ""
 
-#: docking/ui/menu.py:422
+#: docking/ui/menu.py:430
 msgid "Choose From File..."
 msgstr ""
 
-#: docking/ui/menu.py:426
+#: docking/ui/menu.py:434
 msgid "Reset Custom Icon"
 msgstr ""
 
-#: docking/ui/menu.py:445
+#: docking/ui/menu.py:453
 msgid "Choose Icon"
 msgstr ""
 
-#: docking/ui/menu.py:468
+#: docking/ui/menu.py:476
 msgid "Images"
 msgstr ""
 
-#: docking/ui/menu.py:481
+#: docking/ui/menu.py:489
 msgid "Could not use selected icon"
 msgstr ""
 
-#: docking/ui/menu.py:602
+#: docking/ui/menu.py:610
 msgid "Sort By"
 msgstr ""
 
-#: docking/ui/menu.py:610
+#: docking/ui/menu.py:618
 msgid "Show Hidden Files"
 msgstr ""
 
-#: docking/ui/menu.py:639
+#: docking/ui/menu.py:647
 msgid "Search..."
 msgstr ""
 
-#: docking/ui/menu.py:655
+#: docking/ui/menu.py:663
 msgid "Add Applet"
 msgstr ""
 
-#: docking/ui/menu.py:697
+#: docking/ui/menu.py:705
 msgid "No Applets Available"
 msgstr ""
 
-#: docking/ui/menu.py:704
+#: docking/ui/menu.py:712
 msgid "Add Separator"
 msgstr ""
 
-#: docking/ui/menu.py:718 docking/ui/settings.py:344
+#: docking/ui/menu.py:726 docking/ui/settings.py:352
 msgid "Preferences"
 msgstr ""
 
-#: docking/ui/menu.py:723
+#: docking/ui/menu.py:731
 msgid "About"
 msgstr ""
 
-#: docking/ui/menu.py:728
+#: docking/ui/menu.py:736
 msgid "Get Support"
 msgstr ""
 
-#: docking/ui/menu.py:735
+#: docking/ui/menu.py:743
 msgid "Quit"
 msgstr ""
 
-#: docking/ui/menu.py:801
+#: docking/ui/menu.py:809
 msgid "Clear Recent Documents"
 msgstr ""
 
-#: docking/ui/new_year.py:207
+#: docking/ui/new_year.py:211
 #, python-brace-format
 msgid "Happy new year {year} !!!"
 msgstr ""
@@ -5138,570 +5382,570 @@ msgstr ""
 msgid "Primary"
 msgstr ""
 
-#: docking/ui/settings.py:368
+#: docking/ui/settings.py:376
 msgid "Appearance"
 msgstr ""
 
-#: docking/ui/settings.py:369 docking/ui/settings.py:890
+#: docking/ui/settings.py:377 docking/ui/settings.py:898
 msgid "Behavior"
 msgstr ""
 
-#: docking/ui/settings.py:370
+#: docking/ui/settings.py:378
 msgid "Applets"
 msgstr ""
 
-#: docking/ui/settings.py:394
+#: docking/ui/settings.py:402
 msgid "Don't Hide"
 msgstr ""
 
-#: docking/ui/settings.py:395
+#: docking/ui/settings.py:403
 msgid "Always on Top"
 msgstr ""
 
-#: docking/ui/settings.py:396
+#: docking/ui/settings.py:404
 msgid "Auto-hide"
 msgstr ""
 
-#: docking/ui/settings.py:397
+#: docking/ui/settings.py:405
 msgid "Intelligent"
 msgstr ""
 
-#: docking/ui/settings.py:398
+#: docking/ui/settings.py:406
 msgid "Dodge Active"
 msgstr ""
 
-#: docking/ui/settings.py:399
+#: docking/ui/settings.py:407
 msgid "Dodge Windows"
 msgstr ""
 
-#: docking/ui/settings.py:400
+#: docking/ui/settings.py:408
 msgid "Dodge Maximized"
 msgstr ""
 
-#: docking/ui/settings.py:411
+#: docking/ui/settings.py:419
 msgid "Toggle Focus"
 msgstr ""
 
-#: docking/ui/settings.py:412
+#: docking/ui/settings.py:420
 msgid "Cycle Windows"
 msgstr ""
 
-#: docking/ui/settings.py:413
+#: docking/ui/settings.py:421
 msgid "Most Recent Window"
 msgstr ""
 
-#: docking/ui/settings.py:420
+#: docking/ui/settings.py:428
 msgid "New Window"
 msgstr ""
 
-#: docking/ui/settings.py:421
+#: docking/ui/settings.py:429
 msgid "Minimize Windows"
 msgstr ""
 
-#: docking/ui/settings.py:422
+#: docking/ui/settings.py:430
 msgid "Close Focused Window"
 msgstr ""
 
-#: docking/ui/settings.py:432
+#: docking/ui/settings.py:440
 msgid "Bounce"
 msgstr ""
 
-#: docking/ui/settings.py:433
+#: docking/ui/settings.py:441
 msgid "Pulse"
 msgstr ""
 
-#: docking/ui/settings.py:434
+#: docking/ui/settings.py:442
 msgid "Wobble"
 msgstr ""
 
-#: docking/ui/settings.py:441
+#: docking/ui/settings.py:449
 msgid "Click"
 msgstr ""
 
-#: docking/ui/settings.py:442
+#: docking/ui/settings.py:450
 msgid "Hover"
 msgstr ""
 
-#: docking/ui/settings.py:449
+#: docking/ui/settings.py:457
 msgid "Default"
 msgstr ""
 
-#: docking/ui/settings.py:450
+#: docking/ui/settings.py:458
 msgid "Alphabetical"
 msgstr ""
 
-#: docking/ui/settings.py:477
+#: docking/ui/settings.py:485
 msgid "Daily"
 msgstr ""
 
-#: docking/ui/settings.py:478
+#: docking/ui/settings.py:486
 msgid "Weekly"
 msgstr ""
 
-#: docking/ui/settings.py:509
+#: docking/ui/settings.py:517
 msgid ""
 "When Follow Cursor is enabled, the dock follows the pointer across monitors. "
 "The selected monitor is kept as the fallback."
 msgstr ""
 
-#: docking/ui/settings.py:555
+#: docking/ui/settings.py:563
 msgid "Added on top of the theme's own distance from the edge."
 msgstr ""
 
-#: docking/ui/settings.py:595
+#: docking/ui/settings.py:603
 msgid ""
 "Pixels of cursor pressure against the edge required to reveal a hidden dock. "
 "Higher values mean the dock will not reveal as easily."
 msgstr ""
 
-#: docking/ui/settings.py:665
+#: docking/ui/settings.py:673
 msgid "Look"
 msgstr ""
 
-#: docking/ui/settings.py:667
+#: docking/ui/settings.py:675
 msgid "Theme"
 msgstr ""
 
-#: docking/ui/settings.py:667
+#: docking/ui/settings.py:675
 msgid "Choose the dock color palette."
 msgstr ""
 
-#: docking/ui/settings.py:669
+#: docking/ui/settings.py:677
 msgid "Icon Size"
 msgstr ""
 
-#: docking/ui/settings.py:671
+#: docking/ui/settings.py:679
 msgid "Set the base size of dock icons before zoom is applied."
 msgstr ""
 
-#: docking/ui/settings.py:674
+#: docking/ui/settings.py:682
 msgid "Transparency"
 msgstr ""
 
-#: docking/ui/settings.py:676
+#: docking/ui/settings.py:684
 msgid "Adjust how transparent the dock background is."
 msgstr ""
 
-#: docking/ui/settings.py:679
+#: docking/ui/settings.py:687
 msgid "Zoom"
 msgstr ""
 
-#: docking/ui/settings.py:681
+#: docking/ui/settings.py:689
 msgid "Enlarge icons when the pointer hovers over the dock."
 msgstr ""
 
-#: docking/ui/settings.py:684
+#: docking/ui/settings.py:692
 msgid "Zoom Percent"
 msgstr ""
 
-#: docking/ui/settings.py:686
+#: docking/ui/settings.py:694
 msgid "Set how much hovered icons grow when zoom is enabled."
 msgstr ""
 
-#: docking/ui/settings.py:689
+#: docking/ui/settings.py:697
 msgid "Show Tooltips"
 msgstr ""
 
-#: docking/ui/settings.py:691
+#: docking/ui/settings.py:699
 msgid "Show item names and details when hovering over dock items."
 msgstr ""
 
-#: docking/ui/settings.py:694
+#: docking/ui/settings.py:702
 msgid "Show Window Counts"
 msgstr ""
 
-#: docking/ui/settings.py:697
+#: docking/ui/settings.py:705
 msgid "Show a number on running app indicators when multiple windows are open."
 msgstr ""
 
-#: docking/ui/settings.py:702
+#: docking/ui/settings.py:710
 msgid "Application Badges"
 msgstr ""
 
-#: docking/ui/settings.py:705
+#: docking/ui/settings.py:713
 msgid "Show numeric counts reported by applications on their dock icons."
 msgstr ""
 
-#: docking/ui/settings.py:710
+#: docking/ui/settings.py:718
 msgid "Application Progress"
 msgstr ""
 
-#: docking/ui/settings.py:713
+#: docking/ui/settings.py:721
 msgid "Show task progress reported by applications on their dock icons."
 msgstr ""
 
-#: docking/ui/settings.py:721
+#: docking/ui/settings.py:729
 msgid "Placement"
 msgstr ""
 
-#: docking/ui/settings.py:724
+#: docking/ui/settings.py:732
 msgid "Position"
 msgstr ""
 
-#: docking/ui/settings.py:726
+#: docking/ui/settings.py:734
 msgid "Choose which screen edge the dock uses."
 msgstr ""
 
-#: docking/ui/settings.py:729
+#: docking/ui/settings.py:737
 msgid "Alignment"
 msgstr ""
 
-#: docking/ui/settings.py:731
+#: docking/ui/settings.py:739
 msgid "Position the dock along the selected screen edge."
 msgstr ""
 
-#: docking/ui/settings.py:733
+#: docking/ui/settings.py:741
 msgid "Extra Distance from Edge"
 msgstr ""
 
-#: docking/ui/settings.py:735
+#: docking/ui/settings.py:743
 msgid "Current Workspace Only"
 msgstr ""
 
-#: docking/ui/settings.py:738
+#: docking/ui/settings.py:746
 msgid "Show running windows only from the active workspace when supported."
 msgstr ""
 
-#: docking/ui/settings.py:746
+#: docking/ui/settings.py:754
 msgid "Preview"
 msgstr ""
 
-#: docking/ui/settings.py:749
+#: docking/ui/settings.py:757
 msgid "Display Window Preview Thumbnails"
 msgstr ""
 
-#: docking/ui/settings.py:751
+#: docking/ui/settings.py:759
 msgid "Show window thumbnails when hovering over running apps."
 msgstr ""
 
-#: docking/ui/settings.py:754
+#: docking/ui/settings.py:762
 msgid "Outline Thumbnail on Hover"
 msgstr ""
 
-#: docking/ui/settings.py:756
+#: docking/ui/settings.py:764
 msgid "Highlight the thumbnail under the pointer in the preview."
 msgstr ""
 
-#: docking/ui/settings.py:759
+#: docking/ui/settings.py:767
 msgid "Outline Window on Preview Hover"
 msgstr ""
 
-#: docking/ui/settings.py:762
+#: docking/ui/settings.py:770
 msgid "Outline the real window on the desktop while hovering its thumbnail."
 msgstr ""
 
-#: docking/ui/settings.py:767
+#: docking/ui/settings.py:775
 msgid ""
 "Outline the real window on the desktop while hovering its thumbnail. Not "
 "available in this session; requires X11 or Sway."
 msgstr ""
 
-#: docking/ui/settings.py:773
+#: docking/ui/settings.py:781
 msgid "Thumbnail Width"
 msgstr ""
 
-#: docking/ui/settings.py:776
+#: docking/ui/settings.py:784
 msgid ""
 "Set the width in pixels of window thumbnails. Wider thumbnails also show "
 "more of the window title."
 msgstr ""
 
-#: docking/ui/settings.py:784 docking/ui/settings.py:794
+#: docking/ui/settings.py:792 docking/ui/settings.py:802
 msgid "Monitor"
 msgstr ""
 
-#: docking/ui/settings.py:787
+#: docking/ui/settings.py:795
 msgid "Follow Cursor"
 msgstr ""
 
-#: docking/ui/settings.py:790
+#: docking/ui/settings.py:798
 msgid "Move the dock to the monitor where the pointer is currently located."
 msgstr ""
 
-#: docking/ui/settings.py:799
+#: docking/ui/settings.py:807
 msgid "Layout"
 msgstr ""
 
-#: docking/ui/settings.py:802
+#: docking/ui/settings.py:810
 msgid "Lock Positions"
 msgstr ""
 
-#: docking/ui/settings.py:805
+#: docking/ui/settings.py:813
 msgid "Prevent dock items from being reordered or removed by drag and drop."
 msgstr ""
 
-#: docking/ui/settings.py:810
+#: docking/ui/settings.py:818
 msgid "Anchor Applets to End"
 msgstr ""
 
-#: docking/ui/settings.py:812
+#: docking/ui/settings.py:820
 msgid "Keep applets grouped at the end of the dock."
 msgstr ""
 
-#: docking/ui/settings.py:815
+#: docking/ui/settings.py:823
 msgid "Anchor Files to End"
 msgstr ""
 
-#: docking/ui/settings.py:817
+#: docking/ui/settings.py:825
 msgid "Keep pinned files and folders grouped at the end of the dock."
 msgstr ""
 
-#: docking/ui/settings.py:856
+#: docking/ui/settings.py:864
 msgid "Left Click"
 msgstr ""
 
-#: docking/ui/settings.py:859
+#: docking/ui/settings.py:867
 msgid ""
 "Choose what happens when clicking a running app with the left mouse button."
 msgstr ""
 
-#: docking/ui/settings.py:864
+#: docking/ui/settings.py:872
 msgid "Middle Click"
 msgstr ""
 
-#: docking/ui/settings.py:867
+#: docking/ui/settings.py:875
 msgid "Choose what happens when clicking an app with the middle mouse button."
 msgstr ""
 
-#: docking/ui/settings.py:872
+#: docking/ui/settings.py:880
 msgid "Enable Effects When Clicking Dock Items"
 msgstr ""
 
-#: docking/ui/settings.py:874
+#: docking/ui/settings.py:882
 msgid "Play the selected effect when launching an app from the dock."
 msgstr ""
 
-#: docking/ui/settings.py:877
+#: docking/ui/settings.py:885
 msgid "Click Effect"
 msgstr ""
 
-#: docking/ui/settings.py:879
+#: docking/ui/settings.py:887
 msgid "Choose the effect played when launching an app."
 msgstr ""
 
-#: docking/ui/settings.py:882
+#: docking/ui/settings.py:890
 msgid "Window List Sort"
 msgstr ""
 
-#: docking/ui/settings.py:884
+#: docking/ui/settings.py:892
 msgid "Choose how open windows are ordered in app context menus."
 msgstr ""
 
-#: docking/ui/settings.py:892
+#: docking/ui/settings.py:900
 msgid "Hide Mode"
 msgstr ""
 
-#: docking/ui/settings.py:894
+#: docking/ui/settings.py:902
 msgid "Hide Delay"
 msgstr ""
 
-#: docking/ui/settings.py:897
+#: docking/ui/settings.py:905
 msgid "Set how long the dock waits before hiding after the pointer leaves."
 msgstr ""
 
-#: docking/ui/settings.py:902
+#: docking/ui/settings.py:910
 msgid "Unhide Delay"
 msgstr ""
 
-#: docking/ui/settings.py:905
+#: docking/ui/settings.py:913
 msgid "Set how long the dock waits before showing after the pointer returns."
 msgstr ""
 
-#: docking/ui/settings.py:910
+#: docking/ui/settings.py:918
 msgid "Pressure Reveal"
 msgstr ""
 
-#: docking/ui/settings.py:913
+#: docking/ui/settings.py:921
 msgid ""
 "Require the pointer to push against the screen edge before revealing a "
 "hidden dock."
 msgstr ""
 
-#: docking/ui/settings.py:917
+#: docking/ui/settings.py:925
 msgid "Pressure Threshold"
 msgstr ""
 
-#: docking/ui/settings.py:919
+#: docking/ui/settings.py:927
 msgid "Show Startup Tips"
 msgstr ""
 
-#: docking/ui/settings.py:922
+#: docking/ui/settings.py:930
 msgid ""
 "Show one Docking usage tip after startup, unless a higher-priority startup "
 "notification is visible."
 msgstr ""
 
-#: docking/ui/settings.py:930
+#: docking/ui/settings.py:938
 msgid "Stacks"
 msgstr ""
 
-#: docking/ui/settings.py:933
+#: docking/ui/settings.py:941
 msgid "Open On"
 msgstr ""
 
-#: docking/ui/settings.py:935
+#: docking/ui/settings.py:943
 msgid "Choose whether stacks open on click or while hovering."
 msgstr ""
 
-#: docking/ui/settings.py:941
+#: docking/ui/settings.py:949
 msgid "Recent Apps"
 msgstr ""
 
-#: docking/ui/settings.py:944
+#: docking/ui/settings.py:952
 msgid "Show Recently Used Apps"
 msgstr ""
 
-#: docking/ui/settings.py:947
+#: docking/ui/settings.py:955
 msgid "Show recently closed apps between pinned launchers and running apps."
 msgstr ""
 
-#: docking/ui/settings.py:952
+#: docking/ui/settings.py:960
 msgid "Number of Recent Apps"
 msgstr ""
 
-#: docking/ui/settings.py:954
+#: docking/ui/settings.py:962
 msgid "Maximum recently used app icons to display."
 msgstr ""
 
-#: docking/ui/settings.py:957
+#: docking/ui/settings.py:965
 msgid "Keep Recent Apps For"
 msgstr ""
 
-#: docking/ui/settings.py:959
+#: docking/ui/settings.py:967
 msgid "Remove recent apps after this many days of inactivity."
 msgstr ""
 
-#: docking/ui/settings.py:968
+#: docking/ui/settings.py:976
 msgid "Show Recent Documents"
 msgstr ""
 
-#: docking/ui/settings.py:971
+#: docking/ui/settings.py:979
 msgid "Show a \"Recent Documents\" submenu when right-clicking an app icon."
 msgstr ""
 
-#: docking/ui/settings.py:976
+#: docking/ui/settings.py:984
 msgid "Max Documents Per App"
 msgstr ""
 
-#: docking/ui/settings.py:978
+#: docking/ui/settings.py:986
 msgid "Maximum recent document entries shown per app."
 msgstr ""
 
-#: docking/ui/settings.py:984
+#: docking/ui/settings.py:992
 msgid "Global Search"
 msgstr ""
 
-#: docking/ui/settings.py:989
+#: docking/ui/settings.py:997
 msgid "Enable Docking's process-wide search palette."
 msgstr ""
 
-#: docking/ui/settings.py:992
+#: docking/ui/settings.py:1000
 msgid "Preferred Shortcut"
 msgstr ""
 
-#: docking/ui/settings.py:995
+#: docking/ui/settings.py:1003
 msgid ""
 "Click the button, then press the desired key sequence. The desktop may "
 "reserve some shortcuts."
 msgstr ""
 
-#: docking/ui/settings.py:1000
+#: docking/ui/settings.py:1008
 msgid "Search Engine"
 msgstr ""
 
-#: docking/ui/settings.py:1002
+#: docking/ui/settings.py:1010
 msgid "Choose the engine used by web fallback."
 msgstr ""
 
-#: docking/ui/settings.py:1074
+#: docking/ui/settings.py:1082
 msgid "Check Now"
 msgstr ""
 
-#: docking/ui/settings.py:1076
+#: docking/ui/settings.py:1084
 msgid "View Releases"
 msgstr ""
 
-#: docking/ui/settings.py:1088
+#: docking/ui/settings.py:1096
 msgid "Update Checks"
 msgstr ""
 
-#: docking/ui/settings.py:1090
+#: docking/ui/settings.py:1098
 msgid "Check Automatically"
 msgstr ""
 
-#: docking/ui/settings.py:1091
+#: docking/ui/settings.py:1099
 msgid "Frequency"
 msgstr ""
 
-#: docking/ui/settings.py:1092
+#: docking/ui/settings.py:1100
 msgid "Status"
 msgstr ""
 
-#: docking/ui/settings.py:1605
+#: docking/ui/settings.py:1613
 msgid "Primary Display"
 msgstr ""
 
-#: docking/ui/settings.py:1616
+#: docking/ui/settings.py:1624
 #, python-brace-format
 msgid "Shortcut Status: {status}"
 msgstr ""
 
-#: docking/ui/settings.py:1758
+#: docking/ui/settings.py:1766
 #, python-brace-format
 msgid "Last seen version: {version}"
 msgstr ""
 
-#: docking/ui/settings.py:1762
+#: docking/ui/settings.py:1770
 msgid "No update found yet"
 msgstr ""
 
-#: docking/ui/settings.py:1764
+#: docking/ui/settings.py:1772
 msgid "Not checked yet"
 msgstr ""
 
-#: docking/ui/settings.py:1837
+#: docking/ui/settings.py:1845
 msgid "Left"
 msgstr ""
 
-#: docking/ui/settings.py:1837 docking/ui/settings.py:1839
+#: docking/ui/settings.py:1845 docking/ui/settings.py:1847
 msgid "Center"
 msgstr ""
 
-#: docking/ui/settings.py:1837
+#: docking/ui/settings.py:1845
 msgid "Right"
 msgstr ""
 
-#: docking/ui/settings.py:1839
+#: docking/ui/settings.py:1847
 msgid "Bottom"
 msgstr ""
 
-#: docking/ui/settings.py:1865
+#: docking/ui/settings.py:1873
 msgid "The dock is always visible and reserves screen space."
 msgstr ""
 
-#: docking/ui/settings.py:1867
+#: docking/ui/settings.py:1875
 msgid ""
 "Always visible and floats above all windows without reserving screen space."
 msgstr ""
 
-#: docking/ui/settings.py:1870
+#: docking/ui/settings.py:1878
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr ""
 
-#: docking/ui/settings.py:1872
+#: docking/ui/settings.py:1880
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 
-#: docking/ui/settings.py:1874
+#: docking/ui/settings.py:1882
 msgid "Hides when the focused window overlaps the dock area."
 msgstr ""
 
-#: docking/ui/settings.py:1876
+#: docking/ui/settings.py:1884
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr ""
 
-#: docking/ui/settings.py:1879
+#: docking/ui/settings.py:1887
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""
@@ -5710,15 +5954,15 @@ msgstr ""
 msgid "No items"
 msgstr ""
 
-#: docking/ui/startup_tips.py:187
+#: docking/ui/startup_tips.py:188
 msgid "Tip of the day"
 msgstr ""
 
-#: docking/ui/startup_tips.py:212
+#: docking/ui/startup_tips.py:213
 msgid "Show tips on startup"
 msgstr ""
 
-#: docking/ui/startup_tips.py:215
+#: docking/ui/startup_tips.py:216
 msgid "Next Tip"
 msgstr ""
 
@@ -5740,24 +5984,24 @@ msgstr ""
 msgid "{age} ago"
 msgstr ""
 
-#: docking/ui/update_popup.py:231
+#: docking/ui/update_popup.py:232
 #, python-brace-format
 msgid "Docking {version} is available"
 msgstr ""
 
-#: docking/ui/update_popup.py:237
+#: docking/ui/update_popup.py:238
 #, python-brace-format
 msgid "You are using {version}."
 msgstr ""
 
-#: docking/ui/update_popup.py:246
+#: docking/ui/update_popup.py:247
 msgid "View Release"
 msgstr ""
 
-#: docking/ui/update_popup.py:247
+#: docking/ui/update_popup.py:248
 msgid "Later"
 msgstr ""
 
-#: docking/ui/update_popup.py:248
+#: docking/ui/update_popup.py:249
 msgid "Ignore"
 msgstr ""

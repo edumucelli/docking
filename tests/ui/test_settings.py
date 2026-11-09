@@ -796,6 +796,14 @@ def _config():
     )
 
 
+@pytest.fixture(autouse=True)
+def _fake_info_icon(monkeypatch):
+    # The owned widget subclass must use the same fake GTK tree as its siblings.
+    real_info_icon = settings_mod._InfoIcon
+    monkeypatch.setattr(settings_mod, "_InfoIcon", FakeEventBox)
+    return real_info_icon
+
+
 class TestSettingsWindowController:
     def test_show_reuses_single_window_and_builds_four_tabs(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
@@ -2476,3 +2484,29 @@ class TestSettingsRuntimeCallbacks:
         controller._update_status_label = None
         # Should not raise
         controller._update_updates_status()
+
+
+@pytest.mark.skipif(not settings_mod.Gtk.init_check()[0], reason="GTK display required")
+def test_real_info_icon_displays_updates_and_closes_its_popover(
+    monkeypatch, _fake_info_icon
+):
+    monkeypatch.setattr(settings_mod, "_InfoIcon", _fake_info_icon)
+    controller = object.__new__(settings_mod.SettingsWindowController)
+    window = settings_mod.Gtk.Window()
+    icon = controller._new_info_icon("Details")
+    popover = icon._docking_info_popover
+    popover.set_transitions_enabled(False)
+    try:
+        window.add(icon)
+        window.show_all()
+        assert isinstance(icon, _fake_info_icon)
+        assert icon.get_visible()
+        assert controller._on_info_icon_enter(icon, None) is False
+        assert popover.get_visible()
+        controller._set_info_icon_text(icon, "Updated details")
+        assert icon._docking_info_label.get_label() == "Updated details"
+        assert controller._on_info_icon_leave(icon, None) is False
+        assert not popover.get_visible()
+    finally:
+        popover.destroy()
+        window.destroy()

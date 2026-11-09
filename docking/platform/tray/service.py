@@ -167,7 +167,7 @@ class TrayService:
 
     def set_geometry(self, bounds: Mapping[str, Rect]) -> None:
         backend = self._backend
-        if self._backend is not None:
+        if backend is not None:
             backend.set_geometry(bounds)
 
     def pointer(

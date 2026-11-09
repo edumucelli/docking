@@ -83,8 +83,8 @@ class RecentFilesCatalog:
         self._generation = 0
         self._loaded = False
         self._started = False
-        self._manager: object | None = None
-        self._changed_handler: object | None = None
+        self._manager: Gtk.RecentManager | None = None
+        self._changed_handler: int | None = None
 
     @property
     def generation(self) -> int:
@@ -239,7 +239,7 @@ class RecentFilesCatalog:
         """Alias for :meth:`clear`."""
         return self.clear()
 
-    def _get_manager(self) -> object | None:
+    def _get_manager(self) -> Gtk.RecentManager | None:
         if self._manager is not None:
             return self._manager
         try:

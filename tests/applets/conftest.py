@@ -51,6 +51,10 @@ class _FakeMenuItem:
     def connect(self, signal: str, callback, *args) -> None:
         self._signals.setdefault(signal, []).append((callback, args))
 
+    def activate(self) -> None:
+        for callback, args in self._signals.get("activate", []):
+            callback(self, *args)
+
     def set_submenu(self, submenu) -> None:
         self._submenu = submenu
 
@@ -85,6 +89,16 @@ class _FakeSeparatorMenuItem(_FakeMenuItem):
 
 @pytest.fixture(autouse=True)
 def _fake_gtk_menu_widgets(monkeypatch):
+    # GI resolves subclasses lazily. Load the complete native hierarchy before
+    # replacing parents, or a later GI class may inherit a Python test double
+    # instead of GObject and reject its own methods on newer PyGObject versions.
+    _ = (
+        Gtk.Menu,
+        Gtk.MenuItem,
+        Gtk.CheckMenuItem,
+        Gtk.RadioMenuItem,
+        Gtk.SeparatorMenuItem,
+    )
     monkeypatch.setattr(Gtk, "Menu", _FakeMenu, raising=False)
     monkeypatch.setattr(Gtk, "MenuItem", _FakeMenuItem, raising=False)
     monkeypatch.setattr(Gtk, "CheckMenuItem", _FakeCheckMenuItem, raising=False)

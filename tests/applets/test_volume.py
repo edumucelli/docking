@@ -47,6 +47,9 @@ class _ImmediateWorker:
         self.run(**kwargs)
         return True
 
+    def stop(self):
+        pass
+
 
 # -- Parsers ------------------------------------------------------------------
 
@@ -141,7 +144,7 @@ class TestVolumeIconName:
 class TestDetectBackend:
     @pytest.fixture(autouse=True)
     def unix_environment(self, monkeypatch):
-
+        monkeypatch.setattr(environment, "is_windows", lambda: False)
         monkeypatch.setattr(environment, "is_bsd", lambda: False)
 
     def test_returns_first_available(self):
@@ -225,6 +228,7 @@ def _make_applet(
     state: VolumeState = _MOCK_STATE,
     *,
     config: Config | None = None,
+    worker_factory=_ImmediateWorker,
 ) -> VolumeApplet:
     """Create applet with mocked backend."""
     controls = MagicMock()
@@ -232,18 +236,87 @@ def _make_applet(
     controls.get_state.return_value = state
     backend = VolumeBackend(controls, VolumeSettings(lambda: False, lambda: False))
     with (
-        patch("docking.applets.volume.applet.BackgroundWorker", _ImmediateWorker),
+        patch("docking.applets.volume.applet.SerialWorker", worker_factory),
         patch(
             "tests.platform_factories.TestAppletBackendFactories.volume",
             return_value=backend,
         ),
     ):
-        return VolumeApplet(
+        applet = VolumeApplet(
             48, config=config or Config(), platform_services=make_applet_platform()
         )
+        applet._tick()
+        return applet
 
 
 class TestVolumeApplet:
+    @pytest.mark.parametrize("steps", [1, 3])
+    def test_scroll_before_initial_reply_uses_the_mixer_volume(self, steps):
+        jobs = []
+        worker = MagicMock()
+        worker.run_guarded.side_effect = lambda **task: jobs.append(task) or True
+        worker.run.side_effect = lambda **task: jobs.append(task)
+        applet = _make_applet(
+            VolumeState(80, False), worker_factory=lambda **_kwargs: worker
+        )
+        controls = applet._backend.controls
+        controls.set_volume.side_effect = lambda value: setattr(
+            controls.get_state, "return_value", VolumeState(value, False)
+        )
+        initial = jobs.pop(0)
+        old_state = initial["fn"]()
+        for _ in range(steps):
+            applet.on_scroll(True)
+        controls.set_volume.assert_not_called()
+        initial["on_result"](old_state)
+        assert not applet._available
+        for task in jobs:
+            task["on_result"](task["fn"]())
+        assert applet._volume == 80 + 5 * steps
+        assert applet._available
+        assert controls.set_volume.call_args_list[0].args == (85,)
+        applet.stop()
+
+    @pytest.mark.parametrize("action", ["scroll", "mute"])
+    def test_unverified_change_is_unavailable_until_a_successful_read(self, action):
+        applet = _make_applet(VolumeState(80, False))
+        applet._backend.controls.get_state.return_value = None
+        if action == "scroll":
+            applet.on_scroll(True)
+        else:
+            applet.on_clicked()
+        assert not applet._available
+        assert applet.item.name == "Volume\nUnavailable"
+        applet._on_poll_result(VolumeState(75, False))
+        assert applet._available and applet.item.name == "Volume: 75%"
+
+    def test_native_commands_are_deferred_and_old_scroll_results_do_not_rewind(self):
+        jobs = []
+        worker = MagicMock()
+        worker.run_guarded.side_effect = lambda **task: jobs.append(task) or True
+        worker.run.side_effect = lambda **task: jobs.append(task)
+        applet = _make_applet(worker_factory=lambda **_kwargs: worker)
+        controls = applet._backend.controls
+        controls.get_state.assert_not_called()
+        initial = jobs.pop(0)
+        initial["on_result"](initial["fn"]())
+        controls.set_volume.side_effect = lambda value: setattr(
+            controls.get_state, "return_value", VolumeState(value, False)
+        )
+        applet.on_scroll(True)
+        applet.on_scroll(True)
+        controls.set_volume.assert_not_called()
+        assert applet._volume == 55
+        first, second = jobs
+        first["on_result"](first["fn"]())
+        assert applet._volume == 55
+        second["on_result"](second["fn"]())
+        assert [call.args[0] for call in controls.set_volume.call_args_list] == [50, 55]
+        applet.stop()
+        worker.stop.assert_called_once()
+        second["on_result"](VolumeState(20, False))
+        assert applet._volume == 55
+
     def test_creates_with_icon(self):
         applet = _make_applet()
         assert applet.item.icon is not None
@@ -302,8 +375,7 @@ class TestVolumeApplet:
             "",
             "Volume Settings",
         ]
-        callback, args = items[2]._signals["activate"][0]
-        callback(None, *args)
+        items[2].activate()
         opened.assert_called_once_with()
 
     def test_menu_keeps_show_level_without_volume_settings_tool(self):
@@ -315,8 +387,7 @@ class TestVolumeApplet:
         opened = MagicMock(return_value=True)
         applet._backend = VolumeBackend(None, VolumeSettings(lambda: True, opened))
         items = applet.get_menu_items()
-        callback, args = items[-1]._signals["activate"][0]
-        callback(None, *args)
+        items[-1].activate()
         opened.assert_called_once_with()
         applet.on_clicked()
         applet.on_scroll(direction_up=True)
@@ -445,6 +516,9 @@ class TestVolumeAppletInternals:
     def test_on_poll_result_handles_none_and_no_change(self):
         applet = _make_applet()
         assert applet._on_poll_result(None) is False
+        assert not applet._available
+        assert applet._on_poll_result(VolumeState(45, False)) is False
+        assert applet._available
         applet._volume = 45
         applet._muted = False
         applet.present = MagicMock()

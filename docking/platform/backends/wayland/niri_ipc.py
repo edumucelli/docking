@@ -877,7 +877,8 @@ class NiriDesktopActionService(DesktopActionService):
             return ()
         records: list[NiriWorkspaceRecord] = []
         for item in workspaces_raw:
-            if not isinstance(item, Mapping):
+            item = as_json_object(item)
+            if item is None:
                 continue
             record = _record_from_workspace(item, number=len(records))
             if record is not None:

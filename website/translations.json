@@ -4,10 +4,10 @@
     "fr": "Docking - Dock gratuit pour Linux et BSD",
     "es": "Docking - Dock gratuito para Linux y BSD"
   },
-  "A free, open source desktop dock for Linux, FreeBSD and OpenBSD. Launch apps, add applets and customize themes. Supports X11 and Linux Wayland.": {
-    "pt": "Um dock gratuito e de código aberto para Linux, FreeBSD e OpenBSD. Abra aplicações, adicione applets e personalize temas. Compatível com X11 e Wayland no Linux.",
-    "fr": "Un dock gratuit et open source pour Linux, FreeBSD et OpenBSD. Lancez des applications, ajoutez des applets et personnalisez les thèmes. Compatible X11 et Wayland sous Linux.",
-    "es": "Un dock gratuito y de código abierto para Linux, FreeBSD y OpenBSD. Abre aplicaciones, añade applets y personaliza temas. Compatible con X11 y Wayland en Linux."
+  "A free, open source desktop dock for Linux, FreeBSD, OpenBSD and NetBSD. Launch apps, add applets and customize themes. Supports X11 and Linux Wayland.": {
+    "pt": "Um dock gratuito e de código aberto para Linux, FreeBSD, OpenBSD e NetBSD. Abra aplicações, adicione applets e personalize temas. Compatível com X11 e Wayland no Linux.",
+    "fr": "Un dock gratuit et open source pour Linux, FreeBSD, OpenBSD et NetBSD. Lancez des applications, ajoutez des applets et personnalisez les thèmes. Compatible X11 et Wayland sous Linux.",
+    "es": "Un dock gratuito y de código abierto para Linux, FreeBSD, OpenBSD y NetBSD. Abre aplicaciones, añade applets y personaliza temas. Compatible con X11 y Wayland en Linux."
   },
   "Docking desktop dock preview with applets": {
     "pt": "Pré-visualização do dock Docking com applets",
@@ -84,10 +84,10 @@
     "fr": "Un dock gratuit pour Linux et BSD",
     "es": "Un dock gratuito para Linux y BSD"
   },
-  "A fast, customizable dock for Linux, FreeBSD, and OpenBSD, written in Python with built-in applets. Supports X11 on all three systems and Wayland on Linux.": {
-    "pt": "Um dock rápido e personalizável para Linux, FreeBSD e OpenBSD, escrito em Python e com applets integrados. Compatível com X11 nos três sistemas e com Wayland no Linux.",
-    "fr": "Un dock rapide et personnalisable pour Linux, FreeBSD et OpenBSD, écrit en Python avec des applets intégrés. Compatible avec X11 sur les trois systèmes et Wayland sous Linux.",
-    "es": "Un dock rápido y personalizable para Linux, FreeBSD y OpenBSD, escrito en Python con applets integrados. Compatible con X11 en los tres sistemas y Wayland en Linux."
+  "A fast, customizable dock for Linux, FreeBSD, OpenBSD, and NetBSD, written in Python with built-in applets. Supports X11 on all four systems and Wayland on Linux.": {
+    "pt": "Um dock rápido e personalizável para Linux, FreeBSD, OpenBSD e NetBSD, escrito em Python e com applets integrados. Compatível com X11 nos quatro sistemas e com Wayland no Linux.",
+    "fr": "Un dock rapide et personnalisable pour Linux, FreeBSD, OpenBSD et NetBSD, écrit en Python avec des applets intégrés. Compatible avec X11 sur les quatre systèmes et Wayland sous Linux.",
+    "es": "Un dock rápido y personalizable para Linux, FreeBSD, OpenBSD y NetBSD, escrito en Python con applets integrados. Compatible con X11 en los cuatro sistemas y Wayland en Linux."
   },
   "View on GitHub": {
     "pt": "Ver no GitHub",
@@ -214,10 +214,10 @@
     "fr": "Docking choisit la meilleure intégration pour la session en cours et s’adapte lorsque le compositeur n’expose pas toutes les fonctions de gestion des fenêtres.",
     "es": "Docking selecciona la mejor integración para la sesión actual y se adapta cuando el compositor no ofrece todas las funciones de gestión de ventanas."
   },
-  "Linux X11 and Wayland · FreeBSD and OpenBSD X11": {
-    "pt": "Linux com X11 e Wayland · FreeBSD e OpenBSD com X11",
-    "fr": "Linux avec X11 et Wayland · FreeBSD et OpenBSD avec X11",
-    "es": "Linux con X11 y Wayland · FreeBSD y OpenBSD con X11"
+  "Linux X11 and Wayland · FreeBSD, OpenBSD and NetBSD X11": {
+    "pt": "Linux com X11 e Wayland · FreeBSD, OpenBSD e NetBSD com X11",
+    "fr": "Linux avec X11 et Wayland · FreeBSD, OpenBSD et NetBSD avec X11",
+    "es": "Linux con X11 y Wayland · FreeBSD, OpenBSD y NetBSD con X11"
   },
   "Environment": {
     "pt": "Ambiente",
@@ -764,6 +764,16 @@
     "fr": "Un rappel discret pour garder les pauses saines à l’esprit.",
     "es": "Un recordatorio discreto para tener presentes las pausas saludables."
   },
+  "KDE Connect": {
+    "pt": "KDE Connect",
+    "fr": "KDE Connect",
+    "es": "KDE Connect"
+  },
+  "See phone battery and charging status, ring your phone, and send files.": {
+    "pt": "Veja a bateria e o estado de carregamento do telemóvel, faça-o tocar e envie ficheiros.",
+    "fr": "Consultez la batterie et l’état de charge du téléphone, faites-le sonner et envoyez des fichiers.",
+    "es": "Consulta la batería y el estado de carga del teléfono, hazlo sonar y envía archivos."
+  },
   "Keyboard Layout": {
     "pt": "Disposição do teclado",
     "fr": "Disposition du clavier",
@@ -1124,10 +1134,10 @@
     "fr": "Installer Docking sous Linux ou BSD",
     "es": "Instalar Docking en Linux o BSD"
   },
-  "Choose a Linux package below, or follow the FreeBSD and OpenBSD installation guides.": {
-    "pt": "Escolha um pacote Linux abaixo ou siga os guias de instalação para FreeBSD e OpenBSD.",
-    "fr": "Choisissez un paquet Linux ci-dessous ou suivez les guides d’installation pour FreeBSD et OpenBSD.",
-    "es": "Elige un paquete Linux a continuación o sigue las guías de instalación para FreeBSD y OpenBSD."
+  "Choose a Linux package below, or follow the FreeBSD, OpenBSD and NetBSD installation guides.": {
+    "pt": "Escolha um pacote Linux abaixo ou siga os guias de instalação para FreeBSD, OpenBSD e NetBSD.",
+    "fr": "Choisissez un paquet Linux ci-dessous ou suivez les guides d’installation pour FreeBSD, OpenBSD et NetBSD.",
+    "es": "Elige un paquete Linux a continuación o sigue las guías de instalación para FreeBSD, OpenBSD y NetBSD."
   },
   "Linux packages": {
     "pt": "Pacotes Linux",
@@ -1249,10 +1259,10 @@
     "fr": "Paquets RPM hébergés par",
     "es": "Paquetes RPM alojados por"
   },
-  "FreeBSD & OpenBSD: native packages": {
-    "pt": "FreeBSD e OpenBSD: pacotes nativos",
-    "fr": "FreeBSD et OpenBSD : paquets natifs",
-    "es": "FreeBSD y OpenBSD: paquetes nativos"
+  "FreeBSD, OpenBSD & NetBSD: native packages": {
+    "pt": "FreeBSD, OpenBSD e NetBSD: pacotes nativos",
+    "fr": "FreeBSD, OpenBSD et NetBSD : paquets natifs",
+    "es": "FreeBSD, OpenBSD y NetBSD: paquetes nativos"
   },
   "Use an X11 desktop and a package matching your OS release and architecture. BSD packages are distributed through GitHub Releases, starting with the first release containing BSD support.": {
     "pt": "Utilize um ambiente X11 e um pacote correspondente à versão e arquitetura do seu sistema. Os pacotes BSD são distribuídos pelo GitHub Releases, a partir da primeira versão com suporte para BSD.",
@@ -1344,10 +1354,10 @@
     "fr": "Quels systèmes et environnements de bureau Docking prend-il en charge ?",
     "es": "¿Qué sistemas operativos y escritorios son compatibles con Docking?"
   },
-  "Docking supports Linux with X11 or Wayland, and FreeBSD and OpenBSD with X11. Linux Wayland integration depends on the desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when compositor integration is unavailable.": {
-    "pt": "O Docking é compatível com Linux em X11 ou Wayland, e com FreeBSD e OpenBSD em X11. No Linux, a integração Wayland depende do ambiente: ponte GNOME Shell, KWin, protocolos COSMIC, layer-shell e protocolos disponibilizados pelo wlroots, ou modo reduzido quando não há integração com o compositor.",
-    "fr": "Docking prend en charge Linux sous X11 ou Wayland, ainsi que FreeBSD et OpenBSD sous X11. Sous Linux, l’intégration Wayland dépend du bureau : passerelle GNOME Shell, KWin, protocoles COSMIC, layer-shell et protocoles exposés par wlroots, ou mode réduit si l’intégration au compositeur n’est pas disponible.",
-    "es": "Docking es compatible con Linux en X11 o Wayland, y con FreeBSD y OpenBSD en X11. En Linux, la integración Wayland depende del escritorio: puente de GNOME Shell, KWin, protocolos COSMIC, layer-shell y protocolos disponibles de wlroots, o modo reducido cuando no hay integración con el compositor."
+  "Docking supports Linux with X11 or Wayland, and FreeBSD, OpenBSD, and NetBSD with X11. Linux Wayland integration depends on the desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when compositor integration is unavailable.": {
+    "pt": "O Docking é compatível com Linux em X11 ou Wayland, e com FreeBSD, OpenBSD e NetBSD em X11. No Linux, a integração Wayland depende do ambiente: ponte GNOME Shell, KWin, protocolos COSMIC, layer-shell e protocolos disponibilizados pelo wlroots, ou modo reduzido quando não há integração com o compositor.",
+    "fr": "Docking prend en charge Linux sous X11 ou Wayland, ainsi que FreeBSD, OpenBSD et NetBSD sous X11. Sous Linux, l’intégration Wayland dépend du bureau : passerelle GNOME Shell, KWin, protocoles COSMIC, layer-shell et protocoles exposés par wlroots, ou mode réduit si l’intégration au compositeur n’est pas disponible.",
+    "es": "Docking es compatible con Linux en X11 o Wayland, y con FreeBSD, OpenBSD y NetBSD en X11. En Linux, la integración Wayland depende del escritorio: puente de GNOME Shell, KWin, protocolos COSMIC, layer-shell y protocolos disponibles de wlroots, o modo reducido cuando no hay integración con el compositor."
   },
   "Can I create my own applets?": {
     "pt": "Posso criar os meus próprios applets?",
@@ -1364,20 +1374,20 @@
     "fr": "Docking prend-il en charge Wayland ?",
     "es": "¿Docking es compatible con Wayland?"
   },
-  "Yes, on Linux. Wayland support is selected per desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when needed. FreeBSD and OpenBSD support uses X11.": {
-    "pt": "Sim, no Linux. O suporte Wayland é selecionado conforme o ambiente: ponte GNOME Shell, KWin, protocolos COSMIC, layer-shell e protocolos disponibilizados pelo wlroots, ou modo reduzido quando necessário. No FreeBSD e OpenBSD, o suporte utiliza X11.",
-    "fr": "Oui, sous Linux. La prise en charge de Wayland est choisie selon le bureau : passerelle GNOME Shell, KWin, protocoles COSMIC, layer-shell et protocoles exposés par wlroots, ou mode réduit si nécessaire. FreeBSD et OpenBSD utilisent X11.",
-    "es": "Sí, en Linux. La compatibilidad con Wayland se selecciona según el escritorio: puente de GNOME Shell, KWin, protocolos COSMIC, layer-shell y protocolos disponibles de wlroots, o modo reducido cuando es necesario. FreeBSD y OpenBSD utilizan X11."
+  "Yes, on Linux. Wayland support is selected per desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when needed. FreeBSD, OpenBSD, and NetBSD support uses X11.": {
+    "pt": "Sim, no Linux. O suporte Wayland é selecionado conforme o ambiente: ponte GNOME Shell, KWin, protocolos COSMIC, layer-shell e protocolos disponibilizados pelo wlroots, ou modo reduzido quando necessário. No FreeBSD, OpenBSD e NetBSD, o suporte utiliza X11.",
+    "fr": "Oui, sous Linux. La prise en charge de Wayland est choisie selon le bureau : passerelle GNOME Shell, KWin, protocoles COSMIC, layer-shell et protocoles exposés par wlroots, ou mode réduit si nécessaire. FreeBSD, OpenBSD et NetBSD utilisent X11.",
+    "es": "Sí, en Linux. La compatibilidad con Wayland se selecciona según el escritorio: puente de GNOME Shell, KWin, protocolos COSMIC, layer-shell y protocolos disponibles de wlroots, o modo reducido cuando es necesario. FreeBSD, OpenBSD y NetBSD utilizan X11."
   },
   "Are all applets available on BSD?": {
     "pt": "Todos os applets estão disponíveis no BSD?",
     "fr": "Tous les applets sont-ils disponibles sur BSD ?",
     "es": "¿Están todos los applets disponibles en BSD?"
   },
-  "Applet availability depends on the operating system and installed services. Cam Shield supports FreeBSD and OpenBSD. Classic Bluetooth is supported on FreeBSD; OpenBSD has no Bluetooth stack.": {
-    "pt": "A disponibilidade dos applets depende do sistema operativo e dos serviços instalados. O Cam Shield é compatível com FreeBSD e OpenBSD. O Bluetooth clássico é compatível com FreeBSD; o OpenBSD não tem uma pilha Bluetooth.",
-    "fr": "La disponibilité des applets dépend du système et des services installés. Cam Shield prend en charge FreeBSD et OpenBSD. Le Bluetooth classique est pris en charge sur FreeBSD ; OpenBSD ne possède pas de pile Bluetooth.",
-    "es": "La disponibilidad de los applets depende del sistema operativo y de los servicios instalados. Cam Shield es compatible con FreeBSD y OpenBSD. Bluetooth clásico es compatible con FreeBSD; OpenBSD no tiene una pila Bluetooth."
+  "Applet availability depends on the operating system and installed services. Cam Shield supports FreeBSD and OpenBSD. Classic Bluetooth is supported on FreeBSD; OpenBSD has no Bluetooth stack. Cam Shield and Bluetooth controls are unavailable on NetBSD.": {
+    "pt": "A disponibilidade dos applets depende do sistema operativo e dos serviços instalados. O Cam Shield é compatível com FreeBSD e OpenBSD. O Bluetooth clássico é compatível com FreeBSD; o OpenBSD não tem uma pilha Bluetooth. Os controlos do Cam Shield e do Bluetooth não estão disponíveis no NetBSD.",
+    "fr": "La disponibilité des applets dépend du système et des services installés. Cam Shield prend en charge FreeBSD et OpenBSD. Le Bluetooth classique est pris en charge sur FreeBSD ; OpenBSD ne possède pas de pile Bluetooth. Les commandes de Cam Shield et de Bluetooth ne sont pas disponibles sur NetBSD.",
+    "es": "La disponibilidad de los applets depende del sistema operativo y de los servicios instalados. Cam Shield es compatible con FreeBSD y OpenBSD. Bluetooth clásico es compatible con FreeBSD; OpenBSD no tiene una pila Bluetooth. Los controles de Cam Shield y Bluetooth no están disponibles en NetBSD."
   },
   "Is Docking free and open source?": {
     "pt": "O Docking é gratuito e de código aberto?",
@@ -1404,10 +1414,10 @@
     "fr": "Ajouter une étoile sur GitHub",
     "es": "Dar una estrella en GitHub"
   },
-  "Docking is an open source dock for Linux, FreeBSD, and OpenBSD, written in Python with GTK and Cairo. Supports X11 on all three systems and Wayland on Linux.": {
-    "pt": "O Docking é um dock de código aberto para Linux, FreeBSD e OpenBSD, escrito em Python com GTK e Cairo. Compatível com X11 nos três sistemas e Wayland no Linux.",
-    "fr": "Docking est un dock open source pour Linux, FreeBSD et OpenBSD, écrit en Python avec GTK et Cairo. Compatible avec X11 sur les trois systèmes et Wayland sous Linux.",
-    "es": "Docking es un dock de código abierto para Linux, FreeBSD y OpenBSD, escrito en Python con GTK y Cairo. Compatible con X11 en los tres sistemas y Wayland en Linux."
+  "Docking is an open source dock for Linux, FreeBSD, OpenBSD, and NetBSD, written in Python with GTK and Cairo. Supports X11 on all four systems and Wayland on Linux.": {
+    "pt": "O Docking é um dock de código aberto para Linux, FreeBSD, OpenBSD e NetBSD, escrito em Python com GTK e Cairo. Compatível com X11 nos quatro sistemas e Wayland no Linux.",
+    "fr": "Docking est un dock open source pour Linux, FreeBSD, OpenBSD et NetBSD, écrit en Python avec GTK et Cairo. Compatible avec X11 sur les quatre systèmes et Wayland sous Linux.",
+    "es": "Docking es un dock de código abierto para Linux, FreeBSD, OpenBSD y NetBSD, escrito en Python con GTK y Cairo. Compatible con X11 en los cuatro sistemas y Wayland en Linux."
   },
   "FAQ": {
     "pt": "Perguntas frequentes",
@@ -1668,5 +1678,65 @@
     "pt": "Idioma",
     "fr": "Langue",
     "es": "Idioma"
+  },
+  "Install Docking": {
+    "pt": "Instalar o Docking",
+    "fr": "Installer Docking",
+    "es": "Instalar Docking"
+  },
+  "Windows 11 x64 preview": {
+    "pt": "Pré-visualização para Windows 11 x64",
+    "fr": "Préversion pour Windows 11 x64",
+    "es": "Vista previa para Windows 11 x64"
+  },
+  "Windows-enabled releases include a per-user installer and portable ZIP with Python and GTK included. Previews are unsigned; signing is deferred. Download the package and SHA256SUMS-windows from the same release, verify the checksum, and close Docking before updating.": {
+    "pt": "As versões com suporte para Windows incluem um instalador por utilizador e um ficheiro ZIP portátil com Python e GTK incluídos. As pré-visualizações não são assinadas; a assinatura fica para uma fase posterior. Descarregue o pacote e SHA256SUMS-windows da mesma versão, verifique a soma de verificação e feche o Docking antes de atualizar.",
+    "fr": "Les versions compatibles avec Windows comprennent un programme d’installation par utilisateur et une archive ZIP portable incluant Python et GTK. Les préversions ne sont pas signées ; la signature est prévue ultérieurement. Téléchargez le paquet et SHA256SUMS-windows depuis la même version, vérifiez la somme de contrôle et fermez Docking avant la mise à jour.",
+    "es": "Las versiones compatibles con Windows incluyen un instalador por usuario y un ZIP portátil con Python y GTK incluidos. Las versiones preliminares no están firmadas; la firma se ha aplazado. Descarga el paquete y SHA256SUMS-windows de la misma versión, verifica la suma de comprobación y cierra Docking antes de actualizar."
+  },
+  "Windows release downloads": {
+    "pt": "Transferências para Windows",
+    "fr": "Téléchargements pour Windows",
+    "es": "Descargas para Windows"
+  },
+  "Install and update instructions": {
+    "pt": "Instruções de instalação e atualização",
+    "fr": "Instructions d’installation et de mise à jour",
+    "es": "Instrucciones de instalación y actualización"
+  },
+  "NetBSD": {
+    "pt": "NetBSD",
+    "fr": "NetBSD",
+    "es": "NetBSD"
+  },
+  "NetBSD 11.0": {
+    "pt": "NetBSD 11.0",
+    "fr": "NetBSD 11.0",
+    "es": "NetBSD 11.0"
+  },
+  "Dock placement, window tracking and actions, workspace behavior, auto-hide, and system monitoring. Bluetooth and camera controls are unavailable on NetBSD.": {
+    "pt": "Posicionamento do dock, acompanhamento e ações sobre janelas, áreas de trabalho, ocultação automática e monitorização do sistema. Os controlos de Bluetooth e de câmara não estão disponíveis no NetBSD.",
+    "fr": "Positionnement du dock, suivi et actions sur les fenêtres, espaces de travail, masquage automatique et surveillance du système. Les commandes de Bluetooth et de caméra ne sont pas disponibles sur NetBSD.",
+    "es": "Posición del dock, seguimiento y acciones sobre ventanas, espacios de trabajo, ocultación automática y monitorización del sistema. Los controles de Bluetooth y cámara no están disponibles en NetBSD."
+  },
+  "NetBSD installation and checksum guide": {
+    "pt": "Guia de instalação e verificação de integridade para NetBSD",
+    "fr": "Guide d’installation et de vérification d’intégrité pour NetBSD",
+    "es": "Guía de instalación y verificación de integridad para NetBSD"
+  },
+  "Download NetBSD package": {
+    "pt": "Transferir pacote NetBSD",
+    "fr": "Télécharger le paquet NetBSD",
+    "es": "Descargar paquete NetBSD"
+  },
+  "amd64 · .tgz · composited X11": {
+    "pt": "amd64 · .tgz · X11 com composição",
+    "fr": "amd64 · .tgz · X11 avec composition",
+    "es": "amd64 · .tgz · X11 con composición"
+  },
+  "Choose a Linux package below, follow the FreeBSD, OpenBSD and NetBSD installation guides, or try the Windows 11 x64 preview.": {
+    "pt": "Escolha um pacote Linux abaixo, siga os guias de instalação para FreeBSD, OpenBSD e NetBSD ou experimente a pré-visualização para Windows 11 x64.",
+    "fr": "Choisissez un paquet Linux ci-dessous, suivez les guides d’installation de FreeBSD, OpenBSD et NetBSD ou essayez la préversion pour Windows 11 x64.",
+    "es": "Elige un paquete Linux a continuación, sigue las guías de instalación de FreeBSD, OpenBSD y NetBSD o prueba la vista previa para Windows 11 x64."
   }
 }

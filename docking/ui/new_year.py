@@ -29,6 +29,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import gi
 
@@ -42,6 +43,9 @@ from docking.i18n import _
 from docking.log import get_logger
 from docking.ui.display import clamp_popup, window_screen_position
 from docking.ui.tooltip import compute_tooltip_position
+
+if TYPE_CHECKING:
+    from docking.ui.dock_window import DockWindow
 
 log = get_logger("new_year")
 
@@ -69,7 +73,7 @@ class NewYearGreetingController:
     def __init__(
         self,
         *,
-        window: Gtk.Window,
+        window: DockWindow,
         state_path: Path | str | None = None,
         now_fn: Callable[[], datetime] | None = None,
     ) -> None:

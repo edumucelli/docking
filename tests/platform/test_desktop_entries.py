@@ -246,6 +246,27 @@ class TestWineAliasRecovery:
 
 
 class TestDesktopDirs:
+    def test_native_defaults_find_pkgsrc_applications(self, tmp_path, monkeypatch):
+        share = tmp_path / "usr/pkg/share"
+        (share / "applications").mkdir(parents=True)
+        standard = tmp_path / "usr/share"
+        (standard / "applications").mkdir(parents=True)
+        monkeypatch.delenv("XDG_DATA_DIRS", raising=False)
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "empty"))
+        monkeypatch.setattr(
+            desktop_entries.GLib, "get_system_data_dirs", lambda: [str(share)]
+        )
+        monkeypatch.setattr(desktop_entries, "HOST_XDG_DATA_DIRS", ())
+        monkeypatch.setattr(desktop_entries, "DEFAULT_XDG_DATA_DIRS", str(standard))
+        monkeypatch.setattr(desktop_entries, "is_flatpak", lambda: False)
+        assert desktop_entries.desktop_dirs() == [
+            share / "applications",
+            standard / "applications",
+        ]
+
+        monkeypatch.setenv("XDG_DATA_DIRS", str(tmp_path / "override"))
+        assert desktop_entries.desktop_dirs() == []
+
     def test_user_dirs_precede_system_and_host_dirs(self, tmp_path, monkeypatch):
         data_home = tmp_path / "data"
         (data_home / "applications").mkdir(parents=True)
@@ -455,3 +476,20 @@ class TestGeneratedEntryNaming:
 
         assert generated is not None
         assert generated.desktop_id.startswith("docking-generated-launcher-")
+
+
+def test_windows_document_drop_never_generates_a_unix_shell_launcher(
+    tmp_path, monkeypatch
+):
+    document = tmp_path / "notes.txt"
+    document.write_text("Windows reports X_OK for existing ordinary files")
+    from docking.platform.applications.implementations.windows.registration import (
+        WindowsExecutableRegistration,
+    )
+
+    backend = WindowsExecutableRegistration(tmp_path / "launchers")
+    monkeypatch.setattr(
+        desktop_entries, "user_applications_dir", lambda: tmp_path / "launchers"
+    )
+    assert backend.register(document.as_uri()) is None
+    assert not (tmp_path / "launchers").exists()

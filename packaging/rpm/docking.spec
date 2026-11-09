@@ -1,5 +1,5 @@
 Name:           docking
-Version:        %{?pkg_version}%{!?pkg_version:2.28.3}
+Version:        %{?pkg_version}%{!?pkg_version:2.29.0}
 # One artifact serves every RPM distribution, so a build-host dist tag would
 # misrepresent it on Fedora and openSUSE alike.
 Release:        1
@@ -26,6 +26,8 @@ Requires:       (libwnck3 or typelib-1_0-Wnck-3_0)
 Requires:       (NetworkManager-libnm or typelib-1_0-NM-1_0)
 Requires:       (webkit2gtk4.1 or typelib-1_0-WebKit2-4_1)
 Recommends:     python3-pywayland
+# Fedora's kde-connect provides kdeconnect-kde, the openSUSE package name.
+Suggests:       kdeconnect-kde
 BuildRequires:  gcc
 BuildRequires:  gettext
 BuildRequires:  python3-devel
@@ -140,6 +142,9 @@ fi
 /usr/share/icons/hicolor
 
 %changelog
+* Sun Nov 08 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.29.0-1
+- Release 2.29.0.
+
 * Thu Nov 05 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.28.3-1
 - Release 2.28.3.
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -173,6 +174,7 @@ class FakeMenuItem:
         self._submenu = None
         self._child = None
         self._sensitive = True
+        self._tooltip_text = None
         self.hidden = False
         self.destroyed = False
         self.parent = None
@@ -213,6 +215,9 @@ class FakeMenuItem:
 
     def set_sensitive(self, sensitive: bool) -> None:
         self._sensitive = sensitive
+
+    def set_tooltip_text(self, text: str) -> None:
+        self._tooltip_text = text
 
     def get_child(self):
         return self._child
@@ -280,6 +285,14 @@ class FakeRadioMenuItem(FakeCheckMenuItem):
 class FakeSeparatorMenuItem(FakeMenuItem):
     def __init__(self) -> None:
         super().__init__(label="---")
+
+
+class FakeWindowMenuRow(FakeMenuItem):
+    pass
+
+
+class FakeWindowRowsSeparator(FakeSeparatorMenuItem):
+    pass
 
 
 class FakeImage:
@@ -738,6 +751,8 @@ def _frame(*, item=None, item_index: int = -1, insert_index: int = 0):
 @pytest.fixture
 def handler(monkeypatch):
     monkeypatch.setattr(menu_mod, "Gtk", FakeGtk)
+    monkeypatch.setattr(menu_mod, "_WindowMenuRow", FakeWindowMenuRow)
+    monkeypatch.setattr(menu_mod, "_WindowRowsSeparator", FakeWindowRowsSeparator)
     monkeypatch.setattr(menu_mod, "Pango", FakePango)
     monkeypatch.setattr(folder_stack_mod, "Gtk", FakeGtk)
     monkeypatch.setattr(folder_stack_mod, "Pango", FakePango)
@@ -1262,7 +1277,7 @@ class TestItemMenus:
         assert row.destroyed is True
         assert row not in menu.children
         assert not any(
-            getattr(child, "_window_rows_separator", False) for child in menu.children
+            isinstance(child, FakeWindowRowsSeparator) for child in menu.children
         )
         assert menu.popdown_called is True
         assert menu.shown is True
@@ -1341,7 +1356,7 @@ class TestItemMenus:
         handler._config.window_list_sort = "default"
         handler._build_item_menu(menu=menu, item=item)
 
-        rows = [c for c in menu.children if getattr(c, "_window_row", False)]
+        rows = [c for c in menu.children if isinstance(c, FakeWindowMenuRow)]
         labels = [r.get_child().children[1].label for r in rows]
         assert labels == ["Charlie", "Alpha", "Bravo"]
 
@@ -1366,12 +1381,53 @@ class TestItemMenus:
         handler._config.window_list_sort = "alphabetical"
         handler._build_item_menu(menu=menu, item=item)
 
-        rows = [c for c in menu.children if getattr(c, "_window_row", False)]
+        rows = [c for c in menu.children if isinstance(c, FakeWindowMenuRow)]
         labels = [r.get_child().children[1].label for r in rows]
         assert labels == ["Alpha", "Bravo", "Charlie"]
 
 
 class TestDockMenu:
+    @pytest.mark.parametrize(
+        ("platform_name", "available"),
+        [
+            ("linux", True),
+            ("freebsd15", True),
+            ("openbsd7", True),
+            ("netbsd11", True),
+            ("win32", False),
+        ],
+    )
+    def test_kdeconnect_menu_requires_the_session_bus_backend(
+        self, handler, monkeypatch, platform_name, available
+    ):
+        from docking.applets import identity
+        from docking.applets.kdeconnect import meta
+
+        monkeypatch.setattr(
+            identity,
+            "host_services",
+            lambda: SimpleNamespace(platform_name=platform_name),
+        )
+        monkeypatch.setattr(menu_mod, "get_applet_catalog", lambda: {meta.id: meta})
+        monkeypatch.setattr(menu_mod, "load_catalog_icon", lambda applet_id, size: None)
+        handler._model.pinned_items = []
+        menu = FakeMenu()
+
+        handler._build_dock_menu(menu=menu, insert_index=0)
+
+        add_applet = next(
+            item
+            for item in menu.children
+            if item.get_label() == menu_mod._("Add Applet")
+        )
+        category = add_applet.get_submenu().get_children()[0]
+        item = category.get_submenu().get_children()[0]
+        assert item.get_label() == "KDE Connect"
+        assert item._sensitive is available
+        assert item._tooltip_text == (
+            None if available else menu_mod._("Unavailable on this desktop")
+        )
+
     def test_build_dock_menu_wires_separator_quit_and_applets(
         self, handler, monkeypatch
     ):
@@ -2811,7 +2867,7 @@ def test_asynchronous_menu_thumbnail_updates_after_mapping_and_cleans_timer(
     monkeypatch.setattr(menu_mod.GLib, "timeout_add", schedule)
     monkeypatch.setattr(menu_mod.GLib, "source_remove", removed.append)
     handler._watch_window_thumbnail(
-        row, image, WindowId(DisplayServer.X11, 100), previous
+        row, image, WindowId(DisplayServer.WINDOWS, 100), previous
     )
     assert not captured
     row.emit("map")
@@ -2827,3 +2883,21 @@ def test_asynchronous_menu_thumbnail_updates_after_mapping_and_cleans_timer(
     row.emit("unmap")
     row.emit("destroy")
     assert removed == [101]
+
+
+@pytest.mark.skipif(not menu_mod.Gtk.init_check()[0], reason="GTK display required")
+def test_closing_the_last_window_removes_its_separator_after_gtk_takes_ownership():
+    menu = menu_mod.Gtk.Menu()
+    row = menu_mod._WindowMenuRow()
+    separator = menu_mod._WindowRowsSeparator()
+    menu.append(row)
+    menu.append(separator)
+    del row, separator
+    gc.collect()
+    try:
+        row = menu.get_children()[0]
+        handler = object.__new__(menu_mod.MenuHandler)
+        handler._remove_window_row(row, refresh_popup=False)
+        assert menu.get_children() == []
+    finally:
+        menu.destroy()

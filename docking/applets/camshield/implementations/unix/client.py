@@ -58,12 +58,14 @@ class UnixCamshieldClient(CamshieldBackend):
 
     def controls_available(self) -> bool:
         return (
-            not self._stopped.is_set() and _helper_command(action="status") is not None
+            self._control.controls_supported
+            and not self._stopped.is_set()
+            and _helper_command(action="status") is not None
         )
 
     def _perform(self, action: str) -> bool:
         with self._lock:
-            if self._stopped.is_set():
+            if self._stopped.is_set() or not self._control.controls_supported:
                 return False
             command = _helper_command(action=action)
             if command is None:

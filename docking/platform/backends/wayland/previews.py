@@ -19,6 +19,7 @@ import mmap
 import os
 import tempfile
 import time
+from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
@@ -70,6 +71,35 @@ class _CaptureResource(Protocol):
     def destroy(self) -> None: ...
 
 
+class _EventDispatcher(Protocol):
+    """Named callback registration shared by PyWayland dispatchers and fixtures."""
+
+    def __setitem__(self, event: str, callback: Callable[..., None], /) -> None: ...
+
+
+class _EventResource(_CaptureResource, Protocol):
+    @property
+    def dispatcher(self) -> _EventDispatcher: ...
+
+
+class _ImageCopyFrame(_EventResource, Protocol):
+    def attach_buffer(self, buffer: _CaptureResource) -> None: ...
+    def damage_buffer(self, x: int, y: int, width: int, height: int) -> None: ...
+    def capture(self) -> None: ...
+
+
+class _CaptureSession(_EventResource, Protocol):
+    def create_frame(self) -> _ImageCopyFrame: ...
+
+
+class _HyprlandFrame(_EventResource, Protocol):
+    def copy(self, buffer: _CaptureResource, ignore_damage: int) -> None: ...
+
+
+class _PhocFrame(_EventResource, Protocol):
+    def copy(self, buffer: _CaptureResource) -> None: ...
+
+
 class _ShmPool(_CaptureResource, Protocol):
     def create_buffer(
         self, offset: int, width: int, height: int, stride: int, format_: int
@@ -104,11 +134,11 @@ class _CaptureRequest:
     requested_width: int
     requested_height: int
     source: _CaptureResource | None
-    session: _CaptureResource | None
+    session: _CaptureSession | None
     width: int = 0
     height: int = 0
     shm_formats: set[int] = field(default_factory=set)
-    frame: _CaptureResource | None = None
+    frame: _ImageCopyFrame | None = None
     fd: int | None = None
     mmap_obj: mmap.mmap | None = None
     buffer: _CaptureResource | None = None
@@ -122,7 +152,7 @@ class _HyprlandCaptureRequest:
     window_id: WindowId
     requested_width: int
     requested_height: int
-    frame: _CaptureResource | None
+    frame: _HyprlandFrame | None
     width: int = 0
     height: int = 0
     fd: int | None = None
@@ -138,7 +168,7 @@ class _PhocCaptureRequest:
     window_id: WindowId
     requested_width: int
     requested_height: int
-    frame: _CaptureResource | None
+    frame: _PhocFrame | None
     width: int = 0
     height: int = 0
     fd: int | None = None
@@ -392,6 +422,10 @@ class WaylandPreviewService(PreviewService):
             self._finish_failed(request)
 
     def _create_frame(self, *, request: _CaptureRequest, format_: int) -> None:
+        session = request.session
+        if session is None:
+            self._finish_failed(request)
+            return
         stride = request.width * 4
         buffer = _allocate_shm_buffer(
             request,
@@ -402,7 +436,7 @@ class WaylandPreviewService(PreviewService):
             stride=stride,
             format_=format_,
         )
-        frame = request.session.create_frame()
+        frame = session.create_frame()
         request.stride = stride
         request.format = format_
         request.frame = frame
@@ -550,6 +584,10 @@ class HyprlandPreviewService(PreviewService):
     def _on_buffer_done(self, request: _HyprlandCaptureRequest) -> None:
         if self._pending.get(_request_key(request)) is not request:
             return
+        frame = request.frame
+        if frame is None:
+            self._finish_failed(request)
+            return
         if request.width <= 0 or request.height <= 0 or request.stride <= 0:
             self._finish_failed(request)
             return
@@ -563,7 +601,7 @@ class HyprlandPreviewService(PreviewService):
                 stride=request.stride,
                 format_=request.format,
             )
-            request.frame.copy(buffer, 1)
+            frame.copy(buffer, 1)
             self._protocol.flush()
         except Exception:
             self._finish_failed(request)
@@ -688,6 +726,10 @@ class PhocPreviewService(PreviewService):
     ) -> None:
         if self._pending.get(_request_key(request)) is not request:
             return
+        frame = request.frame
+        if frame is None:
+            self._finish_failed(request)
+            return
         format_ = int(format_)
         if format_ not in _PREFERRED_SHM_FORMATS:
             self._finish_failed(request)
@@ -709,7 +751,7 @@ class PhocPreviewService(PreviewService):
                 stride=request.stride,
                 format_=request.format,
             )
-            request.frame.copy(buffer)
+            frame.copy(buffer)
             self._protocol.flush()
         except Exception:
             self._finish_failed(request)

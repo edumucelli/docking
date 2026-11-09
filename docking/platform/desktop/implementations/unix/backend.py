@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from docking.log import get_logger
 from docking.platform.desktop.base import DesktopServices
@@ -11,7 +11,7 @@ from docking.platform.desktop.base import DesktopServices
 from ...base import IconLocations
 
 if TYPE_CHECKING:
-    from gi.repository import Gio
+    from gi.repository import GdkX11, Gio
 
     from docking.platform.desktop.base import ApplicationIconSource
 
@@ -39,7 +39,9 @@ class UnixDesktopServices(DesktopServices):
                 return None
 
             xlib = load_library("X11", "libX11.so.6")
-            xdisplay = ctypes.c_void_p(hash(display.get_xdisplay()))
+            # Backend selection established the native display family.
+            x11_display = cast("GdkX11.X11Display", display)
+            xdisplay = ctypes.c_void_p(hash(x11_display.get_xdisplay()))
 
             xlib.XDefaultScreen.restype = ctypes.c_int
             xlib.XDefaultScreen.argtypes = [ctypes.c_void_p]

@@ -293,7 +293,9 @@ class LinuxNetworkBackend(NetworkBackend, ConnectionManager):
                 return connection
         return None
 
-    def _vpn_connections(self) -> list[tuple[object, bool, object | None]]:
+    def _vpn_connections(
+        self,
+    ) -> list[tuple[NM.RemoteConnection, bool, NM.ActiveConnection | None]]:
         if self._nm_client is None:
             return []
 

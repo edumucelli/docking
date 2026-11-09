@@ -219,7 +219,7 @@ class DockPlacementController:
         self._surface = surface_service
         self._active_display_timer: int = 0
         self._active_monitor: Gdk.Monitor | None = None
-        self._screen_signal_handlers: list[tuple[object, int]] = []
+        self._screen_signal_handlers: list[tuple[Gdk.Screen, int]] = []
         self._geometry_refresh_source: int = 0
         self._last_reservation_key: tuple[object, ...] | None = None
         self._reservation_cleared = False

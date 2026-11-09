@@ -82,7 +82,7 @@ class DockInputController:
         self._click_button: int = 0
         self.dnd = dnd
         self._started = False
-        self._signal_handlers: list[tuple[object, int]] = []
+        self._signal_handlers: list[tuple[Gtk.Widget, int]] = []
 
     def set_theme(self, theme) -> None:
         """Update collaborators owned by this controller when the theme changes."""

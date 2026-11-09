@@ -112,16 +112,15 @@ class TestIdleProbe:
             def get_xdisplay(self):
                 return 123
 
-        gdk_x11 = types.SimpleNamespace(
-            X11Display=types.SimpleNamespace(get_default=lambda: None)
-        )
+        _Display.get_default = staticmethod(lambda: None)
+        gdk_x11 = types.SimpleNamespace(X11Display=_Display)
         repository.GdkX11 = gdk_x11
         monkeypatch.setitem(sys.modules, "gi", gi)
         monkeypatch.setitem(sys.modules, "gi.repository", repository)
 
         assert idle_time._xdisplay_handle() is None
 
-        gdk_x11.X11Display.get_default = lambda: _Display()
+        gdk_x11.X11Display.get_default = staticmethod(lambda: _Display())
         handle = idle_time._xdisplay_handle()
         assert isinstance(handle, ctypes.c_void_p)
         assert handle.value == 123

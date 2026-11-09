@@ -69,9 +69,9 @@ class ScreenshotPreview:
         )
         if monitor is None:
             monitor = display.get_monitor(0)
-        workarea = monitor.get_workarea()
-        max_width = max(1, min(900, workarea.width - 80))
-        max_height = max(1, min(500, workarea.height - 140))
+        workarea = monitor.get_workarea() if monitor is not None else None
+        max_width = max(1, min(900, workarea.width - 80)) if workarea else 900
+        max_height = max(1, min(500, workarea.height - 140)) if workarea else 500
         scale = min(1.0, max_width / image.width, max_height / image.height)
         shown = self.pixbuf.scale_simple(
             max(1, int(image.width * scale)),

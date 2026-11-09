@@ -2,6 +2,9 @@
 
 Build scripts for distributing Docking in various formats.
 
+The [Windows target](windows/README.md) builds a portable x64 application and
+per-user installer with their own Python, GTK, and multimedia runtime.
+
 ## Translation Ownership
 
 Docking translations have four distinct stages:
@@ -200,7 +203,7 @@ Notes:
 # Install tooling
 sudo apt install python3-apt python3-pip libfuse2 libgdk-pixbuf2.0-bin libglib2.0-bin libgtk-3-bin squashfs-tools
 python3 -m pip install --upgrade pip
-python3 -m pip install appimage-builder
+python3 -m pip install appimage-builder==1.1.0
 
 # Build AppImage
 ./packaging/appimage/build.sh
@@ -221,6 +224,7 @@ Notes:
 
 - AppImage recipe: `packaging/appimage/AppImageBuilder.yml`
 - Build script: `packaging/appimage/build.sh`
+- appimage-builder 1.1.0 is required for the pinned runtime cache layout.
 - Runtime dependencies are bundled from Ubuntu 22.04 packages listed in the recipe.
 - The AppImage build script selects the correct Ubuntu mirror, package architecture, typelib path, and output name for `x86_64` vs `aarch64`.
 - The AppImage bundles GtkLayerShell runtime libraries.
@@ -316,7 +320,10 @@ only to the test container; it does not change the installed launcher.
 `packaging/bsd/build.py` runs in the prepared BSD VM with `.venv-bsd/bin/python`.
 It vendors the resolved Python runtime dependencies, keeps GI/Cairo/psutil as
 native dependencies, compiles translations, and uses `pkg create` on FreeBSD or
-`pkg_create` on OpenBSD. Each package is installed before its visual tests run.
+`pkg_create` on OpenBSD or NetBSD. NetBSD uses pkgsrc's staging prefix and real
+prefix options, records native dependencies and build information, and installs
+under `/usr/pkg`; the other BSD targets use `/usr/local`. Each package is
+installed before its visual tests run.
 The main CI release job requires these checks and stages the original package
 bytes, manifests, latest aliases, and `SHA256SUMS-bsd` through
 `packaging/bsd/release.py`. Distribution uses GitHub Releases.

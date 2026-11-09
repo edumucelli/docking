@@ -7,10 +7,18 @@ import pytest
 from docking.applets.brightness.state import BrightnessState
 from docking.applets.powerprofiles.state import PowerProfilesState, profile_label
 from docking.applets.volume.state import VolumeState
+from docking.applets.worker import SerialWorker
 from tests.applets.deferred_worker import DeferredWorker
 from tests.applets.test_brightness import _make_applet as brightness_applet
 from tests.applets.test_powerprofiles import _make_applet as profiles_applet
 from tests.applets.test_volume import _make_applet as volume_applet
+
+
+def deferred_volume_worker(applet):
+    queue = DeferredWorker()
+    applet._worker = MagicMock(spec=SerialWorker, wraps=queue.worker)
+    applet._worker.stop = MagicMock()
+    return queue
 
 
 def test_rapid_brightness_scroll_applies_the_last_requested_value(monkeypatch):
@@ -58,8 +66,7 @@ def test_brightness_reset_is_ordered_after_pending_scroll(monkeypatch):
 @pytest.mark.parametrize("action", ["scroll", "mute"])
 def test_old_volume_poll_does_not_undo_user_input(action):
     applet = volume_applet(VolumeState(volume=45, muted=False))
-    queue = DeferredWorker()
-    applet._worker = queue.worker
+    queue = deferred_volume_worker(applet)
     applet._tick()
     queue.read()  # The old backend state is already waiting for GTK.
     if action == "scroll":
@@ -155,20 +162,19 @@ def test_brightness_write_failure_does_not_drop_pending_target(monkeypatch):
 
 def test_stopped_volume_applet_ignores_queued_poll_reply():
     applet = volume_applet(VolumeState(45, False))
-    queue = DeferredWorker()
-    applet._worker = queue.worker
+    queue = deferred_volume_worker(applet)
     applet._backend.controls.get_state.return_value = VolumeState(75, True)
     applet._tick()
     queue.read()
     applet.stop()
+    applet._worker.stop.assert_called_once()
     queue.publish()
     assert (applet._volume, applet._muted) == (45, False)
 
 
 def test_slow_volume_polls_do_not_overlap_or_arrive_out_of_order():
     applet = volume_applet(VolumeState(45, False))
-    queue = DeferredWorker()
-    applet._worker = queue.worker
+    queue = deferred_volume_worker(applet)
     applet._tick()
     applet._tick()
     assert len(queue.tasks) == 1

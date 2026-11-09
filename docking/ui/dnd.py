@@ -155,7 +155,7 @@ instead of assuming the ordinary event path will do it.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import gi
 
@@ -361,7 +361,7 @@ class DnDHandler:
                 self._dragged_item = item
                 if item.icon:
                     icon_size = int(self._config.icon_size * DRAG_ICON_SCALE)
-                    scaled = item.icon.scale_simple(
+                    scaled = cast(GdkPixbuf.Pixbuf, item.icon).scale_simple(
                         icon_size, icon_size, GdkPixbuf.InterpType.BILINEAR
                     )
                     if scaled:

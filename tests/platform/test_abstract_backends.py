@@ -10,6 +10,8 @@ from importlib import import_module
 import pytest
 
 CONTRACTS = (
+    "docking.platform.native.windows.capture.WindowObservation",
+    "docking.platform.applications.backend.ApplicationDragSource",
     "docking.platform.applications.backend.CatalogMonitor",
     "docking.platform.applications.backend.ApplicationCatalogBackend",
     "docking.platform.applications.backend.ApplicationAssociationBackend",
@@ -51,6 +53,16 @@ CONTRACTS = (
 )
 
 ADAPTERS = (
+    (
+        "docking.platform.backends.windows.windows.Win32WindowAPI",
+        "docking.platform.native.windows.capture.WindowObservation",
+        False,
+    ),
+    (
+        "docking.platform.applications.implementations.windows.drag_source.WindowsFileDragSource",
+        "docking.platform.applications.backend.ApplicationDragSource",
+        False,
+    ),
     (
         "docking.platform.composition.unix.UnixPlatformProvider",
         "docking.platform.composition.base.PlatformProvider",
@@ -291,8 +303,63 @@ ADAPTERS = (
         False,
     ),
     (
+        "docking.platform.composition.windows.WindowsPlatformProvider",
+        "docking.platform.composition.base.PlatformProvider",
+        False,
+    ),
+    (
+        "docking.platform.composition.windows.WindowsAppletBackendFactories",
+        "docking.applets.platform.AppletBackendFactories",
+        False,
+    ),
+    (
+        "docking.platform.host.implementations.windows.backend.WindowsHostServices",
+        "docking.platform.host.base.HostServices",
+        False,
+    ),
+    (
+        "docking.platform.desktop.implementations.windows.backend.WindowsDesktopServices",
+        "docking.platform.desktop.base.DesktopServices",
+        False,
+    ),
+    (
+        "docking.platform.tray.implementations.windows.backend.WindowsTrayBackend",
+        "docking.platform.tray.backend.TrayBackend",
+        False,
+    ),
+    (
         "docking.applets.aiusage.implementations.unix.hooks.UnixUsageHooks",
         "docking.applets.aiusage.hooks.UsageHooks",
+        False,
+    ),
+    (
+        "docking.applets.aiusage.implementations.windows.hooks.WindowsUsageHooks",
+        "docking.applets.aiusage.hooks.UsageHooks",
+        False,
+    ),
+    (
+        "docking.platform.applications.implementations.windows.catalog.WindowsApplicationCatalogBackend",
+        "docking.platform.applications.backend.ApplicationCatalogBackend",
+        False,
+    ),
+    (
+        "docking.platform.applications.implementations.windows.associations.WindowsApplicationAssociationBackend",
+        "docking.platform.applications.backend.ApplicationAssociationBackend",
+        False,
+    ),
+    (
+        "docking.platform.applications.implementations.windows.launch.WindowsApplicationLaunchBackend",
+        "docking.platform.applications.backend.ApplicationLaunchBackend",
+        False,
+    ),
+    (
+        "docking.platform.applications.implementations.windows.registration.WindowsExecutableRegistration",
+        "docking.platform.applications.backend.ExecutableRegistrationBackend",
+        False,
+    ),
+    (
+        "docking.platform.applications.implementations.windows.process.WindowsProcessBackend",
+        "docking.platform.applications.backend.ProcessBackend",
         False,
     ),
 )

@@ -55,12 +55,12 @@ for (const javaScriptEnabled of [true, false]) {
       page.on("pageerror", (error) => errors.push(error.message));
       await page.goto(origin + (lang === "en" ? "/" : `/${lang}/`));
       assert.equal(await page.locator("html").getAttribute("lang"), lang);
-      assert.equal(await page.locator("[data-applet-card]:visible").count(), 65);
+      assert.equal(await page.locator("[data-applet-card]:visible").count(), 66);
       assert.equal(await page.locator("h1").evaluate((el) => getComputedStyle(el).opacity), "1");
       assert.equal(await page.locator('img[src="/hero.gif"]').evaluate((el) => new URL(el.currentSrc).pathname), "/hero.gif");
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       if (javaScriptEnabled) {
-        const query = { en: "weather", pt: "relogio", fr: "meteo", es: "bateria" }[lang];
+        const query = { en: "weather", pt: "relogio", fr: "meteo", es: "bluetooth" }[lang];
         await page.locator("#applet-search").fill(query);
         assert.equal(await page.locator("[data-applet-card]:visible").count(), 1);
         await page.locator("#applet-search").fill("no-matching-applet-xyz");

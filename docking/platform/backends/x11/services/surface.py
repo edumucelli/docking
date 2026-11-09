@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import TYPE_CHECKING, Protocol, cast
 
 import cairo
 import gi
@@ -43,6 +44,21 @@ from docking.platform.backends.x11.impl.struts import (
 )
 from docking.platform.backends.x11.impl.workarea import ExternalWorkareaTracker
 
+if TYPE_CHECKING:
+    from gi.repository import Gtk
+
+    from docking.core.config import Config
+    from docking.core.theme import Theme
+
+
+class _DockStyle(Protocol):
+    """Live dock styling consumed by the X11 blur integration."""
+
+    @property
+    def config(self) -> Config: ...
+    @property
+    def theme(self) -> Theme: ...
+
 
 class X11SurfaceService(SurfaceService):
     """SurfaceService implementation for the current X11 dock window."""
@@ -53,7 +69,7 @@ class X11SurfaceService(SurfaceService):
         barrier: PointerBarrier | None = None,
         workarea_tracker: ExternalWorkareaTracker | None = None,
     ) -> None:
-        self._window: object | None = None
+        self._window: Gtk.Window | None = None
         self._barrier = barrier if barrier is not None else PointerBarrier()
         self._workarea = (
             workarea_tracker
@@ -71,6 +87,7 @@ class X11SurfaceService(SurfaceService):
 
     def configure_before_realize(self, window: object) -> None:
         """Configure the GTK window as an X11 dock before realization."""
+        window = cast("Gtk.Window", window)
         self._window = window
         window.set_skip_taskbar_hint(True)
         window.set_skip_pager_hint(True)
@@ -80,6 +97,7 @@ class X11SurfaceService(SurfaceService):
 
     def on_realize(self, window: object) -> None:
         """Initialize X11-only surface helpers after realization."""
+        window = cast("Gtk.Window", window)
         self._window = window
         display = window.get_display()
         if display and isinstance(display, GdkX11.X11Display):
@@ -220,8 +238,10 @@ class X11SurfaceService(SurfaceService):
         if rect is None:
             clear_blur_region(gdk_window=gdk_window)
             return
-        theme = window.theme
-        config = window.config
+        # The main dock supplies styling in addition to GTK's native API.
+        style = cast(_DockStyle, window)
+        theme = style.theme
+        config = style.config
         blur_region = compute_blur_region(
             rect=BlurRect(
                 x=rect.x,

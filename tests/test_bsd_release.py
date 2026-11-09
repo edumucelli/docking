@@ -39,7 +39,7 @@ def incoming(tmp_path):
 def test_versions_aliases_and_checksums_retain_original_bytes(incoming, tmp_path):
     destination = tmp_path / "release"
     release.stage([incoming], "1.2.3", destination)
-    assert len(list(destination.iterdir())) == 9
+    assert len(list(destination.iterdir())) == 4 * len(release.TARGETS) + 1
     for line in (destination / "SHA256SUMS-bsd").read_text().splitlines():
         digest, name = line.split("  ")
         assert hashlib.sha256((destination / name).read_bytes()).hexdigest() == digest

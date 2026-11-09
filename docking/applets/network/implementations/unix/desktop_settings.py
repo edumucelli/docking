@@ -6,10 +6,10 @@ import shutil
 import subprocess
 
 from docking.applets.network.backend import NetworkSettings
-from docking.log import get_logger
+from docking.log import get_logger, with_context
 from docking.platform.environment import flatpak
 
-log = get_logger("network.desktop_settings")
+log = with_context(get_logger("network.desktop_settings"))
 
 _CONNECTION_INFO_COMMANDS: tuple[tuple[str, ...], ...] = (
     ("gnome-control-center", "wifi"),
