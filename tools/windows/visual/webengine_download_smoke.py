@@ -53,7 +53,12 @@ def main():
     from docking.applets.whatsapp.state import PROFILE as WHATSAPP
     from tools.windows.visual.desktop_driver import WindowsDesktop
     from tools.windows.visual.webengine_fixture import TLSFixture
+    from tools.windows.visual.webengine_protocol import (
+        FixtureMessage,
+        install_parent_codec,
+    )
 
+    install_parent_codec()
     native = WindowsDesktop()
     assert not any(row["title"] == "Docking" for row in native.windows())
     baseline, explorer = native.workarea(), native.explorer()
@@ -77,6 +82,9 @@ def main():
     original_packet = WindowsCompanionBrowser._packet
 
     def packet(browser, values, lifetime):
+        if not isinstance(values, FixtureMessage):
+            return original_packet(browser, values, lifetime)
+        values = values.values
         if browser._lifetime == lifetime:
             if values.get("event") == "fixture":
                 report["child_pids"].append(values["pid"])
@@ -88,7 +96,7 @@ def main():
                 if answer is not None:
                     answer[1].append(values.get("result"))
                     answer[0].set()
-        return original_packet(browser, values, lifetime)
+        return False
 
     WindowsCompanionBrowser._packet = packet
     browser = WindowsCompanionBrowser(
@@ -136,7 +144,7 @@ def main():
         }
         if source is not None:
             command["source"] = source
-        call(lambda: browser._process.send(command))
+        call(lambda: browser._process.send(FixtureMessage(command)))
         assert done.wait(20), "Companion did not respond during download"
         pending.pop(sequence)
         return values[0]
@@ -155,7 +163,7 @@ def main():
         )
         call(browser.show)
         native.wait_for(lambda: call(lambda: browser.visible), "Browser not visible")
-        call(lambda: browser._process.send({"op": "fixture-origin"}))
+        call(lambda: browser._process.send(FixtureMessage({"op": "fixture-origin"})))
         native.wait_for(lambda: report.get("origin"), "View origin absent")
 
     def click_download():

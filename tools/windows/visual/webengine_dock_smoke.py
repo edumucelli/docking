@@ -57,7 +57,12 @@ def main():
     )
     from tools.windows.visual.desktop_driver import WindowsDesktop
     from tools.windows.visual.webengine_fixture import TLSFixture
+    from tools.windows.visual.webengine_protocol import (
+        FixtureMessage,
+        install_parent_codec,
+    )
 
+    install_parent_codec()
     native = WindowsDesktop()
     assert not any(window["title"] == "Docking" for window in native.windows())
     baseline, explorer = native.workarea(), native.explorer()
@@ -99,6 +104,9 @@ def main():
         original_init(browser, **kwargs)
 
     def packet(browser, values, lifetime):
+        if not isinstance(values, FixtureMessage):
+            return original_packet(browser, values, lifetime)
+        values = values.values
         if browser._started and browser._lifetime == lifetime:
             event = values.get("event")
             if event == "fixture":
@@ -109,7 +117,7 @@ def main():
                 if answer is not None:
                     answer[1].append(values.get("result"))
                     answer[0].set()
-        return original_packet(browser, values, lifetime)
+        return False
 
     def build(**kwargs):
         ui = original_build(**kwargs)
@@ -148,7 +156,7 @@ def main():
         pending[identifier] = (done, values)
         call(
             lambda: browser._process.send(
-                {"op": "probe", "id": identifier, "source": source}
+                FixtureMessage({"op": "probe", "id": identifier, "source": source})
             )
         )
         assert done.wait(20), "Companion probe did not reply"

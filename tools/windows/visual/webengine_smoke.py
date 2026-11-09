@@ -57,7 +57,12 @@ def main():
     from docking.applets.whatsapp.state import PROFILE as WHATSAPP
     from tools.windows.visual.desktop_driver import WindowsDesktop
     from tools.windows.visual.webengine_fixture import TLSFixture
+    from tools.windows.visual.webengine_protocol import (
+        FixtureMessage,
+        install_parent_codec,
+    )
 
+    install_parent_codec()
     native = WindowsDesktop()
     assert not any(w["title"] == "Docking" for w in native.windows())
     baseline, explorer = native.workarea(), native.explorer()
@@ -79,6 +84,9 @@ def main():
     original_packet = WindowsCompanionBrowser._packet
 
     def packet(browser, values, lifetime):
+        if not isinstance(values, FixtureMessage):
+            return original_packet(browser, values, lifetime)
+        values = values.values
         if values.get("event") == "probe":
             answer = pending.get(values["id"])
             if answer:
@@ -91,8 +99,10 @@ def main():
             report["view_origin"] = values
         elif values.get("event") == "fixture_hang":
             report["fixture_hung"] = True
+        elif values.get("event") == "fixture_navigation":
+            report["oversized_link_seen"] = values["length"]
 
-        return original_packet(browser, values, lifetime)
+        return False
 
     WindowsCompanionBrowser._packet = packet
     browser = WindowsCompanionBrowser(
@@ -139,7 +149,7 @@ def main():
         pending[identifier] = (done, results)
         call(
             lambda: browser._process.send(
-                {"op": "probe", "id": identifier, "source": source}
+                FixtureMessage({"op": "probe", "id": identifier, "source": source})
             )
         )
         assert done.wait(20), "Companion script timed out"
@@ -189,10 +199,30 @@ def main():
                 lambda: script("window.fixture.dbValue") == "owned",
                 "Storage did not settle",
             )
-            call(lambda: browser._process.send({"op": "fixture-origin"}))
+            call(
+                lambda: browser._process.send(FixtureMessage({"op": "fixture-origin"}))
+            )
             origin = native.wait_for(
                 lambda: report.get("view_origin"), "View origin absent"
             )
+            point = script(
+                '(()=>{const a=document.createElement("a");'
+                'a.href="https://example.test/"+"x".repeat(32768);'
+                'a.textContent="Oversized external link";'
+                "document.body.prepend(a);const r=a.getBoundingClientRect();"
+                "return {x:r.x+r.width/2,y:r.y+r.height/2}})()"
+            )
+            native.click(
+                round((origin["x"] + point["x"]) * origin["scale"]),
+                round((origin["y"] + point["y"]) * origin["scale"]),
+            )
+            native.wait_for(
+                lambda: report.get("oversized_link_seen", 0) > 32768,
+                "Oversized link did not reach the navigation handler",
+            )
+            assert script("document.readyState") == "complete"
+            assert call(lambda: browser.phase.value) == "ready"
+            stage("oversized-external-link-keeps-companion-output-alive")
             point = script(
                 '(()=>{const r=document.getElementById("input")'
                 ".getBoundingClientRect();"
@@ -303,7 +333,11 @@ def main():
                 "Disconnect retained worker registration",
             )
             if args.hang_at_end:
-                call(lambda: browser._process.send({"op": "fixture-hang"}))
+                call(
+                    lambda: browser._process.send(
+                        FixtureMessage({"op": "fixture-hang"})
+                    )
+                )
                 native.wait_for(
                     lambda: report.get("fixture_hung"), "Qt hold was not acknowledged"
                 )
