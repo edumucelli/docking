@@ -140,3 +140,28 @@ def test_native_probe_codec_is_separate_from_production_messages():
     assert fixture.read_event(io.BytesIO(fixture.encode(event))) == event
     assert fixture.read_command(io.BytesIO(fixture.encode(p.Reload()))) == p.Reload()
     assert fixture.read_event(io.BytesIO(fixture.encode(p.Started()))) == p.Started()
+
+
+def test_external_uri_factory_accounts_for_escaped_unicode_and_frame_overhead():
+    prefix = "https://example.test/"
+    overhead = len(p.encode(p.OpenExternal(prefix)))
+    escaped_character = len(json.dumps("🌱")) - 2
+    count, remainder = divmod(p.MAX_PACKET_BYTES - overhead, escaped_character)
+    uri = prefix + "🌱" * count + "x" * remainder
+    event = p.OpenExternal.for_uri(uri)
+    assert event is not None
+    assert len(p.encode(event)) == p.MAX_PACKET_BYTES
+    assert p.OpenExternal.for_uri(uri + "x") is None
+
+
+def test_incoming_unicode_uses_actual_wire_size_instead_of_canonical_encoding():
+    uri = "https://example.test/" + "🌱" * 6000
+    data = (
+        json.dumps(
+            {"version": 1, "event": "external", "uri": uri}, ensure_ascii=False
+        ).encode()
+        + b"\n"
+    )
+    assert len(data) < p.MAX_PACKET_BYTES and len(uri) < 32768
+    assert p.read_event(io.BytesIO(data)) == p.OpenExternal(uri)
+    assert p.OpenExternal.for_uri(uri) is None

@@ -1,6 +1,7 @@
 """Browser process framing, actual pipe failures and GTK lifetime ownership."""
 
 import io
+import json
 import queue
 import sys
 import threading
@@ -117,7 +118,11 @@ def test_private_protocol_preserves_unicode_and_rejects_partial_frames():
 def test_companion_configuration_requires_the_real_https_service_origin(tmp_path, uri):
     configuration = Configuration(replace(PROFILE, url=uri), tmp_path)
     with pytest.raises(ValueError):
-        read_configuration(io.BytesIO(encode(configuration)))
+        encode(configuration)
+    packet = json.loads(encode(Configuration(PROFILE, tmp_path)))
+    packet["profile"]["url"] = uri
+    with pytest.raises(ValueError):
+        read_configuration(io.BytesIO(json.dumps(packet).encode() + b"\n"))
 
 
 def test_configuration_round_trip_keeps_profiles_isolated(tmp_path):

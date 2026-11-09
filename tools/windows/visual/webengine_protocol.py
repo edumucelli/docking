@@ -19,7 +19,14 @@ _COMMANDS = {
     "fixture-hang",
     "inspect-service",
 }
-_EVENTS = {"probe", "fixture", "fixture_origin", "fixture_hang", "service_probe"}
+_EVENTS = {
+    "probe",
+    "fixture",
+    "fixture_origin",
+    "fixture_hang",
+    "fixture_navigation",
+    "service_probe",
+}
 
 
 @dataclass(frozen=True)

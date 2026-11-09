@@ -172,9 +172,15 @@ def main() -> None:
 
     from PySide6.QtCore import QPoint
     from PySide6.QtNetwork import QSslCertificate
-    from PySide6.QtWebEngineCore import QWebEngineUrlRequestInterceptor
+    from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineUrlRequestInterceptor
 
-    from docking.applets.webapp.implementations.windows.companion.runtime import Runtime
+    from docking.applets.webapp.implementations.windows.companion import (
+        runtime as companion_runtime,
+    )
+    from docking.applets.webapp.implementations.windows.companion.runtime import (
+        Page,
+        Runtime,
+    )
     from docking.applets.webapp.implementations.windows.companion.runtime import (
         main as run,
     )
@@ -185,6 +191,20 @@ def main() -> None:
     )
 
     install_child_codec()
+
+    class FixturePage(Page):
+        def acceptNavigationRequest(self, url, navigation_type, main_frame) -> bool:  # noqa: N802 - Qt virtual method.
+            accepted = super().acceptNavigationRequest(url, navigation_type, main_frame)
+            if (
+                main_frame
+                and navigation_type
+                == QWebEnginePage.NavigationType.NavigationTypeLinkClicked
+                and url.toString().startswith("https://example.test/")
+            ):
+                self.runtime.emit("fixture_navigation", length=len(url.toString()))
+            return accepted
+
+    companion_runtime.Page = FixturePage
 
     class Requests(QWebEngineUrlRequestInterceptor):
         def interceptRequest(self, request) -> None:  # noqa: N802 - Qt virtual method.

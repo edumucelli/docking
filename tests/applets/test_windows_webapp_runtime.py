@@ -76,9 +76,13 @@ def runtime_module(monkeypatch):
 
 
 @pytest.mark.parametrize("producer", ["link", "new-window"])
-@pytest.mark.parametrize("oversized", [False, True])
+@pytest.mark.parametrize(
+    ("suffix", "forwarded"),
+    [("valid", True), ("x" * 32768, False), ("🌱" * 6000, False)],
+    ids=["valid", "character-limit", "encoded-frame-limit"],
+)
 def test_external_url_producers_leave_event_writer_running(
-    runtime_module, monkeypatch, tmp_path, producer, oversized
+    runtime_module, monkeypatch, tmp_path, producer, suffix, forwarded
 ):
     mod = runtime_module
     stream = io.BytesIO()
@@ -90,7 +94,7 @@ def test_external_url_producers_leave_event_writer_running(
     runtime.configuration = p.Configuration(PROFILE, directory=tmp_path)
     runtime._last = {}
     runtime._send = output.send
-    uri = "https://example.test/" + ("x" * 32768 if oversized else "valid")
+    uri = "https://example.test/" + suffix
     url = SimpleNamespace(toString=lambda: uri)
     try:
         if producer == "link":
@@ -106,7 +110,7 @@ def test_external_url_producers_leave_event_writer_running(
         output.close()
     assert not output._failed.is_set()
     packets = io.BytesIO(stream.getvalue())
-    if not oversized:
+    if forwarded:
         assert p.read_event(packets) == p.OpenExternal(uri)
     assert p.read_event(packets) == p.Started()
     assert p.read_event(packets) is None

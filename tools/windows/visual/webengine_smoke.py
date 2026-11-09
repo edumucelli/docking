@@ -99,6 +99,8 @@ def main():
             report["view_origin"] = values
         elif values.get("event") == "fixture_hang":
             report["fixture_hung"] = True
+        elif values.get("event") == "fixture_navigation":
+            report["oversized_link_seen"] = values["length"]
 
         return False
 
@@ -213,6 +215,10 @@ def main():
             native.click(
                 round((origin["x"] + point["x"]) * origin["scale"]),
                 round((origin["y"] + point["y"]) * origin["scale"]),
+            )
+            native.wait_for(
+                lambda: report.get("oversized_link_seen", 0) > 32768,
+                "Oversized link did not reach the navigation handler",
             )
             assert script("document.readyState") == "complete"
             assert call(lambda: browser.phase.value) == "ready"

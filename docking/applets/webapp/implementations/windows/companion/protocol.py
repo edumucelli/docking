@@ -88,8 +88,16 @@ class OpenExternal:
 
     @classmethod
     def for_uri(cls, uri: object) -> OpenExternal | None:
-        """Drop invalid URI fields before they reach the event writer."""
-        return cls(uri) if isinstance(uri, str) and len(uri) <= 32768 else None
+        """Drop URI fields that cannot fit in the writer's encoded frame."""
+        value = _external_uri(uri)
+        if value is None:
+            return None
+        event = cls(value)
+        try:
+            _frame(_packet(event))
+        except ValueError:
+            return None
+        return event
 
 
 @dataclass(frozen=True)
@@ -158,6 +166,10 @@ def _request_id(value: object) -> bool:
     return type(value) is int and 0 < value < 2**31
 
 
+def _external_uri(value: object) -> str | None:
+    return value if isinstance(value, str) and len(value) <= 32768 else None
+
+
 def decode_command(packet: dict[str, object]) -> Command | None:
     """Ignore unknown or invalid ordinary commands, as the runtime always has."""
     match packet.get("op"):
@@ -198,7 +210,8 @@ def decode_event(packet: dict[str, object]) -> Event | None:
         case "attention":
             return AttentionCleared()
         case "external":
-            return OpenExternal.for_uri(packet.get("uri"))
+            uri = _external_uri(packet.get("uri"))
+            return OpenExternal(uri) if uri is not None else None
         case "restart" | "cleared":
             if isinstance(identifier, int) and _request_id(identifier):
                 if packet["event"] == "restart":
@@ -209,8 +222,8 @@ def decode_event(packet: dict[str, object]) -> Event | None:
     return None
 
 
-def encode(message: Message) -> bytes:
-    """Serialize typed records using the unchanged version-one wire schema."""
+def _packet(message: Message) -> dict[str, object]:
+    """Keep the version-one field layout in one place for all encoders."""
     packet: dict[str, object]
     match message:
         case Configuration(profile, directory):
@@ -252,10 +265,20 @@ def encode(message: Message) -> bytes:
             packet = {"event": "cleared", "id": identifier, "ok": ok}
         case _:
             raise TypeError("Invalid browser message")
+    return packet
+
+
+def encode(message: Message) -> bytes:
+    """Serialize typed records using the unchanged version-one wire schema."""
+    packet = _packet(message)
     if not isinstance(message, Configuration):
         valid = decode_command(packet) if "op" in packet else decode_event(packet)
         if valid is None:
             raise ValueError("Invalid browser message fields")
+    return _frame(packet)
+
+
+def _frame(packet: dict[str, object]) -> bytes:
     data = json.dumps({**packet, "version": VERSION}, allow_nan=False).encode() + b"\n"
     if len(data) > MAX_PACKET_BYTES:
         raise ValueError("Browser packet too large")
