@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
@@ -41,6 +42,7 @@ from docking.platform.backends.cinnamon.shell import (
     CinnamonXWaylandSurfaceService,
 )
 from docking.platform.backends.cinnamon.windows import CinnamonWindowService
+from docking.platform.backends.lifecycle import ServiceLifecycle
 from docking.platform.backends.reduced.services import (
     ReducedPreviewService,
     ReducedVisibilityService,
@@ -114,6 +116,17 @@ class CinnamonShellSessionBackend(SessionBackend):
             screen_capture=CinnamonColorPickerService.connect(client=client),
             idle=CinnamonIdleService.connect(),
         )
+        lifecycle = ServiceLifecycle()
+        lifecycle.add_service("windows", lambda: self._services.windows)
+        lifecycle.add_service("previews", lambda: self._services.previews)
+        lifecycle.add_service("surface", lambda: self._services.surface)
+        lifecycle.add_service("visibility", lambda: self._services.visibility)
+        lifecycle.add_service("workspaces", lambda: self._services.workspaces)
+        lifecycle.add_service("desktop_actions", lambda: self._services.desktop_actions)
+        lifecycle.add_service("window_picker", lambda: self._services.window_picker)
+        lifecycle.add_service("screen_capture", lambda: self._services.screen_capture)
+        lifecycle.add_service("idle", lambda: self._services.idle)
+        self._session_lifecycle = lifecycle
 
     @property
     def name(self) -> str:
@@ -169,36 +182,10 @@ class CinnamonShellSessionBackend(SessionBackend):
         return self._services.window_picker
 
     def start(self) -> None:
-        self._services.windows.start()
-        self._services.previews.start()
-        self._services.surface.start()
-        self._services.visibility.start()
-        if self._services.workspaces is not None:
-            self._services.workspaces.start()
-        if self._services.desktop_actions is not None:
-            self._services.desktop_actions.start()
-        if self._services.window_picker is not None:
-            self._services.window_picker.start()
-        if self._services.screen_capture is not None:
-            self._services.screen_capture.start()
-        if self._services.idle is not None:
-            self._services.idle.start()
+        self._session_lifecycle.start()
 
     def stop(self) -> None:
-        if self._services.idle is not None:
-            self._services.idle.stop()
-        if self._services.screen_capture is not None:
-            self._services.screen_capture.stop()
-        if self._services.window_picker is not None:
-            self._services.window_picker.stop()
-        if self._services.desktop_actions is not None:
-            self._services.desktop_actions.stop()
-        if self._services.workspaces is not None:
-            self._services.workspaces.stop()
-        self._services.visibility.stop()
-        self._services.surface.stop()
-        self._services.previews.stop()
-        self._services.windows.stop()
+        self._session_lifecycle.stop()
 
 
 class CinnamonXWaylandSessionBackend(CinnamonShellSessionBackend):
@@ -250,65 +237,73 @@ class CinnamonWaylandSessionBackend(WaylandLayerShellSessionBackend):
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
     ):
-        super().__init__(
-            layer_shell=layer_shell,
-            model=model,
-            application_registry=application_registry,
-            process_identity_service=process_identity_service,
-        )
-        if shell_client is not None:
-            windows = CinnamonWindowService(
-                model=model,
-                client=shell_client,
-                config=config,
-                application_registry=application_registry,
-                process_identity_service=process_identity_service,
-            )
-        elif client is not None:
-            windows = MuffinWindowService(
+        lifecycle = ServiceLifecycle()
+        with ExitStack() as construction:
+            construction.callback(lifecycle.stop)
+            super().__init__(
+                layer_shell=layer_shell,
                 model=model,
                 application_registry=application_registry,
                 process_identity_service=process_identity_service,
-                client=client,
             )
-        else:
-            raise ValueError("Cinnamon window tracking requires a snapshot client")
-        previous = self._services
-        services = CinnamonWaylandRuntimeServices(
-            **{
-                field: getattr(previous, field)
-                for field in previous.__dataclass_fields__
-            }
-        )
-        if shell_client is not None and isinstance(windows, CinnamonWindowService):
-            features = shell_client.features
-            services = replace(
-                services,
-                windows=windows,
-                previews=CinnamonPreviewService(client=shell_client)
-                if "previews" in features
-                else ReducedPreviewService(),
-                visibility=CinnamonVisibilityService(windows=windows, config=config)
-                if "visibility" in features
-                else ReducedVisibilityService(),
-                workspaces=CinnamonWorkspaceService(windows=windows)
-                if "workspaces" in features
-                else previous.workspaces,
-                desktop_actions=CinnamonDesktopActionService(client=shell_client)
-                if "desktop" in features
-                else None,
-                window_picker=CinnamonWindowPickService(windows=windows)
-                if "picking" in features
-                else None,
-                screen_capture=previous.screen_capture
-                or CinnamonColorPickerService.connect(client=shell_client),
-                idle=previous.idle or CinnamonIdleService.connect(),
+            lifecycle.add("base session", start=super().start, stop=super().stop)
+            if shell_client is not None:
+                windows = CinnamonWindowService(
+                    model=model,
+                    client=shell_client,
+                    config=config,
+                    application_registry=application_registry,
+                    process_identity_service=process_identity_service,
+                )
+            elif client is not None:
+                windows = MuffinWindowService(
+                    model=model,
+                    application_registry=application_registry,
+                    process_identity_service=process_identity_service,
+                    client=client,
+                )
+            else:
+                raise ValueError("Cinnamon window tracking requires a snapshot client")
+            previous = self._services
+            services = CinnamonWaylandRuntimeServices(
+                **{
+                    field: getattr(previous, field)
+                    for field in previous.__dataclass_fields__
+                }
             )
-        else:
-            services = replace(services, windows=windows)
-        # Declare the exact subclass here: ty otherwise keeps the base class's
-        # WaylandLayerShellRuntimeServices and loses desktop_actions/window_picker.
-        self._services: CinnamonWaylandRuntimeServices = services
+            if shell_client is not None and isinstance(windows, CinnamonWindowService):
+                features = shell_client.features
+                services = replace(
+                    services,
+                    windows=windows,
+                    previews=CinnamonPreviewService(client=shell_client)
+                    if "previews" in features
+                    else ReducedPreviewService(),
+                    visibility=CinnamonVisibilityService(windows=windows, config=config)
+                    if "visibility" in features
+                    else ReducedVisibilityService(),
+                    workspaces=CinnamonWorkspaceService(windows=windows)
+                    if "workspaces" in features
+                    else previous.workspaces,
+                    desktop_actions=CinnamonDesktopActionService(client=shell_client)
+                    if "desktop" in features
+                    else None,
+                    window_picker=CinnamonWindowPickService(windows=windows)
+                    if "picking" in features
+                    else None,
+                    screen_capture=previous.screen_capture
+                    or CinnamonColorPickerService.connect(client=shell_client),
+                    idle=previous.idle or CinnamonIdleService.connect(),
+                )
+            else:
+                services = replace(services, windows=windows)
+            # Declare the exact subclass here: ty otherwise keeps the base class's
+            # WaylandLayerShellRuntimeServices and loses desktop_actions/window_picker.
+            self._services: CinnamonWaylandRuntimeServices = services
+            lifecycle.add_service("desktop_actions", lambda: self.desktop_actions)
+            lifecycle.add_service("window_picker", lambda: self.window_picker)
+            self._extension_lifecycle = lifecycle
+            construction.pop_all()
 
     @property
     def name(self) -> str:
@@ -331,18 +326,10 @@ class CinnamonWaylandSessionBackend(WaylandLayerShellSessionBackend):
         return self._services.window_picker
 
     def start(self) -> None:
-        super().start()
-        if self.desktop_actions is not None:
-            self.desktop_actions.start()
-        if self.window_picker is not None:
-            self.window_picker.start()
+        self._extension_lifecycle.start()
 
     def stop(self) -> None:
-        if self.window_picker is not None:
-            self.window_picker.stop()
-        if self.desktop_actions is not None:
-            self.desktop_actions.stop()
-        super().stop()
+        self._extension_lifecycle.stop()
 
 
 def _window_capabilities(

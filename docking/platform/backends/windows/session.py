@@ -10,6 +10,7 @@ from docking.platform.backends.base import (
     PlatformCapabilities,
     SessionBackend,
 )
+from docking.platform.backends.lifecycle import ServiceLifecycle
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -94,6 +95,17 @@ class WindowsSessionBackend(SessionBackend):
                 windows=windows, surface=surface, config=config
             ),
         )
+        lifecycle = ServiceLifecycle()
+        lifecycle.add_service("workspaces", lambda: self._workspaces)
+        lifecycle.add_service("windows", lambda: self._services.windows)
+        lifecycle.add_service("previews", lambda: self._services.previews)
+        lifecycle.add_service("surface", lambda: self._services.surface)
+        lifecycle.add_service("visibility", lambda: self._services.visibility)
+        lifecycle.add_service("idle", lambda: self._idle)
+        lifecycle.add_service("screen_capture", lambda: self._screen_capture)
+        lifecycle.add_service("desktop_actions", lambda: self._desktop_actions)
+        lifecycle.add_service("window_picker", lambda: self._window_picker)
+        self._session_lifecycle = lifecycle
 
     @property
     def name(self) -> str:
@@ -167,23 +179,7 @@ class WindowsSessionBackend(SessionBackend):
         return self._workspaces
 
     def start(self) -> None:
-        self._workspaces.start()
-        self._services.windows.start()
-        self._services.previews.start()
-        self._services.surface.start()
-        self._services.visibility.start()
-        self._idle.start()
-        self._screen_capture.start()
-        self._desktop_actions.start()
-        self._window_picker.start()
+        self._session_lifecycle.start()
 
     def stop(self) -> None:
-        self._workspaces.stop()
-        self._window_picker.stop()
-        self._desktop_actions.stop()
-        self._screen_capture.stop()
-        self._idle.stop()
-        self._services.visibility.stop()
-        self._services.surface.stop()
-        self._services.previews.stop()
-        self._services.windows.stop()
+        self._session_lifecycle.stop()

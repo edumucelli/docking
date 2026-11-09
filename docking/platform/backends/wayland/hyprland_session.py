@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -32,6 +33,7 @@ from docking.platform.backends.base import (
     WindowService,
     WorkspaceService,
 )
+from docking.platform.backends.lifecycle import ServiceLifecycle
 from docking.platform.backends.reduced.services import (
     ReducedPreviewService,
     ReducedVisibilityService,
@@ -92,79 +94,98 @@ class HyprlandSessionBackend(SessionBackend):
         window_service: WindowService | None = None,
         config: Config | None = None,
     ) -> None:
-        runtime = protocol_runtime
-        if runtime is None:
-            candidate_runtime = WaylandProtocolRuntime()
-            if candidate_runtime.start():
-                runtime = candidate_runtime
+        lifecycle = ServiceLifecycle()
+        with ExitStack() as construction:
+            construction.callback(lifecycle.stop)
+            runtime = protocol_runtime
+            if runtime is not None:
+                lifecycle.add("wayland runtime", stop=runtime.stop)
+            if runtime is None:
+                candidate_runtime = WaylandProtocolRuntime()
+                lifecycle.add("wayland runtime", stop=candidate_runtime.stop)
+                if candidate_runtime.start():
+                    runtime = candidate_runtime
 
-        foreign_toplevel = (
-            runtime.foreign_toplevel_protocol if runtime is not None else None
-        )
-        preview_handles = (
-            WaylandPreviewHandleTracker(
+            foreign_toplevel = (
+                runtime.foreign_toplevel_protocol if runtime is not None else None
+            )
+            preview_handles = (
+                WaylandPreviewHandleTracker(
+                    model=model,
+                    application_registry=application_registry,
+                    process_identity_service=process_identity_service,
+                    protocol=foreign_toplevel,
+                )
+                if foreign_toplevel is not None and window_service is None
+                else None
+            )
+            windows = window_service or load_hyprland_window_service(
                 model=model,
                 application_registry=application_registry,
                 process_identity_service=process_identity_service,
-                protocol=foreign_toplevel,
+                preview_handle_source=preview_handles,
             )
-            if foreign_toplevel is not None and window_service is None
-            else None
-        )
-        windows = window_service or load_hyprland_window_service(
-            model=model,
-            application_registry=application_registry,
-            process_identity_service=process_identity_service,
-            preview_handle_source=preview_handles,
-        )
-        if windows is None:
-            windows = ReducedWindowService()
+            if windows is None:
+                windows = ReducedWindowService()
 
-        hyprland_preview_protocol = (
-            runtime.hyprland_preview_protocol if runtime is not None else None
-        )
-        if (
-            hyprland_preview_protocol is not None
-            and isinstance(windows, HyprlandWindowService)
-            and preview_handles is not None
-        ):
-            previews: PreviewService = HyprlandPreviewService(
-                protocol=hyprland_preview_protocol,
+            hyprland_preview_protocol = (
+                runtime.hyprland_preview_protocol if runtime is not None else None
+            )
+            if (
+                hyprland_preview_protocol is not None
+                and isinstance(windows, HyprlandWindowService)
+                and preview_handles is not None
+            ):
+                previews: PreviewService = HyprlandPreviewService(
+                    protocol=hyprland_preview_protocol,
+                    windows=windows,
+                )
+            else:
+                previews = ReducedPreviewService()
+
+            workspace_protocol = (
+                runtime.workspace_protocol if runtime is not None else None
+            )
+            workspaces = (
+                HyprlandWorkspaceService(windows=windows)
+                if isinstance(windows, HyprlandWindowService)
+                else WaylandWorkspaceService(protocol=workspace_protocol)
+                if workspace_protocol is not None
+                else None
+            )
+
+            self._services = HyprlandRuntimeServices(
                 windows=windows,
+                previews=previews,
+                surface=WaylandLayerShellSurfaceService(layer_shell=layer_shell),
+                visibility=SnapshotVisibilityService(
+                    windows=windows,
+                    visible_windows=lambda _rect: windows.list_all_windows(),
+                    config=config,
+                    poll_ms=250,
+                )
+                if isinstance(windows, HyprlandWindowService)
+                else ReducedVisibilityService(),
+                workspaces=workspaces,
+                screen_capture=screen_capture
+                if screen_capture is not None
+                else load_portal_color_picker(),
+                protocol_runtime=runtime,
+                idle=WaylandIdleService(protocol=runtime.idle_protocol)
+                if runtime is not None and runtime.idle_protocol is not None
+                else None,
             )
-        else:
-            previews = ReducedPreviewService()
-
-        workspace_protocol = runtime.workspace_protocol if runtime is not None else None
-        workspaces = (
-            HyprlandWorkspaceService(windows=windows)
-            if isinstance(windows, HyprlandWindowService)
-            else WaylandWorkspaceService(protocol=workspace_protocol)
-            if workspace_protocol is not None
-            else None
-        )
-
-        self._services = HyprlandRuntimeServices(
-            windows=windows,
-            previews=previews,
-            surface=WaylandLayerShellSurfaceService(layer_shell=layer_shell),
-            visibility=SnapshotVisibilityService(
-                windows=windows,
-                visible_windows=lambda _rect: windows.list_all_windows(),
-                config=config,
-                poll_ms=250,
+            lifecycle.add_service("previews", lambda: self._services.previews)
+            lifecycle.add_service("windows", lambda: self._services.windows)
+            lifecycle.add_service("surface", lambda: self._services.surface)
+            lifecycle.add_service("visibility", lambda: self._services.visibility)
+            lifecycle.add_service("workspaces", lambda: self._services.workspaces)
+            lifecycle.add_service(
+                "screen_capture", lambda: self._services.screen_capture
             )
-            if isinstance(windows, HyprlandWindowService)
-            else ReducedVisibilityService(),
-            workspaces=workspaces,
-            screen_capture=screen_capture
-            if screen_capture is not None
-            else load_portal_color_picker(),
-            protocol_runtime=runtime,
-            idle=WaylandIdleService(protocol=runtime.idle_protocol)
-            if runtime is not None and runtime.idle_protocol is not None
-            else None,
-        )
+            lifecycle.add_service("idle", lambda: self._services.idle)
+            self._session_lifecycle = lifecycle
+            construction.pop_all()
 
     @property
     def name(self) -> str:
@@ -244,27 +265,7 @@ class HyprlandSessionBackend(SessionBackend):
         return None
 
     def start(self) -> None:
-        self._services.previews.start()
-        self._services.windows.start()
-        self._services.surface.start()
-        self._services.visibility.start()
-        if self._services.workspaces is not None:
-            self._services.workspaces.start()
-        if self._services.screen_capture is not None:
-            self._services.screen_capture.start()
-        if self._services.idle is not None:
-            self._services.idle.start()
+        self._session_lifecycle.start()
 
     def stop(self) -> None:
-        if self._services.idle is not None:
-            self._services.idle.stop()
-        if self._services.screen_capture is not None:
-            self._services.screen_capture.stop()
-        if self._services.workspaces is not None:
-            self._services.workspaces.stop()
-        self._services.visibility.stop()
-        self._services.surface.stop()
-        self._services.windows.stop()
-        self._services.previews.stop()
-        if self._services.protocol_runtime is not None:
-            self._services.protocol_runtime.stop()
+        self._session_lifecycle.stop()

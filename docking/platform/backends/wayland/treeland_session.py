@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
@@ -10,6 +11,7 @@ from docking.platform.backends.base import (
     PlatformCapabilities,
     VisibilityService,
 )
+from docking.platform.backends.lifecycle import ServiceLifecycle
 from docking.platform.backends.wayland.session import WaylandLayerShellSessionBackend
 from docking.platform.backends.wayland.treeland import (
     TreelandDesktopActionService,
@@ -37,27 +39,43 @@ class TreelandSessionBackend(WaylandLayerShellSessionBackend):
         protocol_runtime: WaylandProtocolRuntime | None = None,
         screen_capture: ScreenCaptureService | None = None,
     ) -> None:
-        super().__init__(
-            layer_shell=layer_shell,
-            model=model,
-            application_registry=application_registry,
-            process_identity_service=process_identity_service,
-            protocol_runtime=protocol_runtime,
-            screen_capture=screen_capture,
-        )
-        runtime = self._services.protocol_runtime
-        overlap = runtime.treeland_overlap_protocol if runtime is not None else None
-        window_management = (
-            runtime.treeland_window_management_protocol if runtime is not None else None
-        )
-        self._treeland_visibility = (
-            TreelandVisibilityService(adapter=overlap) if overlap is not None else None
-        )
-        self._treeland_desktop_actions = (
-            TreelandDesktopActionService(adapter=window_management)
-            if window_management is not None
-            else None
-        )
+        lifecycle = ServiceLifecycle()
+        with ExitStack() as construction:
+            construction.callback(lifecycle.stop)
+            super().__init__(
+                layer_shell=layer_shell,
+                model=model,
+                application_registry=application_registry,
+                process_identity_service=process_identity_service,
+                protocol_runtime=protocol_runtime,
+                screen_capture=screen_capture,
+            )
+            lifecycle.add("base session", start=super().start, stop=super().stop)
+            runtime = self._services.protocol_runtime
+            overlap = runtime.treeland_overlap_protocol if runtime is not None else None
+            window_management = (
+                runtime.treeland_window_management_protocol
+                if runtime is not None
+                else None
+            )
+            self._treeland_visibility = (
+                TreelandVisibilityService(adapter=overlap)
+                if overlap is not None
+                else None
+            )
+            self._treeland_desktop_actions = (
+                TreelandDesktopActionService(adapter=window_management)
+                if window_management is not None
+                else None
+            )
+            lifecycle.add_service(
+                "treeland_visibility", lambda: self._treeland_visibility
+            )
+            lifecycle.add_service(
+                "treeland_desktop_actions", lambda: self._treeland_desktop_actions
+            )
+            self._extension_lifecycle = lifecycle
+            construction.pop_all()
 
     @property
     def name(self) -> str:
@@ -81,15 +99,7 @@ class TreelandSessionBackend(WaylandLayerShellSessionBackend):
         return self._treeland_desktop_actions
 
     def start(self) -> None:
-        super().start()
-        if self._treeland_visibility is not None:
-            self._treeland_visibility.start()
-        if self._treeland_desktop_actions is not None:
-            self._treeland_desktop_actions.start()
+        self._extension_lifecycle.start()
 
     def stop(self) -> None:
-        if self._treeland_desktop_actions is not None:
-            self._treeland_desktop_actions.stop()
-        if self._treeland_visibility is not None:
-            self._treeland_visibility.stop()
-        super().stop()
+        self._extension_lifecycle.stop()

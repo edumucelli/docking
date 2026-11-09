@@ -21,6 +21,7 @@ from docking.platform.backends.reduced.services import (
     ReducedVisibilityService,
     ReducedWindowService,
 )
+from docking.platform.backends.wayland import session as session_module
 from docking.platform.backends.wayland.hyprland_ipc import (
     HyprlandSocketPaths,
     HyprlandWindowService,
@@ -86,6 +87,40 @@ def _empty_runtime() -> SimpleNamespace:
         idle_protocol=None,
         stop=MagicMock(),
     )
+
+
+@pytest.mark.parametrize("injected", [False, True])
+def test_constructor_failure_releases_protocol_runtime(monkeypatch, injected):
+    runtime = _empty_runtime()
+    runtime.start = MagicMock(return_value=True)
+    monkeypatch.setattr(session_module, "WaylandProtocolRuntime", lambda: runtime)
+    original = OSError("surface construction failed")
+    runtime.stop.side_effect = ValueError("runtime cleanup failed")
+    monkeypatch.setattr(
+        session_module,
+        "WaylandLayerShellSurfaceService",
+        MagicMock(side_effect=original),
+    )
+    with pytest.raises(OSError) as error:
+        WaylandLayerShellSessionBackend(
+            layer_shell=_layer_shell(),
+            model=MagicMock(),
+            **identity_services(),
+            protocol_runtime=runtime if injected else None,
+        )
+    assert error.value is original
+    runtime.stop.assert_called_once_with()
+
+
+def test_runtime_start_failure_is_guarded_before_constructor_returns(monkeypatch):
+    runtime = _empty_runtime()
+    runtime.start = MagicMock(side_effect=OSError("runtime start failed"))
+    monkeypatch.setattr(session_module, "WaylandProtocolRuntime", lambda: runtime)
+    with pytest.raises(OSError, match="runtime start failed"):
+        WaylandLayerShellSessionBackend(
+            layer_shell=_layer_shell(), model=MagicMock(), **identity_services()
+        )
+    runtime.stop.assert_called_once_with()
 
 
 def test_wayland_layer_shell_session_exposes_surface_capabilities():

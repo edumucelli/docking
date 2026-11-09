@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from contextlib import ExitStack
 from typing import TYPE_CHECKING
 
 from gi.repository import Gio, GLib
@@ -45,6 +46,7 @@ from docking.platform.backends.kwin.bridge import (
     KWinWindowService,
 )
 from docking.platform.backends.kwin.preview import KWinPreviewService
+from docking.platform.backends.lifecycle import ServiceLifecycle
 from docking.platform.backends.reduced.services import (
     ReducedPreviewService,
     ReducedVisibilityService,
@@ -240,52 +242,73 @@ class KWinSessionBackend(SessionBackend):
         config: Config | None = None,
         protocol_runtime: WaylandProtocolRuntime | None = None,
     ) -> None:
-        from docking.platform.backends.wayland.services import (
-            WaylandLayerShellSurfaceService,
-        )
+        lifecycle = ServiceLifecycle()
+        with ExitStack() as construction:
+            construction.callback(lifecycle.stop)
+            from docking.platform.backends.wayland.services import (
+                WaylandLayerShellSurfaceService,
+            )
 
-        self._surface = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
-        bridge = KWinBridgeClient.connect()
-        self._windows: WindowService = (
-            KWinWindowService(
-                bridge=bridge,
-                application_registry=application_registry,
-                process_identity_service=process_identity_service,
-                model=model,
-                config=config,
+            self._surface = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
+            bridge = KWinBridgeClient.connect()
+            if bridge is not None:
+                # The window service owns this live bridge after construction.
+                bridge_cleanup = ServiceLifecycle()
+                bridge_cleanup.add("kwin bridge", stop=bridge.stop)
+                construction.callback(bridge_cleanup.stop)
+            self._windows: WindowService = (
+                KWinWindowService(
+                    bridge=bridge,
+                    application_registry=application_registry,
+                    process_identity_service=process_identity_service,
+                    model=model,
+                    config=config,
+                )
+                if bridge is not None
+                else AtspiWindowService(
+                    application_registry=application_registry,
+                    process_identity_service=process_identity_service,
+                    model=model,
+                )
             )
-            if bridge is not None
-            else AtspiWindowService(
-                application_registry=application_registry,
-                process_identity_service=process_identity_service,
-                model=model,
+            self._workspaces = KWinWorkspaceService()
+            self._visibility: VisibilityService = (
+                SnapshotVisibilityService(
+                    windows=self._windows,
+                    visible_windows=lambda _rect: self._windows.list_all_windows(),
+                    config=config,
+                )
+                if bridge is not None
+                else ReducedVisibilityService()
             )
-        )
-        self._workspaces = KWinWorkspaceService()
-        self._visibility: VisibilityService = (
-            SnapshotVisibilityService(
-                windows=self._windows,
-                visible_windows=lambda _rect: self._windows.list_all_windows(),
-                config=config,
+            self._previews: PreviewService = (
+                KWinPreviewService() if bridge is not None else ReducedPreviewService()
             )
-            if bridge is not None
-            else ReducedVisibilityService()
-        )
-        self._previews: PreviewService = (
-            KWinPreviewService() if bridge is not None else ReducedPreviewService()
-        )
-        self._desktop_actions = KWinDesktopActionService.connect()
-        self._screen_capture = load_portal_color_picker()
-        self._runtime = protocol_runtime
-        if self._runtime is None:
-            runtime = WaylandProtocolRuntime()
-            if runtime.start():
-                self._runtime = runtime
-        self._idle = (
-            WaylandIdleService(protocol=self._runtime.idle_protocol)
-            if self._runtime is not None and self._runtime.idle_protocol is not None
-            else None
-        )
+            self._desktop_actions = KWinDesktopActionService.connect()
+            self._screen_capture = load_portal_color_picker()
+            self._runtime = protocol_runtime
+            if self._runtime is not None:
+                lifecycle.add("wayland runtime", stop=self._runtime.stop)
+            if self._runtime is None:
+                runtime = WaylandProtocolRuntime()
+                lifecycle.add("wayland runtime", stop=runtime.stop)
+                if runtime.start():
+                    self._runtime = runtime
+            self._idle = (
+                WaylandIdleService(protocol=self._runtime.idle_protocol)
+                if self._runtime is not None and self._runtime.idle_protocol is not None
+                else None
+            )
+            lifecycle.add_service("surface", lambda: self._surface)
+            lifecycle.add_service("windows", lambda: self._windows)
+            lifecycle.add_service("workspaces", lambda: self._workspaces)
+            lifecycle.add_service("visibility", lambda: self._visibility)
+            lifecycle.add_service("previews", lambda: self._previews)
+            lifecycle.add_service("desktop_actions", lambda: self._desktop_actions)
+            lifecycle.add_service("screen_capture", lambda: self._screen_capture)
+            lifecycle.add_service("idle", lambda: self._idle)
+            self._session_lifecycle = lifecycle
+            construction.pop_all()
 
     @property
     def name(self) -> str:
@@ -361,23 +384,7 @@ class KWinSessionBackend(SessionBackend):
         return None
 
     def start(self) -> None:
-        self._surface.start()
-        self._windows.start()
-        self._workspaces.start()
-        self._visibility.start()
-        self._previews.start()
-        for service in (self._desktop_actions, self._screen_capture, self._idle):
-            if service is not None:
-                service.start()
+        self._session_lifecycle.start()
 
     def stop(self) -> None:
-        for service in (self._idle, self._screen_capture, self._desktop_actions):
-            if service is not None:
-                service.stop()
-        self._previews.stop()
-        self._visibility.stop()
-        self._workspaces.stop()
-        self._windows.stop()
-        self._surface.stop()
-        if self._runtime is not None:
-            self._runtime.stop()
+        self._session_lifecycle.stop()

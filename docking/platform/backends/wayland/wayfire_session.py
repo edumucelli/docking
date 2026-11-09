@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+from contextlib import ExitStack
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -27,6 +28,7 @@ from docking.platform.backends.base import (
     WindowService,
     WorkspaceService,
 )
+from docking.platform.backends.lifecycle import ServiceLifecycle
 from docking.platform.backends.reduced.services import (
     ReducedVisibilityService,
     ReducedWindowService,
@@ -95,57 +97,78 @@ class WayfireSessionBackend(SessionBackend):
         desktop_action_service: DesktopActionService | None = None,
         preview_service: PreviewService | None = None,
     ) -> None:
-        runtime = protocol_runtime
-        if runtime is None:
-            candidate_runtime = WaylandProtocolRuntime()
-            if candidate_runtime.start():
-                runtime = candidate_runtime
+        lifecycle = ServiceLifecycle()
+        with ExitStack() as construction:
+            construction.callback(lifecycle.stop)
+            runtime = protocol_runtime
+            if runtime is not None:
+                lifecycle.add("wayland runtime", stop=runtime.stop)
+            if runtime is None:
+                candidate_runtime = WaylandProtocolRuntime()
+                lifecycle.add("wayland runtime", stop=candidate_runtime.stop)
+                if candidate_runtime.start():
+                    runtime = candidate_runtime
 
-        windows = window_service or load_wayfire_window_service(
-            model=model,
-            application_registry=application_registry,
-            process_identity_service=process_identity_service,
-            config=config,
-        )
-        if windows is None:
-            windows = ReducedWindowService()
+            windows = window_service or load_wayfire_window_service(
+                model=model,
+                application_registry=application_registry,
+                process_identity_service=process_identity_service,
+                config=config,
+            )
+            if windows is None:
+                windows = ReducedWindowService()
 
-        workspaces = workspace_service or load_wayfire_workspace_service()
-        picker = window_picker or load_wayfire_window_pick_service()
-        desktop_actions = (
-            desktop_action_service or load_wayfire_desktop_action_service()
-        )
-
-        visibility = visibility_service
-        if visibility is None:
-            visibility = load_wayfire_visibility_service(config=config)
-        if visibility is None:
-            visibility = ReducedVisibilityService()
-
-        previews = preview_service or load_wayfire_preview_service()
-        if previews is None:
-            from docking.platform.backends.reduced.services import (
-                ReducedPreviewService,
+            workspaces = workspace_service or load_wayfire_workspace_service()
+            picker = window_picker or load_wayfire_window_pick_service()
+            desktop_actions = (
+                desktop_action_service or load_wayfire_desktop_action_service()
             )
 
-            previews = ReducedPreviewService()
+            visibility = visibility_service
+            if visibility is None:
+                visibility = load_wayfire_visibility_service(config=config)
+            if visibility is None:
+                visibility = ReducedVisibilityService()
 
-        self._services = WayfireRuntimeServices(
-            windows=windows,
-            previews=previews,
-            surface=WaylandLayerShellSurfaceService(layer_shell=layer_shell),
-            visibility=visibility,
-            workspaces=workspaces,
-            desktop_actions=desktop_actions,
-            screen_capture=screen_capture
-            if screen_capture is not None
-            else load_portal_color_picker(),
-            window_picker=picker,
-            protocol_runtime=runtime,
-            idle=WaylandIdleService(protocol=runtime.idle_protocol)
-            if runtime is not None and runtime.idle_protocol is not None
-            else None,
-        )
+            previews = preview_service or load_wayfire_preview_service()
+            if previews is None:
+                from docking.platform.backends.reduced.services import (
+                    ReducedPreviewService,
+                )
+
+                previews = ReducedPreviewService()
+
+            self._services = WayfireRuntimeServices(
+                windows=windows,
+                previews=previews,
+                surface=WaylandLayerShellSurfaceService(layer_shell=layer_shell),
+                visibility=visibility,
+                workspaces=workspaces,
+                desktop_actions=desktop_actions,
+                screen_capture=screen_capture
+                if screen_capture is not None
+                else load_portal_color_picker(),
+                window_picker=picker,
+                protocol_runtime=runtime,
+                idle=WaylandIdleService(protocol=runtime.idle_protocol)
+                if runtime is not None and runtime.idle_protocol is not None
+                else None,
+            )
+            lifecycle.add_service("idle", lambda: self._services.idle)
+            lifecycle.add_service("previews", lambda: self._services.previews)
+            lifecycle.add_service("windows", lambda: self._services.windows)
+            lifecycle.add_service("surface", lambda: self._services.surface)
+            lifecycle.add_service("visibility", lambda: self._services.visibility)
+            lifecycle.add_service("workspaces", lambda: self._services.workspaces)
+            lifecycle.add_service(
+                "desktop_actions", lambda: self._services.desktop_actions
+            )
+            lifecycle.add_service(
+                "screen_capture", lambda: self._services.screen_capture
+            )
+            lifecycle.add_service("window_picker", lambda: self._services.window_picker)
+            self._session_lifecycle = lifecycle
+            construction.pop_all()
 
     @property
     def name(self) -> str:
@@ -252,35 +275,7 @@ class WayfireSessionBackend(SessionBackend):
         return self._services.window_picker
 
     def start(self) -> None:
-        if self._services.idle is not None:
-            self._services.idle.start()
-        self._services.previews.start()
-        self._services.windows.start()
-        self._services.surface.start()
-        self._services.visibility.start()
-        if self._services.workspaces is not None:
-            self._services.workspaces.start()
-        if self._services.desktop_actions is not None:
-            self._services.desktop_actions.start()
-        if self._services.screen_capture is not None:
-            self._services.screen_capture.start()
-        if self._services.window_picker is not None:
-            self._services.window_picker.start()
+        self._session_lifecycle.start()
 
     def stop(self) -> None:
-        if self._services.idle is not None:
-            self._services.idle.stop()
-        if self._services.window_picker is not None:
-            self._services.window_picker.stop()
-        if self._services.screen_capture is not None:
-            self._services.screen_capture.stop()
-        if self._services.desktop_actions is not None:
-            self._services.desktop_actions.stop()
-        if self._services.workspaces is not None:
-            self._services.workspaces.stop()
-        self._services.visibility.stop()
-        self._services.surface.stop()
-        self._services.windows.stop()
-        self._services.previews.stop()
-        if self._services.protocol_runtime is not None:
-            self._services.protocol_runtime.stop()
+        self._session_lifecycle.stop()

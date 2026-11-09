@@ -23,6 +23,7 @@ from docking.platform.backends.base import (
     PlatformCapabilities,
     SessionBackend,
 )
+from docking.platform.backends.lifecycle import ServiceLifecycle
 from docking.platform.backends.x11.services.actions import WnckDesktopActionService
 from docking.platform.backends.x11.services.capture import X11ScreenCaptureService
 from docking.platform.backends.x11.services.idle import X11IdleService
@@ -88,6 +89,17 @@ class X11SessionBackend(SessionBackend):
             screen_capture=X11ScreenCaptureService(),
             desktop_actions=WnckDesktopActionService(),
         )
+        lifecycle = ServiceLifecycle()
+        lifecycle.add_service("windows", lambda: self._services.windows)
+        lifecycle.add_service("previews", lambda: self._services.previews)
+        lifecycle.add_service("surface", lambda: self._services.surface)
+        lifecycle.add_service("visibility", lambda: self._services.visibility)
+        lifecycle.add_service("workspaces", lambda: self._services.workspaces)
+        lifecycle.add_service("window_picker", lambda: self._services.window_picker)
+        lifecycle.add_service("idle", lambda: self._services.idle)
+        lifecycle.add_service("screen_capture", lambda: self._services.screen_capture)
+        lifecycle.add_service("desktop_actions", lambda: self._services.desktop_actions)
+        self._session_lifecycle = lifecycle
 
     @property
     def name(self) -> str:
@@ -169,23 +181,7 @@ class X11SessionBackend(SessionBackend):
         return self._services.window_picker
 
     def start(self) -> None:
-        self._services.windows.start()
-        self._services.previews.start()
-        self._services.surface.start()
-        self._services.visibility.start()
-        self._services.workspaces.start()
-        self._services.window_picker.start()
-        self._services.idle.start()
-        self._services.screen_capture.start()
-        self._services.desktop_actions.start()
+        self._session_lifecycle.start()
 
     def stop(self) -> None:
-        self._services.desktop_actions.stop()
-        self._services.screen_capture.stop()
-        self._services.idle.stop()
-        self._services.window_picker.stop()
-        self._services.workspaces.stop()
-        self._services.visibility.stop()
-        self._services.surface.stop()
-        self._services.previews.stop()
-        self._services.windows.stop()
+        self._session_lifecycle.stop()

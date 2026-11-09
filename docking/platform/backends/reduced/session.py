@@ -31,6 +31,7 @@ from docking.platform.backends.base import (
     WindowService,
     WorkspaceService,
 )
+from docking.platform.backends.lifecycle import ServiceLifecycle
 from docking.platform.backends.reduced.services import (
     ReducedPreviewService,
     ReducedSurfaceService,
@@ -59,6 +60,12 @@ class ReducedSessionBackend(SessionBackend):
             surface=ReducedSurfaceService(),
             visibility=ReducedVisibilityService(),
         )
+        lifecycle = ServiceLifecycle()
+        lifecycle.add_service("windows", lambda: self._services.windows)
+        lifecycle.add_service("previews", lambda: self._services.previews)
+        lifecycle.add_service("surface", lambda: self._services.surface)
+        lifecycle.add_service("visibility", lambda: self._services.visibility)
+        self._session_lifecycle = lifecycle
 
     @property
     def name(self) -> str:
@@ -109,13 +116,7 @@ class ReducedSessionBackend(SessionBackend):
         return None
 
     def start(self) -> None:
-        self._services.windows.start()
-        self._services.previews.start()
-        self._services.surface.start()
-        self._services.visibility.start()
+        self._session_lifecycle.start()
 
     def stop(self) -> None:
-        self._services.visibility.stop()
-        self._services.surface.stop()
-        self._services.previews.stop()
-        self._services.windows.stop()
+        self._session_lifecycle.stop()

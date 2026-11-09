@@ -33,6 +33,7 @@ Backend selection
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextlib import ExitStack
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
@@ -53,6 +54,7 @@ from docking.platform.backends.base import (
     WindowSnapshot,
     WorkspaceService,
 )
+from docking.platform.backends.lifecycle import ServiceLifecycle
 from docking.platform.backends.reduced.services import (
     ReducedPreviewService,
 )
@@ -265,140 +267,159 @@ class CosmicSessionBackend(SessionBackend):
         screen_capture: ScreenCaptureService | None = None,
         config: Config | None = None,
     ) -> None:
-        runtime = protocol_runtime
-        if runtime is None:
-            candidate_runtime = WaylandProtocolRuntime()
-            if candidate_runtime.start():
-                runtime = candidate_runtime
+        lifecycle = ServiceLifecycle()
+        with ExitStack() as construction:
+            construction.callback(lifecycle.stop)
+            runtime = protocol_runtime
+            if runtime is not None:
+                lifecycle.add("wayland runtime", stop=runtime.stop)
+            if runtime is None:
+                candidate_runtime = WaylandProtocolRuntime()
+                lifecycle.add("wayland runtime", stop=candidate_runtime.stop)
+                if candidate_runtime.start():
+                    runtime = candidate_runtime
 
-        cosmic_toplevel = (
-            runtime.cosmic_toplevel_protocol if runtime is not None else None
-        )
-        preview_protocol = runtime.preview_protocol if runtime is not None else None
-        hyprland_preview_protocol = (
-            runtime.hyprland_preview_protocol if runtime is not None else None
-        )
-
-        # Workspace services start before window replay, so window snapshots use
-        # the same stable IDs and all active outputs' workspace memberships.
-        std_workspace = runtime.workspace_protocol if runtime is not None else None
-        from docking.platform.backends.wayland.workspaces import WaylandWorkspaceService
-
-        workspaces: WorkspaceService | None = (
-            WaylandWorkspaceService(protocol=std_workspace)
-            if std_workspace is not None
-            else None
-        )
-
-        # Preview handle tracker for window preview capture
-        preview_handles: WaylandPreviewHandleTracker | None = None
-        if preview_protocol is not None:
-            preview_handles = WaylandPreviewHandleTracker(
-                model=model,
-                application_registry=application_registry,
-                process_identity_service=process_identity_service,
-                protocol=preview_protocol,
+            cosmic_toplevel = (
+                runtime.cosmic_toplevel_protocol if runtime is not None else None
+            )
+            preview_protocol = runtime.preview_protocol if runtime is not None else None
+            hyprland_preview_protocol = (
+                runtime.hyprland_preview_protocol if runtime is not None else None
             )
 
-        # Window service backed by COSMIC toplevel adapter
-        windows: WindowService
-        if cosmic_toplevel is not None:
-            # COSMIC toplevel adapter handles both ext_foreign_toplevel_list_v1
-            # (for listing) and zcosmic_toplevel_info_v1 (for richer info)
-            windows = CosmicWindowService(
-                config=config,
-                workspaces=workspaces,
-                model=model,
-                application_registry=application_registry,
-                process_identity_service=process_identity_service,
-                protocol=cosmic_toplevel,
-                preview_handles=preview_handles,
-                can_preview=preview_protocol is None
-                and hyprland_preview_protocol is not None,
+            # Workspace services start before window replay, so window snapshots use
+            # the same stable IDs and all active outputs' workspace memberships.
+            std_workspace = runtime.workspace_protocol if runtime is not None else None
+            from docking.platform.backends.wayland.workspaces import (
+                WaylandWorkspaceService,
             )
-        else:
-            # Fall back to generic foreign-toplevel if available
-            generic_toplevel = (
-                runtime.foreign_toplevel_protocol if runtime is not None else None
+
+            workspaces: WorkspaceService | None = (
+                WaylandWorkspaceService(protocol=std_workspace)
+                if std_workspace is not None
+                else None
             )
-            if generic_toplevel is not None:
-                windows = WaylandForeignToplevelWindowService(
+
+            # Preview handle tracker for window preview capture
+            preview_handles: WaylandPreviewHandleTracker | None = None
+            if preview_protocol is not None:
+                preview_handles = WaylandPreviewHandleTracker(
                     model=model,
                     application_registry=application_registry,
                     process_identity_service=process_identity_service,
-                    protocol=generic_toplevel,
+                    protocol=preview_protocol,
+                )
+
+            # Window service backed by COSMIC toplevel adapter
+            windows: WindowService
+            if cosmic_toplevel is not None:
+                # COSMIC toplevel adapter handles both ext_foreign_toplevel_list_v1
+                # (for listing) and zcosmic_toplevel_info_v1 (for richer info)
+                windows = CosmicWindowService(
+                    config=config,
+                    workspaces=workspaces,
+                    model=model,
+                    application_registry=application_registry,
+                    process_identity_service=process_identity_service,
+                    protocol=cosmic_toplevel,
                     preview_handles=preview_handles,
+                    can_preview=preview_protocol is None
+                    and hyprland_preview_protocol is not None,
+                )
+            else:
+                # Fall back to generic foreign-toplevel if available
+                generic_toplevel = (
+                    runtime.foreign_toplevel_protocol if runtime is not None else None
+                )
+                if generic_toplevel is not None:
+                    windows = WaylandForeignToplevelWindowService(
+                        model=model,
+                        application_registry=application_registry,
+                        process_identity_service=process_identity_service,
+                        protocol=generic_toplevel,
+                        preview_handles=preview_handles,
+                    )
+                else:
+                    from docking.platform.backends.reduced.services import (
+                        ReducedWindowService,
+                    )
+
+                    windows = ReducedWindowService()
+
+            # GTK owns the layer surface on a different Wayland connection. Sending
+            # it to the PyWayland overlap manager is invalid. Native geometry and
+            # workspace events instead supply all three dodge policies safely.
+            visibility: VisibilityService
+            if (
+                isinstance(windows, CosmicWindowService)
+                and cosmic_toplevel is not None
+                and cosmic_toplevel.supports_geometry
+                and windows.supports_workspace_visibility
+            ):
+                visibility = SnapshotVisibilityService(
+                    windows=windows,
+                    visible_windows=lambda _rect: windows.list_all_windows(),
+                    config=config,
                 )
             else:
                 from docking.platform.backends.reduced.services import (
-                    ReducedWindowService,
+                    ReducedVisibilityService,
                 )
 
-                windows = ReducedWindowService()
+                visibility = ReducedVisibilityService()
 
-        # GTK owns the layer surface on a different Wayland connection. Sending
-        # it to the PyWayland overlap manager is invalid. Native geometry and
-        # workspace events instead supply all three dodge policies safely.
-        visibility: VisibilityService
-        if (
-            isinstance(windows, CosmicWindowService)
-            and cosmic_toplevel is not None
-            and cosmic_toplevel.supports_geometry
-            and windows.supports_workspace_visibility
-        ):
-            visibility = SnapshotVisibilityService(
+            surface = WaylandLayerShellSurfaceService(
+                layer_shell=layer_shell,
+            )
+
+            # Preview service: use standard Wayland capture when available
+            previews: PreviewService
+            if preview_protocol is not None and preview_handles is not None:
+                previews = WaylandPreviewService(
+                    protocol=preview_protocol,
+                    handles=preview_handles,
+                )
+            elif hyprland_preview_protocol is not None and isinstance(
+                windows, WaylandForeignToplevelWindowService
+            ):
+                from docking.platform.backends.wayland.previews import (
+                    HyprlandPreviewService,
+                )
+
+                previews = HyprlandPreviewService(
+                    protocol=hyprland_preview_protocol,
+                    windows=windows,
+                )
+            else:
+                previews = ReducedPreviewService()
+
+            self._services = CosmicRuntimeServices(
                 windows=windows,
-                visible_windows=lambda _rect: windows.list_all_windows(),
-                config=config,
-            )
-        else:
-            from docking.platform.backends.reduced.services import (
-                ReducedVisibilityService,
-            )
-
-            visibility = ReducedVisibilityService()
-
-        surface = WaylandLayerShellSurfaceService(
-            layer_shell=layer_shell,
-        )
-
-        # Preview service: use standard Wayland capture when available
-        previews: PreviewService
-        if preview_protocol is not None and preview_handles is not None:
-            previews = WaylandPreviewService(
-                protocol=preview_protocol,
-                handles=preview_handles,
-            )
-        elif hyprland_preview_protocol is not None and isinstance(
-            windows, WaylandForeignToplevelWindowService
-        ):
-            from docking.platform.backends.wayland.previews import (
-                HyprlandPreviewService,
+                previews=previews,
+                surface=surface,
+                visibility=visibility,
+                workspaces=workspaces,
+                screen_capture=screen_capture
+                if screen_capture is not None
+                else load_portal_color_picker(),
+                protocol_runtime=runtime,
+                idle=WaylandIdleService(protocol=runtime.idle_protocol)
+                if runtime is not None and runtime.idle_protocol is not None
+                else None,
             )
 
-            previews = HyprlandPreviewService(
-                protocol=hyprland_preview_protocol,
-                windows=windows,
+            self._cosmic_toplevel = cosmic_toplevel
+            lifecycle.add_service("idle", lambda: self._services.idle)
+            lifecycle.add_service("previews", lambda: self._services.previews)
+            lifecycle.add_service("workspaces", lambda: self._services.workspaces)
+            lifecycle.add_service("windows", lambda: self._services.windows)
+            lifecycle.add_service("surface", lambda: self._services.surface)
+            lifecycle.add_service("visibility", lambda: self._services.visibility)
+            lifecycle.add_service(
+                "screen_capture", lambda: self._services.screen_capture
             )
-        else:
-            previews = ReducedPreviewService()
-
-        self._services = CosmicRuntimeServices(
-            windows=windows,
-            previews=previews,
-            surface=surface,
-            visibility=visibility,
-            workspaces=workspaces,
-            screen_capture=screen_capture
-            if screen_capture is not None
-            else load_portal_color_picker(),
-            protocol_runtime=runtime,
-            idle=WaylandIdleService(protocol=runtime.idle_protocol)
-            if runtime is not None and runtime.idle_protocol is not None
-            else None,
-        )
-
-        self._cosmic_toplevel = cosmic_toplevel
+            self._session_lifecycle = lifecycle
+            construction.pop_all()
 
     @property
     def name(self) -> str:
@@ -498,27 +519,7 @@ class CosmicSessionBackend(SessionBackend):
         return None
 
     def start(self) -> None:
-        if self._services.idle is not None:
-            self._services.idle.start()
-        self._services.previews.start()
-        if self._services.workspaces is not None:
-            self._services.workspaces.start()
-        self._services.windows.start()
-        self._services.surface.start()
-        self._services.visibility.start()
-        if self._services.screen_capture is not None:
-            self._services.screen_capture.start()
+        self._session_lifecycle.start()
 
     def stop(self) -> None:
-        if self._services.idle is not None:
-            self._services.idle.stop()
-        if self._services.screen_capture is not None:
-            self._services.screen_capture.stop()
-        if self._services.workspaces is not None:
-            self._services.workspaces.stop()
-        self._services.visibility.stop()
-        self._services.surface.stop()
-        self._services.windows.stop()
-        self._services.previews.stop()
-        if self._services.protocol_runtime is not None:
-            self._services.protocol_runtime.stop()
+        self._session_lifecycle.stop()

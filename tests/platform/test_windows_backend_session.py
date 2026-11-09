@@ -2,6 +2,8 @@
 
 from unittest.mock import Mock
 
+import pytest
+
 from docking.platform.applications.implementations.windows.drag_source import (
     WindowsFileDragSource,
 )
@@ -20,9 +22,26 @@ from docking.platform.backends.windows import (
 )
 from docking.platform.backends.windows.session import WindowsSessionBackend
 
+_START_ORDER = (
+    "workspaces",
+    "windows",
+    "previews",
+    "surface",
+    "visibility",
+    "idle",
+    "screen_capture",
+    "desktop_actions",
+    "window_picker",
+)
 
+
+@pytest.mark.parametrize(
+    ("failure", "role"),
+    [(None, None)]
+    + [(operation, role) for operation in ("start", "stop") for role in _START_ORDER],
+)
 def test_windows_composes_native_services_without_constructing_reduced_fallbacks(
-    monkeypatch,
+    monkeypatch, failure, role
 ):
     forbidden = Mock(
         side_effect=AssertionError("Windows must own its session composition")
@@ -85,9 +104,28 @@ def test_windows_composes_native_services_without_constructing_reduced_fallbacks
         surface=services["surface"],
         config=config,
     )
-    backend.start()
+    events = []
+
+    def record(operation, name):
+        events.append((operation, name))
+        if (operation, name) == (failure, role):
+            raise OSError(f"{operation} failed")
+
+    for name, service in services.items():
+        service.start.side_effect = lambda name=name: record("start", name)
+        service.stop.side_effect = lambda name=name: record("stop", name)
+    if failure == "start":
+        with pytest.raises(OSError, match="start failed"):
+            backend.start()
+        expected_start = _START_ORDER[: _START_ORDER.index(role) + 1]
+    else:
+        backend.start()
+        expected_start = _START_ORDER
+    backend.stop()
     backend.stop()
     for service in services.values():
-        service.start.assert_called_once()
         service.stop.assert_called_once()
+    assert events == [("start", name) for name in expected_start] + [
+        ("stop", name) for name in reversed(_START_ORDER)
+    ]
     forbidden.assert_not_called()

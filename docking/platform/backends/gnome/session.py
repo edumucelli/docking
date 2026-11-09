@@ -41,6 +41,7 @@ from docking.platform.backends.gnome.bridge import (
     GnomeShellBridgeWindowService,
     GnomeShellBridgeWorkspaceService,
 )
+from docking.platform.backends.lifecycle import ServiceLifecycle
 from docking.platform.backends.visibility import SnapshotVisibilityService
 from docking.platform.backends.wayland.portals import load_portal_color_picker
 
@@ -96,6 +97,15 @@ class GnomeShellBridgeSessionBackend(SessionBackend):
             idle=MutterIdleService.connect(),
             screen_capture=load_portal_color_picker(),
         )
+        lifecycle = ServiceLifecycle()
+        lifecycle.add_service("previews", lambda: self._services.previews)
+        lifecycle.add_service("windows", lambda: self._services.windows)
+        lifecycle.add_service("surface", lambda: self._services.surface)
+        lifecycle.add_service("visibility", lambda: self._services.visibility)
+        lifecycle.add_service("workspaces", lambda: self._services.workspaces)
+        lifecycle.add_service("idle", lambda: self._services.idle)
+        lifecycle.add_service("screen_capture", lambda: self._services.screen_capture)
+        self._session_lifecycle = lifecycle
 
     @property
     def name(self) -> str:
@@ -167,23 +177,7 @@ class GnomeShellBridgeSessionBackend(SessionBackend):
         return None
 
     def start(self) -> None:
-        self._services.previews.start()
-        self._services.windows.start()
-        self._services.surface.start()
-        self._services.visibility.start()
-        self._services.workspaces.start()
-        if self._services.idle is not None:
-            self._services.idle.start()
-        if self._services.screen_capture is not None:
-            self._services.screen_capture.start()
+        self._session_lifecycle.start()
 
     def stop(self) -> None:
-        if self._services.screen_capture is not None:
-            self._services.screen_capture.stop()
-        if self._services.idle is not None:
-            self._services.idle.stop()
-        self._services.workspaces.stop()
-        self._services.visibility.stop()
-        self._services.surface.stop()
-        self._services.windows.stop()
-        self._services.previews.stop()
+        self._session_lifecycle.stop()
