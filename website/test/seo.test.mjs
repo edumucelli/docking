@@ -36,7 +36,7 @@ for (const [lang, route] of Object.entries(languages)) {
     assert.equal(byTag(document, "h1").length, 1);
     assert.equal(byTag(document, "title").length, 1);
     const title = text(byTag(document, "title")[0]);
-    const expectedTitle = "Docking - Free Desktop Dock for Linux & BSD";
+    const expectedTitle = "Docking - Free Desktop Dock for Linux, BSD & Windows";
     assert.equal(title, lang === "en" ? expectedTitle : catalog[expectedTitle][lang]);
     const url = `https://docking.cc/${route}`;
     assert.equal(byAttr(document, "rel", "canonical").length, 1);

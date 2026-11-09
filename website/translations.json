@@ -1,13 +1,13 @@
 {
-  "Docking - Free Desktop Dock for Linux & BSD": {
-    "pt": "Docking - Dock gratuito para Linux e BSD",
-    "fr": "Docking - Dock gratuit pour Linux et BSD",
-    "es": "Docking - Dock gratuito para Linux y BSD"
+  "Docking - Free Desktop Dock for Linux, BSD & Windows": {
+    "pt": "Docking - Dock gratuito para Linux, BSD e Windows",
+    "fr": "Docking - Dock gratuit pour Linux, BSD et Windows",
+    "es": "Docking - Dock gratuito para Linux, BSD y Windows"
   },
-  "A free, open source desktop dock for Linux, FreeBSD, OpenBSD and NetBSD. Launch apps, add applets and customize themes. Supports X11 and Linux Wayland.": {
-    "pt": "Um dock gratuito e de código aberto para Linux, FreeBSD, OpenBSD e NetBSD. Abra aplicações, adicione applets e personalize temas. Compatível com X11 e Wayland no Linux.",
-    "fr": "Un dock gratuit et open source pour Linux, FreeBSD, OpenBSD et NetBSD. Lancez des applications, ajoutez des applets et personnalisez les thèmes. Compatible X11 et Wayland sous Linux.",
-    "es": "Un dock gratuito y de código abierto para Linux, FreeBSD, OpenBSD y NetBSD. Abre aplicaciones, añade applets y personaliza temas. Compatible con X11 y Wayland en Linux."
+  "A free, open source desktop dock for Linux and BSD, with a Windows 11 preview. Launch apps, add applets and customize themes.": {
+    "pt": "Um dock gratuito e de código aberto para Linux e BSD, com uma pré-visualização para Windows 11. Abra aplicações, adicione applets e personalize temas.",
+    "fr": "Un dock gratuit et open source pour Linux et BSD, avec une préversion pour Windows 11. Lancez des applications, ajoutez des applets et personnalisez les thèmes.",
+    "es": "Un dock gratuito y de código abierto para Linux y BSD, con una vista previa para Windows 11. Abre aplicaciones, añade applets y personaliza temas."
   },
   "Docking desktop dock preview with applets": {
     "pt": "Pré-visualização do dock Docking com applets",
@@ -79,15 +79,15 @@
     "fr": "Fermer la suggestion de langue",
     "es": "Cerrar sugerencia de idioma"
   },
-  "A free desktop dock for Linux and BSD": {
-    "pt": "Um dock gratuito para Linux e BSD",
-    "fr": "Un dock gratuit pour Linux et BSD",
-    "es": "Un dock gratuito para Linux y BSD"
+  "A free desktop dock for Linux, BSD and Windows": {
+    "pt": "Um dock gratuito para Linux, BSD e Windows",
+    "fr": "Un dock gratuit pour Linux, BSD et Windows",
+    "es": "Un dock gratuito para Linux, BSD y Windows"
   },
-  "A fast, customizable dock for Linux, FreeBSD, OpenBSD, and NetBSD, written in Python with built-in applets. Supports X11 on all four systems and Wayland on Linux.": {
-    "pt": "Um dock rápido e personalizável para Linux, FreeBSD, OpenBSD e NetBSD, escrito em Python e com applets integrados. Compatível com X11 nos quatro sistemas e com Wayland no Linux.",
-    "fr": "Un dock rapide et personnalisable pour Linux, FreeBSD, OpenBSD et NetBSD, écrit en Python avec des applets intégrés. Compatible avec X11 sur les quatre systèmes et Wayland sous Linux.",
-    "es": "Un dock rápido y personalizable para Linux, FreeBSD, OpenBSD y NetBSD, escrito en Python con applets integrados. Compatible con X11 en los cuatro sistemas y Wayland en Linux."
+  "A fast, customizable dock with built-in applets for Linux, FreeBSD, OpenBSD, and NetBSD, plus a Windows 11 preview. Supports X11 on Linux and BSD, Wayland on Linux, and native Windows integration.": {
+    "pt": "Um dock rápido e personalizável com applets integrados para Linux, FreeBSD, OpenBSD e NetBSD, além de uma pré-visualização para Windows 11. Compatível com X11 no Linux e BSD, Wayland no Linux e integração nativa com Windows.",
+    "fr": "Un dock rapide et personnalisable avec des applets intégrés pour Linux, FreeBSD, OpenBSD et NetBSD, ainsi qu’une préversion pour Windows 11. Compatible avec X11 sous Linux et BSD, Wayland sous Linux et l’intégration native à Windows.",
+    "es": "Un dock rápido y personalizable con applets integrados para Linux, FreeBSD, OpenBSD y NetBSD, además de una vista previa para Windows 11. Compatible con X11 en Linux y BSD, Wayland en Linux e integración nativa con Windows."
   },
   "View on GitHub": {
     "pt": "Ver no GitHub",
@@ -189,10 +189,10 @@
     "fr": "Compatibilité entre environnements de bureau",
     "es": "Compatibilidad entre entornos de escritorio"
   },
-  "Built for Linux and BSD setups that span more than one desktop environment and more than one way of working.": {
-    "pt": "Concebido para configurações Linux e BSD que abrangem vários ambientes de trabalho e formas de trabalhar.",
-    "fr": "Conçu pour les configurations Linux et BSD qui utilisent plusieurs environnements de bureau et différentes façons de travailler.",
-    "es": "Diseñado para configuraciones Linux y BSD que utilizan varios entornos de escritorio y distintas formas de trabajar."
+  "Built for Linux, BSD and Windows setups that span more than one desktop environment and more than one way of working.": {
+    "pt": "Concebido para configurações Linux, BSD e Windows que abrangem vários ambientes de trabalho e formas de trabalhar.",
+    "fr": "Conçu pour les configurations Linux, BSD et Windows qui utilisent plusieurs environnements de bureau et différentes façons de travailler.",
+    "es": "Diseñado para configuraciones Linux, BSD y Windows que utilizan varios entornos de escritorio y distintas formas de trabajar."
   },
   "Extensible applet system": {
     "pt": "Sistema de applets extensível",
@@ -204,20 +204,20 @@
     "fr": "Ajoutez vos propres widgets et comportements sans compromettre le fonctionnement du dock.",
     "es": "Añade tus propios widgets y comportamientos sin comprometer el funcionamiento del dock."
   },
-  "Compatibility: Linux and BSD desktops": {
-    "pt": "Compatibilidade: ambientes de trabalho Linux e BSD",
-    "fr": "Compatibilité : bureaux Linux et BSD",
-    "es": "Compatibilidad: escritorios Linux y BSD"
+  "Compatibility: Linux, BSD and Windows desktops": {
+    "pt": "Compatibilidade: ambientes de trabalho Linux, BSD e Windows",
+    "fr": "Compatibilité : bureaux Linux, BSD et Windows",
+    "es": "Compatibilidad: escritorios Linux, BSD y Windows"
   },
   "Docking selects the best backend for the current session and falls back cleanly when a compositor does not expose every window-management feature.": {
     "pt": "O Docking seleciona a melhor integração para a sessão atual e adapta-se quando o compositor não disponibiliza todas as funcionalidades de gestão de janelas.",
     "fr": "Docking choisit la meilleure intégration pour la session en cours et s’adapte lorsque le compositeur n’expose pas toutes les fonctions de gestion des fenêtres.",
     "es": "Docking selecciona la mejor integración para la sesión actual y se adapta cuando el compositor no ofrece todas las funciones de gestión de ventanas."
   },
-  "Linux X11 and Wayland · FreeBSD, OpenBSD and NetBSD X11": {
-    "pt": "Linux com X11 e Wayland · FreeBSD, OpenBSD e NetBSD com X11",
-    "fr": "Linux avec X11 et Wayland · FreeBSD, OpenBSD et NetBSD avec X11",
-    "es": "Linux con X11 y Wayland · FreeBSD, OpenBSD y NetBSD con X11"
+  "Linux X11 and Wayland · BSD X11 · Windows 11 preview": {
+    "pt": "Linux com X11 e Wayland · BSD com X11 · Pré-visualização para Windows 11",
+    "fr": "Linux avec X11 et Wayland · BSD avec X11 · Préversion pour Windows 11",
+    "es": "Linux con X11 y Wayland · BSD con X11 · Vista previa para Windows 11"
   },
   "Environment": {
     "pt": "Ambiente",
@@ -1354,10 +1354,10 @@
     "fr": "Quels systèmes et environnements de bureau Docking prend-il en charge ?",
     "es": "¿Qué sistemas operativos y escritorios son compatibles con Docking?"
   },
-  "Docking supports Linux with X11 or Wayland, and FreeBSD, OpenBSD, and NetBSD with X11. Linux Wayland integration depends on the desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when compositor integration is unavailable.": {
-    "pt": "O Docking é compatível com Linux em X11 ou Wayland, e com FreeBSD, OpenBSD e NetBSD em X11. No Linux, a integração Wayland depende do ambiente: ponte GNOME Shell, KWin, protocolos COSMIC, layer-shell e protocolos disponibilizados pelo wlroots, ou modo reduzido quando não há integração com o compositor.",
-    "fr": "Docking prend en charge Linux sous X11 ou Wayland, ainsi que FreeBSD, OpenBSD et NetBSD sous X11. Sous Linux, l’intégration Wayland dépend du bureau : passerelle GNOME Shell, KWin, protocoles COSMIC, layer-shell et protocoles exposés par wlroots, ou mode réduit si l’intégration au compositeur n’est pas disponible.",
-    "es": "Docking es compatible con Linux en X11 o Wayland, y con FreeBSD, OpenBSD y NetBSD en X11. En Linux, la integración Wayland depende del escritorio: puente de GNOME Shell, KWin, protocolos COSMIC, layer-shell y protocolos disponibles de wlroots, o modo reducido cuando no hay integración con el compositor."
+  "Docking supports Linux with X11 or Wayland, and FreeBSD, OpenBSD, and NetBSD with X11. A native Windows 11 preview is also available as an unsigned installer and portable ZIP. Linux Wayland integration depends on the desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when compositor integration is unavailable.": {
+    "pt": "O Docking é compatível com Linux em X11 ou Wayland, e com FreeBSD, OpenBSD e NetBSD em X11. Está também disponível uma pré-visualização nativa para Windows 11 com instalador e ZIP portátil não assinados. No Linux, a integração Wayland depende do ambiente: ponte GNOME Shell, KWin, protocolos COSMIC, layer-shell e protocolos disponibilizados pelo wlroots, ou modo reduzido quando não há integração com o compositor.",
+    "fr": "Docking prend en charge Linux sous X11 ou Wayland, ainsi que FreeBSD, OpenBSD et NetBSD sous X11. Une préversion native pour Windows 11 est également disponible sous forme de programme d’installation et d’archive ZIP portable non signés. Sous Linux, l’intégration Wayland dépend du bureau : passerelle GNOME Shell, KWin, protocoles COSMIC, layer-shell et protocoles exposés par wlroots, ou mode réduit si l’intégration au compositeur n’est pas disponible.",
+    "es": "Docking es compatible con Linux en X11 o Wayland, y con FreeBSD, OpenBSD y NetBSD en X11. También hay una vista previa nativa para Windows 11 con instalador y ZIP portátil sin firmar. En Linux, la integración Wayland depende del escritorio: puente de GNOME Shell, KWin, protocolos COSMIC, layer-shell y protocolos disponibles de wlroots, o modo reducido cuando no hay integración con el compositor."
   },
   "Can I create my own applets?": {
     "pt": "Posso criar os meus próprios applets?",
@@ -1414,10 +1414,10 @@
     "fr": "Ajouter une étoile sur GitHub",
     "es": "Dar una estrella en GitHub"
   },
-  "Docking is an open source dock for Linux, FreeBSD, OpenBSD, and NetBSD, written in Python with GTK and Cairo. Supports X11 on all four systems and Wayland on Linux.": {
-    "pt": "O Docking é um dock de código aberto para Linux, FreeBSD, OpenBSD e NetBSD, escrito em Python com GTK e Cairo. Compatível com X11 nos quatro sistemas e Wayland no Linux.",
-    "fr": "Docking est un dock open source pour Linux, FreeBSD, OpenBSD et NetBSD, écrit en Python avec GTK et Cairo. Compatible avec X11 sur les quatre systèmes et Wayland sous Linux.",
-    "es": "Docking es un dock de código abierto para Linux, FreeBSD, OpenBSD y NetBSD, escrito en Python con GTK y Cairo. Compatible con X11 en los cuatro sistemas y Wayland en Linux."
+  "Docking is an open source dock for Linux, FreeBSD, OpenBSD, and NetBSD, with a Windows 11 preview. Written in Python with GTK and Cairo.": {
+    "pt": "O Docking é um dock de código aberto para Linux, FreeBSD, OpenBSD e NetBSD, com uma pré-visualização para Windows 11. Escrito em Python com GTK e Cairo.",
+    "fr": "Docking est un dock open source pour Linux, FreeBSD, OpenBSD et NetBSD, avec une préversion pour Windows 11. Écrit en Python avec GTK et Cairo.",
+    "es": "Docking es un dock de código abierto para Linux, FreeBSD, OpenBSD y NetBSD, con una vista previa para Windows 11. Escrito en Python con GTK y Cairo."
   },
   "FAQ": {
     "pt": "Perguntas frequentes",
@@ -1684,10 +1684,10 @@
     "fr": "Installer Docking",
     "es": "Instalar Docking"
   },
-  "Windows 11 x64 preview": {
-    "pt": "Pré-visualização para Windows 11 x64",
-    "fr": "Préversion pour Windows 11 x64",
-    "es": "Vista previa para Windows 11 x64"
+  "Windows 11 preview": {
+    "pt": "Pré-visualização para Windows 11",
+    "fr": "Préversion pour Windows 11",
+    "es": "Vista previa para Windows 11"
   },
   "Windows-enabled releases include a per-user installer and portable ZIP with Python and GTK included. Previews are unsigned; signing is deferred. Download the package and SHA256SUMS-windows from the same release, verify the checksum, and close Docking before updating.": {
     "pt": "As versões com suporte para Windows incluem um instalador por utilizador e um ficheiro ZIP portátil com Python e GTK incluídos. As pré-visualizações não são assinadas; a assinatura fica para uma fase posterior. Descarregue o pacote e SHA256SUMS-windows da mesma versão, verifique a soma de verificação e feche o Docking antes de atualizar.",
@@ -1734,9 +1734,39 @@
     "fr": "amd64 · .tgz · X11 avec composition",
     "es": "amd64 · .tgz · X11 con composición"
   },
-  "Choose a Linux package below, follow the FreeBSD, OpenBSD and NetBSD installation guides, or try the Windows 11 x64 preview.": {
-    "pt": "Escolha um pacote Linux abaixo, siga os guias de instalação para FreeBSD, OpenBSD e NetBSD ou experimente a pré-visualização para Windows 11 x64.",
-    "fr": "Choisissez un paquet Linux ci-dessous, suivez les guides d’installation de FreeBSD, OpenBSD et NetBSD ou essayez la préversion pour Windows 11 x64.",
-    "es": "Elige un paquete Linux a continuación, sigue las guías de instalación de FreeBSD, OpenBSD y NetBSD o prueba la vista previa para Windows 11 x64."
+  "Choose a Linux package below, follow the FreeBSD, OpenBSD and NetBSD installation guides, or try the Windows 11 preview.": {
+    "pt": "Escolha um pacote Linux abaixo, siga os guias de instalação para FreeBSD, OpenBSD e NetBSD ou experimente a pré-visualização para Windows 11.",
+    "fr": "Choisissez un paquet Linux ci-dessous, suivez les guides d’installation de FreeBSD, OpenBSD et NetBSD ou essayez la préversion pour Windows 11.",
+    "es": "Elige un paquete Linux a continuación, sigue las guías de instalación de FreeBSD, OpenBSD y NetBSD o prueba la vista previa para Windows 11."
+  },
+  "Preview": {
+    "pt": "Pré-visualização",
+    "fr": "Préversion",
+    "es": "Vista previa"
+  },
+  "Windows 11": {
+    "pt": "Windows 11",
+    "fr": "Windows 11",
+    "es": "Windows 11"
+  },
+  "Unsigned installer and portable ZIP": {
+    "pt": "Instalador e ZIP portátil não assinados",
+    "fr": "Programme d’installation et ZIP portable non signés",
+    "es": "Instalador y ZIP portátil sin firmar"
+  },
+  "Native Windows backend": {
+    "pt": "Integração Windows nativa",
+    "fr": "Intégration Windows native",
+    "es": "Integración nativa con Windows"
+  },
+  "App launching and pinning, window tracking and actions, previews, auto-hide, Search, and a native system tray. Some applets and hardware integrations remain limited.": {
+    "pt": "Abertura e fixação de aplicações, acompanhamento e ações sobre janelas, pré-visualizações, ocultação automática, Pesquisa e uma área de notificação nativa. Alguns applets e integrações de hardware continuam limitados.",
+    "fr": "Lancement et épinglage d’applications, suivi et actions sur les fenêtres, aperçus, masquage automatique, Recherche et zone de notification native. Certains applets et intégrations matérielles restent limités.",
+    "es": "Apertura y anclaje de aplicaciones, seguimiento y acciones sobre ventanas, vistas previas, ocultación automática, Búsqueda y una bandeja del sistema nativa. Algunos applets e integraciones de hardware siguen limitados."
+  },
+  "Windows feature coverage and limitations": {
+    "pt": "Funcionalidades e limitações no Windows",
+    "fr": "Fonctionnalités et limites sous Windows",
+    "es": "Funciones y limitaciones en Windows"
   }
 }
