@@ -22,7 +22,7 @@ import zipfile
 from bz2 import open as open_bz2
 from gzip import open as open_gzip
 from io import BytesIO
-from lzma import LZMAError
+from lzma import LZMADecompressor, LZMAError
 from lzma import open as open_xz
 from pathlib import Path
 
@@ -36,6 +36,7 @@ MAX_IMAGE_PREVIEW_FILE_SIZE = 50 * 1024 * 1024
 MAX_ARCHIVE_PREVIEW_FILE_SIZE = 100 * 1024 * 1024
 MAX_ARCHIVE_ENTRIES = 30
 MAX_ARCHIVE_PREVIEW_BYTES = 8 * 1024 * 1024
+MAX_ARCHIVE_DECODER_BYTES = 64 * 1024 * 1024
 _IMAGE_SUFFIXES = {
     ".bmp",
     ".gif",
@@ -221,6 +222,33 @@ def preview_local_descriptor(
     )
 
 
+def _xz_preview_payload(path: Path) -> bytes:
+    decoder = LZMADecompressor(memlimit=MAX_ARCHIVE_DECODER_BYTES)
+    expanded = bytearray()
+    with path.open("rb") as compressed:
+        while len(expanded) <= MAX_ARCHIVE_PREVIEW_BYTES:
+            if decoder.eof:
+                chunk = decoder.unused_data.lstrip(b"\0")
+                while not chunk:
+                    chunk = compressed.read(64 * 1024)
+                    if not chunk:
+                        return bytes(expanded)
+                    chunk = chunk.lstrip(b"\0")
+                decoder = LZMADecompressor(memlimit=MAX_ARCHIVE_DECODER_BYTES)
+            elif decoder.needs_input:
+                chunk = compressed.read(64 * 1024)
+                if not chunk:
+                    raise EOFError("Incomplete XZ archive")
+            else:
+                chunk = b""
+            expanded.extend(
+                decoder.decompress(
+                    chunk, max_length=MAX_ARCHIVE_PREVIEW_BYTES + 1 - len(expanded)
+                )
+            )
+    return bytes(expanded)
+
+
 def _archive_preview(
     *,
     path: Path,
@@ -256,8 +284,11 @@ def _archive_preview(
             )
             fileobj = None
             if opener is not None:
-                with opener(path, "rb") as compressed:
-                    payload = compressed.read(MAX_ARCHIVE_PREVIEW_BYTES + 1)
+                if opener is open_xz:
+                    payload = _xz_preview_payload(path)
+                else:
+                    with opener(path, "rb") as compressed:
+                        payload = compressed.read(MAX_ARCHIVE_PREVIEW_BYTES + 1)
                 if len(payload) > MAX_ARCHIVE_PREVIEW_BYTES:
                     return SearchPreview(
                         title=title,
@@ -277,7 +308,7 @@ def _archive_preview(
         return None
     return SearchPreview(
         title=title,
-        body="\n".join(entries) or _("Empty archive"),
+        body="\n".join(entries)[:MAX_PREVIEW_BYTES] or _("Empty archive"),
         kind="archive",
         target=str(path),
     )

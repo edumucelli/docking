@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import lzma
 import tarfile
 import zipfile
 from io import BytesIO
@@ -11,6 +12,59 @@ import pytest
 
 import docking.search.preview as preview_mod
 from docking.search.preview import preview_local_descriptor, preview_local_target
+
+
+@pytest.mark.parametrize("extension", ["tar", "zip"])
+def test_archive_member_names_cannot_exceed_the_display_budget(tmp_path, extension):
+    path = tmp_path / f"long-name.{extension}"
+    name = "x" * (preview_mod.MAX_PREVIEW_BYTES + 1)
+    if extension == "tar":
+        with tarfile.open(path, "w") as archive:
+            archive.addfile(tarfile.TarInfo(name), BytesIO())
+    else:
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr(name, b"")
+
+    result = preview_local_target(target=str(path), title="archive")
+
+    assert result.kind == "archive"
+    assert len(result.body) == preview_mod.MAX_PREVIEW_BYTES
+
+
+def test_xz_preview_rejects_a_decoder_dictionary_above_the_memory_budget(
+    tmp_path, monkeypatch
+):
+    tar = BytesIO()
+    with tarfile.open(fileobj=tar, mode="w") as archive:
+        archive.addfile(tarfile.TarInfo("small.txt"), BytesIO())
+    path = tmp_path / "dictionary.tar.xz"
+    path.write_bytes(
+        lzma.compress(
+            tar.getvalue(),
+            filters=[{"id": lzma.FILTER_LZMA2, "dict_size": 1024 * 1024}],
+        )
+    )
+    monkeypatch.setattr(preview_mod, "MAX_ARCHIVE_DECODER_BYTES", 512 * 1024)
+
+    result = preview_local_target(target=str(path), title="archive")
+
+    assert result.kind != "archive"
+
+
+@pytest.mark.parametrize("padding", [b"", bytes(8)])
+def test_xz_memory_limit_retains_concatenated_stream_support(tmp_path, padding):
+    tar = BytesIO()
+    with tarfile.open(fileobj=tar, mode="w") as archive:
+        archive.addfile(tarfile.TarInfo("small.txt"), BytesIO())
+    payload = tar.getvalue()
+    path = tmp_path / "concatenated.tar.xz"
+    path.write_bytes(
+        lzma.compress(payload[:512]) + padding + lzma.compress(payload[512:])
+    )
+
+    result = preview_local_target(target=str(path), title="archive")
+
+    assert result.kind == "archive" and result.body == "small.txt"
 
 
 @pytest.mark.parametrize("compression", ["gz", "bz2", "xz"])
