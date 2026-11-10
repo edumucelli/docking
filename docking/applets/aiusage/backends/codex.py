@@ -20,9 +20,14 @@ import json
 import math
 import re
 import sys
+from functools import lru_cache
 from pathlib import Path
 
-from docking.applets.aiusage.backends.base import ProviderSessions
+from docking.applets.aiusage.backends.base import (
+    ProviderSessions,
+    event_date,
+    transcript_entries,
+)
 from docking.applets.aiusage.state import ModelUsage, Provider
 from docking.applets.aiusage.store import replace_session
 from docking.log import get_logger, with_context
@@ -66,10 +71,15 @@ def register_hook() -> None:
     )
 
     notify_match = re.search(
-        r"""^notify\s*=\s*\[(?:"(?:\\.|[^"\\])*"|'[^']*'|[^\]"'])*\]""",
+        r"""^[ \t]*(?:notify|"notify"|'notify')\s*=\s*\["""
+        r"""(?:"(?:\\.|[^"\\])*"|'[^']*'|[^\]"'])*\]""",
         content,
         re.MULTILINE,
     )
+    if notify_match is not None and re.search(
+        r"^[ \t]*\[", content[: notify_match.start()], re.MULTILINE
+    ):
+        notify_match = None
     if notify_match:
         existing = notify_match.group(0)
         if (
@@ -78,16 +88,25 @@ def register_hook() -> None:
             .codex_notify_is_current(existing, our_toml)
         ):
             return
-        if "codex-sync" in existing:
+        normalized = existing.replace("\\\\", "/").replace("\\", "/").casefold()
+        if not any(
+            marker in normalized
+            for marker in (
+                "docking.applets.aiusage.hook",
+                "docking.applets.claude.hook",
+                "/docking/applets/aiusage/hook_runner.py",
+                "/docking-hook.exe",
+            )
+        ):
             log.bind(action="register_codex_hook").info(
-                "Codex notify already set to codex-sync, not overwriting"
+                "Codex notify already set; preserving the existing handler"
             )
             return
         content = (
             content[: notify_match.start()] + our_toml + content[notify_match.end() :]
         )
     else:
-        section_match = re.search(r"^\[", content, re.MULTILINE)
+        section_match = re.search(r"^[ \t]*\[", content, re.MULTILINE)
         if section_match:
             content = (
                 content[: section_match.start()]
@@ -114,14 +133,17 @@ def handle_turn(json_arg: str) -> None:
         log.debug("Failed to parse Codex hook payload %r: %s", json_arg, exc)
         data = {}
 
+    if not isinstance(data, dict):
+        return
     thread_id = data.get("thread-id")
     session_path = find_session(thread_id=thread_id)
     if not session_path:
         return
     session_id = thread_id or session_path.stem
-    model_usage = parse_transcript(path=session_path)
+    day = _today_iso()
+    model_usage = parse_transcript(path=session_path, date=day)
     if model_usage:
-        replace_session(session_id=session_id, model_usage=model_usage)
+        replace_session(session_id=session_id, model_usage=model_usage, date=day)
 
 
 def find_session(thread_id: str | None = None) -> Path | None:
@@ -159,81 +181,71 @@ def _token_count(value: object) -> int:
     return int(value)
 
 
-def parse_transcript(path: Path) -> dict[str, ModelUsage]:
-    """Read a Codex CLI JSONL session and extract cumulative usage."""
+def parse_transcript(path: Path, *, date: str | None = None) -> dict[str, ModelUsage]:
+    return _read_transcript(path, date or _today_iso())[1]
+
+
+def _read_transcript(path: Path, date: str) -> tuple[str, dict[str, ModelUsage]]:
     try:
-        text = path.read_text(encoding="utf-8")
-    except OSError as exc:
+        stamp = path.stat()
+        return _parse_transcript(path, stamp.st_mtime_ns, stamp.st_size, date)
+    except (OSError, UnicodeError) as exc:
         log.debug("Failed to read Codex transcript %s: %s", path, exc)
-        return {}
+        return path.stem, {}
 
-    model: str = ""
-    best_total: int = 0
-    best_usage: dict[str, int] = {}
 
-    for line in text.splitlines():
-        try:
-            entry = json.loads(line)
-        except (json.JSONDecodeError, ValueError) as exc:
-            log.debug("Failed to parse Codex transcript line in %s: %s", path, exc)
+@lru_cache(maxsize=128)
+def _parse_transcript(
+    path: Path, _mtime_ns: int, _size: int, date: str
+) -> tuple[str, dict[str, ModelUsage]]:
+    model = ""
+    identifier = path.stem
+    best_total = 0
+    previous = dict.fromkeys(_USAGE_COUNTER_KEYS, 0)
+    result: dict[str, ModelUsage] = {}
+    for entry in transcript_entries(path):
+        payload = entry.get("payload")
+        if not isinstance(payload, dict):
             continue
-
-        entry_type = entry.get("type", "")
-        if entry_type == "turn_context":
-            # A null model must stay unavailable rather than becoming the
-            # literal text "None".
-            model_value = entry.get("payload", {}).get("model", "")
-            if isinstance(model_value, str) and model_value:
-                model = model_value
-
-        if entry_type == "event_msg":
-            payload = entry.get("payload", {})
-            if payload.get("type") != "token_count":
-                continue
+        if entry.get("type") == "session_meta":
+            value = payload.get("id")
+            if isinstance(value, str) and value:
+                identifier = value
+        elif entry.get("type") == "turn_context":
+            if "model" in payload:
+                value = payload["model"]
+                model = value if isinstance(value, str) else ""
+        elif entry.get("type") == "event_msg" and payload.get("type") == "token_count":
             info = payload.get("info")
             if not isinstance(info, dict):
                 continue
-            total_usage = info.get("total_token_usage", {})
-            if not isinstance(total_usage, dict):
+            counters = info.get("total_token_usage")
+            if not isinstance(counters, dict):
                 continue
-            total = _token_count(total_usage.get("total_tokens"))
-            if total > best_total:
-                best_total = total
-                # Only the counters ModelUsage reads: an unrelated field must
-                # not be able to abort the parse.
-                best_usage = {
-                    key: _token_count(total_usage.get(key))
-                    for key in _USAGE_COUNTER_KEYS
-                }
-
-    if not model or not best_usage:
-        return {}
-
-    return {
-        model: ModelUsage(
-            input_tokens=best_usage.get("input_tokens", 0),
-            output_tokens=best_usage.get("output_tokens", 0),
-            cache_write_tokens=0,
-            cache_read_tokens=best_usage.get("cached_input_tokens", 0),
-        )
-    }
+            total = _token_count(counters.get("total_tokens"))
+            if total <= best_total:
+                continue
+            current = {
+                key: max(0, _token_count(counters.get(key)))
+                for key in _USAGE_COUNTER_KEYS
+            }
+            delta = {
+                key: max(0, current[key] - previous[key]) for key in _USAGE_COUNTER_KEYS
+            }
+            previous, best_total = current, total
+            if not model or event_date(entry.get("timestamp"), fallback=date) != date:
+                continue
+            old = result.get(model, ModelUsage())
+            result[model] = ModelUsage(
+                input_tokens=old.input_tokens + delta["input_tokens"],
+                output_tokens=old.output_tokens + delta["output_tokens"],
+                cache_read_tokens=old.cache_read_tokens + delta["cached_input_tokens"],
+            )
+    return identifier, result
 
 
 def session_id(path: Path) -> str:
-    try:
-        for line in path.read_text(encoding="utf-8").splitlines():
-            try:
-                entry = json.loads(line)
-            except (json.JSONDecodeError, ValueError):
-                continue
-            if entry.get("type") != "session_meta":
-                continue
-            sid = entry.get("payload", {}).get("id", "")
-            if sid:
-                return str(sid)
-    except OSError as exc:
-        log.debug("Failed to read Codex session metadata %s: %s", path, exc)
-    return path.stem
+    return _read_transcript(path, _today_iso())[0]
 
 
 def query_today() -> ProviderSessions:
@@ -242,7 +254,8 @@ def query_today() -> ProviderSessions:
     if not sessions_dir.is_dir():
         return {}
 
-    today_start = datetime.datetime.fromisoformat(_today_iso()).timestamp()
+    day = _today_iso()
+    today_start = datetime.datetime.fromisoformat(day).timestamp()
     result: ProviderSessions = {}
     for jsonl in sessions_dir.rglob("*.jsonl"):
         try:
@@ -252,9 +265,9 @@ def query_today() -> ProviderSessions:
             log.debug("Failed to stat Codex transcript %s: %s", jsonl, exc)
             continue
 
-        model_usage = parse_transcript(path=jsonl)
+        identifier, model_usage = _read_transcript(jsonl, day)
         if model_usage:
-            result[session_id(path=jsonl)] = model_usage
+            result[identifier] = model_usage
     return result
 
 

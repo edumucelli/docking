@@ -56,12 +56,17 @@ def main() -> None:
         except (json.JSONDecodeError, ValueError) as exc:
             log.debug("Failed to parse Claude hook stdin payload: %s", exc)
             return
-        backend.handle_hook(event=event, payload=data)
-
     elif provider == "codex":
         # Codex appends the JSON payload as the last CLI arg.
-        json_arg = sys.argv[-1] if len(sys.argv) > 2 else "{}"
-        backend.handle_hook(event="", payload=json_arg)
+        event = ""
+        data = sys.argv[-1] if len(sys.argv) > 2 else "{}"
+    else:
+        return
+
+    try:
+        backend.handle_hook(event=event, payload=data)
+    except OSError as exc:
+        log.warning("Failed to update AI usage history: %s", exc)
 
 
 if __name__ == "__main__":

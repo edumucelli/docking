@@ -173,6 +173,11 @@ Tracks Claude Code, Codex CLI, and OpenCode usage from the dock.
 
 **Tooltip:** Today/week cost summary plus per-model usage for the selected provider
 
+Usage history is stored separately from dock preferences in
+`~/.local/state/docking/aiusage.json` (or `$XDG_STATE_HOME/docking/aiusage.json`).
+Existing history in `dock.json` is imported automatically. Refreshes run in the
+background, and daily totals follow the local date of each usage event.
+
 ### Alarm
 
 Multiple alarm presets with local-time scheduling, weekday repeats, one-shot alarms, snooze, and dismiss controls. The icon shows a rounded alarm clock with a compact next-alarm countdown, and switches to a ringing label when an alarm fires.

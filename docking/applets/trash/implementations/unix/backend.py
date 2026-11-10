@@ -22,6 +22,7 @@ import shutil
 import stat
 import subprocess
 from collections.abc import Callable
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -64,6 +65,34 @@ class _DeleteStats:
     def merge(self, other: _DeleteStats) -> None:
         self.failures += other.failures
         self.permission_denied = self.permission_denied or other.permission_denied
+
+
+def _delete_entry(parent_fd: int, name: str) -> _DeleteStats:
+    """Never resolve a child through a pathname that can become a symlink."""
+    stats = _DeleteStats()
+    try:
+        entry = os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        if stat.S_ISDIR(entry.st_mode):
+            descriptor = os.open(
+                name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd
+            )
+            try:
+                with os.scandir(descriptor) as entries:
+                    for child in entries:
+                        stats.merge(_delete_entry(descriptor, child.name))
+            finally:
+                os.close(descriptor)
+            os.rmdir(name, dir_fd=parent_fd)
+        else:
+            os.unlink(name, dir_fd=parent_fd)
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        log.bind(action="empty_trash_delete").debug(
+            "Could not delete trash item %s: %s", name, exc
+        )
+        stats.add_failure(exc)
+    return stats
 
 
 def _coerce_delete_stats(stats: object) -> _DeleteStats:
@@ -381,6 +410,54 @@ class UnixTrashWatch:
 
         return stop
 
+    def _delete_directory_contents(
+        self, directory: Path, *, preserve_for: Path | None = None
+    ) -> _DeleteStats:
+        stats = _DeleteStats()
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        try:
+            with ExitStack() as cleanup:
+                parent_fd = os.open(directory.parent, flags)
+                cleanup.callback(os.close, parent_fd)
+                directory_fd = os.open(directory.name, flags, dir_fd=parent_fd)
+                cleanup.callback(os.close, directory_fd)
+                preserved_fd = None
+                if preserve_for is not None:
+                    try:
+                        preserved_fd = os.open(
+                            preserve_for.name, flags, dir_fd=parent_fd
+                        )
+                    except FileNotFoundError:
+                        pass
+                    else:
+                        cleanup.callback(os.close, preserved_fd)
+                with os.scandir(directory_fd) as entries:
+                    names = [entry.name for entry in entries]
+                for name in names:
+                    if preserved_fd is not None and name.endswith(".trashinfo"):
+                        try:
+                            os.stat(
+                                name.removesuffix(".trashinfo"),
+                                dir_fd=preserved_fd,
+                                follow_symlinks=False,
+                            )
+                        except FileNotFoundError:
+                            pass
+                        except OSError as exc:
+                            stats.add_failure(exc)
+                            continue
+                        else:
+                            continue
+                    stats.merge(_delete_entry(directory_fd, name))
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            log.bind(action="empty_trash_delete").debug(
+                "Could not empty trash directory %s: %s", directory, exc
+            )
+            stats.add_failure(exc)
+        return stats
+
 
 class GioTrashBackend(UnixTrashWatch, TrashBackend):
     """Generic trash backend using Gio trash:/// behavior."""
@@ -572,71 +649,6 @@ class GioTrashBackend(UnixTrashWatch, TrashBackend):
             )
         return stats
 
-    def _delete_directory_contents(
-        self, directory: Path, *, preserve_for: Path | None = None
-    ) -> _DeleteStats:
-        stats = _DeleteStats()
-        try:
-            if (
-                directory.is_symlink()
-                or directory.parent.is_symlink()
-                or (preserve_for is not None and preserve_for.is_symlink())
-            ):
-                raise OSError("Refusing to empty a symbolic link to a trash directory")
-            children = list(directory.iterdir())
-        except FileNotFoundError:
-            return stats
-        except OSError as exc:
-            log.bind(action="empty_trash_delete").debug(
-                "Could not enumerate trash directory %s: %s",
-                directory,
-                exc,
-            )
-            stats.add_failure(exc)
-            return stats
-
-        for child in children:
-            if preserve_for is not None and child.name.endswith(".trashinfo"):
-                try:
-                    (preserve_for / child.name.removesuffix(".trashinfo")).lstat()
-                except FileNotFoundError:
-                    pass
-                except OSError as exc:
-                    stats.add_failure(exc)
-                    continue
-                else:
-                    continue
-            stats.merge(self._delete_path(child))
-        return stats
-
-    def _delete_path(self, path: Path) -> _DeleteStats:
-        stats = _DeleteStats()
-        try:
-            if path.is_dir() and not path.is_symlink():
-                try:
-                    children = list(path.iterdir())
-                except OSError as exc:
-                    log.bind(action="empty_trash_delete").debug(
-                        "Could not enumerate trash item %s: %s",
-                        path,
-                        exc,
-                    )
-                    stats.add_failure(exc)
-                    return stats
-                for child in children:
-                    stats.merge(self._delete_path(child))
-                path.rmdir()
-            else:
-                path.unlink()
-        except OSError as exc:
-            log.bind(action="empty_trash_delete").debug(
-                "Could not delete trash item %s: %s",
-                path,
-                exc,
-            )
-            stats.add_failure(exc)
-        return stats
-
 
 class GnomeTrashBackend(GioTrashBackend):
     """Trash backend for GNOME/Nautilus sessions."""
@@ -791,71 +803,6 @@ class KdeTrashBackend(UnixTrashWatch, TrashBackend):
                     directory, preserve_for=directory.parent / "files"
                 )
             )
-        return stats
-
-    def _delete_directory_contents(
-        self, directory: Path, *, preserve_for: Path | None = None
-    ) -> _DeleteStats:
-        stats = _DeleteStats()
-        try:
-            if (
-                directory.is_symlink()
-                or directory.parent.is_symlink()
-                or (preserve_for is not None and preserve_for.is_symlink())
-            ):
-                raise OSError("Refusing to empty a symbolic link to a trash directory")
-            children = list(directory.iterdir())
-        except FileNotFoundError:
-            return stats
-        except OSError as exc:
-            log.bind(action="empty_kde_trash").debug(
-                "Could not enumerate KDE trash directory %s: %s",
-                directory,
-                exc,
-            )
-            stats.add_failure(exc)
-            return stats
-
-        for child in children:
-            if preserve_for is not None and child.name.endswith(".trashinfo"):
-                try:
-                    (preserve_for / child.name.removesuffix(".trashinfo")).lstat()
-                except FileNotFoundError:
-                    pass
-                except OSError as exc:
-                    stats.add_failure(exc)
-                    continue
-                else:
-                    continue
-            stats.merge(self._delete_path(child))
-        return stats
-
-    def _delete_path(self, path: Path) -> _DeleteStats:
-        stats = _DeleteStats()
-        try:
-            if path.is_dir() and not path.is_symlink():
-                try:
-                    children = list(path.iterdir())
-                except OSError as exc:
-                    log.bind(action="empty_kde_trash").debug(
-                        "Could not enumerate KDE trash item %s: %s",
-                        path,
-                        exc,
-                    )
-                    stats.add_failure(exc)
-                    return stats
-                for child in children:
-                    stats.merge(self._delete_path(child))
-                path.rmdir()
-            else:
-                path.unlink()
-        except OSError as exc:
-            log.bind(action="empty_kde_trash").debug(
-                "Could not delete KDE trash item %s: %s",
-                path,
-                exc,
-            )
-            stats.add_failure(exc)
         return stats
 
 

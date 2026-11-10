@@ -59,6 +59,19 @@ for (const javaScriptEnabled of [true, false]) {
       assert.equal(await page.locator("h1").evaluate((el) => getComputedStyle(el).opacity), "1");
       assert.equal(await page.locator('img[src="/hero.gif"]').evaluate((el) => new URL(el.currentSrc).pathname), "/hero.gif");
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      const windowsInstall = page.locator("#windows-install");
+      const windowsDownload = page.locator('#install a[href$="-setup.exe"]');
+      const windowsDownloadUrl = await windowsDownload.getAttribute("href");
+      assert.equal(await page.locator("#install details").last().getAttribute("id"), "windows-install");
+      assert.equal(await windowsInstall.evaluate((el) => el.open), false);
+      assert.equal(await windowsInstall.locator("a").first().isVisible(), false);
+      await windowsInstall.locator("summary").click();
+      assert.equal(await windowsInstall.evaluate((el) => el.open), true);
+      assert.equal(await windowsInstall.locator("a").first().isVisible(), true);
+      assert.ok((await windowsInstall.locator("pre").textContent()).includes("Get-FileHash"));
+      assert.equal(await windowsInstall.locator('a[href*="/blob/"]').count(), 0);
+      await windowsInstall.locator("summary").press("Enter");
+      assert.equal(await windowsInstall.evaluate((el) => el.open), false);
       if (javaScriptEnabled) {
         const query = { en: "weather", pt: "relogio", fr: "meteo", es: "bluetooth" }[lang];
         await page.locator("#applet-search").fill(query);
@@ -74,6 +87,7 @@ for (const javaScriptEnabled of [true, false]) {
         await page.locator('[data-applet-category="All"]').click();
         await page.locator('[data-install-arch-option="arm64"]').click();
         assert.ok((await page.locator("[data-install-link]").first().getAttribute("href")).includes("aarch64"));
+        assert.equal(await windowsDownload.getAttribute("href"), windowsDownloadUrl);
       } else {
         assert.equal(await page.locator("#applet-controls").isVisible(), false);
       }
@@ -89,6 +103,10 @@ for (const javaScriptEnabled of [true, false]) {
       } else {
         assert.equal(await page.locator("#mobile-dock-menu").isVisible(), true);
       }
+      await windowsInstall.locator("summary").click();
+      assert.equal(await windowsInstall.evaluate((el) => el.open), true);
+      assert.equal(await windowsInstall.locator("a").first().isVisible(), true);
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.deepEqual(errors, []);
     });
   }

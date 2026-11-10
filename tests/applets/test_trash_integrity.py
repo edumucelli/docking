@@ -7,6 +7,39 @@ import pytest
 from docking.applets.trash.implementations.unix import backend
 
 
+@pytest.mark.parametrize("factory", [backend.MateTrashBackend, backend.KdeTrashBackend])
+@pytest.mark.parametrize("swap", ["child", "root"])
+def test_directory_swap_during_deletion_never_follows_symlink(
+    tmp_path, monkeypatch, factory, swap
+):
+    trash = tmp_path / "Trash"
+    files = trash / "files"
+    child = files / "folder"
+    child.mkdir(parents=True)
+    (child / "trashed.txt").write_text("discard")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    sentinel = outside / "keep.txt"
+    sentinel.write_text("keep")
+    original_open = os.open
+    swapped = False
+
+    def interleaved_open(path, flags, *args, **kwargs):
+        nonlocal swapped
+        if path == ("folder" if swap == "child" else "files") and not swapped:
+            swapped = True
+            target = child if swap == "child" else files
+            target.rename(target.with_name(target.name + "-moved"))
+            target.symlink_to(outside, target_is_directory=True)
+        return original_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", interleaved_open)
+    result = factory()._delete_directory_contents(files)
+
+    assert swapped and result.failures
+    assert sentinel.read_text() == "keep"
+
+
 @pytest.fixture
 def trash_environment(tmp_path, monkeypatch):
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))

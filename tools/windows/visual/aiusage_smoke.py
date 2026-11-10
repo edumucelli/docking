@@ -29,6 +29,7 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     os.environ["XDG_CONFIG_HOME"] = str(output / "config")
     os.environ["XDG_CACHE_HOME"] = str(output / "cache")
+    os.environ["XDG_STATE_HOME"] = str(output / "state")
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
     from docking.launcher import prepare_display
 
@@ -42,6 +43,7 @@ def main():
     import docking.app as app
     from docking.applets.aiusage.backends import claude, codex
     from docking.applets.aiusage.state import Provider, today_tokens
+    from docking.applets.aiusage.store import usage_path
     from docking.platform.native.windows.hotkeys import (
         MOD_ALT,
         MOD_CONTROL,
@@ -174,10 +176,13 @@ def main():
             assert native.user.GetForegroundWindow() == foreground, (
                 "Background hook changed foreground focus"
             )
-            saved = json.loads(config.read_text(encoding="utf-8"))
-            assert saved["applet_prefs"]["aiusage"]["days"][0]["sessions"] == 1
+            saved = json.loads(usage_path().read_text(encoding="utf-8"))
+            assert saved["days"][0]["sessions"] == 1
             ui_call(applet._tick)  # Run the normal poll now, rather than waiting 60s.
-            assert ui_call(lambda: today_tokens(state=applet._state)) == 1500
+            native.wait_for(
+                lambda: ui_call(lambda: today_tokens(state=applet._state)) == 1500,
+                "AI Usage background refresh did not publish the saved usage",
+            )
             after = ui_call(
                 lambda: hashlib.sha256(bytes(applet.item.icon.get_pixels())).hexdigest()
             )

@@ -44,6 +44,36 @@ def _proc_holder(
 
 
 class TestProbeCameraState:
+    @pytest.mark.parametrize(
+        "modes, locked", [((), False), ((0, 0o600), False), ((0, 0), True)]
+    )
+    def test_locked_status_requires_every_camera_to_be_locked(
+        self, tmp_path, modes, locked
+    ):
+        dev, proc = tmp_path / "dev", tmp_path / "proc"
+        dev.mkdir()
+        proc.mkdir()
+        for index, mode in enumerate(modes):
+            camera = dev / f"video{index}"
+            camera.touch()
+            camera.chmod(mode)
+
+        state = probe_camera_state(dev_root=dev, proc_root=proc)
+
+        assert state.locked is locked
+        assert ("Camera locked" in build_tooltip(state)) is locked
+
+    def test_locked_device_is_reported_and_unlock_refreshes_status(self, tmp_path):
+        dev, proc = tmp_path / "dev", tmp_path / "proc"
+        dev.mkdir()
+        proc.mkdir()
+        camera = dev / "video0"
+        camera.touch()
+        camera.chmod(0)
+        assert probe_camera_state(dev_root=dev, proc_root=proc).locked
+        camera.chmod(0o600)
+        assert not probe_camera_state(dev_root=dev, proc_root=proc).locked
+
     def test_no_video_devices_is_unavailable(self, tmp_path):
         state = probe_camera_state(
             dev_root=tmp_path / "dev",

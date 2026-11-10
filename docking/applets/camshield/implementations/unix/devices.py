@@ -1,5 +1,6 @@
-"""Unix camera device discovery."""
+"""Unix camera device discovery and permission inspection."""
 
+import stat
 from pathlib import Path
 
 
@@ -20,3 +21,11 @@ def normalized_path(path: Path) -> Path:
         return path.resolve(strict=False)
     except OSError:
         return path.absolute()
+
+
+def device_locked(device: Path) -> bool:
+    try:
+        mode = stat.S_IMODE(device.stat().st_mode)
+    except OSError:
+        return False
+    return mode & 0o777 == 0

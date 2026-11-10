@@ -183,6 +183,7 @@ def test_openbsd_unlock_requires_a_valid_recovery_record(monkeypatch, tmp_path):
 
 def test_freebsd_lock_refuses_to_destroy_an_unsaved_acl(monkeypatch, tmp_path):
     monkeypatch.setattr(environment, "is_bsd", lambda: True)
+    monkeypatch.setattr(common, "read_command", lambda argv: "1")
     monkeypatch.setattr(helper.os, "geteuid", lambda: 0)
     monkeypatch.setattr(helper.shutil, "which", lambda name: None)
     device = tmp_path / "video0"
@@ -227,6 +228,7 @@ def test_freebsd_device_filesystem_without_acls_uses_mode_recovery(
 
 def test_freebsd_failed_acl_restore_retains_recovery_data(monkeypatch, tmp_path):
     monkeypatch.setattr(environment, "is_bsd", lambda: True)
+    monkeypatch.setattr(common, "read_command", lambda argv: "1")
     monkeypatch.setattr(helper.os, "geteuid", lambda: 0)
     monkeypatch.setattr(helper, "DEV_ROOT", tmp_path)
     monkeypatch.setattr(helper, "_restore_acl", lambda **kwargs: False)

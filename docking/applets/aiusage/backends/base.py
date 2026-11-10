@@ -15,11 +15,43 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+import datetime
+import json
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any, Protocol
 
 from docking.applets.aiusage.state import ModelUsage, Provider
 
 ProviderSessions = dict[str, dict[str, ModelUsage]]
+
+
+def transcript_entries(path: Path) -> Iterator[dict[str, Any]]:
+    with path.open(encoding="utf-8", errors="replace") as stream:
+        for line in stream:
+            try:
+                entry = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(entry, dict):
+                yield entry
+
+
+def event_date(value: object, *, fallback: str) -> str | None:
+    # shortcut: Undated events use the observed day, until legacy logs are retired.
+    if value is None:
+        return fallback
+    if not isinstance(value, str):
+        return None
+    try:
+        return (
+            datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+            .astimezone()
+            .date()
+            .isoformat()
+        )
+    except (ValueError, OverflowError, OSError):
+        return None
 
 
 class UsageBackend(Protocol):

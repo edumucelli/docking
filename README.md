@@ -6,11 +6,11 @@
 [![Downloads](https://img.shields.io/github/downloads/edumucelli/docking/total)](https://github.com/edumucelli/docking/releases)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![GTK 3](https://img.shields.io/badge/GTK-3-blue)](#requirements)
-[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20BSD-lightgrey)](#requirements)
+[![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20BSD%20%7C%20Windows-lightgrey)](#requirements)
 [![License](https://img.shields.io/github/license/edumucelli/docking)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/edumucelli/docking)](https://github.com/edumucelli/docking/commits/master)
 
-A lightweight, feature-rich dock for Linux, FreeBSD, OpenBSD, and NetBSD written in Python with GTK 3 and Cairo. Inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
+A lightweight, feature-rich dock for Linux, FreeBSD, OpenBSD, NetBSD, and [Windows 11 x64](docs/INSTALLATION.md#windows-preview). Written in Python with GTK 3 and Cairo, inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
 
 ![Docking in action](images/all.gif)
 
@@ -24,22 +24,24 @@ A lightweight, feature-rich dock for Linux, FreeBSD, OpenBSD, and NetBSD written
 - 67 built-in applets for messaging, media, productivity, system controls, and more.
 - Flexible placement across monitors, auto-hide, separators, scalable icons,
   custom icons, and 13 built-in themes.
-- AppImage, Debian, RPM, Flatpak, Snap, Arch, and Nix release packages.
+- AppImage, Debian, RPM, Flatpak, Snap, Arch, and Nix release packages, native BSD
+  packages, and a Windows installer and portable ZIP.
 - Unity LauncherEntry badges/progress, X11 blur regions, and 74 locale catalogs
   plus English fallback.
 - Extensible Python applet system for adding custom dock-resident tools.
 
 ## Requirements
 
-- Linux desktop with X11 or Wayland, or FreeBSD/OpenBSD/NetBSD with composited X11.
+- Linux desktop with X11 or Wayland, FreeBSD/OpenBSD/NetBSD with composited X11,
+  or Windows 11 x64.
 - Python 3.10+, GTK 3, and Cairo.
 
 Release packages include or depend on the required runtime libraries. See the
 [installation guide](docs/INSTALLATION.md) for source dependencies and the
 [Wayland guide](docs/WAYLAND_SUPPORT.md) for compositor requirements and feature coverage.
 
-The [Windows 11 x64 preview](docs/INSTALLATION.md#windows-preview) has a per-user
-installer and portable ZIP with Python and GTK included. Preview packages are
+The [Windows 11 x64 version](docs/INSTALLATION.md#windows-preview) has a per-user
+installer and portable ZIP with Python and GTK included. Windows packages are
 unsigned; see [Windows coverage](docs/WINDOWS.md) for accepted behavior and limits.
 
 ## Installation
@@ -52,10 +54,11 @@ Choose the instructions for your system:
   for AppImage, Debian, RPM, Flatpak, Snap, Arch, and Nix packages.
 - [Run from source](docs/DEVELOPMENT.md#source-setup) using pip or uv.
 - [FreeBSD, OpenBSD, and NetBSD](docs/INSTALLATION.md#freebsd-and-openbsd) package installation instructions.
-- [Windows 11 x64 preview](docs/INSTALLATION.md#windows-preview), using the installer
+- [Windows 11 x64](docs/INSTALLATION.md#windows-preview), using the installer
   or portable ZIP when included in a release.
 
-The [website](https://docking.cc/#install) also provides APT and RPM instructions.
+The [website](https://docking.cc/#install) also provides APT, RPM, BSD, and Windows
+installation instructions.
 
 ## Running
 
@@ -144,6 +147,7 @@ preferences, update intervals, and integration requirements.
 | [Installation](docs/INSTALLATION.md) | Package repositories, downloads, and source dependencies |
 | [Wayland](docs/WAYLAND_SUPPORT.md) | Backend support matrix and compositor setup |
 | [BSD](docs/INSTALLATION.md#freebsd-and-openbsd) | FreeBSD/OpenBSD/NetBSD package installation |
+| [Windows](docs/WINDOWS.md) | Windows 11 x64, feature coverage, and limitations |
 | [Configuration](docs/CONFIGURATION.md) | First use, preferences, and saved settings |
 | [Global Search](docs/SEARCH.md) | Providers, examples, and keyboard controls |
 | [Applets](docs/APPLETS.md) | Built-in catalog and applet preferences |
