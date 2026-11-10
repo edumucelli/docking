@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import gi
 
@@ -27,30 +27,31 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.aiusage import meta
 from docking.applets.aiusage.backends import BACKENDS
+from docking.applets.aiusage.backends.base import ProviderSessions
 from docking.applets.aiusage.render import render_icon
 from docking.applets.aiusage.state import (
+    AiUsageState,
     DisplayMode,
     Provider,
     _format_cost,
     _format_tokens,
     _short_model,
     _today_entry,
+    _today_iso,
     cost_for_usage,
-    prefs_from_state,
     provider_cost,
     provider_for_model,
     provider_tokens,
-    reset_today,
-    set_session,
     state_from_prefs,
     tooltip_text,
     total_tokens,
     week_cost,
     week_tokens,
 )
-from docking.applets.aiusage.store import read_prefs_from_disk
+from docking.applets.aiusage.store import replace_sessions, reset_usage_today
 from docking.applets.base import Applet
 from docking.applets.menu import menu_sections, radio_menu_items
+from docking.applets.worker import SerialWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
 
@@ -62,10 +63,6 @@ log = with_context(get_logger(name="aiusage"), applet_id=meta.id)
 REFRESH_INTERVAL_S = 60
 PREFS_KEY = "aiusage"
 PREFS_KEY_LEGACY = "claude"
-
-
-def _read_prefs_from_disk() -> dict[str, Any] | None:
-    return read_prefs_from_disk()
 
 
 class AiUsageApplet(Applet):
@@ -84,6 +81,9 @@ class AiUsageApplet(Applet):
         self._selected_provider: Provider | None = None
         self._display_mode: DisplayMode = DisplayMode.COST
         self._poll_errors: dict[Provider, str] = {}
+        self._generation = 0
+        self._stopped = False
+        self._worker = SerialWorker(on_close=lambda: None, logger=log)
 
         super().__init__(icon_size, config)
         self.present()
@@ -104,12 +104,18 @@ class AiUsageApplet(Applet):
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
-        for backend in BACKENDS:
-            backend.register_hooks()
+        if self._stopped:
+            self._stopped = False
+            self._worker = SerialWorker(on_close=lambda: None, logger=log)
+        self._generation += 1
+        self._worker.run(name="usage-hooks", fn=self._register_hooks)
         self._tick()  # Immediate first poll (merges OpenCode etc.).
         self._timer_id = GLib.timeout_add_seconds(REFRESH_INTERVAL_S, self._tick)
 
     def stop(self) -> None:
+        self._stopped = True
+        self._generation += 1
+        self._worker.stop()
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
@@ -175,19 +181,43 @@ class AiUsageApplet(Applet):
         self.present()
 
     def _tick(self) -> bool:
-        prefs = _read_prefs_from_disk()
-        new_state = state_from_prefs(prefs=prefs)
+        if self._stopped:
+            return False
+        generation = self._generation
+        self._worker.run_guarded(
+            key="usage-poll",
+            name="usage-poll",
+            fn=lambda: (
+                self._poll()
+                if not self._stopped and generation == self._generation
+                else None
+            ),
+            on_result=lambda state: self._on_poll_result(state, generation),
+            on_error=lambda error: log.warning(
+                "Failed to load AI usage history: %s", error
+            ),
+        )
+        return True
+
+    @staticmethod
+    def _register_hooks() -> None:
+        for backend in BACKENDS:
+            try:
+                backend.register_hooks()
+            except (OSError, ValueError, TypeError) as exc:
+                log.warning(
+                    "Failed to register %s usage hook: %s", backend.provider.value, exc
+                )
+
+    def _poll(self) -> AiUsageState | None:
+        day = _today_iso()
+        combined: ProviderSessions = {}
 
         for backend in BACKENDS:
             try:
                 sessions = backend.poll_today()
                 self._poll_errors.pop(backend.provider, None)
-                for sid, model_usage in sessions.items():
-                    new_state = set_session(
-                        state=new_state,
-                        session_id=sid,
-                        model_usage=model_usage,
-                    )
+                combined.update(sessions)
             except Exception as exc:
                 error = f"{type(exc).__name__}: {exc}"
                 if error != self._poll_errors.get(backend.provider):
@@ -198,15 +228,32 @@ class AiUsageApplet(Applet):
                         error,
                     )
 
-        if new_state != self._state:
-            self._state = new_state
+        if day != _today_iso():
+            return None
+        return replace_sessions(combined, date=day)
+
+    def _on_poll_result(self, state: AiUsageState | None, generation: int) -> None:
+        if self._stopped or generation != self._generation:
+            return
+        if state is None:
+            self._tick()
+        elif state != self._state:
+            self._state = state
             self.present()
-        return True
 
     def _reset_today(self) -> None:
-        self._state = reset_today(state=self._state)
-        self.save_prefs(prefs=prefs_from_state(state=self._state))
-        self.present()
+        if self._stopped:
+            return
+        self._generation += 1
+        generation = self._generation
+        self._worker.run(
+            name="usage-reset",
+            fn=reset_usage_today,
+            on_result=lambda state: self._on_poll_result(state, generation),
+            on_error=lambda error: log.warning(
+                "Failed to reset AI usage history: %s", error
+            ),
+        )
 
     def _build_tooltip_widget(self) -> Gtk.Box:
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)

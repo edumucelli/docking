@@ -144,6 +144,15 @@ def test_open_target_accepts_local_path_and_file_uri(tmp_path, monkeypatch):
         "http://example.com",
         "https://example.com/docs",
         "mailto:test@example.com",
+        "tel:+123456789",
+        "smb://fileserver/team",
+        "sftp://fileserver/team",
+        "ftp://fileserver/team",
+        "ftps://fileserver/team",
+        "dav://fileserver/team",
+        "davs://fileserver/team",
+        "afp://fileserver/team",
+        "nfs://fileserver/team",
     ),
 )
 def test_open_target_accepts_supported_non_file_uri(target, monkeypatch):
@@ -158,7 +167,6 @@ def test_open_target_accepts_supported_non_file_uri(target, monkeypatch):
 @pytest.mark.parametrize(
     "target",
     (
-        "ftp://example.com",
         "trash:///",
         "docking-preview:document/42",
         "custom+desktop://resource/42",

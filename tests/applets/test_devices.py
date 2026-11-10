@@ -294,6 +294,23 @@ class TestDevicesApplet:
             "smb://fileserver/team"
         )
 
+    def test_remote_stack_entry_reaches_the_real_desktop_opener(self, monkeypatch):
+        from docking.platform import targets
+
+        applet = _applet(
+            monkeypatch,
+            _FakeMonitor(
+                [_mount("Team Share", path=None, uri="smb://fileserver/team")]
+            ),
+        )
+        applet._target_service.open_target = targets.open_target
+        desktop = MagicMock()
+        monkeypatch.setattr(targets, "desktop_services", lambda: desktop)
+
+        applet.stack_content(32).entries[0].activate()
+
+        desktop.open_uri.assert_called_once_with("smb://fileserver/team")
+
     def test_empty_stack_is_suppressed(self, monkeypatch):
         applet = _applet(monkeypatch, _FakeMonitor())
 

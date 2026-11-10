@@ -19,6 +19,11 @@ import re
 import stat
 import tarfile
 import zipfile
+from bz2 import open as open_bz2
+from gzip import open as open_gzip
+from io import BytesIO
+from lzma import LZMAError
+from lzma import open as open_xz
 from pathlib import Path
 
 from docking.core.paths import local_path_from_uri_or_path as local_path_from_target
@@ -30,6 +35,7 @@ MAX_PREVIEW_FILE_SIZE = 2 * 1024 * 1024
 MAX_IMAGE_PREVIEW_FILE_SIZE = 50 * 1024 * 1024
 MAX_ARCHIVE_PREVIEW_FILE_SIZE = 100 * 1024 * 1024
 MAX_ARCHIVE_ENTRIES = 30
+MAX_ARCHIVE_PREVIEW_BYTES = 8 * 1024 * 1024
 _IMAGE_SUFFIXES = {
     ".bmp",
     ".gif",
@@ -239,12 +245,35 @@ def _archive_preview(
                 ]
         else:
             entries = []
-            with tarfile.open(path, mode="r:*") as archive:
+            opener = (
+                open_gzip
+                if lowered.endswith((".gz", ".tgz"))
+                else open_bz2
+                if lowered.endswith((".bz2", ".tbz2"))
+                else open_xz
+                if lowered.endswith((".xz", ".txz"))
+                else None
+            )
+            fileobj = None
+            if opener is not None:
+                with opener(path, "rb") as compressed:
+                    payload = compressed.read(MAX_ARCHIVE_PREVIEW_BYTES + 1)
+                if len(payload) > MAX_ARCHIVE_PREVIEW_BYTES:
+                    return SearchPreview(
+                        title=title,
+                        body=_("{path}\nArchive is too large to preview.").format(
+                            path=path
+                        ),
+                        kind="archive-too-large",
+                        target=str(path),
+                    )
+                fileobj = BytesIO(payload)
+            with tarfile.open(path, fileobj=fileobj, mode="r:") as archive:
                 for index, member in enumerate(archive):
                     if index >= MAX_ARCHIVE_ENTRIES:
                         break
                     entries.append(member.name + ("/" if member.isdir() else ""))
-    except (OSError, tarfile.TarError, zipfile.BadZipFile):
+    except (OSError, EOFError, LZMAError, tarfile.TarError, zipfile.BadZipFile):
         return None
     return SearchPreview(
         title=title,

@@ -12,6 +12,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.applets.aiusage.applet as aiusage_mod
 import docking.applets.aiusage.backends.claude as claude_backend
 import docking.applets.aiusage.backends.codex as codex_backend
@@ -46,6 +48,7 @@ from docking.applets.aiusage.state import (
     week_tokens,
 )
 from docking.core.config import Config
+from tests.applets.inline_worker import InlineSerialWorker
 
 
 class _FakeBox:
@@ -842,7 +845,9 @@ class TestOpenCodeUsage:
         db = tmp_path / "opencode.db"
         conn = sqlite3.connect(db)
         conn.execute("CREATE TABLE session (id TEXT, time_created INTEGER)")
-        conn.execute("CREATE TABLE message (session_id TEXT, data TEXT)")
+        conn.execute(
+            "CREATE TABLE message (session_id TEXT, data TEXT, time_created INTEGER)"
+        )
         conn.commit()
         conn.close()
         monkeypatch.setattr(opencode_backend, "_OPENCODE_DB", db)
@@ -857,7 +862,9 @@ class TestOpenCodeUsage:
         )
         conn = sqlite3.connect(db)
         conn.execute("CREATE TABLE session (id TEXT, time_created INTEGER)")
-        conn.execute("CREATE TABLE message (session_id TEXT, data TEXT)")
+        conn.execute(
+            "CREATE TABLE message (session_id TEXT, data TEXT, time_created INTEGER)"
+        )
         conn.execute(
             "INSERT INTO session VALUES (?, ?)",
             ("s1", today_start_ms + 1000),
@@ -881,7 +888,10 @@ class TestOpenCodeUsage:
                 }
             ),
         ]
-        conn.executemany("INSERT INTO message VALUES (?, ?)", [("s1", r) for r in rows])
+        conn.executemany(
+            "INSERT INTO message VALUES (?, ?, ?)",
+            [("s1", r, today_start_ms + 1000) for r in rows],
+        )
         conn.commit()
         conn.close()
         monkeypatch.setattr(opencode_backend, "_OPENCODE_DB", db)
@@ -924,8 +934,8 @@ class TestHook:
             payload={"transcript_path": str(jsonl)},
         )
 
-        config = json.loads(config_path.read_text())
-        prefs = config["applet_prefs"]["aiusage"]
+        assert json.loads(config_path.read_text()) == {}
+        prefs = json.loads(aiusage_store.usage_path().read_text())
         assert len(prefs["days"]) == 1
         assert prefs["days"][0]["sessions"] == 1
 
@@ -960,8 +970,8 @@ class TestHook:
 
         codex_backend.handle_turn(json_arg=json.dumps({"thread-id": "test"}))
 
-        config = json.loads(config_path.read_text())
-        prefs = config["applet_prefs"]["aiusage"]
+        assert json.loads(config_path.read_text()) == {}
+        prefs = json.loads(aiusage_store.usage_path().read_text())
         assert "gpt-5.4" in prefs["days"][0]["by_model"]
 
     def test_no_transcript_path_is_noop(self, tmp_path, monkeypatch):
@@ -979,6 +989,10 @@ class TestHook:
 
 
 class TestAiUsageApplet:
+    @pytest.fixture(autouse=True)
+    def inline_worker(self, monkeypatch):
+        monkeypatch.setattr(aiusage_mod, "SerialWorker", InlineSerialWorker)
+
     def test_loads_legacy_config_prefs(self):
         state = set_session(
             session_id="legacy",
@@ -1135,7 +1149,7 @@ class TestAiUsageApplet:
     def test_tick_merges_opencode_sessions_and_updates_state(self, monkeypatch):
         applet = AiUsageApplet(48, config=Config())
         applet.present = MagicMock()
-        monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
+        monkeypatch.setattr(aiusage_store, "read_prefs_from_disk", lambda: None)
         monkeypatch.setattr(
             aiusage_mod,
             "BACKENDS",
@@ -1164,7 +1178,7 @@ class TestAiUsageApplet:
     def test_tick_merges_codex_sessions_and_updates_state(self, monkeypatch):
         applet = AiUsageApplet(48, config=Config())
         applet.present = MagicMock()
-        monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
+        monkeypatch.setattr(aiusage_store, "read_prefs_from_disk", lambda: None)
         monkeypatch.setattr(
             aiusage_mod,
             "BACKENDS",
@@ -1198,18 +1212,17 @@ class TestAiUsageApplet:
             state=AiUsageState(),
             model_usage={"claude-opus-4-6": ModelUsage(input_tokens=1)},
         )
-        applet.save_prefs = MagicMock()
         applet.present = MagicMock()
 
         applet._reset_today()
 
         assert applet._state.days == ()
-        applet.save_prefs.assert_called_once()
+        assert aiusage_store.read_prefs_from_disk() == {"days": []}
         applet.present.assert_called_once()
 
     def test_tick_warns_once_when_opencode_poll_fails(self, monkeypatch, caplog):
         applet = AiUsageApplet(48, config=Config())
-        monkeypatch.setattr(aiusage_mod, "_read_prefs_from_disk", lambda: None)
+        monkeypatch.setattr(aiusage_store, "read_prefs_from_disk", lambda: None)
 
         def fail_query():
             raise RuntimeError("database locked")
@@ -1248,7 +1261,7 @@ class TestClaudeHookRegistration:
         dock_json.write_text("{")
         monkeypatch.setenv("XDG_CONFIG_HOME", str(config_dir))
 
-        assert aiusage_mod._read_prefs_from_disk() is None
+        assert aiusage_store.read_prefs_from_disk() is None
 
     def test_registers_hooks(self, tmp_path, monkeypatch):
         settings_path = tmp_path / ".claude" / "settings.json"
@@ -1407,9 +1420,7 @@ class TestCodexHookRegistration:
 
 
 class TestHookCli:
-    def test_update_config_recovers_from_invalid_existing_json(
-        self, tmp_path, monkeypatch
-    ):
+    def test_hook_preserves_invalid_existing_settings(self, tmp_path, monkeypatch):
         config_path = tmp_path / "dock.json"
         config_path.write_text("{")
         monkeypatch.setattr(aiusage_store, "config_path", lambda: config_path)
@@ -1419,8 +1430,9 @@ class TestHookCli:
             model_usage={"gpt-5.4": ModelUsage(input_tokens=12)},
         )
 
-        data = json.loads(config_path.read_text())
-        assert data["applet_prefs"]["aiusage"]["days"][0]["sessions"] == 1
+        assert config_path.read_text() == "{"
+        data = json.loads(aiusage_store.usage_path().read_text())
+        assert data["days"][0]["sessions"] == 1
 
     def test_main_handles_invalid_claude_stdin(self, monkeypatch):
         from docking.applets.aiusage import hook

@@ -20,8 +20,17 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
-from docking.applets.aiusage.backends.base import ProviderSessions
-from docking.applets.aiusage.state import ModelUsage, Provider, _has_usage
+from docking.applets.aiusage.backends.base import (
+    ProviderSessions,
+    event_date,
+    transcript_entries,
+)
+from docking.applets.aiusage.state import (
+    ModelUsage,
+    Provider,
+    _has_usage,
+    _nonnegative_count,
+)
 from docking.applets.aiusage.store import replace_session
 from docking.core.paths import ensure_parent_dir
 from docking.log import get_logger, with_context
@@ -49,9 +58,12 @@ class ClaudeBackend:
         if not transcript_path:
             return
         session_id = payload_data.get("session_id") or Path(transcript_path).stem
-        model_usage = parse_transcript(path=Path(transcript_path))
+        day = _today_iso()
+        model_usage = parse_transcript(path=Path(transcript_path), date=day)
         if model_usage:
-            replace_session(session_id=str(session_id), model_usage=model_usage)
+            replace_session(
+                session_id=str(session_id), model_usage=model_usage, date=day
+            )
 
 
 def register_hooks() -> None:
@@ -85,7 +97,8 @@ def query_today() -> ProviderSessions:
     if not root.is_dir():
         return {}
 
-    today_start = datetime.datetime.fromisoformat(_today_iso()).timestamp()
+    day = _today_iso()
+    today_start = datetime.datetime.fromisoformat(day).timestamp()
     result: ProviderSessions = {}
     for path in root.rglob("*.jsonl"):
         try:
@@ -95,48 +108,44 @@ def query_today() -> ProviderSessions:
             log.debug("Failed to stat Claude transcript %s: %s", path, exc)
             continue
 
-        model_usage = parse_transcript(path=path)
+        model_usage = parse_transcript(path=path, date=day)
         if model_usage:
             result[path.stem] = model_usage
     return result
 
 
-def parse_transcript(path: Path) -> dict[str, ModelUsage]:
-    """Read a Claude Code JSONL transcript and accumulate per-model usage."""
+def parse_transcript(path: Path, *, date: str | None = None) -> dict[str, ModelUsage]:
+    """Accumulate only usage produced on the requested local calendar day."""
     result: dict[str, ModelUsage] = {}
+    day = date or _today_iso()
     try:
-        text = path.read_text(encoding="utf-8")
-    except OSError as exc:
+        for entry in transcript_entries(path):
+            if (
+                entry.get("type") != "assistant"
+                or event_date(entry.get("timestamp"), fallback=day) != day
+            ):
+                continue
+            msg = entry.get("message")
+            if not isinstance(msg, dict):
+                continue
+            usage = msg.get("usage")
+            model = msg.get("model")
+            if not isinstance(usage, dict) or not isinstance(model, str) or not model:
+                continue
+            prev = result.get(model, ModelUsage())
+            result[model] = ModelUsage(
+                input_tokens=prev.input_tokens
+                + _nonnegative_count(usage.get("input_tokens")),
+                output_tokens=prev.output_tokens
+                + _nonnegative_count(usage.get("output_tokens")),
+                cache_write_tokens=prev.cache_write_tokens
+                + _nonnegative_count(usage.get("cache_creation_input_tokens")),
+                cache_read_tokens=prev.cache_read_tokens
+                + _nonnegative_count(usage.get("cache_read_input_tokens")),
+            )
+    except (OSError, UnicodeError) as exc:
         log.debug("Failed to read Claude transcript %s: %s", path, exc)
-        return result
-
-    for line in text.splitlines():
-        try:
-            entry = json.loads(line)
-        except (json.JSONDecodeError, ValueError) as exc:
-            log.debug("Failed to parse Claude transcript line in %s: %s", path, exc)
-            continue
-        if entry.get("type") != "assistant":
-            continue
-        msg = entry.get("message")
-        if not isinstance(msg, dict):
-            continue
-        usage = msg.get("usage")
-        if not isinstance(usage, dict):
-            continue
-        model = msg.get("model", "")
-        if not model:
-            continue
-
-        prev = result.get(model, ModelUsage())
-        result[model] = ModelUsage(
-            input_tokens=prev.input_tokens + int(usage.get("input_tokens", 0)),
-            output_tokens=prev.output_tokens + int(usage.get("output_tokens", 0)),
-            cache_write_tokens=prev.cache_write_tokens
-            + int(usage.get("cache_creation_input_tokens", 0)),
-            cache_read_tokens=prev.cache_read_tokens
-            + int(usage.get("cache_read_input_tokens", 0)),
-        )
+        return {}
     return {m: u for m, u in result.items() if _has_usage(u)}
 
 

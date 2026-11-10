@@ -4,9 +4,40 @@ from __future__ import annotations
 
 import tarfile
 import zipfile
+from io import BytesIO
 from pathlib import Path
 
+import pytest
+
+import docking.search.preview as preview_mod
 from docking.search.preview import preview_local_descriptor, preview_local_target
+
+
+@pytest.mark.parametrize("compression", ["gz", "bz2", "xz"])
+def test_compressed_archive_preview_limits_decompressed_bytes(
+    tmp_path, monkeypatch, compression
+):
+    path = tmp_path / f"large.tar.{compression}"
+    with tarfile.open(path, f"w:{compression}") as archive:
+        entry = tarfile.TarInfo("large.bin")
+        entry.size = 64 * 1024
+        archive.addfile(entry, BytesIO(bytes(entry.size)))
+    assert path.stat().st_size < 2048
+    monkeypatch.setattr(preview_mod, "MAX_ARCHIVE_PREVIEW_BYTES", 2048)
+
+    result = preview_local_target(target=str(path), title="archive")
+
+    assert result.kind == "archive-too-large"
+    assert "large.bin" not in result.body
+
+
+@pytest.mark.parametrize("compression", ["gz", "bz2", "xz"])
+def test_small_compressed_archives_keep_their_listing(tmp_path, compression):
+    path = tmp_path / f"small.tar.{compression}"
+    with tarfile.open(path, f"w:{compression}") as archive:
+        archive.addfile(tarfile.TarInfo("small.txt"), BytesIO())
+    result = preview_local_target(target=str(path), title="archive")
+    assert result.kind == "archive" and result.body == "small.txt"
 
 
 def test_text_file_and_directory_previews(tmp_path) -> None:

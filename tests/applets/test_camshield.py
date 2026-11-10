@@ -44,6 +44,17 @@ def _proc_holder(
 
 
 class TestProbeCameraState:
+    def test_locked_device_is_reported_and_unlock_refreshes_status(self, tmp_path):
+        dev, proc = tmp_path / "dev", tmp_path / "proc"
+        dev.mkdir()
+        proc.mkdir()
+        camera = dev / "video0"
+        camera.touch()
+        camera.chmod(0)
+        assert probe_camera_state(dev_root=dev, proc_root=proc).locked
+        camera.chmod(0o600)
+        assert not probe_camera_state(dev_root=dev, proc_root=proc).locked
+
     def test_no_video_devices_is_unavailable(self, tmp_path):
         state = probe_camera_state(
             dev_root=tmp_path / "dev",

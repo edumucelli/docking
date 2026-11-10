@@ -17,13 +17,15 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from docking.applets.aiusage import state as aiusage_state
 from docking.core.paths import ensure_parent_dir
 from docking.log import get_logger
-from docking.platform.environment import docking_config_dir
+from docking.platform.environment import docking_config_dir, docking_state_dir
 from docking.platform.host.selection import host_services
 
 PREFS_KEY = "aiusage"
@@ -36,67 +38,106 @@ def config_path() -> Path:
     return docking_config_dir() / "dock.json"
 
 
+def usage_path() -> Path:
+    return docking_state_dir() / "aiusage.json"
+
+
 def read_prefs_from_disk() -> dict[str, Any] | None:
-    """Read aiusage prefs directly from dock.json on disk."""
-    path = config_path()
+    """Read usage state, falling back to old preferences only before migration."""
+    path = usage_path()
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        log.debug("Failed to read AI usage prefs from %s: %s", path, exc)
-        return None
-    # dock.json is user-editable, so every level is checked before use: a
-    # JSON array or list-valued key would otherwise raise AttributeError.
-    if not isinstance(document, dict):
-        return None
-    prefs = document.get("applet_prefs")
-    if not isinstance(prefs, dict):
-        return None
-    value = prefs.get(PREFS_KEY) or prefs.get(PREFS_KEY_LEGACY)
-    return value if isinstance(value, dict) else None
+    except FileNotFoundError:
+        return _legacy_prefs()
+    except (OSError, UnicodeError, ValueError) as exc:
+        raise OSError("Cannot read saved AI usage history") from exc
+    if not isinstance(document, dict) or not isinstance(document.get("days"), list):
+        raise OSError("Invalid saved AI usage history")
+    return document
+
+
+def _legacy_prefs() -> dict[str, Any] | None:
+    original = config_path()
+    path = original.resolve()
+    candidates = (path, path.with_name(path.name + ".bak"))
+    if path != original:
+        candidates += (original.with_name(original.name + ".bak"),)
+    for candidate in candidates:
+        try:
+            document = json.loads(candidate.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ValueError):
+            continue
+        if not isinstance(document, dict):
+            continue
+        prefs = document.get("applet_prefs")
+        if not isinstance(prefs, dict):
+            continue
+        value = prefs.get(PREFS_KEY) or prefs.get(PREFS_KEY_LEGACY)
+        if isinstance(value, dict):
+            return value
+    return None
+
+
+def _update_state(
+    update: Callable[[aiusage_state.AiUsageState], aiusage_state.AiUsageState],
+) -> aiusage_state.AiUsageState:
+    path = ensure_parent_dir(usage_path())
+    lock_path = path.with_name(path.name + ".lock")
+    # Atomic replacement changes the data file's inode; lock a stable sibling.
+    with (
+        lock_path.open("a+b") as lock_file,
+        host_services().writer_lock(lock_file.fileno(), path=lock_path),
+    ):
+        current = aiusage_state.state_from_prefs(prefs=read_prefs_from_disk())
+        updated = update(current)
+        if updated == current and path.exists():
+            return updated
+        temporary: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                "w",
+                encoding="utf-8",
+                dir=path.parent,
+                prefix=f".{path.name}.",
+                delete=False,
+            ) as stream:
+                temporary = Path(stream.name)
+                json.dump(aiusage_state.prefs_from_state(updated), stream, indent=2)
+                stream.write("\n")
+                stream.flush()
+                os.fsync(stream.fileno())
+            temporary.replace(path)
+            host_services().flush_directory(path.parent)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+        return updated
+
+
+def replace_sessions(
+    sessions: dict[str, dict[str, aiusage_state.ModelUsage]],
+    *,
+    date: str | None = None,
+) -> aiusage_state.AiUsageState:
+    def update(current: aiusage_state.AiUsageState) -> aiusage_state.AiUsageState:
+        for session_id, model_usage in sessions.items():
+            current = aiusage_state.set_session(
+                state=current, session_id=session_id, model_usage=model_usage, date=date
+            )
+        return current
+
+    return _update_state(update)
 
 
 def replace_session(
     *,
     session_id: str,
     model_usage: dict[str, aiusage_state.ModelUsage],
+    date: str | None = None,
 ) -> None:
-    """Replace one session while serializing concurrent hook writers."""
-    if not model_usage:
-        return
+    if model_usage:
+        replace_sessions({session_id: model_usage}, date=date)
 
-    path = config_path()
-    ensure_parent_dir(path)
 
-    fd = os.open(str(path), os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o644)
-    try:
-        with host_services().writer_lock(fd, path=path):
-            with os.fdopen(os.dup(fd), "r", encoding="utf-8") as handle:
-                try:
-                    config = json.load(handle)
-                except (json.JSONDecodeError, ValueError) as exc:
-                    log.debug(
-                        "Failed to parse %s while updating AI usage config: %s",
-                        path,
-                        exc,
-                    )
-                    config = {}
-
-            applet_prefs = config.setdefault("applet_prefs", {})
-            prefs = applet_prefs.get(PREFS_KEY) or applet_prefs.get(
-                PREFS_KEY_LEGACY, {}
-            )
-            current = aiusage_state.state_from_prefs(prefs=prefs)
-            updated = aiusage_state.set_session(
-                state=current,
-                session_id=session_id,
-                model_usage=model_usage,
-            )
-            applet_prefs[PREFS_KEY] = aiusage_state.prefs_from_state(state=updated)
-
-            data = json.dumps(config, indent=2) + "\n"
-            os.lseek(fd, 0, os.SEEK_SET)
-            os.ftruncate(fd, 0)
-            with os.fdopen(os.dup(fd), "w", encoding="utf-8", newline="\n") as handle:
-                handle.write(data)
-    finally:
-        os.close(fd)
+def reset_usage_today() -> aiusage_state.AiUsageState:
+    return _update_state(aiusage_state.reset_today)

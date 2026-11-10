@@ -35,6 +35,7 @@ from pathlib import Path
 from docking.core.paths import ensure_dir
 
 from .control import UnixCameraControl
+from .devices import device_locked as _device_locked
 
 STATE_DIR = Path("/var/lib/docking/camshield")
 STATE_FILE = STATE_DIR / "devices.json"
@@ -304,14 +305,6 @@ def _atomic_write_json(path: Path, payload: dict[str, object]) -> None:
 def _clear_state(*, state_dir: Path) -> None:
     with suppress(OSError):
         (state_dir / STATE_FILE.name).unlink()
-
-
-def _device_locked(device: Path) -> bool:
-    try:
-        mode = stat.S_IMODE(device.stat().st_mode)
-    except OSError:
-        return False
-    return mode & 0o777 == 0
 
 
 def _is_allowed_device_path(path: Path) -> bool:

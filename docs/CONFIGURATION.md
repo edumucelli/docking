@@ -274,6 +274,11 @@ owned by each applet and can include locations, units, timers, display modes,
 and other applet-specific values. Configure these through the applet's context
 menu or the **Applets** preferences tab whenever that applet exposes controls.
 
+AI Usage keeps its history in `$XDG_STATE_HOME/docking/aiusage.json`, defaulting
+to `~/.local/state/docking/aiusage.json` on Unix and
+`%LOCALAPPDATA%\State\docking\aiusage.json` on Windows. Its hooks do not write
+`dock.json`; existing AI usage preferences are imported on the first refresh.
+
 `item_prefs` is keyed by a stable item target. Docking currently uses it for
 settings such as custom icon source/path and folder-stack sorting or hidden-file
 visibility. These maps are intentionally open-ended so new applet or item
