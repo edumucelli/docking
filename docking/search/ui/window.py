@@ -203,6 +203,8 @@ class SearchWindow:
         )
         self._pending_thumbnails: set[tuple[str, int, int]] = set()
         self._result_generation = 0
+        self._preview_generation = 0
+        self._preview_future: Future[SearchPreview | None] | None = None
         self._preferred_size = Size(SEARCH_WINDOW_WIDTH, SEARCH_WINDOW_HEIGHT)
         self._fitted_size: Size | None = None
 
@@ -454,6 +456,7 @@ class SearchWindow:
         if self._window_focus is not None:
             self._window_focus.cancel()
         self._stop_dynamic_preview()
+        self._preview_generation += 1
         self._clear_input_methods()
         self.window.hide()
 
@@ -655,11 +658,15 @@ class SearchWindow:
 
     def _hide_preview(self) -> None:
         self._stop_dynamic_preview()
+        self._preview_generation += 1
         self.preview_frame.hide()
 
     def _sync_preview(self) -> None:
         """Resolve cheap or lazy preview data for the current stable selection."""
         self._stop_dynamic_preview()
+        self._preview_generation += 1
+        if self._preview_future is not None:
+            self._preview_future.cancel()
         result = self.selected_result()
         if result is None:
             self.preview_title.set_label("")
@@ -667,7 +674,42 @@ class SearchWindow:
             self.preview_image.hide()
             self.preview_metadata.hide()
             return
-        resolved_preview = self._preview_resolver(result)
+        if result.preview is not None and result.preview.kind == "local":
+            generation = self._preview_generation
+            self._show_preview(result, None)
+            self._preview_future = self._thumbnail_executor.submit(
+                lambda: self._preview_resolver(result)
+            )
+            self._preview_future.add_done_callback(
+                lambda completed: GLib.idle_add(
+                    self._apply_resolved_preview, completed, result, generation
+                )
+            )
+        else:
+            self._show_preview(result, self._preview_resolver(result))
+
+    def _apply_resolved_preview(
+        self,
+        future: Future[SearchPreview | None],
+        result: SearchResult,
+        generation: int,
+    ) -> bool:
+        if (
+            self._destroyed
+            or generation != self._preview_generation
+            or not self.preview_frame.get_visible()
+        ):
+            return False
+        try:
+            preview = future.result()
+        except Exception:
+            return False
+        self._show_preview(result, preview)
+        return False
+
+    def _show_preview(
+        self, result: SearchResult, resolved_preview: SearchPreview | None
+    ) -> None:
         preview = (
             resolved_preview
             or result.preview

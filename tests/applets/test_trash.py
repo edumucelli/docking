@@ -943,13 +943,10 @@ class TestGioTrashBackend:
         enumerator.close.assert_called_once()
         assert stats.failures == 1
 
-    def test_delete_path_reports_permission_error(self):
-        mock_path = MagicMock(spec=Path)
-        mock_path.is_dir.return_value = False
-        mock_path.is_symlink.return_value = False
-        mock_path.unlink.side_effect = PermissionError("permission denied")
-
-        stats = GioTrashBackend()._delete_path(mock_path)
+    def test_delete_path_reports_permission_error(self, tmp_path):
+        (tmp_path / "item").touch()
+        with patch("os.unlink", side_effect=PermissionError("permission denied")):
+            stats = GioTrashBackend()._delete_directory_contents(tmp_path)
 
         assert stats.failures == 1
         assert stats.permission_denied is True
@@ -1292,14 +1289,11 @@ class TestKdeTrashBackend:
         with contextlib.suppress(Exception):
             backend._delete_contents()
 
-    def test_kde_delete_path_oserror(self, monkeypatch):
-        backend = KdeTrashBackend()
-        mock_path = MagicMock(spec=Path)
-        mock_path.is_dir.return_value = False
-        mock_path.is_symlink.return_value = False
-        mock_path.unlink.side_effect = OSError("permission denied")
-        with contextlib.suppress(Exception):
-            backend._delete_path(mock_path)
+    def test_kde_delete_path_oserror(self, tmp_path):
+        (tmp_path / "item").touch()
+        with patch("os.unlink", side_effect=OSError("permission denied")):
+            stats = KdeTrashBackend()._delete_directory_contents(tmp_path)
+        assert stats.failures == 1
 
     def test_kde_empty_deletes_when_host_trash_succeeds(self, monkeypatch):
         monkeypatch.setattr(

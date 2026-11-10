@@ -180,7 +180,7 @@ def test_failed_lock_acquisition_still_closes_preferences_descriptor(
     tmp_path, monkeypatch
 ):
     path = tmp_path / "dock.json"
-    monkeypatch.setattr(store, "config_path", lambda: path)
+    monkeypatch.setattr(store, "usage_path", lambda: path)
     descriptors = []
     acquire = MagicMock(side_effect=OSError("lock failed"))
 
@@ -234,14 +234,21 @@ def test_real_hook_process_runs_from_another_directory_with_utf8_stdin(tmp_path)
         encoding="utf-8",
         capture_output=True,
         cwd=tmp_path,
-        env={**os.environ, "XDG_CONFIG_HOME": str(config_home)},
+        env={
+            **os.environ,
+            "XDG_CONFIG_HOME": str(config_home),
+            "XDG_STATE_HOME": str(tmp_path / "state"),
+        },
         timeout=30,
     )
     assert process.returncode == 0, process.stderr
     result = json.loads(config.read_text(encoding="utf-8"))
     assert result["preserve"] == "résumé # % +"
     assert result["applet_prefs"]["clock"] == {"style": "analog"}
-    day = state_from_prefs(prefs=result["applet_prefs"]["aiusage"]).days[0]
+    saved = json.loads(
+        (tmp_path / "state/docking/aiusage.json").read_text(encoding="utf-8")
+    )
+    day = state_from_prefs(prefs=saved).days[0]
     assert day.sessions == 1
     assert dict(day.by_model)["claude-opus-4"].input_tokens == 10
 
@@ -256,6 +263,7 @@ from docking.applets.aiusage import store
 from docking.applets.aiusage.state import ModelUsage
 path, barrier, index = Path(sys.argv[1]), Path(sys.argv[2]), int(sys.argv[3])
 store.config_path=lambda:path
+store.usage_path=lambda:path.with_name("aiusage.json")
 original=store.aiusage_state.set_session
 def slow(**kwargs):
     time.sleep(.02)
@@ -311,6 +319,7 @@ assert 'gi.repository.Gtk' not in sys.modules
                 process.communicate()
     result = json.loads(config.read_text(encoding="utf-8"))
     assert result["preserve"] == "résumé"
-    day = state_from_prefs(prefs=result["applet_prefs"]["aiusage"]).days[0]
+    saved = json.loads(config.with_name("aiusage.json").read_text(encoding="utf-8"))
+    day = state_from_prefs(prefs=saved).days[0]
     assert day.sessions == 4
     assert dict(day.by_model)["gpt-5.4"].input_tokens == 30

@@ -9,7 +9,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from gi.repository import GLib
+from gi.repository import Gio, GLib
 
 import docking.platform.backends.wayland.niri_picking as picking
 from docking.platform.backends.base import (
@@ -149,6 +149,32 @@ def test_waiting_for_native_click_keeps_the_main_context_responsive(
     finally:
         timer.destroy()
         worker.join(timeout=1)
+
+
+def test_picker_reads_reply_when_peer_closes_before_write_shutdown(
+    tmp_path, picker_context, monkeypatch
+):
+    # BSD can reject shutdown after the peer has already replied and closed.
+    monkeypatch.setattr(
+        Gio.Socket,
+        "shutdown",
+        MagicMock(
+            side_effect=GLib.Error.new_literal(
+                Gio.io_error_quark(),
+                "Socket is not connected",
+                Gio.IOErrorEnum.NOT_CONNECTED,
+            )
+        ),
+    )
+    path, worker, requests = _server(tmp_path, b'{"Ok":{"PickedWindow":{"id":8}}}\n')
+    row = _row()
+    service = picking.NiriWindowPickService(
+        windows=SimpleNamespace(live_window=lambda _: row), socket_path=str(path)
+    )
+    assert service.select_window() is row
+    worker.join(timeout=1)
+    assert not worker.is_alive()
+    assert requests == ["PickWindow"]
 
 
 def test_stop_cancels_an_outstanding_pick(tmp_path, picker_context):

@@ -20,7 +20,22 @@ from docking.platform.files import file_for_uri
 from docking.platform.icons import IconLoader, fallback_file_icon_name
 
 log = with_context(get_logger(name="targets"))
-ALLOWED_URI_SCHEMES = frozenset({"http", "https", "mailto"})
+ALLOWED_URI_SCHEMES = frozenset(
+    {
+        "http",
+        "https",
+        "mailto",
+        "tel",
+        "smb",
+        "sftp",
+        "ftp",
+        "ftps",
+        "dav",
+        "davs",
+        "afp",
+        "nfs",
+    }
+)
 
 
 class FileTargetInfo(NamedTuple):

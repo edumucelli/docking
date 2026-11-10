@@ -12,7 +12,7 @@ from docking.applets.camshield.state import (
 from docking.i18n import _
 
 from ..unix.control import UnixCameraControl
-from ..unix.devices import enumerate_video_devices, normalized_path
+from ..unix.devices import device_locked, enumerate_video_devices, normalized_path
 
 
 def _probe_camera_state(
@@ -34,6 +34,7 @@ def _probe_camera_state(
         active=bool(holders),
         devices=tuple(sorted(video_devices)),
         holders=tuple(sorted(holders, key=lambda holder: (holder.command, holder.pid))),
+        locked=all(device_locked(device) for device in video_devices.values()),
     )
 
 

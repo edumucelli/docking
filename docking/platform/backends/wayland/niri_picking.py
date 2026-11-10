@@ -74,7 +74,6 @@ class NiriWindowPickService(WindowPickService):
                     connection.close(None)
                     return
                 connection.get_output_stream().write_all(b'"PickWindow"\n', cancellable)
-                connection.get_socket().shutdown(False, True)
                 reader = Gio.DataInputStream.new(connection.get_input_stream())
                 reader.read_line_async(GLib.PRIORITY_DEFAULT, cancellable, read_reply)
             except GLib.Error:

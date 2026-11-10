@@ -2,11 +2,109 @@
 
 from __future__ import annotations
 
+import gzip
+import lzma
 import tarfile
 import zipfile
+from io import BytesIO
 from pathlib import Path
 
+import pytest
+
+import docking.search.preview as preview_mod
 from docking.search.preview import preview_local_descriptor, preview_local_target
+
+
+@pytest.mark.parametrize("extension", ["tar", "zip"])
+def test_archive_member_names_cannot_exceed_the_display_budget(tmp_path, extension):
+    path = tmp_path / f"long-name.{extension}"
+    name = "x" * (preview_mod.MAX_PREVIEW_BYTES + 1)
+    if extension == "tar":
+        with tarfile.open(path, "w") as archive:
+            archive.addfile(tarfile.TarInfo(name), BytesIO())
+    else:
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr(name, b"")
+
+    result = preview_local_target(target=str(path), title="archive")
+
+    assert result.kind == "archive"
+    assert len(result.body) == preview_mod.MAX_PREVIEW_BYTES
+
+
+def test_xz_preview_rejects_a_decoder_dictionary_above_the_memory_budget(
+    tmp_path, monkeypatch
+):
+    tar = BytesIO()
+    with tarfile.open(fileobj=tar, mode="w") as archive:
+        archive.addfile(tarfile.TarInfo("small.txt"), BytesIO())
+    path = tmp_path / "dictionary.tar.xz"
+    path.write_bytes(
+        lzma.compress(
+            tar.getvalue(),
+            filters=[{"id": lzma.FILTER_LZMA2, "dict_size": 1024 * 1024}],
+        )
+    )
+    monkeypatch.setattr(preview_mod, "MAX_ARCHIVE_DECODER_BYTES", 512 * 1024)
+
+    result = preview_local_target(target=str(path), title="archive")
+
+    assert result.kind != "archive"
+
+
+@pytest.mark.parametrize("padding", [b"", bytes(8)])
+def test_xz_memory_limit_retains_concatenated_stream_support(tmp_path, padding):
+    tar = BytesIO()
+    with tarfile.open(fileobj=tar, mode="w") as archive:
+        archive.addfile(tarfile.TarInfo("small.txt"), BytesIO())
+    payload = tar.getvalue()
+    path = tmp_path / "concatenated.tar.xz"
+    path.write_bytes(
+        lzma.compress(payload[:512]) + padding + lzma.compress(payload[512:])
+    )
+
+    result = preview_local_target(target=str(path), title="archive")
+
+    assert result.kind == "archive" and result.body == "small.txt"
+
+
+@pytest.mark.parametrize("compression", ["gz", "bz2", "xz"])
+def test_compressed_archive_preview_limits_decompressed_bytes(
+    tmp_path, monkeypatch, compression
+):
+    path = tmp_path / f"large.tar.{compression}"
+    with tarfile.open(path, f"w:{compression}") as archive:
+        entry = tarfile.TarInfo("large.bin")
+        entry.size = 64 * 1024
+        archive.addfile(entry, BytesIO(bytes(entry.size)))
+    assert path.stat().st_size < 2048
+    monkeypatch.setattr(preview_mod, "MAX_ARCHIVE_PREVIEW_BYTES", 2048)
+
+    result = preview_local_target(target=str(path), title="archive")
+
+    assert result.kind == "archive-too-large"
+    assert "large.bin" not in result.body
+
+
+@pytest.mark.parametrize("compression", ["gz", "bz2", "xz"])
+def test_small_compressed_archives_keep_their_listing(tmp_path, compression):
+    path = tmp_path / f"small.tar.{compression}"
+    with tarfile.open(path, f"w:{compression}") as archive:
+        archive.addfile(tarfile.TarInfo("small.txt"), BytesIO())
+    result = preview_local_target(target=str(path), title="archive")
+    assert result.kind == "archive" and result.body == "small.txt"
+
+
+def test_corrupt_gzip_deflate_body_uses_the_binary_fallback(tmp_path):
+    path = tmp_path / "corrupt.tar.gz"
+    compressed = bytearray(gzip.compress(b"archive", mtime=0))
+    compressed[10] = 0x07  # Reserved deflate block type after the gzip header.
+    path.write_bytes(compressed)
+
+    result = preview_local_target(target=str(path), title="archive")
+
+    assert result.kind == "binary"
+    assert result.body == str(path)
 
 
 def test_text_file_and_directory_previews(tmp_path) -> None:

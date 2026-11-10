@@ -112,6 +112,87 @@ def input_palette():
         window.destroy()
 
 
+def test_local_preview_defers_io_and_rejects_a_previous_selection(
+    input_palette, monkeypatch
+):
+    window, _activated = input_palette
+    jobs = []
+
+    def submit(callback):
+        future = Future()
+        future.set_running_or_notify_cancel()
+        jobs.append((callback, future))
+        return future
+
+    window._thumbnail_executor.shutdown(wait=False)
+    window._thumbnail_executor = SimpleNamespace(submit=submit, shutdown=MagicMock())
+    monkeypatch.setattr(
+        window_mod.GLib, "idle_add", lambda callback, *args: callback(*args)
+    )
+    resolver = MagicMock(
+        side_effect=lambda result: SearchPreview(title=result.title, body=result.title)
+    )
+    window._preview_resolver = resolver
+    snapshot = _snapshot()
+    first = replace(
+        snapshot.results[0],
+        title="first archive",
+        preview=SearchPreview(
+            title="first", body="/first.tar.gz", kind="local", target="/first.tar.gz"
+        ),
+    )
+    window.update(replace(snapshot, results=(first,)))
+    window.toggle_preview()
+    resolver.assert_not_called()
+
+    second = replace(
+        first,
+        identity=SearchIdentity(first.identity.provider_id, "second"),
+        title="second archive",
+    )
+    window.update(
+        replace(snapshot, results=(second,), selected_identity=second.identity)
+    )
+    callback, future = jobs[0]
+    future.set_result(callback())
+    assert window.preview_body.get_text() != "first archive"
+    callback, future = jobs[1]
+    future.set_result(callback())
+    assert window.preview_body.get_text() == "second archive"
+
+
+@pytest.mark.parametrize("close", ["hide", "destroy", "_hide_preview"])
+def test_late_local_preview_cannot_touch_a_closed_panel(
+    input_palette, monkeypatch, close
+):
+    window, _activated = input_palette
+    future = Future()
+    future.set_running_or_notify_cancel()
+    window._thumbnail_executor.shutdown(wait=False)
+    window._thumbnail_executor = SimpleNamespace(
+        submit=MagicMock(return_value=future), shutdown=MagicMock()
+    )
+    monkeypatch.setattr(
+        window_mod.GLib, "idle_add", lambda callback, *args: callback(*args)
+    )
+    snapshot = _snapshot()
+    result = replace(
+        snapshot.results[0],
+        preview=SearchPreview(
+            title="archive", body="/a.tar.gz", kind="local", target="/a.tar.gz"
+        ),
+    )
+    window.update(replace(snapshot, results=(result,)))
+    window.toggle_preview()
+    window._show_preview = MagicMock()
+    # These are real lifecycle methods selected by the parametrized test.
+    getattr(window, close)()
+
+    future.set_result(SearchPreview(title="archive", body="late result"))
+
+    window._show_preview.assert_not_called()
+
+
 @pytest.mark.parametrize("entry_name", ["search_entry", "action_filter"])
 @pytest.mark.parametrize(
     "key", [Gdk.KEY_Return, Gdk.KEY_Escape, Gdk.KEY_Up, Gdk.KEY_Down]

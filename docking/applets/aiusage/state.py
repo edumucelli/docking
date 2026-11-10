@@ -325,9 +325,10 @@ def set_session(
     state: AiUsageState,
     session_id: str,
     model_usage: dict[str, ModelUsage],
+    date: str | None = None,
 ) -> AiUsageState:
     """Replace a session's usage in today's entry (idempotent)."""
-    today = _today_iso()
+    today = date or _today_iso()
 
     existing: DayEntry | None = None
     others: list[DayEntry] = []
@@ -358,7 +359,9 @@ def set_session(
         by_session=tuple(by_session.items()),
     )
 
-    days = (updated, *others[: MAX_DAYS - 1])
+    days = tuple(sorted((updated, *others), key=lambda day: day.date, reverse=True))[
+        :MAX_DAYS
+    ]
     return AiUsageState(days=days)
 
 
