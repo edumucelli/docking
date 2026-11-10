@@ -181,6 +181,26 @@ def test_status_reports_locked_devices(tmp_path, monkeypatch, capsys):
     ]
 
 
+@pytest.mark.parametrize(
+    "modes, locked", [((), False), ((0, 0o600), False), ((0, 0), True)]
+)
+def test_status_reports_full_lock_only_for_all_devices(tmp_path, capsys, modes, locked):
+    dev = tmp_path / "dev"
+    dev.mkdir()
+    for index, mode in enumerate(modes):
+        camera = dev / f"video{index}"
+        camera.touch()
+        camera.chmod(mode)
+
+    assert helper.status_devices(dev_root=dev, state_dir=tmp_path / "state") == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["locked"] is locked
+    assert [device["locked"] for device in payload["devices"]] == [
+        mode == 0 for mode in modes
+    ]
+
+
 def test_status_marks_recorded_devices(tmp_path, monkeypatch, capsys):
     dev = tmp_path / "dev"
     state_dir = tmp_path / "state"

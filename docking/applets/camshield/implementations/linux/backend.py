@@ -34,7 +34,7 @@ def _probe_camera_state(
         active=bool(holders),
         devices=tuple(sorted(video_devices)),
         holders=tuple(sorted(holders, key=lambda holder: (holder.command, holder.pid))),
-        locked=any(device_locked(device) for device in video_devices.values()),
+        locked=all(device_locked(device) for device in video_devices.values()),
     )
 
 

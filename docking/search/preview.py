@@ -19,6 +19,7 @@ import re
 import stat
 import tarfile
 import zipfile
+import zlib
 from bz2 import open as open_bz2
 from gzip import open as open_gzip
 from io import BytesIO
@@ -304,7 +305,14 @@ def _archive_preview(
                     if index >= MAX_ARCHIVE_ENTRIES:
                         break
                     entries.append(member.name + ("/" if member.isdir() else ""))
-    except (OSError, EOFError, LZMAError, tarfile.TarError, zipfile.BadZipFile):
+    except (
+        OSError,
+        EOFError,
+        LZMAError,
+        zlib.error,
+        tarfile.TarError,
+        zipfile.BadZipFile,
+    ):
         return None
     return SearchPreview(
         title=title,

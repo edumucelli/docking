@@ -25,7 +25,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
-from docking.applets.aiusage import meta
+from docking.applets.aiusage import meta, store
 from docking.applets.aiusage.backends import BACKENDS
 from docking.applets.aiusage.backends.base import ProviderSessions
 from docking.applets.aiusage.render import render_icon
@@ -211,6 +211,7 @@ class AiUsageApplet(Applet):
 
     def _poll(self) -> AiUsageState | None:
         day = _today_iso()
+        previous = state_from_prefs(store.read_prefs_from_disk())
         combined: ProviderSessions = {}
 
         for backend in BACKENDS:
@@ -230,7 +231,7 @@ class AiUsageApplet(Applet):
 
         if day != _today_iso():
             return None
-        return replace_sessions(combined, date=day)
+        return replace_sessions(combined, date=day, expected=previous)
 
     def _on_poll_result(self, state: AiUsageState | None, generation: int) -> None:
         if self._stopped or generation != self._generation:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gzip
 import lzma
 import tarfile
 import zipfile
@@ -92,6 +93,18 @@ def test_small_compressed_archives_keep_their_listing(tmp_path, compression):
         archive.addfile(tarfile.TarInfo("small.txt"), BytesIO())
     result = preview_local_target(target=str(path), title="archive")
     assert result.kind == "archive" and result.body == "small.txt"
+
+
+def test_corrupt_gzip_deflate_body_uses_the_binary_fallback(tmp_path):
+    path = tmp_path / "corrupt.tar.gz"
+    compressed = bytearray(gzip.compress(b"archive", mtime=0))
+    compressed[10] = 0x07  # Reserved deflate block type after the gzip header.
+    path.write_bytes(compressed)
+
+    result = preview_local_target(target=str(path), title="archive")
+
+    assert result.kind == "binary"
+    assert result.body == str(path)
 
 
 def test_text_file_and_directory_previews(tmp_path) -> None:

@@ -27,7 +27,7 @@ ProviderSessions = dict[str, dict[str, ModelUsage]]
 
 
 def transcript_entries(path: Path) -> Iterator[dict[str, Any]]:
-    with path.open(encoding="utf-8") as stream:
+    with path.open(encoding="utf-8", errors="replace") as stream:
         for line in stream:
             try:
                 entry = json.loads(line)

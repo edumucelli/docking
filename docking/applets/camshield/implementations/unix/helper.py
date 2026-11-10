@@ -144,7 +144,7 @@ def status_devices(
     state = _read_state(state_dir=state_dir)
     payload = {
         "available": bool(devices),
-        "locked": any(_device_locked(device) for device in devices),
+        "locked": bool(devices) and all(_device_locked(device) for device in devices),
         "devices": [
             {
                 "path": str(device),

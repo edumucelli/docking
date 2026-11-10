@@ -118,9 +118,21 @@ def replace_sessions(
     sessions: dict[str, dict[str, aiusage_state.ModelUsage]],
     *,
     date: str | None = None,
+    expected: aiusage_state.AiUsageState | None = None,
 ) -> aiusage_state.AiUsageState:
+    """Replace snapshots, preserving sessions changed since a poll began."""
+    date = date or aiusage_state._today_iso()
+    before = (
+        dict(next((d.by_session for d in expected.days if d.date == date), ()))
+        if expected is not None
+        else None
+    )
+
     def update(current: aiusage_state.AiUsageState) -> aiusage_state.AiUsageState:
+        saved = dict(next((d.by_session for d in current.days if d.date == date), ()))
         for session_id, model_usage in sessions.items():
+            if before is not None and saved.get(session_id) != before.get(session_id):
+                continue
             current = aiusage_state.set_session(
                 state=current, session_id=session_id, model_usage=model_usage, date=date
             )

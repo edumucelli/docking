@@ -3,13 +3,14 @@
 import datetime as dt
 import json
 import sqlite3
+from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 
-from docking.applets.aiusage import applet, state, store
+from docking.applets.aiusage import applet, hook, state, store
 from docking.applets.aiusage.backends import claude, codex, opencode
 from docking.core.config import Config
 from tests.applets.deferred_worker import DeferredWorker
@@ -106,6 +107,79 @@ def test_corrupt_usage_history_is_preserved_for_recovery():
     with pytest.raises(OSError, match="Cannot read saved AI usage"):
         store.replace_session(session_id="new", model_usage=_usage(20))
     assert path.read_text() == "{"
+
+
+@pytest.mark.parametrize("provider", ["claude", "codex"])
+@pytest.mark.parametrize("failure", ["corrupt", "unreadable"])
+def test_hooks_report_history_errors_without_overwriting_it(
+    tmp_path, monkeypatch, caplog, provider, failure
+):
+    path = store.usage_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    original = b"{" if failure == "corrupt" else b'{"days": []}'
+    path.write_bytes(original)
+    if failure == "unreadable":
+        read_text = Path.read_text
+
+        def unreadable(source, *args, **kwargs):
+            if source == path:
+                raise PermissionError("History is unreadable")
+            return read_text(source, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "read_text", unreadable)
+    transcript = tmp_path / "session.jsonl"
+    backend = claude if provider == "claude" else codex
+    monkeypatch.setattr(backend, "parse_transcript", lambda **_: _usage(20))
+    monkeypatch.setattr(codex, "find_session", lambda **_: transcript)
+    monkeypatch.setattr(
+        hook.sys,
+        "argv",
+        ["hook", "claude", "Stop"]
+        if provider == "claude"
+        else ["hook", "codex", '{"thread-id": "session"}'],
+    )
+    monkeypatch.setattr(
+        hook.sys, "stdin", StringIO(json.dumps({"transcript_path": str(transcript)}))
+    )
+
+    hook.main()
+
+    assert path.read_bytes() == original
+    assert "Failed to update AI usage history" in caplog.text
+
+
+@pytest.mark.parametrize("provider", ["claude", "codex"])
+def test_transcript_usage_survives_bad_utf8_and_a_partial_final_line(
+    tmp_path, provider
+):
+    path = tmp_path / "session.jsonl"
+    day = "2026-04-29"
+    if provider == "claude":
+        model = "claude-sonnet-4-6"
+        entries = [
+            {
+                "type": "assistant",
+                "message": {"model": model, "usage": {"input_tokens": count}},
+            }
+            for count in (100, 20)
+        ]
+        backend = claude
+    else:
+        model = "gpt-5.4"
+        entries = [
+            {"type": "turn_context", "payload": {"model": model}},
+            _counter(100, _timestamp(day, 12, 0)),
+            _counter(120, _timestamp(day, 12, 1)),
+        ]
+        backend = codex
+    path.write_bytes(
+        b"\n\xff\n".join(json.dumps(entry).encode("utf-8") for entry in entries)
+        + b'\n{"text":"\xe2\x82'
+    )
+
+    assert backend.parse_transcript(path, date=day) == {
+        model: state.ModelUsage(input_tokens=120)
+    }
 
 
 @pytest.mark.parametrize(
@@ -241,6 +315,33 @@ def test_polled_history_survives_midnight_and_an_applet_restart(monkeypatch):
 
     assert state.week_tokens(second._state) == 30
     assert second._state.days[0].date == "2026-04-28"
+
+
+@pytest.mark.parametrize("initial_tokens", [0, 80])
+def test_poll_preserves_concurrent_hook_updates_and_other_polled_sessions(
+    monkeypatch, initial_tokens
+):
+    day = state._today_iso()
+    if initial_tokens:
+        store.replace_session(
+            session_id="session", model_usage=_usage(initial_tokens), date=day
+        )
+
+    def poll():
+        snapshot = _usage(100)
+        store.replace_session(session_id="session", model_usage=_usage(200), date=day)
+        return {"session": snapshot, "polled-only": _usage(30)}
+
+    backend = SimpleNamespace(provider=state.Provider.CODEX, poll_today=poll)
+    monkeypatch.setattr(applet, "BACKENDS", (backend,))
+    instance = applet.AiUsageApplet(48, Config())
+
+    result = instance._poll()
+
+    assert state.today_tokens(result) == 230
+    assert result == state.state_from_prefs(store.read_prefs_from_disk())
+    backend.poll_today = lambda: {"session": _usage(250), "polled-only": _usage(40)}
+    assert state.today_tokens(instance._poll()) == 290
 
 
 @pytest.mark.parametrize("stop_before_delivery", [True, False])
