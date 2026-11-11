@@ -603,16 +603,8 @@ class SystemTrayApplet(PlatformServicesApplet):
             target.add(image)
             self._row_targets[item.identifier] = target
             for signal in ("enter-notify-event", "motion-notify-event"):
-                target.connect(
-                    signal,
-                    lambda widget, event, identifier=item.identifier: self._on_pointer(
-                        widget, event, identifier
-                    ),
-                )
-            target.connect(
-                "leave-notify-event",
-                lambda widget, event: self._on_pointer(widget, event, None),
-            )
+                target.connect(signal, self._on_pointer, item.identifier)
+            target.connect("leave-notify-event", self._on_pointer, None)
             target.connect(
                 "key-press-event",
                 lambda widget, event, identifier=item.identifier: self._on_action_key(

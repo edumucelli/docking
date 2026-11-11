@@ -55,7 +55,6 @@ class SwaySessionBackend(WaylandLayerShellSessionBackend):
             workspaces=SwayWorkspaceService(client=client, windows=windows),
             visibility=SnapshotVisibilityService(
                 windows=windows,
-                visible_windows=lambda _rect: windows.list_all_windows(),
                 config=config,
             ),
             # Sway container IDs are not foreign-toplevel handles. Never capture

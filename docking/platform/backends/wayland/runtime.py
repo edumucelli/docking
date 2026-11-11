@@ -196,15 +196,9 @@ class ForeignToplevelProtocolAdapter:
         service = self._service
         if service is not None:
             service.toplevel_created(toplevel)
-        toplevel.dispatcher["title"] = lambda _handle, title: self._on_toplevel_title(
-            toplevel, title
-        )
-        toplevel.dispatcher["app_id"] = lambda _handle, app_id: (
-            self._on_toplevel_app_id(toplevel, app_id)
-        )
-        toplevel.dispatcher["state"] = lambda _handle, states: self._on_toplevel_state(
-            toplevel, states
-        )
+        toplevel.dispatcher["title"] = self._on_toplevel_title
+        toplevel.dispatcher["app_id"] = self._on_toplevel_app_id
+        toplevel.dispatcher["state"] = self._on_toplevel_state
         toplevel.dispatcher["output_enter"] = lambda _handle, output: (
             self._service.output_entered(toplevel, output)
             if self._service is not None
@@ -220,10 +214,8 @@ class ForeignToplevelProtocolAdapter:
             if self._service is not None
             else None
         )
-        toplevel.dispatcher["done"] = lambda _handle: self._on_toplevel_done(toplevel)
-        toplevel.dispatcher["closed"] = lambda _handle: self._on_toplevel_closed(
-            toplevel
-        )
+        toplevel.dispatcher["done"] = self._on_toplevel_done
+        toplevel.dispatcher["closed"] = self._on_toplevel_closed
 
     def _on_toplevel_title(self, toplevel: object, title: str) -> None:
         self._pending_data.setdefault(toplevel, {})["title"] = title
@@ -341,26 +333,11 @@ class WorkspaceProtocolAdapter:
         service = self._service
         if service is not None:
             service.workspace_created(workspace)
-        workspace.dispatcher["id"] = lambda _handle, value: self._on_workspace_id(
-            workspace,
-            value,
-        )
-        workspace.dispatcher["name"] = lambda _handle, value: self._on_workspace_name(
-            workspace,
-            value,
-        )
-        workspace.dispatcher["state"] = lambda _handle, states: (
-            self._on_workspace_state(workspace, states)
-        )
-        workspace.dispatcher["capabilities"] = lambda _handle, capabilities: (
-            self._on_workspace_capabilities(
-                workspace,
-                capabilities,
-            )
-        )
-        workspace.dispatcher["removed"] = lambda _handle: self._on_workspace_removed(
-            workspace
-        )
+        workspace.dispatcher["id"] = self._on_workspace_id
+        workspace.dispatcher["name"] = self._on_workspace_name
+        workspace.dispatcher["state"] = self._on_workspace_state
+        workspace.dispatcher["capabilities"] = self._on_workspace_capabilities
+        workspace.dispatcher["removed"] = self._on_workspace_removed
 
     def _on_workspace_id(self, workspace: object, value: str) -> None:
         self._pending_data.setdefault(workspace, {})["id"] = value
@@ -621,20 +598,11 @@ class PreviewProtocolAdapter:
         self._pending_data.setdefault(toplevel, {})
         if self._tracker is not None:
             self._tracker.toplevel_created(toplevel)
-        toplevel.dispatcher["title"] = lambda _handle, title: self._on_toplevel_title(
-            toplevel,
-            title,
-        )
-        toplevel.dispatcher["app_id"] = lambda _handle, app_id: (
-            self._on_toplevel_app_id(toplevel, app_id)
-        )
-        toplevel.dispatcher["identifier"] = lambda _handle, identifier: (
-            self._on_toplevel_identifier(toplevel, identifier)
-        )
-        toplevel.dispatcher["done"] = lambda _handle: self._on_toplevel_done(toplevel)
-        toplevel.dispatcher["closed"] = lambda _handle: self._on_toplevel_closed(
-            toplevel
-        )
+        toplevel.dispatcher["title"] = self._on_toplevel_title
+        toplevel.dispatcher["app_id"] = self._on_toplevel_app_id
+        toplevel.dispatcher["identifier"] = self._on_toplevel_identifier
+        toplevel.dispatcher["done"] = self._on_toplevel_done
+        toplevel.dispatcher["closed"] = self._on_toplevel_closed
 
     def _on_toplevel_title(self, toplevel: object, title: str) -> None:
         self._pending_data.setdefault(toplevel, {})["title"] = title

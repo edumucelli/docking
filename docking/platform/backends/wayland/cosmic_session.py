@@ -348,7 +348,6 @@ class CosmicSessionBackend(SessionBackend):
         ):
             visibility = SnapshotVisibilityService(
                 windows=windows,
-                visible_windows=lambda _rect: windows.list_all_windows(),
                 config=config,
             )
         else:

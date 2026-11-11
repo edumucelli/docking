@@ -265,7 +265,6 @@ class KWinSessionBackend(SessionBackend):
         self._visibility: VisibilityService = (
             SnapshotVisibilityService(
                 windows=self._windows,
-                visible_windows=lambda _rect: self._windows.list_all_windows(),
                 config=config,
             )
             if bridge is not None

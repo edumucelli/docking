@@ -21,12 +21,12 @@ def test_radio_menu_items_keep_active_choice_and_ignore_inactive_toggles():
     assert items[0].get_active() is False
     assert items[1].get_active() is True
 
-    callback, _args = items[0]._signals["toggled"][0]
-    callback(items[0])
+    callback, args = items[0]._signals["toggled"][0]
+    callback(items[0], *args)
     assert selected == []
 
     items[0].set_active(True)
-    callback(items[0])
+    callback(items[0], *args)
     assert selected == ["day"]
 
 

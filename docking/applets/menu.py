@@ -91,14 +91,7 @@ def radio_menu_items(
         else:
             item.join_group(group_head)
         item.set_active(is_active(value) if is_active else value == active_value)
-        item.connect(
-            "toggled",
-            lambda widget, selected=value: _on_radio_toggled(
-                widget=widget,
-                value=selected,
-                on_selected=on_selected,
-            ),
-        )
+        item.connect("toggled", _on_radio_toggled, value, on_selected)
         items.append(item)
     return items
 
@@ -128,7 +121,6 @@ def radio_submenu(
 
 
 def _on_radio_toggled(
-    *,
     widget: Gtk.RadioMenuItem,
     value: T,
     on_selected: Callable[[Gtk.RadioMenuItem, T], None],

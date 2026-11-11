@@ -164,10 +164,7 @@ class PowerProfilesApplet(PlatformServicesApplet):
                     for profile in self._ordered_profiles()
                 ),
                 active_value=self._state.active_profile,
-                on_selected=lambda widget, value: self._on_profile_toggled(
-                    widget,
-                    value,
-                ),
+                on_selected=self._on_profile_toggled,
                 gtk=Gtk,
             ),
         ]

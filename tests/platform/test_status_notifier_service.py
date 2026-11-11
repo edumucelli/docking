@@ -223,12 +223,12 @@ class _Threads:
 @pytest.fixture
 def timers(monkeypatch) -> SimpleNamespace:
     """Keep service timers out of the real main context."""
-    added: list[tuple[int, object]] = []
+    added: list[tuple[int, object, tuple[object, ...]]] = []
     removed: list[int] = []
     monkeypatch.setattr(
         service_mod.GLib,
         "timeout_add_seconds",
-        lambda seconds, callback: added.append((seconds, callback)) or 77,
+        lambda seconds, callback, *args: added.append((seconds, callback, args)) or 77,
     )
     monkeypatch.setattr(
         service_mod.GLib,
@@ -588,7 +588,7 @@ def test_stale_poll_result_and_timer_are_rejected_after_restart(timers):
     service = _service(worker=worker)
     service.start()
     old_result = worker._on_result
-    old_timer = timers.added[0][1]
+    _, old_timer, old_args = timers.added[0]
     service.stop()
     service.start()
     received = []
@@ -596,7 +596,7 @@ def test_stale_poll_result_and_timer_are_rejected_after_restart(timers):
     received.clear()
     old_result(_available_state())
     assert received == [] and service.state == unavailable_state()
-    assert old_timer() is False
+    assert old_timer(*old_args) is False
     worker.deliver()
     assert received == [_available_state()]
 

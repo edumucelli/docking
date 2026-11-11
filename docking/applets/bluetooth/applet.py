@@ -365,7 +365,7 @@ class BluetoothApplet(PlatformServicesApplet):
                 for adapter in self._state.adapters
             ),
             active_value=self._active_adapter_path,
-            on_selected=lambda widget, value: self._on_select_adapter(widget, value),
+            on_selected=self._on_select_adapter,
             gtk=Gtk,
         )
 

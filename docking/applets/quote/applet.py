@@ -112,10 +112,7 @@ class QuoteApplet(Applet):
                     (label, source_id) for source_id, label in SOURCE_LABELS.items()
                 ),
                 active_value=self._source,
-                on_selected=lambda widget, value: self._on_source_toggled(
-                    widget,
-                    value,
-                ),
+                on_selected=self._on_source_toggled,
                 gtk=Gtk,
             ),
         ]
