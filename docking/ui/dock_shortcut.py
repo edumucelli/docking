@@ -118,8 +118,9 @@ class DockShortcutController(ShortcutController):
 
     def status_text(self) -> str:
         if not self._config.dock_shortcut:
-            return _("Assign a shortcut before enabling this mode.")
-        detail = self.shortcut_status_text()
+            detail = _("Assign a shortcut before enabling this mode.")
+        else:
+            detail = self.shortcut_status_text()
         if (
             self._shortcut_status
             and self._shortcut_status.binding

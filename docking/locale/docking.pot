@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-11-11 15:28+0100\n"
+"POT-Creation-Date: 2026-11-11 15:43+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -5260,11 +5260,11 @@ msgstr ""
 msgid "Assign a shortcut before enabling this mode."
 msgstr ""
 
-#: docking/ui/dock_shortcut.py:128
+#: docking/ui/dock_shortcut.py:129
 msgid "The desktop has not assigned a shortcut."
 msgstr ""
 
-#: docking/ui/dock_shortcut.py:133
+#: docking/ui/dock_shortcut.py:134
 #, python-brace-format
 msgid "Using Auto-hide: {reason}"
 msgstr ""

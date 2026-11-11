@@ -219,3 +219,10 @@ def test_empty_portal_assignment_does_not_enable_shortcut_only(window, shortcuts
     assert window.config.hide_mode == "none"
     assert not shortcuts.shortcut_active
     assert "not assigned" in shortcuts.status_text()
+
+
+def test_saved_mode_without_a_shortcut_explains_its_fallback(window, shortcuts):
+    window.config.dock_shortcut = ""
+    shortcuts.refresh_settings()
+    assert shortcuts.status_text().startswith("Using Auto-hide:")
+    assert window.autohide.pointer_reveal_enabled
