@@ -195,6 +195,9 @@ sudo snap install --dangerous artifacts/docking.snap
 Notes:
 
 - Snap manifest: `packaging/snap/snapcraft.yaml`
+- Snap CI uses Canonical's pinned `8_core22` container on native AMD64 and ARM64
+  runners. Keep the image base aligned with the manifest's `base`; the build
+  checks that staged Python dependencies import without the builder's packages.
 - Snap `grade` is `stable`; `confinement` remains `devmode` to support current desktop integration paths.
 
 ## AppImage

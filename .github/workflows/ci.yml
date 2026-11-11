@@ -821,10 +821,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install Snapcraft
+      - name: Install translation tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y snapcraft gettext
+          sudo apt-get install -y gettext
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
@@ -832,10 +832,18 @@ jobs:
       - name: Build Snap package
         run: |
           mkdir -p artifacts
-          (
-            cd packaging/snap
-            sudo snapcraft pack --destructive-mode --output "$GITHUB_WORKSPACE/artifacts/docking.snap"
-          )
+          docker run --rm -i \
+            --volume "$GITHUB_WORKSPACE:/project" \
+            --workdir /project/packaging/snap \
+            --env PATH=/usr/libexec/snapcraft:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+            --entrypoint /bin/sh \
+            ghcr.io/canonical/snapcraft:8_core22@sha256:f664b5db4deeea6847a341e1a47627b7b9a245a0de4ca7f8f061f3b2bc9b4d5a \
+            -se <<'SNAPCRAFT_BUILD'
+          # shortcut: fix this image's craftctl path without leaking builder packages into the app; remove when upstream fixes core22.
+          sed -i '/^from craft_parts/ i sys.path.insert(0, "/lib/python3.10/site-packages")' /usr/libexec/snapcraft/craftctl
+          /bin/run-snapcraft.sh pack --destructive-mode --output /project/artifacts/docking.snap
+          /bin/python3 -S -c 'import sys; sys.path.insert(0, "prime/lib/python3.10/site-packages"); import _cffi_backend, cffi, pycparser, pywayland, docking'
+          SNAPCRAFT_BUILD
           sudo chown "$USER:$USER" artifacts/docking.snap
           ls -lh artifacts/*.snap
 
@@ -852,13 +860,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install Snapcraft
+      - name: Install translation tooling
         run: |
           sudo apt-get update
-          sudo apt-get install -y snapd gettext
-          sudo systemctl start snapd.socket snapd.service
-          sudo snap install snapcraft --classic
-          echo "/snap/bin" >> "$GITHUB_PATH"
+          sudo apt-get install -y gettext
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
@@ -866,10 +871,18 @@ jobs:
       - name: Build Snap package
         run: |
           mkdir -p artifacts
-          (
-            cd packaging/snap
-            sudo snapcraft pack --destructive-mode --output "$GITHUB_WORKSPACE/artifacts/docking.snap"
-          )
+          docker run --rm -i \
+            --volume "$GITHUB_WORKSPACE:/project" \
+            --workdir /project/packaging/snap \
+            --env PATH=/usr/libexec/snapcraft:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+            --entrypoint /bin/sh \
+            ghcr.io/canonical/snapcraft:8_core22@sha256:f664b5db4deeea6847a341e1a47627b7b9a245a0de4ca7f8f061f3b2bc9b4d5a \
+            -se <<'SNAPCRAFT_BUILD'
+          # shortcut: fix this image's craftctl path without leaking builder packages into the app; remove when upstream fixes core22.
+          sed -i '/^from craft_parts/ i sys.path.insert(0, "/lib/python3.10/site-packages")' /usr/libexec/snapcraft/craftctl
+          /bin/run-snapcraft.sh pack --destructive-mode --output /project/artifacts/docking.snap
+          /bin/python3 -S -c 'import sys; sys.path.insert(0, "prime/lib/python3.10/site-packages"); import _cffi_backend, cffi, pycparser, pywayland, docking'
+          SNAPCRAFT_BUILD
           sudo chown "$USER:$USER" artifacts/docking.snap
           ls -lh artifacts/*.snap
 
