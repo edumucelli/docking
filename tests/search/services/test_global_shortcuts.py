@@ -22,6 +22,7 @@ from docking.search.services.implementations.unix.shortcuts import (
     SESSION_INTERFACE,
     TOGGLE_SEARCH_SHORTCUT_ID,
     GlobalShortcutActivation,
+    GlobalShortcutSpec,
     GlobalShortcutsService,
     GlobalShortcutsState,
     SignalCallback,
@@ -203,6 +204,7 @@ def _service(
     *,
     version: int = 1,
     activated: list[GlobalShortcutActivation] | None = None,
+    shortcuts: tuple[GlobalShortcutSpec, ...] = (),
 ) -> tuple[GlobalShortcutsService, _Calls, _Signals]:
     calls = _Calls(version=version)
     signals = _Signals()
@@ -213,6 +215,7 @@ def _service(
         ),
         on_status_changed=lambda _status: None,
         preferred_trigger="CTRL+LOGO+space",
+        shortcuts=shortcuts,
     )
     service._connection = _Connection()
     service._call_adapter = calls
@@ -854,3 +857,44 @@ class TestTokenAndPublish:
 
         # The portal sequence continues despite the listener blowing up.
         assert calls.by_method("CreateSession")
+
+
+def test_portal_binds_both_actions_and_reports_partial_results():
+    specs = (
+        GlobalShortcutSpec("toggle-search", "Search", "CTRL+ALT+space"),
+        GlobalShortcutSpec("toggle-dock", "Dock", "CTRL+ALT+d"),
+    )
+    activated = []
+    service, calls, signals = _service(shortcuts=specs, activated=activated)
+    service.start()
+    session = _create_session(service, calls, signals)
+    assert [item[0] for item in calls.by_method("BindShortcuts")[0].arguments[1]] == [
+        "toggle-search",
+        "toggle-dock",
+    ]
+    signals.respond(
+        calls.request("BindShortcuts"),
+        0,
+        {
+            "shortcuts": [
+                (
+                    "toggle-dock",
+                    {"description": "Dock", "trigger_description": "Ctrl+Alt+D"},
+                ),
+            ]
+        },
+    )
+    assert service.status.binding is None
+    assert [binding.shortcut_id for binding in service.status.bindings] == [
+        "toggle-dock"
+    ]
+    signals.emit(
+        sender=PORTAL_BUS_NAME,
+        object_path=PORTAL_OBJECT_PATH,
+        interface=GLOBAL_SHORTCUTS_INTERFACE,
+        signal="Activated",
+        parameters=(session, "toggle-dock", 42, {}),
+    )
+    assert activated[0].shortcut_id == "toggle-dock"
+    service.stop()
+    assert service.status.bindings == ()

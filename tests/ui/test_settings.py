@@ -437,7 +437,7 @@ class FakeEntry:
 
 
 class FakeShortcutCaptureButton(FakeButton):
-    def __init__(self) -> None:
+    def __init__(self, *, accessible_name=None) -> None:
         super().__init__()
         self.shortcut = ""
 
@@ -791,6 +791,7 @@ def _config():
         recent_docs_max=10,
         global_search_enabled=True,
         global_search_shortcut="CTRL+ALT+space",
+        dock_shortcut="",
         global_search_web_engine="duckduckgo",
         save=MagicMock(),
     )
@@ -925,6 +926,41 @@ class TestSettingsWindowController:
         config.save.assert_called()
         actions.refresh_search_settings.assert_called()
         actions.resume_search_shortcuts.assert_called_once_with()
+
+    def test_dock_shortcut_capture_and_mode_wait_for_registration(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        config = _config()
+        actions = MagicMock()
+        actions.dock_shortcut_active.return_value = False
+        controller = _settings_controller(
+            parent=_parent_window(),
+            actions=actions,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
+            config=config,
+        )
+        controller.show()
+        capture = controller._dock_shortcut_entry
+        capture.callbacks["capture-started"](capture)
+        capture.emit_shortcut_changed("CTRL+ALT+d")
+        capture.callbacks["capture-ended"](capture)
+        assert config.dock_shortcut == "CTRL+ALT+d"
+        actions.suspend_search_shortcuts.assert_called_once()
+        actions.resume_search_shortcuts.assert_called_once()
+        actions.refresh_dock_shortcut_settings.assert_called_once()
+        controller._hide_mode_combo.set_active_id("shortcut-only")
+        controller._hide_mode_combo.emit_changed()
+        actions.request_dock_shortcut_mode.assert_called_once()
+        assert config.hide_mode == "autohide"
+        assert controller._hide_mode_combo.get_active_id() == "autohide"
+        config.hide_mode = "shortcut-only"
+        actions.dock_shortcut_active.return_value = True
+        controller._update_dock_shortcut_status()
+        assert controller._hide_mode_combo.get_active_id() == "shortcut-only"
+        assert controller._unhide_delay_spin.sensitive is False
+        assert controller._pressure_reveal_switch.sensitive is False
+        actions.request_dock_shortcut_mode.assert_called_once()
 
     def test_shortcut_status_is_concise_secondary_text(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

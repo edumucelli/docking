@@ -25,6 +25,7 @@ from gi.repository import Gdk, GObject, Gtk
 
 from docking.i18n import _
 from docking.platform.desktop.selection import desktop_services
+from docking.platform.shortcuts import shortcut_label as shortcut_label
 
 _XDG_MODIFIERS = ("CTRL", "ALT", "SHIFT", "LOGO", "NUM")
 _MODIFIER_KEYVALS = {
@@ -84,32 +85,6 @@ def shortcut_from_key_event(keyval: int, state: Gdk.ModifierType) -> str | None:
     return "+".join((*modifiers, key_name))
 
 
-def shortcut_label(shortcut: str) -> str:
-    """Return a compact user-facing label for an XDG shortcut string."""
-    parts = [part.strip() for part in shortcut.split("+") if part.strip()]
-    if not parts:
-        return _("Not set")
-    labels = {
-        "CTRL": _("Ctrl"),
-        "ALT": _("Alt"),
-        "SHIFT": _("Shift"),
-        "LOGO": _("Super"),
-        "NUM": _("Num"),
-        "space": _("Space"),
-        "Return": _("Enter"),
-        "Escape": _("Escape"),
-        "Tab": _("Tab"),
-        "BackSpace": _("Backspace"),
-    }
-    rendered = [
-        labels.get(part.upper(), labels.get(part, part))
-        if part.upper() in _XDG_MODIFIERS
-        else labels.get(part, part)
-        for part in parts
-    ]
-    return "+".join(rendered)
-
-
 class ShortcutCaptureButton(Gtk.Button):
     """Capture one safe combination while preserving the prior value on cancel."""
 
@@ -131,7 +106,7 @@ class ShortcutCaptureButton(Gtk.Button):
         ),
     }
 
-    def __init__(self) -> None:
+    def __init__(self, *, accessible_name: str | None = None) -> None:
         """Initialize an idle capture button with no stored shortcut."""
         super().__init__()
         self._shortcut = ""
@@ -139,7 +114,7 @@ class ShortcutCaptureButton(Gtk.Button):
         self.connect("clicked", self._on_clicked)
         self.connect("key-press-event", self._on_key_press)
         self.connect("focus-out-event", self._on_focus_out)
-        self.get_accessible().set_name(_("Search shortcut"))
+        self.get_accessible().set_name(accessible_name or _("Search shortcut"))
         self._refresh_label()
 
     @property

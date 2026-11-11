@@ -539,7 +539,10 @@ class DockPlacementController:
         self._surface.update_pointer_barrier(
             monitor=snapshot,
             position=position,
-            enabled=True,
+            enabled=not (
+                self._window.autohide.shortcut_only
+                and self._window.session_backend.capabilities.supports_pointer_barrier
+            ),
             pressure_callback=self._on_barrier_pressure
             if config.pressure_reveal_enabled
             else None,

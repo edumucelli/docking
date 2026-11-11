@@ -36,6 +36,12 @@ def _patch_ui_components(monkeypatch):
         interactions=MagicMock(),
         input_controller=MagicMock(),
         search=MagicMock(),
+        dock_shortcuts=MagicMock(),
+    )
+    monkeypatch.setattr(
+        factory_mod,
+        "DockShortcutController",
+        MagicMock(return_value=components.dock_shortcuts),
     )
     monkeypatch.setattr(
         factory_mod,
@@ -138,6 +144,7 @@ class TestBuildDockWindow:
             input_controller=input_controller,
             search=search,
             settings=settings,
+            dock_shortcuts=MagicMock(),
         )
 
         with pytest.raises(RuntimeError, match="settings failed"):
@@ -259,6 +266,7 @@ class TestBuildDockWindow:
             dnd=components.dnd,
             model=model,
             search=components.search,
+            dock_shortcuts=components.dock_shortcuts,
         )
         factory_mod.SettingsWindowController.assert_called_once_with(
             parent=window,
@@ -533,6 +541,7 @@ def test_start_initializes_autohide_without_a_pointer_crossing_event(pointer_ins
         input_controller=MagicMock(),
         search=MagicMock(),
         settings=MagicMock(),
+        dock_shortcuts=MagicMock(),
     )
     try:
         ui.start()

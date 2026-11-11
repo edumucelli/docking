@@ -129,8 +129,9 @@ def _wait(predicate):
         time.sleep(0.005)
 
 
-def _service(native_factory, idle, activated, statuses):
+def _service(native_factory, idle, activated, statuses, *, shortcut_id="toggle-search"):
     return WindowsGlobalShortcutsService(
+        shortcut_id=shortcut_id,
         preferred_trigger="CTRL+ALT+space",
         trigger_description="Ctrl+Alt+Space",
         on_activated=lambda event: activated.append((threading.get_ident(), event)),
@@ -291,3 +292,20 @@ def test_stop_during_registration_releases_late_grab_without_publishing_bound():
         status.state is not GlobalShortcutsState.BOUND for _owner, status in statuses
     )
     assert activated == []
+
+
+def test_dock_action_keeps_its_identity_in_binding_and_activation():
+    native, idle = _Native(), _Idle()
+    activated, statuses = [], []
+    service = _service(
+        lambda: native, idle, activated, statuses, shortcut_id="toggle-dock"
+    )
+    try:
+        service.start()
+        _flush_until(idle, lambda: service.status.state is GlobalShortcutsState.BOUND)
+        assert service.status.binding.shortcut_id == "toggle-dock"
+        native.events.put(123)
+        _flush_until(idle, lambda: bool(activated))
+        assert activated[0][1].shortcut_id == "toggle-dock"
+    finally:
+        service.stop()

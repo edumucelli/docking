@@ -454,6 +454,7 @@ class DockGeometryInputs:
     zoom_progress: float
     hide_offset: float
     drop_insert_index: int = -1
+    pointer_reveal_enabled: bool = True
     constrain_main_axis: bool = False
 
 
@@ -489,6 +490,7 @@ class DockGeometryBuilder:
             zoom_progress=inputs.zoom_progress,
             hide_offset=inputs.hide_offset,
             drop_insert_index=inputs.drop_insert_index,
+            pointer_reveal_enabled=inputs.pointer_reveal_enabled,
             constrain_main_axis=inputs.constrain_main_axis,
         )
 
@@ -570,6 +572,7 @@ def build_geometry_frame(
     hide_offset: float = 0.0,
     drop_insert_index: int = -1,
     constrain_main_axis: bool = False,
+    pointer_reveal_enabled: bool = True,
 ) -> DockGeometryFrame:
     """Build shared geometry, limiting corner zoom before it loses the target."""
 
@@ -585,6 +588,7 @@ def build_geometry_frame(
             zoom_progress=progress,
             hide_offset=hide_offset,
             drop_insert_index=drop_insert_index,
+            pointer_reveal_enabled=pointer_reveal_enabled,
             constrain_main_axis=constrain_main_axis,
         )
 
@@ -660,6 +664,7 @@ def _build_geometry_frame(
     hide_offset: float = 0.0,
     drop_insert_index: int = -1,
     constrain_main_axis: bool = False,
+    pointer_reveal_enabled: bool = True,
 ) -> DockGeometryFrame:
     """Build one shared dock geometry snapshot from current runtime state."""
     pos = config.pos
@@ -778,7 +783,9 @@ def _build_geometry_frame(
         dock_main_offset += shift
         zoomed_main_offset += shift
 
-    if autohide_state == HideState.HIDDEN:
+    if autohide_state == HideState.HIDDEN and not pointer_reveal_enabled:
+        cursor_rect = Rect(0, 0, 0, 0)
+    elif autohide_state == HideState.HIDDEN:
         cursor_rect = compute_input_rect(
             pos=pos,
             window_w=window_w,
@@ -864,6 +871,9 @@ def capture_geometry_inputs(
         zoom_progress=zoom_progress,
         hide_offset=hide_offset,
         drop_insert_index=drop_insert_index,
+        pointer_reveal_enabled=(
+            window.autohide.pointer_reveal_enabled if window.autohide.enabled else True
+        ),
         constrain_main_axis=window.surface_service.compositor_sizes_main_axis,
     )
 

@@ -75,6 +75,10 @@ class _FakeWorker(ShortcutWorker):
         self.stop_calls = 0
 
     @property
+    def active(self) -> bool:
+        return self.starts
+
+    @property
     def error(self) -> str | None:
         return self._error
 
@@ -147,3 +151,22 @@ def test_real_helper_process_can_grab_and_release_shortcut() -> None:
     assert service.start(), service.error
     service.stop()
     assert not service.active
+
+
+def test_lost_helper_no_longer_reports_active_or_dispatches_queued_input(monkeypatch):
+    worker = _FakeWorker()
+    monkeypatch.setattr(x11_mod, "_ProcessShortcutWorker", lambda **_: worker)
+    pending, activated = [], []
+    service = X11GlobalShortcutService(
+        shortcut="CTRL+ALT+j",
+        on_activated=activated.append,
+        schedule_idle=lambda callback, *args: pending.append((callback, args)) or 1,
+    )
+    assert service.start()
+    worker.callback(123)
+    worker.starts = False
+    assert not service.active
+    for callback, args in pending:
+        callback(*args)
+    assert not activated
+    service.stop()

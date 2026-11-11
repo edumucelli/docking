@@ -9,6 +9,14 @@ from enum import Enum
 from typing import TypeAlias
 
 TOGGLE_SEARCH_SHORTCUT_ID = "toggle-search"
+TOGGLE_DOCK_SHORTCUT_ID = "toggle-dock"
+
+
+@dataclass(frozen=True)
+class GlobalShortcutSpec:
+    shortcut_id: str
+    description: str
+    preferred_trigger: str
 
 
 class GlobalShortcutsState(str, Enum):
@@ -53,6 +61,7 @@ class GlobalShortcutsStatus:
     session_handle: str | None = None
     binding: GlobalShortcutBinding | None = None
     message: str | None = None
+    bindings: tuple[GlobalShortcutBinding, ...] = ()
 
 
 ActivationCallback: TypeAlias = Callable[[GlobalShortcutActivation], None]

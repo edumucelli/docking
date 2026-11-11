@@ -12,3 +12,19 @@ Feature: Dock visibility
     When I move the pointer onto the dock
     And I advance dock time by 64 milliseconds
     Then the dock is visible
+
+
+  Scenario: Only the shortcut reveals the dock
+    Given the dock is in shortcut-only mode with a working shortcut
+    When I advance dock time by 400 milliseconds
+    And I move the pointer onto the dock
+    And I advance dock time by 400 milliseconds
+    Then the dock is hidden
+    When I move the pointer off the dock
+    And I press the dock shortcut
+    And I advance dock time by 400 milliseconds
+    Then the dock is visible
+    When I move the pointer onto the dock
+    And I move the pointer off the dock
+    And I advance dock time by 400 milliseconds
+    Then the dock is hidden

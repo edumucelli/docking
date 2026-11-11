@@ -68,6 +68,8 @@ class SearchIntegration(ABC):
         trigger_description: str,
         schedule_idle: Callable[..., int],
         remove_source: Callable[[int], bool],
+        shortcut_id: str = "toggle-search",
+        description: str = "Toggle Docking search",
     ) -> GlobalShortcutService: ...
     @abstractmethod
     def fallback(

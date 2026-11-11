@@ -13,6 +13,7 @@ def _actions(*, runtime, dnd, model=None) -> SettingsActions:
         dnd=dnd,
         model=model or MagicMock(),
         search=MagicMock(),
+        dock_shortcuts=MagicMock(),
     )
 
 

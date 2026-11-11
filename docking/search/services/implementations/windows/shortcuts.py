@@ -109,7 +109,11 @@ class WindowsGlobalShortcutsService(GlobalShortcutService):
         schedule_idle: Callable[..., int],
         remove_source: Callable[[int], bool],
         native_factory: Callable[[], _NativeHotkey] = WindowsHotkeyAPI,
+        shortcut_id: str = TOGGLE_SEARCH_SHORTCUT_ID,
+        description: str = "Toggle Docking search",
     ) -> None:
+        self._shortcut_id = shortcut_id
+        self._description = description
         self._preferred_trigger = preferred_trigger
         self._trigger_description = trigger_description
         self._on_activated = on_activated
@@ -172,8 +176,8 @@ class WindowsGlobalShortcutsService(GlobalShortcutService):
     def _publish(self, state: GlobalShortcutsState, message: str | None = None) -> None:
         binding = (
             GlobalShortcutBinding(
-                TOGGLE_SEARCH_SHORTCUT_ID,
-                "Toggle Docking search",
+                self._shortcut_id,
+                self._description,
                 self._trigger_description,
             )
             if state is GlobalShortcutsState.BOUND
@@ -244,7 +248,7 @@ class WindowsGlobalShortcutsService(GlobalShortcutService):
                         generation,
                         self._on_activated,
                         GlobalShortcutActivation(
-                            TOGGLE_SEARCH_SHORTCUT_ID,
+                            self._shortcut_id,
                             timestamp,
                             None,
                         ),

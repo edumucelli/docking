@@ -46,6 +46,10 @@ class ShortcutWorker(ABC):
 
     @property
     @abstractmethod
+    def active(self) -> bool: ...
+
+    @property
+    @abstractmethod
     def error(self) -> str | None:
         """Return the worker's latest startup error."""
         ...
@@ -165,6 +169,10 @@ class _ProcessShortcutWorker(ShortcutWorker):
         self._error: str | None = None
 
     @property
+    def active(self) -> bool:
+        return self._active
+
+    @property
     def error(self) -> str | None:
         return self._error
 
@@ -250,6 +258,8 @@ class _ProcessShortcutWorker(ShortcutWorker):
                 self._startup.set()
             elif message == "activate" and self._active:
                 on_activated(int(value))
+        self._active = False
+        self._error = self._error or "shortcut helper stopped"
         self._startup.set()
 
 
@@ -275,17 +285,19 @@ class X11GlobalShortcutService(ShortcutFallback):
     @property
     def active(self) -> bool:
         """Return whether the current helper owns all required X11 grabs."""
-        return self._active
+        return self._active and self._worker is not None and self._worker.active
 
     @property
     def error(self) -> str | None:
         """Return the current helper's startup failure, if any."""
-        return self._error
+        return self._error or (self._worker.error if self._worker else None)
 
     def start(self) -> bool:
         """Start the helper once and expose any synchronous startup error."""
-        if self._active:
+        if self.active:
             return True
+        if self._worker is not None:
+            self.stop()
         self._generation += 1
         generation = self._generation
         worker = _ProcessShortcutWorker(
@@ -317,7 +329,7 @@ class X11GlobalShortcutService(ShortcutFallback):
         self._schedule_idle(self._dispatch_activation, timestamp, generation)
 
     def _dispatch_activation(self, timestamp: int, generation: int) -> bool:
-        if self._active and generation == self._generation:
+        if self.active and generation == self._generation:
             self._on_activated(timestamp)
         return False
 

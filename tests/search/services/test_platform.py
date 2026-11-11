@@ -7,12 +7,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from docking.search.services.global_shortcuts import GlobalShortcutSpec
 from docking.search.services.implementations.unix import platform as unix_platform
 from docking.search.services.implementations.windows import platform as windows_platform
 
 
 def callbacks():
     return {
+        "shortcut_id": "toggle-search",
+        "description": "Toggle Docking search",
         "preferred_trigger": "CTRL+ALT+space",
         "trigger_description": "Ctrl+Alt+Space",
         "on_activated": MagicMock(),
@@ -34,7 +37,7 @@ def test_windows_uses_native_services_without_importing_x11(monkeypatch):
         sys.modules, "docking.search.services.implementations.unix.x11_shortcuts", None
     )
     portal = MagicMock(side_effect=AssertionError("Unexpected portal construction"))
-    monkeypatch.setattr(unix_platform, "GlobalShortcutsService", portal)
+    monkeypatch.setattr(unix_platform.PortalShortcutSession, "registration", portal)
     arguments = callbacks()
     assert (
         integration.primary(app_id="org.docking.fixture", **arguments)
@@ -63,7 +66,7 @@ def test_unix_retains_portal_with_only_an_x11_fallback(monkeypatch, x11):
     portal, fallback = MagicMock(), MagicMock()
     integration = unix_platform.UnixSearchIntegration()
     assert integration.opaque_action_panel is False
-    monkeypatch.setattr(unix_platform, "GlobalShortcutsService", portal)
+    monkeypatch.setattr(unix_platform.PortalShortcutSession, "registration", portal)
     monkeypatch.setattr(unix_platform, "is_x11_session", lambda: x11)
     monkeypatch.setattr(unix_platform, "X11GlobalShortcutService", fallback)
     for module in ("windows_focus", "windows_shortcuts"):
@@ -75,7 +78,11 @@ def test_unix_retains_portal_with_only_an_x11_fallback(monkeypatch, x11):
     )
     portal.assert_called_once_with(
         app_id="org.docking.fixture",
-        preferred_trigger=arguments["preferred_trigger"],
+        spec=GlobalShortcutSpec(
+            "toggle-search", "Toggle Docking search", arguments["preferred_trigger"]
+        ),
+        schedule_idle=arguments["schedule_idle"],
+        remove_source=arguments["remove_source"],
         on_activated=arguments["on_activated"],
         on_status_changed=arguments["on_status_changed"],
     )

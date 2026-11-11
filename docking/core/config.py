@@ -321,6 +321,7 @@ class HideMode(str, Enum):
     ALWAYS_ON_TOP   Never hides, but does not reserve struts - maximized
                     windows fill the full screen and the dock floats above.
     AUTOHIDE        Hides when the mouse leaves the dock area.
+    SHORTCUT_ONLY   Reveals by shortcut, then hides after pointer use.
     INTELLIGENT     Hides when any window from the active app overlaps
                     the dock (matched by WM_CLASS).
     DODGE_ACTIVE    Hides when the focused window itself overlaps the dock.
@@ -341,6 +342,7 @@ class HideMode(str, Enum):
     NONE = "none"
     ALWAYS_ON_TOP = "always-on-top"
     AUTOHIDE = "autohide"
+    SHORTCUT_ONLY = "shortcut-only"
     INTELLIGENT = "intelligent"
     DODGE_ACTIVE = "dodge-active"
     WINDOW_DODGE = "window-dodge"
@@ -920,6 +922,7 @@ class Config:
     global_search_enabled: bool = DEFAULT_GLOBAL_SEARCH_ENABLED
     # Preferred XDG trigger and X11 fallback sequence
     global_search_shortcut: str = DEFAULT_GLOBAL_SEARCH_SHORTCUT
+    dock_shortcut: str = ""
     # Web engine used by fallback searches
     global_search_web_engine: str = DEFAULT_GLOBAL_SEARCH_WEB_ENGINE
 
@@ -1130,6 +1133,9 @@ class Config:
         )
         shortcut = str(self.global_search_shortcut).strip()
         self.global_search_shortcut = shortcut or DEFAULT_GLOBAL_SEARCH_SHORTCUT
+        self.dock_shortcut = (
+            self.dock_shortcut.strip() if isinstance(self.dock_shortcut, str) else ""
+        )
         web_engine = str(self.global_search_web_engine).strip().casefold()
         self.global_search_web_engine = (
             web_engine
