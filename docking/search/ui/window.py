@@ -678,7 +678,7 @@ class SearchWindow:
             generation = self._preview_generation
             self._show_preview(result, None)
             self._preview_future = self._thumbnail_executor.submit(
-                lambda: self._preview_resolver(result)
+                self._preview_resolver, result
             )
             self._preview_future.add_done_callback(
                 lambda completed: GLib.idle_add(

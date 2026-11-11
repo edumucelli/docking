@@ -11,7 +11,7 @@ from gi.repository import GLib
 from docking.core.config import HideMode
 from docking.platform.backends.base import DisplayServer, Rect, WindowId, WindowSnapshot
 from docking.platform.backends.visibility import (
-    SnapshotVisibilityMonitor,
+    SnapshotVisibilityService,
     WindowChanges,
     should_hide,
 )
@@ -93,15 +93,12 @@ def test_monitor_coalesces_without_restart_and_cleans_all_sources():
     windows.watch.side_effect = changes.watch
     windows.unwatch.side_effect = changes.unwatch
     rows = [WINDOW]
+    windows.list_all_windows.return_value = rows
     notify = MagicMock()
     config = SimpleNamespace(hide_mode_enum=HideMode.DODGE_ACTIVE)
-    monitor = SnapshotVisibilityMonitor(
-        windows=windows,
-        visible_windows=lambda _rect: rows,
-        config=config,
+    monitor = SnapshotVisibilityService(windows=windows, config=config).create_monitor(
         get_dock_rect=lambda: DOCK,
         on_change=notify,
-        poll_ms=0,
     )
     monitor.start()
     notify.assert_called_once_with(True)
@@ -125,14 +122,15 @@ def test_monitor_coalesces_without_restart_and_cleans_all_sources():
 def test_autohide_does_not_poll_compositor_windows():
     windows = MagicMock()
     windows.watch.return_value = None
+    windows.list_all_windows.return_value = ()
     config = SimpleNamespace(hide_mode_enum=HideMode.AUTOHIDE)
-    monitor = SnapshotVisibilityMonitor(
+    monitor = SnapshotVisibilityService(
         windows=windows,
-        visible_windows=lambda _rect: (),
         config=config,
+        poll_ms=250,
+    ).create_monitor(
         get_dock_rect=lambda: DOCK,
         on_change=MagicMock(),
-        poll_ms=250,
     )
     monitor.start()
     assert monitor._poll()

@@ -179,12 +179,12 @@ def _bridge(
 @pytest.fixture
 def timers(monkeypatch):
     """Keep service timers out of the real main context."""
-    added: list[tuple[int, object]] = []
+    added: list[tuple[int, object, tuple[object, ...]]] = []
     removed: list[int] = []
     monkeypatch.setattr(
         service_mod.GLib,
         "timeout_add_seconds",
-        lambda seconds, callback: added.append((seconds, callback)) or 77,
+        lambda seconds, callback, *args: added.append((seconds, callback, args)) or 77,
     )
     monkeypatch.setattr(
         service_mod.GLib,

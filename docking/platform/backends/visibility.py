@@ -71,19 +71,16 @@ class SnapshotVisibilityMonitor(VisibilityMonitor):
     def __init__(
         self,
         *,
-        windows: WindowService,
-        visible_windows: Callable[[Rect], Sequence[WindowSnapshot]],
-        config: Config | None,
+        service: SnapshotVisibilityService,
         get_dock_rect: Callable[[], Rect | None],
         on_change: Callable[[bool], None],
-        poll_ms: int,
     ) -> None:
-        self._windows = windows
-        self._visible_windows = visible_windows
-        self._config = config
+        self._service = service
+        self._windows = service._windows
+        self._config = service._config
         self._get_rect = get_dock_rect
         self._on_change = on_change
-        self._poll_ms = poll_ms
+        self._poll_ms = service._poll_ms
         self._watch: object | None = None
         self._timer = 0
         self._pending = 0
@@ -140,7 +137,7 @@ class SnapshotVisibilityMonitor(VisibilityMonitor):
         hidden = False
         if rect is not None:
             hidden = should_hide(
-                windows=self._visible_windows(rect),
+                windows=self._service._window_snapshots(),
                 dock=rect,
                 mode=self._config.hide_mode_enum if self._config else HideMode.NONE,
             )
@@ -154,12 +151,10 @@ class SnapshotVisibilityService(VisibilityService):
         self,
         *,
         windows: WindowService,
-        visible_windows: Callable[[Rect], Sequence[WindowSnapshot]],
         config: Config | None,
         poll_ms: int = 0,
     ) -> None:
         self._windows = windows
-        self._visible_windows = visible_windows
         self._config = config
         self._poll_ms = poll_ms
         self._monitors: list[SnapshotVisibilityMonitor] = []
@@ -172,14 +167,14 @@ class SnapshotVisibilityService(VisibilityService):
             monitor.stop()
         self._monitors.clear()
 
+    def _window_snapshots(self) -> Sequence[WindowSnapshot]:
+        return self._windows.list_all_windows()
+
     def create_monitor(self, *, get_dock_rect, on_change) -> SnapshotVisibilityMonitor:
         monitor = SnapshotVisibilityMonitor(
-            windows=self._windows,
-            visible_windows=self._visible_windows,
-            config=self._config,
+            service=self,
             get_dock_rect=get_dock_rect,
             on_change=on_change,
-            poll_ms=self._poll_ms,
         )
         self._monitors.append(monitor)
         return monitor

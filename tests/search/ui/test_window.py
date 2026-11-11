@@ -32,10 +32,10 @@ pytestmark = pytest.mark.skipif(
 
 
 class _ImmediateExecutor:
-    def submit(self, callback, **kwargs):
+    def submit(self, callback, *args, **kwargs):
         future = Future()
         try:
-            future.set_result(callback(**kwargs))
+            future.set_result(callback(*args, **kwargs))
         except BaseException as exc:
             future.set_exception(exc)
         return future
@@ -118,10 +118,10 @@ def test_local_preview_defers_io_and_rejects_a_previous_selection(
     window, _activated = input_palette
     jobs = []
 
-    def submit(callback):
+    def submit(callback, *args):
         future = Future()
         future.set_running_or_notify_cancel()
-        jobs.append((callback, future))
+        jobs.append((callback, args, future))
         return future
 
     window._thumbnail_executor.shutdown(wait=False)
@@ -153,11 +153,11 @@ def test_local_preview_defers_io_and_rejects_a_previous_selection(
     window.update(
         replace(snapshot, results=(second,), selected_identity=second.identity)
     )
-    callback, future = jobs[0]
-    future.set_result(callback())
+    callback, args, future = jobs[0]
+    future.set_result(callback(*args))
     assert window.preview_body.get_text() != "first archive"
-    callback, future = jobs[1]
-    future.set_result(callback())
+    callback, args, future = jobs[1]
+    future.set_result(callback(*args))
     assert window.preview_body.get_text() == "second archive"
 
 

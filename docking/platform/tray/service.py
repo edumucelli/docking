@@ -223,9 +223,8 @@ class TrayService:
         self._running = True
         self._sync_focus_handler()
         self.refresh()
-        generation = self._generation
         self._timer_id = GLib.timeout_add_seconds(
-            self._interval_s, lambda: self._tick(generation)
+            self._interval_s, self._tick, self._generation
         )
 
     def stop(self) -> None:

@@ -319,11 +319,8 @@ def complete_task(
         state=state,
         plant_id=plant_id,
         kind=kind,
-        update=lambda task: replace(
-            task,
-            last_completed=today,
-            snoozed_until=None,
-        ),
+        last_completed=today,
+        snoozed_until=None,
     )
 
 
@@ -341,7 +338,7 @@ def snooze_task(
         state=state,
         plant_id=plant_id,
         kind=kind,
-        update=lambda task: replace(task, snoozed_until=snoozed_until),
+        snoozed_until=snoozed_until,
     )
 
 
@@ -505,7 +502,8 @@ def _replace_task(
     state: PlantCareState,
     plant_id: str,
     kind: CareKind,
-    update,
+    snoozed_until: dt.date | None,
+    last_completed: dt.date | None = None,
 ) -> PlantCareState:
     plants: list[Plant] = []
     changed = False
@@ -516,7 +514,13 @@ def _replace_task(
         tasks: list[CareTask] = []
         for task in plant.tasks:
             if task.kind is kind and task.enabled:
-                tasks.append(update(task))
+                tasks.append(
+                    replace(
+                        task,
+                        last_completed=last_completed or task.last_completed,
+                        snoozed_until=snoozed_until,
+                    )
+                )
                 changed = True
             else:
                 tasks.append(task)

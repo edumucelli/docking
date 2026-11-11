@@ -42,8 +42,12 @@ class FakeMenuItem:
     def get_submenu(self):
         return self._submenu
 
-    def connect(self, signal: str, callback) -> None:
-        self._signals.setdefault(signal, []).append(callback)
+    def connect(self, signal: str, callback, *args) -> None:
+        self._signals.setdefault(signal, []).append((callback, args))
+
+    def emit(self, signal: str) -> None:
+        for callback, args in self._signals.get(signal, []):
+            callback(self, *args)
 
 
 class FakeCheckMenuItem(FakeMenuItem):
@@ -261,16 +265,16 @@ class TestSeparatorApplet:
         applet._save_current_prefs = lambda: None
         items = applet.get_menu_items()
 
-        items[0]._signals["activate"][0](None)
+        items[0].emit("activate")
         assert applet._gap == DEFAULT_SIZE + STEP
 
         style_item = next(item for item in items if item.get_label() == "Style")
         line_item = style_item.get_submenu().get_children()[0]
         line_item.set_active(True)
-        line_item._signals["toggled"][0](line_item)
+        line_item.emit("toggled")
         assert applet._style == STYLE_LINE
 
         invert = next(item for item in items if item.get_label() == "Invert Color")
         invert.set_active(True)
-        invert._signals["toggled"][0](invert)
+        invert.emit("toggled")
         assert applet._invert_color is True

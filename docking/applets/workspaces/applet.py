@@ -185,10 +185,7 @@ class WorkspacesApplet(Applet):
                 ),
                 active_value=active_id,
                 is_active=lambda workspace_id: workspace_id == active_id,
-                on_selected=lambda widget, value: self._on_workspace_activate(
-                    widget,
-                    value,
-                ),
+                on_selected=self._on_workspace_activate,
                 gtk=Gtk,
             ),
             gtk=Gtk,

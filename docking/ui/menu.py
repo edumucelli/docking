@@ -543,9 +543,7 @@ class MenuHandler:
 
         if item.kind == FILE_KIND:
             open_item = Gtk.MenuItem(label=_("Open"))
-            open_item.connect(
-                "activate", lambda _: self._target_service.open_target(item.target)
-            )
+            open_item.connect("activate", self._on_open_target, item)
             menu.append(open_item)
             if item.is_pinned:
                 menu.append(self._build_icon_menu(item))
@@ -734,9 +732,7 @@ class MenuHandler:
 
         # Support
         support_item = Gtk.MenuItem(label=_("Get Support"))
-        support_item.connect(
-            "activate", lambda _: self._target_service.open_target(SUPPORT_URL)
-        )
+        support_item.connect("activate", self._on_open_target, SUPPORT_URL)
         menu.append(support_item)
 
         # Quit
@@ -798,11 +794,7 @@ class MenuHandler:
             ts.set_sensitive(False)
             box.pack_start(ts, False, False, 0)
             row.add(box)
-            uri = doc.uri
-            row.connect(
-                "activate",
-                lambda _, u=uri: self._target_service.open_target(u),
-            )
+            row.connect("activate", self._on_open_target, doc.uri)
             submenu.append(row)
 
         submenu.append(Gtk.SeparatorMenuItem())
@@ -977,6 +969,11 @@ class MenuHandler:
     def _on_add_applet_activate(self, _widget: Gtk.MenuItem, applet_id: str) -> None:
         self._model.add_applet(applet_id)
 
+    def _on_open_target(self, _widget: Gtk.MenuItem, target: str | DockItem) -> None:
+        self._target_service.open_target(
+            target if isinstance(target, str) else target.target
+        )
+
     def _populate_directory_menu(
         self, menu: Gtk.Menu, folder_item: DockItem, target: str
     ) -> None:
@@ -994,16 +991,7 @@ class MenuHandler:
             pixbuf=child["icon"],
             icon_px=self._folder_stack.icon_px(folder_item=folder_item),
         )
-        if child["is_dir"]:
-            if not child.get("has_children", False):
-                row.connect(
-                    "activate",
-                    lambda _, child_target=child["target"]: (
-                        self._target_service.open_target(child_target)
-                    ),
-                )
-                menu.append(row)
-                return
+        if child["is_dir"] and child.get("has_children", False):
             submenu = Gtk.Menu()
             submenu.connect(
                 "show",
@@ -1013,12 +1001,7 @@ class MenuHandler:
             )
             row.set_submenu(submenu)
         else:
-            row.connect(
-                "activate",
-                lambda _, child_target=child["target"]: (
-                    self._target_service.open_target(child_target)
-                ),
-            )
+            row.connect("activate", self._on_open_target, child["target"])
         menu.append(row)
 
     def _on_folder_submenu_show(

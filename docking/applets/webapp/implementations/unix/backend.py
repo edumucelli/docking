@@ -407,7 +407,8 @@ class WebAppBrowser(BrowserBackend):
             return True
         if decision_type == webkit.PolicyDecisionType.RESPONSE:
             return False
-        request = getattr(decision, "get_request", lambda: None)()
+        get_request = getattr(decision, "get_request", None)
+        request = get_request() if get_request is not None else None
         uri = str(request.get_uri() or "") if request is not None else ""
         target = navigation_target(uri, self.profile.host)
         if target is NavigationTarget.INTERNAL:
@@ -417,10 +418,10 @@ class WebAppBrowser(BrowserBackend):
             decision.use()
             return True
 
-        action = getattr(decision, "get_navigation_action", lambda: None)()
-        user_gesture = bool(
-            action is not None and getattr(action, "is_user_gesture", lambda: False)()
-        )
+        get_action = getattr(decision, "get_navigation_action", None)
+        action = get_action() if get_action is not None else None
+        is_user_gesture = getattr(action, "is_user_gesture", None)
+        user_gesture = is_user_gesture is not None and bool(is_user_gesture())
         decision.ignore()
         if target is NavigationTarget.EXTERNAL and user_gesture:
             self._open_external_uri(uri)

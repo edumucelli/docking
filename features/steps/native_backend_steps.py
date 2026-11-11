@@ -10,7 +10,7 @@ from gi.repository import GLib
 from docking.core.config import HideMode
 from docking.platform.backends.base import ActionResult
 from docking.platform.backends.visibility import (
-    SnapshotVisibilityMonitor,
+    SnapshotVisibilityService,
     WindowChanges,
     should_hide,
 )
@@ -51,14 +51,14 @@ def event_monitor(context):
     windows = MagicMock()
     windows.watch.side_effect = changes.watch
     windows.unwatch.side_effect = changes.unwatch
+    windows.list_all_windows.return_value = [WINDOW]
     context.native_changes = changes
-    context.native_monitor = SnapshotVisibilityMonitor(
+    context.native_monitor = SnapshotVisibilityService(
         windows=windows,
-        visible_windows=lambda _rect: [WINDOW],
         config=SimpleNamespace(hide_mode_enum=HideMode.WINDOW_DODGE),
+    ).create_monitor(
         get_dock_rect=lambda: DOCK,
         on_change=lambda _hidden: None,
-        poll_ms=0,
     )
     context.native_monitor.start()
 

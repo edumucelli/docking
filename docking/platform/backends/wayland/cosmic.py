@@ -315,16 +315,10 @@ class CosmicToplevelAdapter:
         if service is not None:
             service.toplevel_created(toplevel)
 
-        toplevel.dispatcher["title"] = lambda _handle, title: self._on_toplevel_title(
-            toplevel, title
-        )
-        toplevel.dispatcher["app_id"] = lambda _handle, app_id: (
-            self._on_toplevel_app_id(toplevel, app_id)
-        )
-        toplevel.dispatcher["done"] = lambda _handle: self._on_toplevel_done(toplevel)
-        toplevel.dispatcher["closed"] = lambda _handle: self._on_toplevel_closed(
-            toplevel
-        )
+        toplevel.dispatcher["title"] = self._on_toplevel_title
+        toplevel.dispatcher["app_id"] = self._on_toplevel_app_id
+        toplevel.dispatcher["done"] = self._on_toplevel_done
+        toplevel.dispatcher["closed"] = self._on_toplevel_closed
 
         # Request COSMIC info extension if available
         if service is not None:
