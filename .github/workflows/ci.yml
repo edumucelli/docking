@@ -1,13 +1,9 @@
 name: CI
 
-# ── Supply-chain cooldown ─────────────────────────────────────────────
-# Every pip install step exports PIP_UPLOADED_PRIOR_TO set to 7 days ago
-# (pip >= 26.1).  This prevents freshly-published packages from being
-# resolved, mitigating supply-chain attacks where a compromised release
-# is pushed to PyPI.  Dependabot is also configured with a weekly schedule
-# (.github/dependabot.yml) so new versions age at least 0–7 days before a PR
-# is opened.
-# ──────────────────────────────────────────────────────────────────────
+# Dependency version updates use an explicit seven-day Dependabot cooldown.
+# Weekly/daily schedules alone do not enforce release age. Security updates
+# bypass Dependabot's cooldown; pip's upload cutoff still applies in the
+# install steps below. Bootstrap and packaging coverage is not yet complete.
 
 on:
   push:
