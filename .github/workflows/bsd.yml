@@ -24,7 +24,7 @@ jobs:
           persist-credentials: false
       - name: Install desktop test dependencies
         run: |
-          sudo apt-get update
+          sudo python3 tools/linux/apt_update.py
           sudo apt-get install -y --no-install-recommends \
             python3-gi python3-gi-cairo python3-cairo python3-pytest python3-venv python3-pip \
             gir1.2-gtk-3.0 gir1.2-wnck-3.0 gir1.2-nm-1.0 libxtst6 xfwm4 xvfb dbus-x11 fonts-dejavu librsvg2-common

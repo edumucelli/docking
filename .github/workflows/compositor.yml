@@ -2,10 +2,10 @@ name: Wayland compositors
 
 on:
   pull_request:
-    paths: ["docking/**", "tools/linux/visual/**", "tests/test_visual_compositor.py", ".github/workflows/compositor.yml"]
+    paths: ["docking/**", "tools/linux/visual/**", "tools/linux/apt_update.py", "tests/test_visual_compositor.py", ".github/workflows/compositor.yml"]
   push:
     branches: [master]
-    paths: ["docking/**", "tools/linux/visual/**", ".github/workflows/compositor.yml"]
+    paths: ["docking/**", "tools/linux/visual/**", "tools/linux/apt_update.py", ".github/workflows/compositor.yml"]
   workflow_dispatch:
   schedule:
     - cron: "23 4 * * 1"
@@ -30,7 +30,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Install comparison dependencies
         run: |
-          sudo apt-get update
+          sudo python3 tools/linux/apt_update.py
           sudo apt-get install -y --no-install-recommends python3-cairo
           python3 -m venv --system-site-packages .venv
           .venv/bin/python -m pip install --upgrade pip
