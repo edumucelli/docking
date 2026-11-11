@@ -22,6 +22,7 @@ import docking.ui.settings as settings_mod
 
 def _settings_controller(**kwargs):
     """Build a settings controller."""
+    kwargs["actions"].dock_shortcut_mode_pending.return_value = False
     return settings_mod.SettingsWindowController(**kwargs)
 
 
@@ -961,6 +962,42 @@ class TestSettingsWindowController:
         assert controller._unhide_delay_spin.sensitive is False
         assert controller._pressure_reveal_switch.sensitive is False
         actions.request_dock_shortcut_mode.assert_called_once()
+
+    def test_pending_shortcut_mode_can_be_cancelled_by_retaining_current_mode(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        config = _config()
+        config.dock_shortcut = "CTRL+ALT+d"
+        actions = MagicMock()
+        controller = _settings_controller(
+            parent=_parent_window(),
+            actions=actions,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
+            config=config,
+        )
+        actions.request_dock_shortcut_mode.side_effect = lambda: setattr(
+            actions.dock_shortcut_mode_pending, "return_value", True
+        )
+        actions.cancel_dock_shortcut_mode.side_effect = lambda: setattr(
+            actions.dock_shortcut_mode_pending, "return_value", False
+        )
+        controller.show()
+        combo = controller._hide_mode_combo
+        combo.set_active_id("shortcut-only")
+        combo.emit_changed()
+        assert config.hide_mode == "autohide"
+        assert combo.get_active_id() == "shortcut-only"
+        controller._update_dock_shortcut_status()
+        assert combo.get_active_id() == "shortcut-only"
+        combo.set_active_id("autohide")
+        combo.emit_changed()
+        actions.cancel_dock_shortcut_mode.assert_called_once()
+        assert config.hide_mode == "autohide"
+        controller._update_dock_shortcut_status()
+        assert combo.get_active_id() == "autohide"
 
     def test_shortcut_status_is_concise_secondary_text(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

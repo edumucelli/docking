@@ -566,8 +566,11 @@ class GlobalShortcutsService(GlobalShortcutService):
             return
         if _string_value(values[0]) != self._session_handle:
             return
-        self._read_bindings(values[1])
-        binding = _binding_from_shortcuts(values[1], self._shortcut_id)
+        self._read_bindings(values[1], changed=True)
+        binding = next(
+            (item for item in self._bindings if item.shortcut_id == self._shortcut_id),
+            None,
+        )
         if binding is None:
             self._binding = None
             self._publish(
@@ -880,12 +883,15 @@ class GlobalShortcutsService(GlobalShortcutService):
             safe = secrets.token_hex(8)
         return f"docking_{purpose}_{self._token_counter}_{safe}"
 
-    def _read_bindings(self, value: object) -> None:
-        self._bindings = tuple(
-            binding
-            for spec in self._shortcuts
-            if (binding := _binding_from_shortcuts(value, spec.shortcut_id)) is not None
+    def _read_bindings(self, value: object, *, changed: bool = False) -> None:
+        bindings = (
+            {item.shortcut_id: item for item in self._bindings} if changed else {}
         )
+        for spec in self._shortcuts:
+            binding = _binding_from_shortcuts(value, spec.shortcut_id)
+            if binding is not None:
+                bindings[spec.shortcut_id] = binding
+        self._bindings = tuple(bindings.values())
 
     def _publish(
         self,

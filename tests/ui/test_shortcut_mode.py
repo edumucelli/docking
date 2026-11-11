@@ -197,7 +197,9 @@ def test_capture_and_stale_activation_do_not_change_visibility(window, shortcuts
 def test_leaving_mode_cancels_pending_setup(window, shortcuts):
     window.config.hide_mode = "none"
     shortcuts.request_mode()
+    assert shortcuts.pending_mode
     shortcuts.mode_changed()
+    assert not shortcuts.pending_mode
     shortcuts._on_shortcut_status(
         GlobalShortcutsStatus(
             GlobalShortcutsState.BOUND,

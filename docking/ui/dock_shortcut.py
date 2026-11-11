@@ -72,6 +72,10 @@ class DockShortcutController(ShortcutController):
         self._requested_mode = True
         self.refresh_settings()
 
+    @property
+    def pending_mode(self) -> bool:
+        return self._requested_mode
+
     def refresh_settings(self, *, retry: bool = False) -> None:
         preferences = self._current_shortcut_preferences()
         if preferences != self._shortcut_preferences or retry:
@@ -132,4 +136,6 @@ class DockShortcutController(ShortcutController):
             and not self.shortcut_active
         ):
             return _("Using Auto-hide: {reason}").format(reason=detail)
+        if self.pending_mode:
+            return _("Mode not enabled: {reason}").format(reason=detail)
         return detail

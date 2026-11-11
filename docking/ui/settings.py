@@ -265,6 +265,12 @@ class SettingsActions:
     def dock_shortcut_active(self) -> bool:
         return self._dock_shortcuts.shortcut_active
 
+    def dock_shortcut_mode_pending(self) -> bool:
+        return self._dock_shortcuts.pending_mode
+
+    def cancel_dock_shortcut_mode(self) -> None:
+        self._dock_shortcuts.mode_changed()
+
     def add_dock_shortcut_status_listener(
         self, listener: Callable[[], None]
     ) -> Callable[[], None]:
@@ -1708,7 +1714,11 @@ class SettingsWindowController:
             syncing = self._syncing_widgets
             self._syncing_widgets = True
             try:
-                self._hide_mode_combo.set_active_id(self._config.hide_mode)
+                self._hide_mode_combo.set_active_id(
+                    "shortcut-only"
+                    if self._actions.dock_shortcut_mode_pending()
+                    else self._config.hide_mode
+                )
             finally:
                 self._syncing_widgets = syncing
             self._update_hide_mode_description()
@@ -1842,16 +1852,12 @@ class SettingsWindowController:
             return
         if binding.config_attr == "hide_mode" and value == "shortcut-only":
             self._actions.request_dock_shortcut_mode()
-            syncing = self._syncing_widgets
-            self._syncing_widgets = True
-            try:
-                binding.write_widget(self._config.hide_mode)
-            finally:
-                self._syncing_widgets = syncing
             self._update_dock_shortcut_status()
             return
         current_value = getattr(self._config, binding.config_attr)
         if value == current_value:
+            if binding.config_attr == "hide_mode":
+                self._actions.cancel_dock_shortcut_mode()
             return
         setattr(self._config, binding.config_attr, value)
         self._config.save()

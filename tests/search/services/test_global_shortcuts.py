@@ -898,3 +898,38 @@ def test_portal_binds_both_actions_and_reports_partial_results():
     assert activated[0].shortcut_id == "toggle-dock"
     service.stop()
     assert service.status.bindings == ()
+
+
+@pytest.mark.parametrize("changed_id", ["toggle-search", "toggle-dock"])
+def test_shortcut_change_delta_preserves_the_other_action(changed_id):
+    specs = tuple(
+        GlobalShortcutSpec(action, action, "CTRL+ALT+d")
+        for action in ("toggle-search", "toggle-dock")
+    )
+    service, calls, signals = _service(shortcuts=specs)
+    service.start()
+    session = _create_session(service, calls, signals)
+    signals.respond(
+        calls.request("BindShortcuts"),
+        0,
+        {
+            "shortcuts": [
+                (action, {"trigger_description": action})
+                for action in ("toggle-search", "toggle-dock")
+            ]
+        },
+    )
+    signals.emit(
+        sender=PORTAL_BUS_NAME,
+        object_path=PORTAL_OBJECT_PATH,
+        interface=GLOBAL_SHORTCUTS_INTERFACE,
+        signal="ShortcutsChanged",
+        parameters=(session, [(changed_id, {"trigger_description": "Ctrl+Alt+J"})]),
+    )
+    bindings = {binding.shortcut_id: binding for binding in service.status.bindings}
+    assert len(bindings) == 2
+    assert bindings[changed_id].trigger_description == "Ctrl+Alt+J"
+    other = "toggle-search" if changed_id == "toggle-dock" else "toggle-dock"
+    assert bindings[other].trigger_description == other
+    assert service.status.binding.shortcut_id == "toggle-search"
+    service.stop()
