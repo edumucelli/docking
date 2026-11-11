@@ -332,3 +332,14 @@ def step_hover_item(context, desktop_id: str) -> None:
 @then("the tooltip is suppressed")
 def step_tooltip_is_suppressed(context) -> None:
     assert context.harness.tooltip_suppressed is True
+
+
+@given("the dock is in shortcut-only mode with a working shortcut")
+def step_shortcut_only_mode(context) -> None:
+    context.harness.set_hide_mode("shortcut-only")
+    context.harness.autohide.set_shortcut_available(True)
+
+
+@when("I press the dock shortcut")
+def step_press_dock_shortcut(context) -> None:
+    context.harness.autohide.toggle_shortcut()

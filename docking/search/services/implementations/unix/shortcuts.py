@@ -36,6 +36,7 @@ from ...global_shortcuts import (
     TOGGLE_SEARCH_SHORTCUT_ID,
     GlobalShortcutActivation,
     GlobalShortcutBinding,
+    GlobalShortcutSpec,
     GlobalShortcutsState,
     GlobalShortcutsStatus,
 )
@@ -189,7 +190,7 @@ class _PendingRequest:
 
 
 class GlobalShortcutsService(GlobalShortcutService):
-    """Own one ``toggle-search`` XDG GlobalShortcuts portal session.
+    """Own the application's named actions in one XDG GlobalShortcuts session.
 
     ``start`` initiates the asynchronous CreateSession and BindShortcuts
     sequence. Portal request outcomes arrive through ``status`` and the status
@@ -203,6 +204,7 @@ class GlobalShortcutsService(GlobalShortcutService):
         on_activated: ActivationCallback,
         on_status_changed: StatusCallback,
         preferred_trigger: str,
+        shortcuts: tuple[GlobalShortcutSpec, ...] = (),
     ) -> None:
         """Initialize one stopped portal service with injected callbacks."""
         if not app_id.strip():
@@ -210,8 +212,13 @@ class GlobalShortcutsService(GlobalShortcutService):
         self._app_id = app_id.strip()
         self._on_activated = on_activated
         self._on_status_changed = on_status_changed
-        self._description = "Toggle Docking search"
-        self._preferred_trigger = preferred_trigger
+        self._shortcuts = shortcuts or (
+            GlobalShortcutSpec(
+                TOGGLE_SEARCH_SHORTCUT_ID, "Toggle Docking search", preferred_trigger
+            ),
+        )
+        self._shortcut_id = self._shortcuts[0].shortcut_id
+        self._bindings: tuple[GlobalShortcutBinding, ...] = ()
         self._parent_window = ""
 
         self._connection: Gio.DBusConnection | None = None
@@ -338,6 +345,7 @@ class GlobalShortcutsService(GlobalShortcutService):
         self._portal_version = None
         self._session_handle = None
         self._binding = None
+        self._bindings = ()
         self._publish(GlobalShortcutsState.STARTING)
 
         self._register_best_effort()
@@ -419,16 +427,23 @@ class GlobalShortcutsService(GlobalShortcutService):
             )
             return
 
-        shortcut_properties: dict[str, object] = {"description": self._description}
-        if self._preferred_trigger:
-            shortcut_properties["preferred_trigger"] = self._preferred_trigger
+        shortcuts = tuple(
+            (
+                spec.shortcut_id,
+                {
+                    "description": spec.description,
+                    "preferred_trigger": spec.preferred_trigger,
+                },
+            )
+            for spec in self._shortcuts
+        )
 
         self._publish(GlobalShortcutsState.BINDING)
         self._begin_request(
             method="BindShortcuts",
             make_arguments=lambda token: (
                 session_handle,
-                ((TOGGLE_SEARCH_SHORTCUT_ID, shortcut_properties),),
+                shortcuts,
                 self._parent_window,
                 {"handle_token": token},
             ),
@@ -438,12 +453,13 @@ class GlobalShortcutsService(GlobalShortcutService):
     def _on_bind_response(self, response: int, results: Mapping[str, object]) -> None:
         if self._publish_response_failure("BindShortcuts", response):
             return
-        binding = _binding_from_results(results)
+        self._read_bindings(results.get("shortcuts", ()))
+        binding = _binding_from_results(results, self._shortcut_id)
         if binding is None:
             self._binding = None
             self._publish(
                 GlobalShortcutsState.DENIED,
-                "the toggle-search shortcut was not bound",
+                f"the {self._shortcut_id} shortcut was not bound",
             )
             return
         self._binding = binding
@@ -452,12 +468,13 @@ class GlobalShortcutsService(GlobalShortcutService):
     def _on_list_response(self, response: int, results: Mapping[str, object]) -> None:
         if self._publish_response_failure("ListShortcuts", response):
             return
-        binding = _binding_from_results(results)
+        self._read_bindings(results.get("shortcuts", ()))
+        binding = _binding_from_results(results, self._shortcut_id)
         if binding is None:
             self._binding = None
             self._publish(
                 GlobalShortcutsState.DENIED,
-                "the toggle-search shortcut is not assigned",
+                f"the {self._shortcut_id} shortcut is not assigned",
             )
             return
         previous = self._binding
@@ -515,8 +532,9 @@ class GlobalShortcutsService(GlobalShortcutService):
         session_handle = _string_value(values[0])
         shortcut_id = _string_value(values[1])
         if (
-            session_handle != self._session_handle
-            or shortcut_id != TOGGLE_SEARCH_SHORTCUT_ID
+            shortcut_id is None
+            or session_handle != self._session_handle
+            or shortcut_id not in {spec.shortcut_id for spec in self._shortcuts}
         ):
             return
         try:
@@ -531,7 +549,7 @@ class GlobalShortcutsService(GlobalShortcutService):
         try:
             callback(
                 GlobalShortcutActivation(
-                    shortcut_id=TOGGLE_SEARCH_SHORTCUT_ID,
+                    shortcut_id=shortcut_id,
                     timestamp=timestamp,
                     activation_token=activation_token,
                 )
@@ -548,12 +566,16 @@ class GlobalShortcutsService(GlobalShortcutService):
             return
         if _string_value(values[0]) != self._session_handle:
             return
-        binding = _binding_from_shortcuts(values[1])
+        self._read_bindings(values[1], changed=True)
+        binding = next(
+            (item for item in self._bindings if item.shortcut_id == self._shortcut_id),
+            None,
+        )
         if binding is None:
             self._binding = None
             self._publish(
                 GlobalShortcutsState.DENIED,
-                "the toggle-search shortcut is no longer assigned",
+                f"the {self._shortcut_id} shortcut is no longer assigned",
             )
             return
         previous = self._binding
@@ -760,6 +782,7 @@ class GlobalShortcutsService(GlobalShortcutService):
         self._session_subscriptions.clear()
         self._session_handle = None
         self._binding = None
+        self._bindings = ()
 
     def _discard_pending(self, pending: _PendingRequest) -> None:
         pending.done = True
@@ -860,6 +883,16 @@ class GlobalShortcutsService(GlobalShortcutService):
             safe = secrets.token_hex(8)
         return f"docking_{purpose}_{self._token_counter}_{safe}"
 
+    def _read_bindings(self, value: object, *, changed: bool = False) -> None:
+        bindings = (
+            {item.shortcut_id: item for item in self._bindings} if changed else {}
+        )
+        for spec in self._shortcuts:
+            binding = _binding_from_shortcuts(value, spec.shortcut_id)
+            if binding is not None:
+                bindings[spec.shortcut_id] = binding
+        self._bindings = tuple(bindings.values())
+
     def _publish(
         self,
         state: GlobalShortcutsState,
@@ -872,6 +905,7 @@ class GlobalShortcutsService(GlobalShortcutService):
             session_handle=self._session_handle,
             binding=self._binding,
             message=message,
+            bindings=self._bindings if len(self._shortcuts) > 1 else (),
         )
         if status == self._status:
             return
@@ -1023,8 +1057,9 @@ def _integer_value(value: object) -> int:
 
 def _binding_from_results(
     results: Mapping[str, object],
+    shortcut_id: str = TOGGLE_SEARCH_SHORTCUT_ID,
 ) -> GlobalShortcutBinding | None:
-    return _binding_from_shortcuts(results.get("shortcuts", ()))
+    return _binding_from_shortcuts(results.get("shortcuts", ()), shortcut_id)
 
 
 def _binding_was_reassigned(
@@ -1037,16 +1072,18 @@ def _binding_was_reassigned(
     )
 
 
-def _binding_from_shortcuts(value: object) -> GlobalShortcutBinding | None:
+def _binding_from_shortcuts(
+    value: object, requested_id: str = TOGGLE_SEARCH_SHORTCUT_ID
+) -> GlobalShortcutBinding | None:
     for item in _sequence_value(value):
         if not isinstance(item, (tuple, list)) or len(item) != 2:
             continue
         shortcut_id = _string_value(item[0])
-        if shortcut_id != TOGGLE_SEARCH_SHORTCUT_ID:
+        if shortcut_id is None or shortcut_id != requested_id:
             continue
         properties = _mapping_value(item[1])
         return GlobalShortcutBinding(
-            shortcut_id=TOGGLE_SEARCH_SHORTCUT_ID,
+            shortcut_id=shortcut_id,
             description=_string_value(properties.get("description")) or "",
             trigger_description=_string_value(properties.get("trigger_description")),
         )

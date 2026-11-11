@@ -202,6 +202,7 @@ class _ReorderDock:
         self.cursor_x = 0.0
         self.cursor_y = 0.0
         self.autohide = SimpleNamespace(
+            pointer_reveal_enabled=True,
             enabled=True,
             state=HideState.VISIBLE,
             zoom_progress=1.0,

@@ -43,13 +43,15 @@ This controller owns:
 
 Hide modes
 ----------
-The controller supports six modes (see HideMode in config.py). Two inputs
+The controller supports the hide modes in config.py. These inputs
 drive the decision:
 
 - AUTOHIDE: hide whenever not hovered (mouse-only).
 - Dodge modes (INTELLIGENT, DODGE_ACTIVE, WINDOW_DODGE, DODGE_MAXIMIZED):
   hide only when ``window_should_hide`` is True (set by WindowDodgeMonitor).
-  Hover or disabled always override to show.
+  Hover or disabled override to show in these modes.
+- SHORTCUT_ONLY: only a shortcut grants reveal; after pointer entry, normal
+  leave timing applies. Failed registration temporarily uses AUTOHIDE.
 
 This module does not own:
 
@@ -295,6 +297,49 @@ class AutoHideController:
         self._anim_last_tick_us: int = 0
         self._hide_after_show: bool = False
         self._window_should_hide: bool = False
+        self._shortcut_available = False
+        self._shortcut_requested = False
+        self._shortcut_entered = False
+        if config.hide_mode == HideMode.SHORTCUT_ONLY.value:
+            self.state = HideState.HIDDEN
+            self.hide_offset = 1.0
+
+    @property
+    def shortcut_only(self) -> bool:
+        return (
+            self._config.hide_mode == HideMode.SHORTCUT_ONLY.value
+            and self._shortcut_available
+        )
+
+    @property
+    def pointer_reveal_enabled(self) -> bool:
+        return not self.shortcut_only
+
+    def set_shortcut_available(self, available: bool) -> None:
+        if self._shortcut_available == available:
+            return
+        self._shortcut_available = available
+        self._shortcut_requested = False
+        self._shortcut_entered = False
+        self._cancel_hide_timer()
+        self._cancel_unhide_timer()
+        self.reconcile()
+        self._window.queue_redraw()
+
+    def toggle_shortcut(self) -> None:
+        if not self.shortcut_only:
+            return
+        self._shortcut_requested = not self._shortcut_requested
+        self._shortcut_entered = self._hovered
+        self._cancel_hide_timer()
+        self._cancel_unhide_timer()
+        if self._shortcut_requested:
+            self._hide_after_show = False
+            self.zoom_progress = 1.0
+            self._start_showing()
+        elif not self._disabled:
+            self._start_hiding()
+        self._window.queue_redraw()
 
     @property
     def enabled(self) -> bool:
@@ -313,6 +358,8 @@ class AutoHideController:
         self._disabled = False
         self._hide_after_show = False
         self._window_should_hide = False
+        self._shortcut_requested = False
+        self._shortcut_entered = False
         self._window.queue_redraw()
 
     def on_mouse_leave(self) -> None:
@@ -330,6 +377,8 @@ class AutoHideController:
         if self._hovered == hovered:
             return
         self._hovered = hovered
+        if self.shortcut_only and self._shortcut_requested and hovered:
+            self._shortcut_entered = True
         log.debug(
             "set_hovered: hovered=%s disabled=%s state=%s",
             hovered,
@@ -370,10 +419,25 @@ class AutoHideController:
         """Reconcile hover/disabled state into show-or-hide behavior."""
         if not self.enabled:
             return
+        if self.shortcut_only:
+            if (
+                self._shortcut_requested
+                and (not self._shortcut_entered or self._hovered)
+            ) or (self._disabled and self.state != HideState.HIDDEN):
+                self._show()
+            elif not self._shortcut_requested:
+                self._cancel_hide_timer()
+                self._cancel_unhide_timer()
+                if self.state in (HideState.VISIBLE, HideState.SHOWING):
+                    self._start_hiding()
+            else:
+                self._hide()
+            return
         if self._disabled or self._hovered:
             self._show()
         elif (
-            self._config.hide_mode == HideMode.AUTOHIDE.value
+            self._config.hide_mode
+            in (HideMode.AUTOHIDE.value, HideMode.SHORTCUT_ONLY.value)
             or self._window_should_hide
         ):
             self._hide()
@@ -500,6 +564,8 @@ class AutoHideController:
             self.zoom_progress = 1.0 - self.hide_offset
             if self._anim_progress >= 1.0:
                 self.state = HideState.HIDDEN
+                self._shortcut_requested = False
+                self._shortcut_entered = False
                 self.hide_offset = 1.0
                 self.zoom_progress = 0.0
                 self._anim_timer_id = 0

@@ -57,6 +57,7 @@ from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.display import window_screen_position
 from docking.ui.dnd import DnDHandler
 from docking.ui.dock_interactions import DockInteractions
+from docking.ui.dock_shortcut import DockShortcutController
 from docking.ui.dock_window import DockWindow
 from docking.ui.folder.stack import FolderStackController
 from docking.ui.input_controller import DockInputController
@@ -91,6 +92,7 @@ class DockUi:
     input_controller: DockInputController
     search: GlobalSearchController
     settings: SettingsWindowController
+    dock_shortcuts: DockShortcutController
 
     def start(self) -> None:
         """Start the composed dock UI lifecycle."""
@@ -99,6 +101,7 @@ class DockUi:
         # crossing event will arrive to initialize autohide.
         self.window.on_hide_mode_changed()
         self.search.start()
+        self.dock_shortcuts.start()
         self.startup_popups.start()
 
     def stop(self) -> None:
@@ -106,6 +109,7 @@ class DockUi:
         with ExitStack() as cleanup:
             cleanup.callback(self.input_controller.stop)
             cleanup.callback(self.search.stop)
+            cleanup.callback(self.dock_shortcuts.stop)
             cleanup.callback(self.settings.close)
             cleanup.callback(self.startup_popups.stop)
 
@@ -187,11 +191,13 @@ def build_dock_window(
         icon_loader=icon_loader,
         target_service=target_service,
     )
+    dock_shortcuts = DockShortcutController(window, search_integration)
     settings_actions = SettingsActions(
         runtime=runtime,
         dnd=dnd,
         model=model,
         search=search,
+        dock_shortcuts=dock_shortcuts,
     )
     settings = SettingsWindowController(
         parent=window,
@@ -266,4 +272,5 @@ def build_dock_window(
         input_controller=input_controller,
         search=search,
         settings=settings,
+        dock_shortcuts=dock_shortcuts,
     )

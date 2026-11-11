@@ -35,8 +35,8 @@ from docking.log import get_logger
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.registry import ApplicationRegistry
 from docking.platform.icons import IconLoader
+from docking.platform.shortcuts import ShortcutController
 from docking.platform.targets import TargetService
-from docking.search.app_identity import application_id
 from docking.search.config import (
     DEFAULT_GLOBAL_SEARCH_MAX_RESULTS,
     DEFAULT_GLOBAL_SEARCH_PROVIDERS,
@@ -64,11 +64,9 @@ from docking.search.providers import (
 from docking.search.services.currency_rates import CurrencyRatesCatalog
 from docking.search.services.global_shortcuts import (
     GlobalShortcutActivation,
-    GlobalShortcutService,
-    GlobalShortcutsState,
     GlobalShortcutsStatus,
 )
-from docking.search.services.platform import SearchIntegration, ShortcutFallback
+from docking.search.services.platform import SearchIntegration
 from docking.search.services.recent_files import RecentFilesCatalog
 from docking.search.types import (
     SearchAction,
@@ -77,7 +75,6 @@ from docking.search.types import (
     SearchQuery,
     SearchResult,
 )
-from docking.search.ui.shortcut_capture import shortcut_label
 from docking.search.ui.thumbnails import LoadedSearchImage
 from docking.search.ui.window import SearchWindow
 from docking.search.usage import SearchUsageStore
@@ -95,7 +92,7 @@ if TYPE_CHECKING:
     from docking.platform.model import DockModel
 
 
-class GlobalSearchController:
+class GlobalSearchController(ShortcutController):
     """Own the complete runtime lifecycle of the global search feature.
 
     The object is long lived and must be created and used on the GTK main
@@ -206,125 +203,12 @@ class GlobalSearchController:
             opaque_action_panel=self._integration.opaque_action_panel,
             surface_service=surface_service,
         )
-        self._global_shortcuts = self._new_shortcut_service()
-        self._shortcut_fallback = self._new_shortcut_fallback()
-        self._shortcut_preferences = self._current_shortcut_preferences()
+        self._init_shortcuts(integration, self._schedule_idle, GLib.source_remove)
 
     @property
     def visible(self) -> bool:
         """Return whether the shared search window is currently visible."""
         return self.window.visible
-
-    @property
-    def shortcut_status(self) -> GlobalShortcutsStatus | None:
-        """Return the latest shortcut backend status, if available."""
-        return self._shortcut_status
-
-    def shortcut_status_text(self) -> str:
-        """Return detailed shortcut status suitable for a diagnostic tooltip."""
-        if self._shortcut_fallback is not None and self._shortcut_fallback.active:
-            return _("Active: {shortcut} (X11)").format(
-                shortcut=shortcut_label(self._config.global_search_shortcut)
-            )
-        if self._shortcut_fallback is not None and self._shortcut_fallback.error:
-            if self._shortcut_fallback.error == "shortcut is already in use":
-                return _("Shortcut already in use")
-            return _("Registration failed")
-        status = self._shortcut_status
-        if status is None:
-            return _("Not active")
-        if (
-            status.state is GlobalShortcutsState.ERROR
-            and status.message == "shortcut is already in use"
-        ):
-            return _("Shortcut already in use")
-        trigger = status.binding.trigger_description if status.binding else None
-        if status.state in {
-            GlobalShortcutsState.STARTING,
-            GlobalShortcutsState.CREATING,
-            GlobalShortcutsState.BINDING,
-        }:
-            return _("Connecting...")
-        if status.state in {
-            GlobalShortcutsState.BOUND,
-            GlobalShortcutsState.REASSIGNED,
-        }:
-            if trigger:
-                return _("Assigned: {shortcut}").format(shortcut=trigger)
-            return _("Assigned by desktop")
-        if status.state is GlobalShortcutsState.UNAVAILABLE:
-            return _("Unavailable on this desktop")
-        if status.state is GlobalShortcutsState.DENIED:
-            return _("Permission denied")
-        if status.state is GlobalShortcutsState.CANCELLED:
-            return _("Setup cancelled")
-        if status.state is GlobalShortcutsState.ERROR:
-            return _("Registration failed")
-        return _("Not active")
-
-    def shortcut_status_summary(self) -> str:
-        """Return the short shortcut state displayed below Preferences."""
-        if self._shortcut_fallback is not None:
-            if self._shortcut_fallback.active:
-                return _("Active")
-            if self._shortcut_fallback.error:
-                if self._shortcut_fallback.error == "shortcut is already in use":
-                    return _("Conflict")
-                return _("Failed")
-        status = self._shortcut_status
-        if status is None:
-            return _("Inactive")
-        if (
-            status.state is GlobalShortcutsState.ERROR
-            and status.message == "shortcut is already in use"
-        ):
-            return _("Conflict")
-        if status.state in {
-            GlobalShortcutsState.STARTING,
-            GlobalShortcutsState.CREATING,
-            GlobalShortcutsState.BINDING,
-        }:
-            return _("Connecting")
-        if status.state in {
-            GlobalShortcutsState.BOUND,
-            GlobalShortcutsState.REASSIGNED,
-        }:
-            return _("Active")
-        if status.state is GlobalShortcutsState.UNAVAILABLE:
-            return _("Unavailable")
-        if status.state is GlobalShortcutsState.DENIED:
-            return _("Denied")
-        if status.state is GlobalShortcutsState.CANCELLED:
-            return _("Cancelled")
-        if status.state is GlobalShortcutsState.ERROR:
-            return _("Failed")
-        return _("Inactive")
-
-    def add_shortcut_status_listener(
-        self,
-        listener: Callable[[], None],
-    ) -> Callable[[], None]:
-        """Subscribe to status changes and return an idempotent unsubscriber."""
-        if listener not in self._shortcut_status_listeners:
-            self._shortcut_status_listeners.append(listener)
-
-        def unsubscribe() -> None:
-            if listener in self._shortcut_status_listeners:
-                self._shortcut_status_listeners.remove(listener)
-
-        return unsubscribe
-
-    def suspend_shortcuts(self) -> None:
-        """Temporarily release global grabs while a new sequence is captured."""
-        self._shortcut_suspended = True
-        self._stop_shortcut_services()
-        self._notify_shortcut_status()
-
-    def resume_shortcuts(self) -> None:
-        """Restore shortcut services after capture or another temporary pause."""
-        self._shortcut_suspended = False
-        if self._started and self._config.global_search_enabled:
-            self._start_shortcut_services()
 
     def start(self) -> None:
         """Start catalogs and register the process-wide keyboard shortcut."""
@@ -412,36 +296,6 @@ class GlobalSearchController:
         self._shortcut_preferences = shortcut_preferences
         if self.visible:
             self._search(self._current_query)
-
-    def _new_shortcut_service(self) -> GlobalShortcutService:
-        return self._integration.primary(
-            app_id=application_id(),
-            preferred_trigger=self._config.global_search_shortcut,
-            trigger_description=shortcut_label(self._config.global_search_shortcut),
-            on_activated=self._on_global_shortcut,
-            on_status_changed=self._on_shortcut_status,
-            schedule_idle=self._schedule_idle,
-            remove_source=GLib.source_remove,
-        )
-
-    def _new_shortcut_fallback(self) -> ShortcutFallback | None:
-        return self._integration.fallback(
-            shortcut=self._config.global_search_shortcut,
-            on_activated=self._on_fallback_shortcut,
-            schedule_idle=self._schedule_idle,
-        )
-
-    def _start_shortcut_services(self) -> None:
-        self._global_shortcuts.start()
-
-    def _stop_shortcut_services(self) -> None:
-        self._global_shortcuts.stop()
-        if self._shortcut_fallback is not None:
-            self._shortcut_fallback.stop()
-
-    def _start_shortcut_fallback(self) -> None:
-        if self._shortcut_fallback is not None:
-            self._shortcut_fallback.start()
 
     def _current_shortcut_preferences(self) -> tuple[bool, str]:
         return (
@@ -827,26 +681,8 @@ class GlobalSearchController:
             context["XDG_ACTIVATION_TOKEN"] = activation.activation_token
         self.toggle(activation_context=context)
 
-    def _on_shortcut_status(self, status: GlobalShortcutsStatus) -> None:
-        self._shortcut_status = status
-        if (
-            not self._started
-            or self._shortcut_suspended
-            or not self._config.global_search_enabled
-        ):
-            return
-        if status.state is GlobalShortcutsState.UNAVAILABLE:
-            self._start_shortcut_fallback()
-        elif self._shortcut_fallback is not None:
-            self._shortcut_fallback.stop()
-        self._notify_shortcut_status()
-
     def _on_fallback_shortcut(self, timestamp: int) -> None:
         self.toggle(activation_context={"timestamp": timestamp})
-
-    def _notify_shortcut_status(self) -> None:
-        for listener in tuple(self._shortcut_status_listeners):
-            listener()
 
     @staticmethod
     def _copy_text(text: str) -> None:

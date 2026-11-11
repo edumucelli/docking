@@ -22,6 +22,7 @@ from docking.search.services.implementations.unix.shortcuts import (
     SESSION_INTERFACE,
     TOGGLE_SEARCH_SHORTCUT_ID,
     GlobalShortcutActivation,
+    GlobalShortcutSpec,
     GlobalShortcutsService,
     GlobalShortcutsState,
     SignalCallback,
@@ -203,6 +204,7 @@ def _service(
     *,
     version: int = 1,
     activated: list[GlobalShortcutActivation] | None = None,
+    shortcuts: tuple[GlobalShortcutSpec, ...] = (),
 ) -> tuple[GlobalShortcutsService, _Calls, _Signals]:
     calls = _Calls(version=version)
     signals = _Signals()
@@ -213,6 +215,7 @@ def _service(
         ),
         on_status_changed=lambda _status: None,
         preferred_trigger="CTRL+LOGO+space",
+        shortcuts=shortcuts,
     )
     service._connection = _Connection()
     service._call_adapter = calls
@@ -854,3 +857,79 @@ class TestTokenAndPublish:
 
         # The portal sequence continues despite the listener blowing up.
         assert calls.by_method("CreateSession")
+
+
+def test_portal_binds_both_actions_and_reports_partial_results():
+    specs = (
+        GlobalShortcutSpec("toggle-search", "Search", "CTRL+ALT+space"),
+        GlobalShortcutSpec("toggle-dock", "Dock", "CTRL+ALT+d"),
+    )
+    activated = []
+    service, calls, signals = _service(shortcuts=specs, activated=activated)
+    service.start()
+    session = _create_session(service, calls, signals)
+    assert [item[0] for item in calls.by_method("BindShortcuts")[0].arguments[1]] == [
+        "toggle-search",
+        "toggle-dock",
+    ]
+    signals.respond(
+        calls.request("BindShortcuts"),
+        0,
+        {
+            "shortcuts": [
+                (
+                    "toggle-dock",
+                    {"description": "Dock", "trigger_description": "Ctrl+Alt+D"},
+                ),
+            ]
+        },
+    )
+    assert service.status.binding is None
+    assert [binding.shortcut_id for binding in service.status.bindings] == [
+        "toggle-dock"
+    ]
+    signals.emit(
+        sender=PORTAL_BUS_NAME,
+        object_path=PORTAL_OBJECT_PATH,
+        interface=GLOBAL_SHORTCUTS_INTERFACE,
+        signal="Activated",
+        parameters=(session, "toggle-dock", 42, {}),
+    )
+    assert activated[0].shortcut_id == "toggle-dock"
+    service.stop()
+    assert service.status.bindings == ()
+
+
+@pytest.mark.parametrize("changed_id", ["toggle-search", "toggle-dock"])
+def test_shortcut_change_delta_preserves_the_other_action(changed_id):
+    specs = tuple(
+        GlobalShortcutSpec(action, action, "CTRL+ALT+d")
+        for action in ("toggle-search", "toggle-dock")
+    )
+    service, calls, signals = _service(shortcuts=specs)
+    service.start()
+    session = _create_session(service, calls, signals)
+    signals.respond(
+        calls.request("BindShortcuts"),
+        0,
+        {
+            "shortcuts": [
+                (action, {"trigger_description": action})
+                for action in ("toggle-search", "toggle-dock")
+            ]
+        },
+    )
+    signals.emit(
+        sender=PORTAL_BUS_NAME,
+        object_path=PORTAL_OBJECT_PATH,
+        interface=GLOBAL_SHORTCUTS_INTERFACE,
+        signal="ShortcutsChanged",
+        parameters=(session, [(changed_id, {"trigger_description": "Ctrl+Alt+J"})]),
+    )
+    bindings = {binding.shortcut_id: binding for binding in service.status.bindings}
+    assert len(bindings) == 2
+    assert bindings[changed_id].trigger_description == "Ctrl+Alt+J"
+    other = "toggle-search" if changed_id == "toggle-dock" else "toggle-dock"
+    assert bindings[other].trigger_description == other
+    assert service.status.binding.shortcut_id == "toggle-search"
+    service.stop()

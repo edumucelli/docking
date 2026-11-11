@@ -4,7 +4,7 @@ Runs the normal application composition and GTK main loop with isolated
 settings. A driver thread sends Win32 keyboard input while Notepad is foreground.
 GTK inspection and Preferences actions run on the main loop. The check covers
 focus, typing, repeat/lock keys, capture/cancel/rebind, conflicts, disable/enable,
-persistence and release after normal application shutdown.
+persistence, dock-only reveal and recovery, and release after normal shutdown.
 """
 
 from __future__ import annotations
@@ -44,6 +44,7 @@ def main() -> None:
     from PIL import ImageGrab
 
     import docking.app as app
+    from docking.platform.backends.base import Rect
     from docking.platform.native.windows.hotkeys import (
         MOD_ALT,
         MOD_CONTROL,
@@ -51,6 +52,7 @@ def main() -> None:
         WindowsHotkeyAPI,
     )
     from docking.search.services.global_shortcuts import GlobalShortcutsState
+    from docking.ui.autohide import HideState
 
     user = ctypes.WinDLL("user32", use_last_error=True)
     callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
@@ -491,6 +493,97 @@ def main() -> None:
             assert saved["global_search_shortcut"] == "CTRL+ALT+k"
             assert saved["global_search_enabled"] is True
             report["persisted_shortcut"] = saved["global_search_shortcut"]
+            user.SetCursorPos(10, 10)
+
+            def enable_dock_shortcut():
+                shared["config"].dock_shortcut = "CTRL+ALT+j"
+                ui.dock_shortcuts.request_mode()
+
+            ui_call(enable_dock_shortcut)
+            wait_for(
+                lambda: ui_call(lambda: ui.window.autohide.shortcut_only),
+                "Dock shortcut did not activate its hide mode",
+            )
+            wait_for(
+                lambda: ui_call(lambda: ui.window.autohide.state is HideState.HIDDEN),
+                "Shortcut-only mode did not start hidden",
+            )
+            assert not available(ord("J")) and not available(ord("K"))
+            assert (
+                ui_call(lambda: ui.window.current_interaction_frame().cursor_rect.w)
+                == 0
+            )
+            chord(ord("J"))
+            wait_for(
+                lambda: ui_call(lambda: ui.window.autohide.state is HideState.VISIBLE),
+                "Native dock shortcut did not reveal the dock",
+            )
+            assert user.GetForegroundWindow() == editor["hwnd"], (
+                "Revealing the dock stole focus"
+            )
+
+            def dock_bounds():
+                rect = ui.window.current_interaction_frame().cursor_rect
+                return ui.window.surface_service.screen_rectangle(
+                    ui.window, Rect(rect.x, rect.y, rect.w, rect.h)
+                )
+
+            bounds = ui_call(dock_bounds)
+            assert bounds is not None
+            user.SetCursorPos(
+                bounds.x + bounds.width // 2, bounds.y + bounds.height // 2
+            )
+            wait_for(
+                lambda: ui_call(lambda: ui.window.dock_hovered),
+                "Native pointer observation did not enter the revealed dock",
+            )
+            user.SetCursorPos(10, 10)
+            wait_for(
+                lambda: ui_call(lambda: ui.window.autohide.state is HideState.HIDDEN),
+                "Leaving the dock did not hide it",
+            )
+            assert (
+                ui_call(lambda: ui.window.current_interaction_frame().cursor_rect.w)
+                == 0
+            )
+            chord(ord("J"))
+            wait_for(
+                lambda: ui_call(lambda: ui.window.autohide.state is HideState.VISIBLE),
+                "Second reveal did not wait for pointer entry",
+            )
+            chord(ord("J"))
+            wait_for(
+                lambda: ui_call(lambda: ui.window.autohide.state is HideState.HIDDEN),
+                "Second shortcut did not dismiss the dock",
+            )
+            ui_call(ui.dock_shortcuts.suspend_shortcuts)
+            competitor = WindowsHotkeyAPI()
+            competitor.register(MOD_CONTROL | MOD_ALT, ord("J"))
+            ui_call(ui.dock_shortcuts.resume_shortcuts)
+            wait_for(
+                lambda: ui_call(
+                    lambda: (
+                        ui.dock_shortcuts.shortcut_status.state
+                        is GlobalShortcutsState.ERROR
+                    )
+                ),
+                "Dock binding conflict was not reported",
+            )
+            assert ui_call(lambda: ui.window.autohide.pointer_reveal_enabled)
+            assert ui_call(lambda: shared["config"].hide_mode) == "shortcut-only"
+            assert state() is GlobalShortcutsState.BOUND
+            competitor.unregister()
+            competitor = None
+            wait_for(
+                lambda: ui_call(lambda: ui.window.autohide.shortcut_only),
+                "Conflict recovery did not restore shortcut-only mode",
+            )
+            report["dock_shortcut"] = {
+                "reveal": True,
+                "pointer_dismiss": True,
+                "toggle_dismiss": True,
+                "conflict_recovery": True,
+            }
             report["ok"] = True
         except Exception as exc:
             errors.append(exc)
@@ -518,7 +611,7 @@ def main() -> None:
         app.main()
         driver.join(timeout=10)
         assert not driver.is_alive(), "Test driver survived normal application shutdown"
-        assert available(0x20) and available(ord("K")), (
+        assert available(0x20) and available(ord("K")) and available(ord("J")), (
             "Normal shutdown retained a registered hotkey"
         )
         report["shutdown_releases_bindings"] = True

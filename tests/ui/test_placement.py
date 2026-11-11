@@ -39,6 +39,7 @@ def _make_window(**overrides):
             stroke_width=0,
         ),
         model=SimpleNamespace(visible_items=list),
+        autohide=SimpleNamespace(shortcut_only=False),
         get_display=MagicMock(),
         get_screen=MagicMock(),
         get_window=MagicMock(),
@@ -1090,7 +1091,7 @@ class TestPlacementControllerStruts:
                 pressure_reveal_enabled=True,
                 pressure_threshold=25,
             ),
-            autohide=SimpleNamespace(on_mouse_enter=MagicMock()),
+            autohide=SimpleNamespace(on_mouse_enter=MagicMock(), shortcut_only=False),
         )
         controller = _make_controller(window)
         controller._resolve_target_monitor = MagicMock(return_value=monitor)

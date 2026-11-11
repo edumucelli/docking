@@ -89,6 +89,7 @@ from docking.search.config import (
     GLOBAL_SEARCH_WEB_ENGINES,
 )
 from docking.search.ui.shortcut_capture import ShortcutCaptureButton
+from docking.ui.dock_shortcut import DockShortcutController
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -175,13 +176,16 @@ class SettingsActions:
         dnd: DnDHandler,
         model: DockModel,
         search: GlobalSearchController,
+        dock_shortcuts: DockShortcutController,
     ) -> None:
         self._runtime = runtime
         self._dnd = dnd
         self._model = model
         self._search = search
+        self._dock_shortcuts = dock_shortcuts
 
     def on_hide_mode_changed(self) -> None:
+        self._dock_shortcuts.mode_changed()
         self._runtime.on_hide_mode_changed()
 
     def get_monitor_choices(self) -> list[MonitorChoice]:
@@ -228,9 +232,11 @@ class SettingsActions:
 
     def suspend_search_shortcuts(self) -> None:
         self._search.suspend_shortcuts()
+        self._dock_shortcuts.suspend_shortcuts()
 
     def resume_search_shortcuts(self) -> None:
         self._search.resume_shortcuts()
+        self._dock_shortcuts.resume_shortcuts()
 
     def search_shortcut_status(self) -> str:
         return self._search.shortcut_status_text()
@@ -243,6 +249,35 @@ class SettingsActions:
         listener: Callable[[], None],
     ) -> Callable[[], None]:
         return self._search.add_shortcut_status_listener(listener)
+
+    def request_dock_shortcut_mode(self) -> None:
+        self._dock_shortcuts.request_mode()
+
+    def refresh_dock_shortcut_settings(self) -> None:
+        self._dock_shortcuts.refresh_settings()
+
+    def dock_shortcut_status(self) -> str:
+        return self._dock_shortcuts.status_text()
+
+    def dock_shortcut_label(self) -> str | None:
+        status = self._dock_shortcuts.shortcut_status
+        if self._dock_shortcuts.shortcut_active and status and status.binding:
+            return status.binding.trigger_description
+        return None
+
+    def dock_shortcut_active(self) -> bool:
+        return self._dock_shortcuts.shortcut_active
+
+    def dock_shortcut_mode_pending(self) -> bool:
+        return self._dock_shortcuts.pending_mode
+
+    def cancel_dock_shortcut_mode(self) -> None:
+        self._dock_shortcuts.mode_changed()
+
+    def add_dock_shortcut_status_listener(
+        self, listener: Callable[[], None]
+    ) -> Callable[[], None]:
+        return self._dock_shortcuts.add_shortcut_status_listener(listener)
 
 
 class SettingsWindowController:
@@ -270,6 +305,13 @@ class SettingsWindowController:
             )
         )
 
+        self._dock_shortcut_row: Any = None
+        self._dock_shortcut_entry: Any = None
+        self._unsubscribe_dock_shortcut_status = (
+            self._actions.add_dock_shortcut_status_listener(
+                self._update_dock_shortcut_status
+            )
+        )
         self._hide_mode_combo: Any = None
         self._hide_mode_info: Any = None
         self._left_click_combo: Any = None
@@ -332,10 +374,12 @@ class SettingsWindowController:
         self._sync_widgets()
         self._rebuild_applet_tab()
         self._window.show_all()
+        self._update_hide_mode_description()
         self._window.present()
 
     def close(self) -> None:
         """Release the status subscription and destroy the preferences window."""
+        self._unsubscribe_dock_shortcut_status()
         unsubscribe = self._unsubscribe_search_shortcut_status
         self._unsubscribe_search_shortcut_status = None
         window = self._window
@@ -402,6 +446,7 @@ class SettingsWindowController:
             ("none", _("Don't Hide")),
             ("always-on-top", _("Always on Top")),
             ("autohide", _("Auto-hide")),
+            ("shortcut-only", _("Show Only with Shortcut")),
             ("intelligent", _("Intelligent")),
             ("dodge-active", _("Dodge Active")),
             ("window-dodge", _("Dodge Windows")),
@@ -582,6 +627,15 @@ class SettingsWindowController:
             minimum=0,
             maximum=HIDE_DELAY_MAX_MS,
             step=HIDE_DELAY_STEP_MS,
+        )
+        self._dock_shortcut_entry = ShortcutCaptureButton(
+            accessible_name=_("Dock shortcut")
+        )
+        self._dock_shortcut_entry.connect(
+            "capture-started", lambda *_: self._actions.suspend_search_shortcuts()
+        )
+        self._dock_shortcut_entry.connect(
+            "capture-ended", lambda *_: self._actions.resume_search_shortcuts()
         )
         self._pressure_reveal_switch = self._new_switch()
         self._pressure_threshold_scale = Gtk.Scale.new_with_range(
@@ -899,6 +953,15 @@ class SettingsWindowController:
             rows=[
                 (_("Hide Mode"), hide_mode_box, None),
                 (
+                    _("Dock Shortcut"),
+                    self._dock_shortcut_entry,
+                    _(
+                        "Assign a working shortcut to enable this mode. "
+                        "If registration fails, the dock temporarily "
+                        "uses Auto-hide."
+                    ),
+                ),
+                (
                     _("Hide Delay"),
                     self._hide_delay_spin,
                     _(
@@ -1187,6 +1250,8 @@ class SettingsWindowController:
             False,
             0,
         )
+        if widget is self._dock_shortcut_entry:
+            self._dock_shortcut_row = row
         return row
 
     def _append_section(
@@ -1462,6 +1527,16 @@ class SettingsWindowController:
                 widget=self._pressure_threshold_scale,
                 on_change=self._after_pressure_reveal_changed,
             ),
+            self._register_numeric_binding(
+                config_attr="dock_shortcut",
+                widget=self._dock_shortcut_entry,
+                read_widget=self._dock_shortcut_entry.get_shortcut,
+                write_widget=lambda value: self._dock_shortcut_entry.set_shortcut(
+                    str(value)
+                ),
+                signal="shortcut-changed",
+                on_change=self._actions.refresh_dock_shortcut_settings,
+            ),
             # Recent Apps
             self._register_switch_binding(
                 config_attr="show_recent_apps",
@@ -1598,6 +1673,7 @@ class SettingsWindowController:
             self._sync_monitor_combo()
             self._update_updates_status()
             self._update_search_shortcut_status()
+            self._update_dock_shortcut_status()
         finally:
             self._syncing_widgets = False
         self._update_dependent_sensitivity()
@@ -1616,6 +1692,30 @@ class SettingsWindowController:
         for choice in choices:
             self._monitor_combo.append(str(choice.index), choice.label)
         self._monitor_combo.set_active_id(str(self._actions.current_monitor_choice()))
+
+    def _update_dock_shortcut_status(self) -> None:
+        if self._dock_shortcut_entry is not None:
+            if not self._dock_shortcut_entry.capturing:
+                self._dock_shortcut_entry.set_shortcut(self._config.dock_shortcut)
+                label = self._actions.dock_shortcut_label()
+                if label:
+                    self._dock_shortcut_entry.set_label(label)
+            self._dock_shortcut_entry.set_tooltip_text(
+                self._actions.dock_shortcut_status() or None
+            )
+        if self._hide_mode_combo is not None:
+            syncing = self._syncing_widgets
+            self._syncing_widgets = True
+            try:
+                self._hide_mode_combo.set_active_id(
+                    "shortcut-only"
+                    if self._actions.dock_shortcut_mode_pending()
+                    else self._config.hide_mode
+                )
+            finally:
+                self._syncing_widgets = syncing
+            self._update_hide_mode_description()
+        self._update_dependent_sensitivity()
 
     def _update_search_shortcut_status(self) -> None:
         if self._global_search_status_label is None:
@@ -1743,8 +1843,14 @@ class SettingsWindowController:
         value = binding.read_widget()
         if value is None:
             return
+        if binding.config_attr == "hide_mode" and value == "shortcut-only":
+            self._actions.request_dock_shortcut_mode()
+            self._update_dock_shortcut_status()
+            return
         current_value = getattr(self._config, binding.config_attr)
         if value == current_value:
+            if binding.config_attr == "hide_mode":
+                self._actions.cancel_dock_shortcut_mode()
             return
         setattr(self._config, binding.config_attr, value)
         self._config.save()
@@ -1876,6 +1982,10 @@ class SettingsWindowController:
             " without reserving screen space."
         ),
         "autohide": _("Hides when the mouse cursor leaves the dock."),
+        "shortcut-only": _(
+            "Shows only with its shortcut, then hides after the pointer enters "
+            "and leaves. Press the shortcut again to hide it."
+        ),
         "intelligent": _(
             "Hides when a window from the focused application overlaps the dock area."
         ),
@@ -1897,6 +2007,8 @@ class SettingsWindowController:
         mode = self._hide_mode_combo.get_active_id() or "none"
         desc = self._HIDE_MODE_DESCRIPTIONS.get(mode, "")
         self._set_info_icon_text(self._hide_mode_info, desc)
+        if self._dock_shortcut_row is not None:
+            self._dock_shortcut_row.set_visible(mode == "shortcut-only")
 
     def _after_tooltips_changed(self) -> None:
         if not self._config.tooltips_enabled:
@@ -1935,10 +2047,27 @@ class SettingsWindowController:
         if self._hide_delay_spin is not None:
             self._hide_delay_spin.set_sensitive(hide_controls_sensitive)
         if self._unhide_delay_spin is not None:
-            self._unhide_delay_spin.set_sensitive(hide_controls_sensitive)
+            self._unhide_delay_spin.set_sensitive(
+                hide_controls_sensitive
+                and not (
+                    self._config.hide_mode == "shortcut-only"
+                    and self._actions.dock_shortcut_active()
+                )
+            )
+        if self._pressure_reveal_switch is not None:
+            self._pressure_reveal_switch.set_sensitive(
+                not (
+                    self._config.hide_mode == "shortcut-only"
+                    and self._actions.dock_shortcut_active()
+                )
+            )
         if self._pressure_threshold_scale is not None:
             self._pressure_threshold_scale.set_sensitive(
                 bool(self._config.pressure_reveal_enabled)
+                and not (
+                    self._config.hide_mode == "shortcut-only"
+                    and self._actions.dock_shortcut_active()
+                )
             )
         recent_sensitive = bool(self._config.show_recent_apps)
         if self._recent_apps_max_spin is not None:

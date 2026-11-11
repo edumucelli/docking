@@ -135,6 +135,7 @@ class _Harness:
         self.surface_service = MagicMock(compositor_sizes_main_axis=False)
         self.autohide = SimpleNamespace(
             enabled=True,
+            pointer_reveal_enabled=True,
             state=HideState.VISIBLE,
             zoom_progress=1.0,
             hide_offset=0.0,

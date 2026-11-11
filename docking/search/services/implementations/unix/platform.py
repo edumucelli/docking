@@ -9,14 +9,18 @@ from docking.search.services.platform import SearchIntegration, WindowFocus
 from ...global_shortcuts import (
     ActivationCallback,
     GlobalShortcutService,
+    GlobalShortcutSpec,
     StatusCallback,
 )
 from ...platform import ShortcutFallback
-from .shortcuts import GlobalShortcutsService
+from .shortcut_session import PortalShortcutSession
 from .x11_shortcuts import X11GlobalShortcutService, is_x11_session
 
 
 class UnixSearchIntegration(SearchIntegration):
+    def __init__(self) -> None:
+        self._shortcuts = PortalShortcutSession()
+
     @property
     def opaque_action_panel(self) -> bool:
         return False
@@ -34,12 +38,16 @@ class UnixSearchIntegration(SearchIntegration):
         trigger_description: str,
         schedule_idle: Callable[..., int],
         remove_source: Callable[[int], bool],
+        shortcut_id: str = "toggle-search",
+        description: str = "Toggle Docking search",
     ) -> GlobalShortcutService:
-        return GlobalShortcutsService(
+        return self._shortcuts.registration(
             app_id=app_id,
-            preferred_trigger=preferred_trigger,
+            spec=GlobalShortcutSpec(shortcut_id, description, preferred_trigger),
             on_activated=on_activated,
             on_status_changed=on_status_changed,
+            schedule_idle=schedule_idle,
+            remove_source=remove_source,
         )
 
     def fallback(

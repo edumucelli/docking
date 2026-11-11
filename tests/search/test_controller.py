@@ -22,6 +22,7 @@ from docking.platform.backends.base import (
     WindowId,
     WindowSnapshot,
 )
+from docking.search.app_identity import application_id
 from docking.search.controller import GlobalSearchController
 from docking.search.services.global_shortcuts import GlobalShortcutService
 from docking.search.services.implementations.unix.platform import UnixSearchIntegration
@@ -821,6 +822,10 @@ def test_windows_shortcut_conflict_uses_existing_actionable_feedback(monkeypatch
 def test_shortcut_composition_uses_shared_platform_factories(monkeypatch):
     primary, fallback = MagicMock(), MagicMock()
     controller = SimpleNamespace(
+        _current_shortcut_preferences=lambda: (True, "CTRL+ALT+space"),
+        _remove_source=controller_mod.GLib.source_remove,
+        shortcut_id="toggle-search",
+        shortcut_description="Toggle Docking search",
         _integration=SimpleNamespace(primary=primary, fallback=fallback),
         _config=Config(),
         _on_global_shortcut=MagicMock(),
@@ -836,13 +841,15 @@ def test_shortcut_composition_uses_shared_platform_factories(monkeypatch):
         is fallback.return_value
     )
     assert primary.call_args.kwargs == {
-        "app_id": controller_mod.application_id(),
+        "app_id": application_id(),
         "preferred_trigger": "CTRL+ALT+space",
         "trigger_description": "Ctrl+Alt+Space",
         "on_activated": controller._on_global_shortcut,
         "on_status_changed": controller._on_shortcut_status,
         "schedule_idle": controller._schedule_idle,
         "remove_source": controller_mod.GLib.source_remove,
+        "shortcut_id": "toggle-search",
+        "description": "Toggle Docking search",
     }
     assert fallback.call_args.kwargs == {
         "shortcut": "CTRL+ALT+space",

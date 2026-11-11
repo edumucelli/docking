@@ -1492,3 +1492,23 @@ class TestConfigHelpers:
             config_mod._write_backup_copy(source=source, backup_path=backup)
 
         assert not backup.exists()
+
+
+@pytest.mark.parametrize(
+    "shortcut,expected",
+    [(" CTRL+ALT+d ", "CTRL+ALT+d"), ("", ""), (None, ""), ([], "")],
+)
+def test_shortcut_only_mode_normalizes_configuration(shortcut, expected):
+    config = Config(hide_mode="shortcut-only", dock_shortcut=shortcut)
+    assert config.hide_mode_enum is HideMode.SHORTCUT_ONLY
+    assert config.dock_shortcut == expected
+
+
+def test_dock_shortcut_round_trips_without_changing_default_hide_mode(tmp_path):
+    path = tmp_path / "dock.json"
+    config = Config(dock_shortcut="CTRL+ALT+d")
+    config._path = path
+    config.save()
+    restored = Config.load(path=path)
+    assert restored.dock_shortcut == "CTRL+ALT+d"
+    assert restored.hide_mode == "none"

@@ -22,6 +22,9 @@ import docking.ui.settings as settings_mod
 
 def _settings_controller(**kwargs):
     """Build a settings controller."""
+    kwargs["actions"].dock_shortcut_mode_pending.return_value = False
+    kwargs["actions"].dock_shortcut_status.return_value = ""
+    kwargs["actions"].dock_shortcut_label.return_value = None
     return settings_mod.SettingsWindowController(**kwargs)
 
 
@@ -99,6 +102,9 @@ class FakeBox:
         self.margin_start = 0
         self.margin_end = 0
         self.tooltip_text = None
+
+    def set_visible(self, value: bool) -> None:
+        self.visible = value
 
     def set_border_width(self, value: int) -> None:
         self.border_width = value
@@ -409,6 +415,12 @@ class FakeButton:
     def set_sensitive(self, value: bool) -> None:
         self.sensitive = value
 
+    def set_label(self, value: str) -> None:
+        self.label = value
+
+    def set_tooltip_text(self, value: str | None) -> None:
+        self.tooltip_text = value
+
 
 class FakeEntry:
     def __init__(self) -> None:
@@ -437,9 +449,10 @@ class FakeEntry:
 
 
 class FakeShortcutCaptureButton(FakeButton):
-    def __init__(self) -> None:
+    def __init__(self, *, accessible_name=None) -> None:
         super().__init__()
         self.shortcut = ""
+        self.capturing = False
 
     def set_shortcut(self, value: str) -> None:
         self.shortcut = value
@@ -725,11 +738,13 @@ class FakeGdk:
 
 @pytest.fixture(autouse=True)
 def _fake_shortcut_capture(monkeypatch):
+    real_shortcut_capture = settings_mod.ShortcutCaptureButton
     monkeypatch.setattr(
         settings_mod,
         "ShortcutCaptureButton",
         FakeShortcutCaptureButton,
     )
+    return real_shortcut_capture
 
 
 def _stack_page_child(stack, index: int):
@@ -791,6 +806,7 @@ def _config():
         recent_docs_max=10,
         global_search_enabled=True,
         global_search_shortcut="CTRL+ALT+space",
+        dock_shortcut="",
         global_search_web_engine="duckduckgo",
         save=MagicMock(),
     )
@@ -925,6 +941,117 @@ class TestSettingsWindowController:
         config.save.assert_called()
         actions.refresh_search_settings.assert_called()
         actions.resume_search_shortcuts.assert_called_once_with()
+
+    def test_dock_shortcut_capture_and_mode_wait_for_registration(self, monkeypatch):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        config = _config()
+        actions = MagicMock()
+        actions.dock_shortcut_active.return_value = False
+        controller = _settings_controller(
+            parent=_parent_window(),
+            actions=actions,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
+            config=config,
+        )
+        actions.request_dock_shortcut_mode.side_effect = lambda: setattr(
+            actions.dock_shortcut_mode_pending, "return_value", True
+        )
+        controller.show()
+        capture = controller._dock_shortcut_entry
+        assert not controller._dock_shortcut_row.visible
+        controller._hide_mode_combo.set_active_id("shortcut-only")
+        controller._hide_mode_combo.emit_changed()
+        assert controller._dock_shortcut_row.visible
+        assert capture.tooltip_text is None
+        capture.callbacks["capture-started"](capture)
+        capture.emit_shortcut_changed("CTRL+ALT+d")
+        capture.callbacks["capture-ended"](capture)
+        assert config.dock_shortcut == "CTRL+ALT+d"
+        actions.suspend_search_shortcuts.assert_called_once()
+        actions.resume_search_shortcuts.assert_called_once()
+        actions.refresh_dock_shortcut_settings.assert_called_once()
+        actions.request_dock_shortcut_mode.assert_called_once()
+        assert config.hide_mode == "autohide"
+        assert controller._hide_mode_combo.get_active_id() == "shortcut-only"
+        config.hide_mode = "shortcut-only"
+        actions.dock_shortcut_active.return_value = True
+        actions.dock_shortcut_mode_pending.return_value = False
+        controller._update_dock_shortcut_status()
+        assert controller._hide_mode_combo.get_active_id() == "shortcut-only"
+        assert controller._unhide_delay_spin.sensitive is False
+        assert controller._pressure_reveal_switch.sensitive is False
+        actions.request_dock_shortcut_mode.assert_called_once()
+        actions.dock_shortcut_label.return_value = "Super+J"
+        controller._update_dock_shortcut_status()
+        assert capture.label == "Super+J"
+        assert capture.get_shortcut() == "CTRL+ALT+d"
+        capture.capturing = True
+        capture.set_label("Press shortcut...")
+        controller._update_dock_shortcut_status()
+        assert capture.label == "Press shortcut..."
+        capture.capturing = False
+        actions.dock_shortcut_status.return_value = "Shortcut already in use"
+        controller._update_dock_shortcut_status()
+        assert capture.tooltip_text == "Shortcut already in use"
+
+    def test_pending_shortcut_mode_can_be_cancelled_by_retaining_current_mode(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        config = _config()
+        actions = MagicMock()
+        controller = _settings_controller(
+            parent=_parent_window(),
+            actions=actions,
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
+            config=config,
+        )
+        actions.request_dock_shortcut_mode.side_effect = lambda: setattr(
+            actions.dock_shortcut_mode_pending, "return_value", True
+        )
+        actions.cancel_dock_shortcut_mode.side_effect = lambda: setattr(
+            actions.dock_shortcut_mode_pending, "return_value", False
+        )
+        controller.show()
+        assert not controller._dock_shortcut_row.visible
+        combo = controller._hide_mode_combo
+        combo.set_active_id("shortcut-only")
+        combo.emit_changed()
+        assert config.hide_mode == "autohide"
+        assert combo.get_active_id() == "shortcut-only"
+        assert controller._dock_shortcut_row.visible
+        controller._update_dock_shortcut_status()
+        assert combo.get_active_id() == "shortcut-only"
+        assert controller._dock_shortcut_row.visible
+        combo.set_active_id("autohide")
+        combo.emit_changed()
+        actions.cancel_dock_shortcut_mode.assert_called_once()
+        assert config.hide_mode == "autohide"
+        controller._update_dock_shortcut_status()
+        assert combo.get_active_id() == "autohide"
+        assert not controller._dock_shortcut_row.visible
+
+    @pytest.mark.parametrize(
+        "mode", settings_mod.SettingsWindowController._HIDE_MODE_DESCRIPTIONS
+    )
+    def test_dock_shortcut_row_only_appears_in_shortcut_mode(self, monkeypatch, mode):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        config = _config()
+        config.hide_mode = mode
+        controller = _settings_controller(
+            parent=_parent_window(),
+            actions=MagicMock(),
+            model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
+            config=config,
+        )
+        controller.show()
+        assert controller._dock_shortcut_row.visible == (mode == "shortcut-only")
 
     def test_shortcut_status_is_concise_secondary_text(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
@@ -2484,6 +2611,52 @@ class TestSettingsRuntimeCallbacks:
         controller._update_status_label = None
         # Should not raise
         controller._update_updates_status()
+
+
+@pytest.mark.skipif(not settings_mod.Gtk.init_check()[0], reason="GTK display required")
+def test_real_shortcut_field_visibility_survives_show_all(
+    monkeypatch, _fake_info_icon, _fake_shortcut_capture
+):
+    monkeypatch.setattr(settings_mod, "_InfoIcon", _fake_info_icon)
+    monkeypatch.setattr(settings_mod, "ShortcutCaptureButton", _fake_shortcut_capture)
+    monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+    parent = settings_mod.Gtk.Window()
+    config = _config()
+    actions = MagicMock()
+    actions.search_shortcut_status_summary.return_value = "Active"
+    actions.search_shortcut_status.return_value = "Assigned"
+    controller = _settings_controller(
+        parent=parent,
+        actions=actions,
+        model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
+        config=config,
+    )
+    actions.request_dock_shortcut_mode.side_effect = lambda: setattr(
+        actions.dock_shortcut_mode_pending, "return_value", True
+    )
+    actions.cancel_dock_shortcut_mode.side_effect = lambda: setattr(
+        actions.dock_shortcut_mode_pending, "return_value", False
+    )
+    try:
+        controller.show()
+        row = controller._dock_shortcut_row
+        capture = controller._dock_shortcut_entry
+        assert not row.get_visible()
+        controller.show()
+        assert not row.get_visible()
+        controller._hide_mode_combo.set_active_id("shortcut-only")
+        assert config.hide_mode == "autohide"
+        assert row.get_visible()
+        assert capture.get_visible()
+        assert capture.get_shortcut() == ""
+        assert capture.get_tooltip_text() is None
+        controller.show()
+        assert row.get_visible()
+        controller._hide_mode_combo.set_active_id("autohide")
+        assert not row.get_visible()
+    finally:
+        controller.close()
+        parent.destroy()
 
 
 @pytest.mark.skipif(not settings_mod.Gtk.init_check()[0], reason="GTK display required")

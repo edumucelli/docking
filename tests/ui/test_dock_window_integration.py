@@ -21,6 +21,7 @@ from docking.ui.interaction import DockInteractionCoordinator
 def _autohide(*, enabled: bool = False, state: HideState = HideState.VISIBLE):
     return SimpleNamespace(
         enabled=enabled,
+        pointer_reveal_enabled=True,
         state=state,
         hide_offset=0.0,
         zoom_progress=1.0 if enabled else 0.0,

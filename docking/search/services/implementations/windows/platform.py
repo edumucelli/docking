@@ -35,8 +35,12 @@ class WindowsSearchIntegration(SearchIntegration):
         trigger_description: str,
         schedule_idle: Callable[..., int],
         remove_source: Callable[[int], bool],
+        shortcut_id: str = "toggle-search",
+        description: str = "Toggle Docking search",
     ) -> GlobalShortcutService:
         return WindowsGlobalShortcutsService(
+            shortcut_id=shortcut_id,
+            description=description,
             preferred_trigger=preferred_trigger,
             trigger_description=trigger_description,
             schedule_idle=schedule_idle,

@@ -150,6 +150,7 @@ class _ScenarioHarness:
         self.renderer = SimpleNamespace(slide_offsets={}, prev_positions={})
         self.autohide = SimpleNamespace(
             enabled=True,
+            pointer_reveal_enabled=True,
             state=HideState.VISIBLE,
             zoom_progress=1.0,
             hide_offset=0.0,
@@ -448,6 +449,7 @@ class TestMenuLifecycleScenarios:
         harness = _ScenarioHarness()
         harness.autohide = SimpleNamespace(
             enabled=True,
+            pointer_reveal_enabled=True,
             state=HideState.VISIBLE,
             zoom_progress=1.0,
             hide_offset=0.0,

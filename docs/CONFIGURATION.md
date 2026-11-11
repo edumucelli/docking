@@ -172,6 +172,7 @@ Middle-click actions behave as follows:
 
 | Setting | Default | Values | Description |
 |---|---:|---|---|
+| `dock_shortcut` | `""` | captured shortcut | Shortcut used by Show Only with Shortcut mode; assign one in Preferences before enabling the mode. |
 | `hide_mode` | `"none"` | see below | Controls when the dock hides and whether it reserves screen space. |
 | `hide_delay_ms` | `0` | integer, minimum `0` | Wait before hiding after the pointer leaves. |
 | `unhide_delay_ms` | `0` | integer, minimum `0` | Wait before showing after the pointer returns. |
@@ -185,6 +186,16 @@ Hide modes:
 - `always-on-top` keeps the dock visible above windows without reserving screen
   space.
 - `autohide` hides the dock whenever the pointer leaves it.
+- `shortcut-only` keeps the dock hidden until its shortcut is pressed. It waits
+  for the pointer to enter, then hides after the pointer leaves; pressing the
+  shortcut again also hides it. Edge hover and pressure cannot reveal it.
+  Select **Show Only with Shortcut** in **Preferences -> Behavior** to reveal
+  the **Dock Shortcut** field, then assign a working shortcut to enable the mode.
+  If registration fails or is lost, Docking temporarily uses Auto-hide and
+  explains the failure in the shortcut field's tooltip. Reassign the shortcut
+  to attempt registration again. The saved hide mode is preserved.
+  Desktop fullscreen stacking still applies, so switching away from a fullscreen
+  application may be necessary before the dock can appear.
 - `intelligent` hides when a window belonging to the focused application
   overlaps the dock.
 - `dodge-active` hides when the focused window overlaps the dock.
