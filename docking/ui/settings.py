@@ -256,11 +256,14 @@ class SettingsActions:
     def refresh_dock_shortcut_settings(self) -> None:
         self._dock_shortcuts.refresh_settings()
 
-    def retry_dock_shortcut(self) -> None:
-        self._dock_shortcuts.retry()
-
     def dock_shortcut_status(self) -> str:
         return self._dock_shortcuts.status_text()
+
+    def dock_shortcut_label(self) -> str | None:
+        status = self._dock_shortcuts.shortcut_status
+        if self._dock_shortcuts.shortcut_active and status and status.binding:
+            return status.binding.trigger_description
+        return None
 
     def dock_shortcut_active(self) -> bool:
         return self._dock_shortcuts.shortcut_active
@@ -302,9 +305,8 @@ class SettingsWindowController:
             )
         )
 
-        self._dock_shortcut_box: Any = None
+        self._dock_shortcut_row: Any = None
         self._dock_shortcut_entry: Any = None
-        self._dock_shortcut_status_label: Any = None
         self._unsubscribe_dock_shortcut_status = (
             self._actions.add_dock_shortcut_status_listener(
                 self._update_dock_shortcut_status
@@ -372,6 +374,7 @@ class SettingsWindowController:
         self._sync_widgets()
         self._rebuild_applet_tab()
         self._window.show_all()
+        self._update_hide_mode_description()
         self._window.present()
 
     def close(self) -> None:
@@ -633,24 +636,6 @@ class SettingsWindowController:
         )
         self._dock_shortcut_entry.connect(
             "capture-ended", lambda *_: self._actions.resume_search_shortcuts()
-        )
-        self._dock_shortcut_status_label = Gtk.Label()
-        self._dock_shortcut_status_label.set_xalign(0.0)
-        self._dock_shortcut_status_label.set_line_wrap(True)
-        self._dock_shortcut_status_label.get_style_context().add_class("dim-label")
-        self._dock_shortcut_box = Gtk.Box(
-            orientation=Gtk.Orientation.VERTICAL, spacing=4
-        )
-        dock_shortcut_controls = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL, spacing=4
-        )
-        dock_shortcut_controls.pack_start(self._dock_shortcut_entry, True, True, 0)
-        retry = Gtk.Button(label=_("Retry"))
-        retry.connect("clicked", lambda *_: self._actions.retry_dock_shortcut())
-        dock_shortcut_controls.pack_start(retry, False, False, 0)
-        self._dock_shortcut_box.pack_start(dock_shortcut_controls, False, False, 0)
-        self._dock_shortcut_box.pack_start(
-            self._dock_shortcut_status_label, False, False, 0
         )
         self._pressure_reveal_switch = self._new_switch()
         self._pressure_threshold_scale = Gtk.Scale.new_with_range(
@@ -969,10 +954,10 @@ class SettingsWindowController:
                 (_("Hide Mode"), hide_mode_box, None),
                 (
                     _("Dock Shortcut"),
-                    self._dock_shortcut_box,
+                    self._dock_shortcut_entry,
                     _(
-                        "Assign a working shortcut before selecting Show Only with "
-                        "Shortcut. If registration fails, the dock temporarily "
+                        "Assign a working shortcut to enable this mode. "
+                        "If registration fails, the dock temporarily "
                         "uses Auto-hide."
                     ),
                 ),
@@ -1265,6 +1250,8 @@ class SettingsWindowController:
             False,
             0,
         )
+        if widget is self._dock_shortcut_entry:
+            self._dock_shortcut_row = row
         return row
 
     def _append_section(
@@ -1707,9 +1694,15 @@ class SettingsWindowController:
         self._monitor_combo.set_active_id(str(self._actions.current_monitor_choice()))
 
     def _update_dock_shortcut_status(self) -> None:
-        if self._dock_shortcut_status_label is None:
-            return
-        self._dock_shortcut_status_label.set_label(self._actions.dock_shortcut_status())
+        if self._dock_shortcut_entry is not None:
+            if not self._dock_shortcut_entry.capturing:
+                self._dock_shortcut_entry.set_shortcut(self._config.dock_shortcut)
+                label = self._actions.dock_shortcut_label()
+                if label:
+                    self._dock_shortcut_entry.set_label(label)
+            self._dock_shortcut_entry.set_tooltip_text(
+                self._actions.dock_shortcut_status() or None
+            )
         if self._hide_mode_combo is not None:
             syncing = self._syncing_widgets
             self._syncing_widgets = True
@@ -2014,6 +2007,8 @@ class SettingsWindowController:
         mode = self._hide_mode_combo.get_active_id() or "none"
         desc = self._HIDE_MODE_DESCRIPTIONS.get(mode, "")
         self._set_info_icon_text(self._hide_mode_info, desc)
+        if self._dock_shortcut_row is not None:
+            self._dock_shortcut_row.set_visible(mode == "shortcut-only")
 
     def _after_tooltips_changed(self) -> None:
         if not self._config.tooltips_enabled:

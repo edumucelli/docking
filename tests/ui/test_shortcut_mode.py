@@ -135,9 +135,10 @@ def test_mode_requires_assignment_and_binding(window, shortcuts):
     window.config.dock_shortcut = ""
     shortcuts.request_mode()
     assert window.config.hide_mode == "none"
-    assert "Assign a shortcut" in shortcuts.status_text()
+    assert shortcuts.pending_mode
+    assert shortcuts.status_text() == ""
     window.config.dock_shortcut = "CTRL+ALT+d"
-    shortcuts.request_mode()
+    shortcuts.refresh_settings()
     assert window.config.hide_mode == "none"
     shortcuts._on_shortcut_status(
         GlobalShortcutsStatus(
@@ -228,3 +229,26 @@ def test_saved_mode_without_a_shortcut_explains_its_fallback(window, shortcuts):
     shortcuts.refresh_settings()
     assert shortcuts.status_text().startswith("Using Auto-hide:")
     assert window.autohide.pointer_reveal_enabled
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        GlobalShortcutsState.STOPPED,
+        GlobalShortcutsState.STARTING,
+        GlobalShortcutsState.CREATING,
+        GlobalShortcutsState.BINDING,
+        GlobalShortcutsState.BOUND,
+        GlobalShortcutsState.REASSIGNED,
+    ],
+)
+def test_normal_registration_states_do_not_repeat_the_shortcut(
+    window, shortcuts, state
+):
+    shortcuts._on_shortcut_status(
+        GlobalShortcutsStatus(
+            state,
+            binding=GlobalShortcutBinding("toggle-dock", "Dock", "Ctrl+Alt+D"),
+        )
+    )
+    assert shortcuts.status_text() == ""
