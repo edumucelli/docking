@@ -5,7 +5,7 @@ from __future__ import annotations
 import ctypes
 import os
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,7 +40,7 @@ def _check(status: int) -> None:
 
 
 @contextmanager
-def _link() -> Iterator[tuple[ctypes.c_void_p, ctypes.c_void_p]]:
+def _link() -> Generator[tuple[ctypes.c_void_p, ctypes.c_void_p], None, None]:
     with apartment() as ole, ExitStack() as stack:
         clsid = GUID.parse("00021401-0000-0000-c000-000000000046")
         iid = GUID.parse("000214f9-0000-0000-c000-000000000046")
@@ -102,7 +102,7 @@ def read_shortcut(path: Path) -> ShellLink:
 
 
 @contextmanager
-def _saved_link(path: Path) -> Iterator[ctypes.c_void_p]:
+def _saved_link(path: Path) -> Generator[ctypes.c_void_p, None, None]:
     """Publish a complete link only after all native configuration succeeds."""
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, filename = tempfile.mkstemp(

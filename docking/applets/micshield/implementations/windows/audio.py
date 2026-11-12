@@ -8,7 +8,7 @@ is released on the thread that acquired it.
 from __future__ import annotations
 
 import ctypes
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import ExitStack, contextmanager, suppress
 from dataclasses import dataclass
 
@@ -102,7 +102,7 @@ class CaptureEndpoint:
 
 
 @contextmanager
-def _devices(ole) -> Iterator[tuple[_POINTER, _POINTER]]:
+def _devices(ole) -> Generator[tuple[_POINTER, _POINTER], None, None]:
     with ExitStack() as stack:
         enumerator = _POINTER()
         try:

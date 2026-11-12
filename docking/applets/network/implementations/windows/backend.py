@@ -7,7 +7,7 @@ import ipaddress
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING
 
 from docking.applets.network.backend import (
     ConnectionManager,
@@ -169,7 +169,7 @@ class InterfaceRow(ctypes.Structure):
 
 
 class SockaddrInet(ctypes.Union):
-    _fields_: ClassVar[list[tuple[str, object]]] = [
+    _fields_ = [
         ("family", ctypes.c_uint16),
         ("alignment", ctypes.c_uint32),
         ("data", ctypes.c_ubyte * 28),

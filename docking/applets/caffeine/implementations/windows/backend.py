@@ -7,7 +7,6 @@ not synthesize user input or change persistent power, lock or screensaver policy
 from __future__ import annotations
 
 import ctypes
-from typing import ClassVar
 
 from docking.applets.caffeine.inhibit import Inhibitor
 from docking.i18n import _
@@ -27,7 +26,7 @@ class _DetailedReason(ctypes.Structure):
 
 
 class _Reason(ctypes.Union):
-    _fields_: ClassVar[list[tuple[str, type]]] = [
+    _fields_ = [
         ("detailed", _DetailedReason),
         ("simple", ctypes.c_wchar_p),
     ]

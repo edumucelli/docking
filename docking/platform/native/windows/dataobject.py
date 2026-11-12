@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import ctypes
 import struct
-from collections.abc import Iterator, Sequence
+from collections.abc import Generator, Sequence
 from contextlib import ExitStack, contextmanager
 
 from docking.platform.native.windows.com import (
@@ -52,7 +52,7 @@ def file_drop_bytes(paths: Sequence[str]) -> bytes:
 @contextmanager
 def cached_data_object(
     formats: tuple[tuple[str, bytes], ...],
-) -> Iterator[ctypes.c_void_p]:
+) -> Generator[ctypes.c_void_p, None, None]:
     """Own a Shell data object without parsing paths or reading launcher files."""
     with apartment(), ExitStack() as stack:
         pointer = ctypes.c_void_p()
