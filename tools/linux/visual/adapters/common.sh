@@ -282,7 +282,7 @@ start_docking() {
     return 0
 }
 
-# SIGTERM, then 10s grace, then SIGUSR1 for a faulthandler stack dump before the
+# SIGTERM, then 10s grace, then SIGUSR2 for a faulthandler stack dump before the
 # kill, then hard fail. The dump is what makes a wedged teardown diagnosable.
 # Provenance: runtime-smoke.sh:83-97.
 stop_docking() {
@@ -293,7 +293,7 @@ stop_docking() {
         sleep 0.25
     done
     if kill -0 "$ADAPTER_APP_PID" 2>/dev/null; then
-        kill -USR1 "$ADAPTER_APP_PID" 2>/dev/null || true
+        kill -USR2 "$ADAPTER_APP_PID" 2>/dev/null || true
         sleep 1
         log_adapter "Docking did not shut down within 10s"
         kill -KILL "$ADAPTER_APP_PID" 2>/dev/null || true

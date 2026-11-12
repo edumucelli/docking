@@ -87,7 +87,7 @@ EOF
         sleep 0.25
     done
     if kill -0 "$app_pid" 2>/dev/null; then
-        kill -USR1 "$app_pid"
+        kill -USR2 "$app_pid"
         sleep 1
         echo "Docking did not shut down within 10 seconds" >&2
         kill -KILL "$app_pid"
