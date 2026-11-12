@@ -303,3 +303,30 @@ Xfwm, D-Bus and XTest, then run
 `--case placement-bottom` selects one scenario, and `--dock-command` can point
 at an installed executable. The default output is a timestamped directory under
 `artifacts/bsd-visual/`; an explicit `--output` must be empty.
+
+## Dependency cooldown
+
+Dependabot checks Python, Actions and website npm updates daily with a seven-day
+version-update cooldown. Security updates can be proposed earlier; they do not
+bypass the Python installation cutoff.
+
+The main CI and security workflows bootstrap Python dependencies with:
+
+```bash
+export PIP_UPLOADED_PRIOR_TO="$(python tools/dependency_policy.py cutoff)"
+python tools/dependency_policy.py bootstrap
+python -m pip install -e ".[dev]"
+```
+
+The standard-library helper checks the pinned pip wheel's PyPI upload timestamp,
+yanked status and committed SHA256 before installing it offline without
+dependencies. Update the version and hash together from PyPI's release metadata
+and review the wheel before changing this trust anchor. No unpinned pip upgrade
+should precede the helper. Missing metadata, download failures and hash
+mismatches fail the build; do not disable the cutoff to retry.
+
+The UTC cutoff is reused within a job and persisted through `GITHUB_ENV` for
+later steps, including security audits. Build-isolation subprocesses inherit
+the same cutoff. This does not validate already installed system packages.
+Packaging subprocesses/containers, compositor setup, npm lockfile checks and
+Actions SHA pinning still require the remaining rollout work.

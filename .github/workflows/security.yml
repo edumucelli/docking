@@ -20,7 +20,8 @@ jobs:
 
       - name: Install security tooling
         run: |
-          python -m pip install --upgrade pip
+          export PIP_UPLOADED_PRIOR_TO="$(python tools/dependency_policy.py cutoff)"
+          python tools/dependency_policy.py bootstrap
           python -m pip install pip-audit bandit
 
       - name: Export runtime dependencies from pyproject.toml
