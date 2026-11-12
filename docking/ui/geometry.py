@@ -843,7 +843,10 @@ def capture_geometry_inputs(
     drop_insert_index: int = -1,
 ) -> DockGeometryInputs:
     """Capture explicit geometry inputs from the current dock window state."""
-    width, height = window.get_size()
+    # Keep GTK imports out of the pure geometry module until capture is needed.
+    from docking.ui.display import window_size
+
+    width, height = window_size(window)
     pos = window.config.pos
     if main_cursor is not None:
         resolved_main_cursor = main_cursor

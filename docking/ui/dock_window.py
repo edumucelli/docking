@@ -211,7 +211,7 @@ from docking.platform.backends.base import (
 from docking.platform.environment import detect_desktop, log_runtime_snapshot
 from docking.ui import geometry
 from docking.ui.autohide import AutoHideController, HideState
-from docking.ui.display import window_screen_position
+from docking.ui.display import window_screen_position, window_size
 from docking.ui.effects import ZoomAnimator
 from docking.ui.geometry import (
     DockGeometryBuilder,
@@ -496,7 +496,7 @@ class DockWindow(Gtk.Window):
         cursor_x: float | None = None,
         cursor_y: float | None = None,
     ) -> tuple[object, ...]:
-        window_w, window_h = self.get_size()
+        window_w, window_h = window_size(self)
         resolved_x = self.cursor_x if cursor_x is None else cursor_x
         resolved_y = self.cursor_y if cursor_y is None else cursor_y
         autohide_enabled = self.autohide.enabled

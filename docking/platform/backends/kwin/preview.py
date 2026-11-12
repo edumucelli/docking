@@ -105,9 +105,9 @@ class _Capture:
             os.close(write_fd)
         self.sources.add(
             GLib.io_add_watch(
-                self.read_fd,
+                GLib.IOChannel.unix_new(self.read_fd),
                 GLib.PRIORITY_DEFAULT,
-                GLib.IO_IN | GLib.IO_HUP | GLib.IO_ERR,
+                GLib.IOCondition(GLib.IO_IN | GLib.IO_HUP | GLib.IO_ERR),
                 self._read,
             )
         )

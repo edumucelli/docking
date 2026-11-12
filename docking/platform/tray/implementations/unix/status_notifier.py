@@ -438,14 +438,18 @@ class _StatusNotifierWatcherHost:
         _object_path: str,
         _interface_name: str,
         property_name: str,
-    ) -> GLib.Variant | None:
+    ) -> GLib.Variant:
         if property_name == "RegisteredStatusNotifierItems":
             return GLib.Variant("as", tuple(self._registered))
         if property_name == "IsStatusNotifierHostRegistered":
             return GLib.Variant("b", bool(self._hosts))
         if property_name == "ProtocolVersion":
             return GLib.Variant("i", 0)
-        return None
+        raise GLib.Error.new_literal(
+            Gio.dbus_error_quark(),
+            f"Unknown property: {property_name}",
+            Gio.DBusError.UNKNOWN_PROPERTY,
+        )
 
     def _on_method_call(
         self,
@@ -493,12 +497,12 @@ class _StatusNotifierWatcherHost:
     def _on_name_owner_changed(
         self,
         connection: Gio.DBusConnection,
-        _sender_name: str,
+        _sender_name: str | None,
         _object_path: str,
         _interface_name: str,
         _signal_name: str,
         parameters: GLib.Variant,
-        _user_data: object,
+        _user_data: object = None,
     ) -> None:
         name, _old_owner, new_owner = _unpack_variant(parameters)
         if new_owner:

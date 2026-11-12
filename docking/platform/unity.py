@@ -316,7 +316,7 @@ class UnityLauncherListener:
     def _on_signal(
         self,
         _connection: Gio.DBusConnection,
-        sender_name: str,
+        sender_name: str | None,
         _object_path: str,
         _interface_name: str,
         signal_name: str,
@@ -329,7 +329,7 @@ class UnityLauncherListener:
     def _on_name_owner_changed(
         self,
         _connection: Gio.DBusConnection,
-        _sender_name: str,
+        _sender_name: str | None,
         _object_path: str,
         _interface_name: str,
         _signal_name: str,

@@ -181,11 +181,29 @@ class AlarmApplet(Applet):
         label_entry.set_text(preset.label)
 
         hour_spin = Gtk.SpinButton()
-        hour_spin.set_adjustment(Gtk.Adjustment(preset.hour, 0, 23, 1, 1, 0))
+        hour_spin.set_adjustment(
+            Gtk.Adjustment(
+                value=preset.hour,
+                lower=0,
+                upper=23,
+                step_increment=1,
+                page_increment=1,
+                page_size=0,
+            )
+        )
         hour_spin.set_numeric(True)
 
         minute_spin = Gtk.SpinButton()
-        minute_spin.set_adjustment(Gtk.Adjustment(preset.minute, 0, 59, 1, 1, 0))
+        minute_spin.set_adjustment(
+            Gtk.Adjustment(
+                value=preset.minute,
+                lower=0,
+                upper=59,
+                step_increment=1,
+                page_increment=1,
+                page_size=0,
+            )
+        )
         minute_spin.set_numeric(True)
 
         enabled = Gtk.CheckButton(label=_("Enabled"))
@@ -193,7 +211,14 @@ class AlarmApplet(Applet):
 
         snooze_spin = Gtk.SpinButton()
         snooze_spin.set_adjustment(
-            Gtk.Adjustment(preset.snooze_minutes, 1, 120, 1, 5, 0)
+            Gtk.Adjustment(
+                value=preset.snooze_minutes,
+                lower=1,
+                upper=120,
+                step_increment=1,
+                page_increment=5,
+                page_size=0,
+            )
         )
         snooze_spin.set_numeric(True)
 

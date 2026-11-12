@@ -150,7 +150,7 @@ class GioSignalAdapter:
 
         def on_signal(
             _connection: Gio.DBusConnection,
-            _sender: str,
+            _sender: str | None,
             _path: str,
             _interface: str,
             _signal: str,
