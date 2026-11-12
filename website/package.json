@@ -16,6 +16,6 @@
   "devDependencies": {
     "parse5": "7.2.1",
     "playwright": "1.56.1",
-    "tailwindcss": "3.4.17"
+    "tailwindcss": "4.3.4"
   }
 }
