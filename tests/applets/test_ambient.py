@@ -240,7 +240,7 @@ class TestAmbientPlaybackBranches:
         # Given
         applet = _make_applet()
         pipeline = MagicMock()
-        pipeline.find_property.return_value = object()
+        pipeline.list_properties.return_value = [SimpleNamespace(name="volume")]
         applet._pipeline = pipeline
 
         # When
@@ -253,7 +253,7 @@ class TestAmbientPlaybackBranches:
         # Given
         applet = _make_applet()
         pipeline = MagicMock(spec=ambient_mod.Gst.Bin)
-        pipeline.find_property.return_value = None
+        pipeline.list_properties.return_value = []
         volume_element = MagicMock()
         pipeline.get_by_name.return_value = volume_element
         applet._pipeline = pipeline

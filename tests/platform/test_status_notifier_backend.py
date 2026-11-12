@@ -707,3 +707,37 @@ class TestTrayItemExtended:
         assert item.icon_name == ""
         assert item.menu_path == ""
         assert item.item_is_menu is False
+
+
+@pytest.mark.parametrize(
+    "name,expected",
+    [
+        ("RegisteredStatusNotifierItems", []),
+        ("IsStatusNotifierHostRegistered", False),
+        ("ProtocolVersion", 0),
+    ],
+)
+def test_watcher_property_callback_returns_variant(name, expected):
+    host = backend._StatusNotifierWatcherHost.__new__(
+        backend._StatusNotifierWatcherHost
+    )
+    host._registered = {}
+    host._hosts = set()
+    result = host._get_property(
+        Mock(), ":1.2", backend.WATCHER_PATH, backend.WATCHER_IFACE, name
+    )
+    assert isinstance(result, GLib.Variant)
+    assert result.unpack() == expected
+
+
+def test_watcher_property_callback_rejects_unknown_properties():
+    from gi.repository import Gio
+
+    host = backend._StatusNotifierWatcherHost.__new__(
+        backend._StatusNotifierWatcherHost
+    )
+    with pytest.raises(GLib.Error) as error:
+        host._get_property(
+            Mock(), ":1.2", backend.WATCHER_PATH, backend.WATCHER_IFACE, "Unknown"
+        )
+    assert error.value.matches(Gio.dbus_error_quark(), Gio.DBusError.UNKNOWN_PROPERTY)

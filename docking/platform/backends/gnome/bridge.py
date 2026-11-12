@@ -190,7 +190,7 @@ class GnomeShellBridgeClient:
 
         def handle_signal(
             _connection: Gio.DBusConnection,
-            _sender_name: str,
+            _sender_name: str | None,
             _object_path: str,
             _interface_name: str,
             _signal_name: str,

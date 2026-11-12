@@ -88,7 +88,7 @@ class XdgDesktopPortalColorPicker:
 
         def on_response(
             _connection: object,
-            _sender: str,
+            _sender: str | None,
             _path: str,
             _interface: str,
             _signal: str,

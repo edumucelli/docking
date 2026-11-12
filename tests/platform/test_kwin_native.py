@@ -312,3 +312,26 @@ def test_workspace_numbers_are_positions_not_kwin_desktop_numbers():
     assert [workspace.id for workspace in workspaces] == [desktop_one, desktop_two]
     assert [workspace.number for workspace in workspaces] == [0, 1]
     assert service.active_workspace() == workspaces[1]
+
+
+def test_capture_io_channel_reads_pipe_and_leaves_fd_owned_by_capture():
+    import os
+    import time
+
+    from gi.repository import GLib
+
+    operation = preview_mod._Capture(MagicMock(), IDENTIFIER)
+    writer = operation.fds.get(0)
+    try:
+        os.write(writer, b"pixel bytes")
+        context = GLib.MainContext.default()
+        deadline = time.monotonic() + 1
+        while not operation.data and time.monotonic() < deadline:
+            context.iteration(False)
+        assert operation.data == b"pixel bytes"
+        descriptor = operation.read_fd
+    finally:
+        os.close(writer)
+        operation.close()
+    with pytest.raises(OSError):
+        os.fstat(descriptor)

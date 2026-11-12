@@ -45,7 +45,7 @@ from docking.search.types import (
     SearchResult,
 )
 from docking.search.ui.thumbnails import LoadedSearchImage, SearchImageCache
-from docking.ui.display import get_pointer_position, popup_workarea
+from docking.ui.display import get_pointer_position, popup_workarea, window_size
 from docking.ui.popup_surface import (
     configure_transparent_startup_popup_window,
     wrap_startup_popup_content,
@@ -428,7 +428,7 @@ class SearchWindow:
             surface_service=self._surface_service,
         )
         if self.window.get_realized() and self._fitted_size is not None:
-            current = Size(*self.window.get_size())
+            current = Size(*window_size(self.window))
             if current != self._fitted_size:
                 self._preferred_size = current
         maximum = Size(

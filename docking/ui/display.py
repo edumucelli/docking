@@ -75,6 +75,12 @@ def backend_surface_position(window: object) -> ScreenPosition | None:
         return None
 
 
+def window_size(window: Gtk.Window) -> tuple[int, int]:
+    """Return GTK's integer dimensions, including before the window is mapped."""
+    # GTK's nullable output pointers do not make the Python result nullable.
+    return cast(tuple[int, int], window.get_size())
+
+
 def window_screen_position(window: Gtk.Window) -> ScreenPosition:
     """Return the best known screen position for a GTK window.
 

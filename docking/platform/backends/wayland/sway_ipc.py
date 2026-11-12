@@ -161,7 +161,10 @@ class SwayWindowService(SnapshotWindowService):
             sock.setblocking(False)
             self._socket = sock
             self._source = GLib.io_add_watch(
-                sock.fileno(), GLib.IO_IN | GLib.IO_HUP | GLib.IO_ERR, self._read
+                GLib.IOChannel.unix_new(sock.fileno()),
+                GLib.PRIORITY_DEFAULT,
+                GLib.IOCondition(GLib.IO_IN | GLib.IO_HUP | GLib.IO_ERR),
+                self._read,
             )
         except OSError as exc:
             log.info("Sway subscription unavailable: %s", exc)
@@ -224,7 +227,7 @@ class SwayWindowService(SnapshotWindowService):
             if row.desktop_id == desktop_id and self._taskbar_window(row)
         )
 
-    def _read(self, _fd: int, condition: int) -> bool:
+    def _read(self, _channel: GLib.IOChannel, condition: GLib.IOCondition) -> bool:
         if self._socket is None:
             return False
         try:
