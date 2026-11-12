@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ctypes
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from ctypes import wintypes
 from dataclasses import dataclass
@@ -42,7 +42,9 @@ class _Handoff:
 
 
 @contextmanager
-def _gtk_events(user: object, on_error: Callable[[], None]) -> Iterator[int]:
+def _gtk_events(
+    user: object, on_error: Callable[[], None]
+) -> Generator[int, None, None]:
     """Dispatch GLib while the Shell owns its modal drag loop."""
     context = GLib.MainContext.default()
     callback_type = windows_ctypes.WINFUNCTYPE(

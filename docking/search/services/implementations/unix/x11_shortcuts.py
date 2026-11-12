@@ -24,7 +24,7 @@ import time
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from contextlib import suppress
-from typing import Any, ClassVar
+from typing import Any
 
 from ...platform import ShortcutFallback
 
@@ -86,7 +86,7 @@ class _XKeyEvent(ctypes.Structure):
 
 
 class _XEvent(ctypes.Union):
-    _fields_: ClassVar[list[tuple[str, object]]] = [
+    _fields_ = [
         ("type", ctypes.c_int),
         ("xkey", _XKeyEvent),
         ("pad", ctypes.c_long * 24),

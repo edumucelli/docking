@@ -10,7 +10,7 @@ import tempfile
 import threading
 import time
 import uuid
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from functools import lru_cache
@@ -186,7 +186,7 @@ def _runtime(bits: int) -> Path:
 
 
 @contextmanager
-def _mapping(kernel, name: str) -> Iterator[Request]:
+def _mapping(kernel, name: str) -> Generator[Request, None, None]:
     handle = bind(
         kernel,
         "CreateFileMappingW",

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import ctypes
 import uuid
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import ExitStack, contextmanager
 from typing import Any
 
@@ -40,7 +40,7 @@ def release(pointer: ctypes.c_void_p) -> None:
 
 
 @contextmanager
-def apartment(*, multithreaded: bool = False) -> Iterator[Any]:
+def apartment(*, multithreaded: bool = False) -> Generator[Any, None, None]:
     ole = windows_ctypes.WinDLL("ole32", use_last_error=True)
     initialize = _bind(ole, "CoInitializeEx", HRESULT, ctypes.c_void_p, ctypes.c_uint32)
     status = initialize(None, 0 if multithreaded else 2)

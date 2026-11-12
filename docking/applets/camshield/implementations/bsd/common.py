@@ -6,7 +6,7 @@ import fcntl
 import re
 from abc import abstractmethod
 from collections import defaultdict
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -18,7 +18,7 @@ _HOLDER = re.compile(r"^\s*\S+\s+(.+?)\s+(\d+)\s+(\d+)\*?\s+.*?\s+(/\S+)\s*$")
 
 
 @contextmanager
-def _action_lock(state_dir: Path) -> Iterator[None]:
+def _action_lock(state_dir: Path) -> Generator[None, None, None]:
     from docking.applets.camshield.implementations.unix.helper import _require_root
 
     _require_root()

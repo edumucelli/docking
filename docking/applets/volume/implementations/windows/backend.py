@@ -9,7 +9,7 @@ An absent device does not disable the backend: later polls can recover.
 from __future__ import annotations
 
 import ctypes
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 
 from docking.applets.volume.backend import VolumeBackend, VolumeControls, VolumeSettings
@@ -37,7 +37,7 @@ def _check(status: int) -> None:
 
 
 @contextmanager
-def _endpoint() -> Iterator[ctypes.c_void_p]:
+def _endpoint() -> Generator[ctypes.c_void_p, None, None]:
     with apartment() as ole:
         enumerator, device, volume = (ctypes.c_void_p() for _ in range(3))
         try:
