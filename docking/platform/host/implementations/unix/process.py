@@ -27,7 +27,8 @@ def prepare_process() -> None:
 
     prepare_gamescope_wayland_environment()
     faulthandler.enable()
-    faulthandler.register(signal.SIGUSR1)
+    # WebKit uses SIGUSR1 to suspend threads during garbage collection.
+    faulthandler.register(signal.SIGUSR2)
     vendor = "/usr/lib/docking/vendor"
     if Path(vendor).is_dir():
         sys.path.insert(0, vendor)
