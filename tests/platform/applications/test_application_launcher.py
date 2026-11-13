@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+
+import pytest
 
 import docking.platform.applications.implementations.unix.launch as launcher_mod
 from docking.platform.applications.launcher import ApplicationLauncher
@@ -144,6 +147,28 @@ def test_direct_launch_preserves_intentionally_empty_arguments():
         "100%",
         "tail",
     ]
+
+
+@pytest.mark.parametrize("autostart_id", [None, "session-startup-id"])
+def test_direct_launch_drops_autostart_id_without_changing_parent_environment(
+    monkeypatch, autostart_id
+):
+    if autostart_id is None:
+        monkeypatch.delenv("DESKTOP_AUTOSTART_ID", raising=False)
+    else:
+        monkeypatch.setenv("DESKTOP_AUTOSTART_ID", autostart_id)
+    parent_env = dict(os.environ)
+    popen = MagicMock()
+    launcher, _registry, _store = _launcher(_application(), popen=popen)
+
+    assert launcher.launch("example.desktop")
+
+    child_env = popen.call_args.kwargs["env"]
+    expected_env = parent_env.copy()
+    expected_env.pop("DESKTOP_AUTOSTART_ID", None)
+    assert "DESKTOP_AUTOSTART_ID" not in child_env
+    assert child_env == expected_env
+    assert dict(os.environ) == parent_env
 
 
 def test_host_launch_routes_through_flatpak_spawn(monkeypatch):
