@@ -1507,7 +1507,8 @@ Create `tools/linux/visual/adapters/<name>.sh` implementing the contract, and ad
 package to the Dockerfile. The shared lifecycle lives in `adapters/common.sh` and is lifted
 from `packaging/deb/runtime-smoke.sh`: cleanup trap with PID sentinels, socket discovery that
 globs `wayland-*` with a liveness check inside the loop, two readiness gates, and
-SIGTERM→10s→SIGUSR1→SIGKILL shutdown escalation.
+SIGTERM→10s→SIGUSR2→SIGKILL shutdown escalation. Docking dumps Python stacks on
+SIGUSR2, leaving SIGUSR1 available for WebKit's garbage collection.
 
 | Function | Contract |
 | --- | --- |

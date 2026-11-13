@@ -169,7 +169,7 @@ from docking.platform.applications.drag import (
     APPLICATION_DRAG_MIME,
     application_id_from_drag,
 )
-from docking.ui.display import get_pointer_position, window_screen_position
+from docking.ui.display import get_pointer_position, window_screen_position, window_size
 from docking.ui.geometry import DockGeometryBuilder, DockGeometryFrame
 from docking.ui.poof import show_poof
 
@@ -764,7 +764,7 @@ class DnDHandler:
             screen_y = pointer_pos.y if pointer_pos is not None else 0
             window_pos = window_screen_position(self._window)
             win_x, win_y = window_pos.x, window_pos.y
-            win_w, win_h = self._window.get_size()
+            win_w, win_h = window_size(self._window)
 
             # Outside if cursor moved away from the dock edge
             items = self._model.visible_items()

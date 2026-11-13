@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import ctypes
 import sys
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Protocol
@@ -69,7 +69,7 @@ class CameraTransitions:
 
 
 @contextmanager
-def _exclusive() -> Iterator[None]:
+def _exclusive() -> Generator[None, None, None]:
     kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
     handle = bind(
         kernel,

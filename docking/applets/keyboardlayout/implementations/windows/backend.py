@@ -185,7 +185,7 @@ class WindowsKeyboardAPI:
         if not current:
             return False
 
-        def name(handle):
+        def name(handle) -> str:
             text = ctypes.create_unicode_buffer(256)
             needed = _DWORD()
             return (

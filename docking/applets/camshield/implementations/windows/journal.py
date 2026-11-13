@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import ctypes
 import json
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 
@@ -99,7 +99,7 @@ def _verify(advapi, handle: int, expected) -> None:
 
 
 @contextmanager
-def _open(*, create: bool) -> Iterator[int | None]:
+def _open(*, create: bool) -> Generator[int | None, None, None]:
     winreg = registry()
 
     advapi = windows_ctypes.WinDLL("advapi32", use_last_error=True)

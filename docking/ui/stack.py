@@ -38,6 +38,7 @@ from docking.ui.display import (
     clamp_popup,
     popup_workarea,
     scrolled_popup_size,
+    window_size,
     window_surface_service,
 )
 from docking.ui.shelf import rounded_rect
@@ -777,7 +778,7 @@ class StackPopupController:
         size = self._folder_stack_popup_size
         if window is None or size is None or not window.get_visible():
             return GLib.SOURCE_REMOVE
-        width, height = window.get_size()
+        width, height = window_size(window)
         if width <= size.width and height <= size.height:
             return GLib.SOURCE_REMOVE
         fitted = Size(

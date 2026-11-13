@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -117,17 +118,32 @@ def test_debian_without_codename(tmp_path, version, suite):
 
 
 @pytest.mark.parametrize("document", ["docs/INSTALLATION.md", "website/index.html"])
-@pytest.mark.parametrize("version,supported", [("bookworm/sid", True), ("sid", False)])
+@pytest.mark.parametrize("shell", ["sh", "bash", "zsh"])
+@pytest.mark.parametrize(
+    "fields,version,distro,suite",
+    [
+        ("ID=debian\n", "bookworm/sid", "debian", "bookworm"),
+        ("ID=debian\n", "sid", None, None),
+        (
+            "ID=ubuntu\nVERSION_CODENAME=resolute\nUBUNTU_CODENAME=resolute\n",
+            "forky/sid",
+            "ubuntu",
+            "resolute",
+        ),
+    ],
+)
 def test_documented_setup_validates_before_writing(
-    tmp_path, document, version, supported
+    tmp_path, document, shell, fields, version, distro, suite
 ):
+    if shutil.which(shell) is None:
+        pytest.skip(f"{shell} is not installed")
     text = (SCRIPT.parents[2] / document).read_text()
     text = html.unescape(text)
     start = text.index("(\nset -eu\nsudo install -d")
     end = text.index("sudo apt install docking\n)", start)
     command = text[start : end + len("sudo apt install docking\n)")]
     os_release = tmp_path / "os-release"
-    os_release.write_text("ID=debian\n")
+    os_release.write_text(fields)
     version_file = tmp_path / "debian_version"
     version_file.write_text(version + "\n")
     source = tmp_path / "docking.sources"
@@ -139,15 +155,15 @@ def test_documented_setup_validates_before_writing(
     command = command.replace("/etc/debian_version", str(version_file))
     command = command.replace("/etc/apt/sources.list.d/docking.sources", str(source))
     result = subprocess.run(
-        ["sh", "-c", command],
+        [shell, "-c", command],
         env={"PATH": f"{tmp_path}:{os.environ['PATH']}"},
         text=True,
         capture_output=True,
     )
-    if supported:
+    if suite:
         assert result.returncode == 0, result.stderr
-        assert "Suites: bookworm\n" in source.read_text()
-        assert "/deb/debian\n" in source.read_text()
+        assert f"Suites: {suite}\n" in source.read_text()
+        assert f"/deb/{distro}\n" in source.read_text()
     else:
         assert result.returncode != 0
         assert source.read_text() == "existing source\n"

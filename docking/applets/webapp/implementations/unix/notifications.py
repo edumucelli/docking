@@ -211,12 +211,12 @@ class DesktopNotifier(NotificationBackend[object]):
     def _on_action_invoked(
         self,
         _connection: Gio.DBusConnection,
-        _sender_name: str,
+        _sender_name: str | None,
         _object_path: str,
         _interface_name: str,
         _signal_name: str,
         parameters: GLib.Variant,
-        _user_data: object,
+        _user_data: object = None,
     ) -> None:
         try:
             notification_id, action = parameters.unpack()
@@ -234,12 +234,12 @@ class DesktopNotifier(NotificationBackend[object]):
     def _on_notification_closed(
         self,
         _connection: Gio.DBusConnection,
-        _sender_name: str,
+        _sender_name: str | None,
         _object_path: str,
         _interface_name: str,
         _signal_name: str,
         parameters: GLib.Variant,
-        _user_data: object,
+        _user_data: object = None,
     ) -> None:
         try:
             notification_id = int(parameters.unpack()[0])

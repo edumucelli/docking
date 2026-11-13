@@ -11,7 +11,7 @@ import ctypes
 import os
 import sys
 import uuid
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Generator, Mapping
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -91,7 +91,9 @@ class WindowsVirtualDesktopAPI:
         return sys.platform == "win32" and sys.getwindowsversion().build in _BUILDS
 
     @contextmanager
-    def _shell(self) -> Iterator[tuple[ExitStack, ctypes.c_void_p, _Create]]:
+    def _shell(
+        self,
+    ) -> Generator[tuple[ExitStack, ctypes.c_void_p, _Create], None, None]:
         if not self.supported():
             raise OSError("Virtual desktop shell ABI is unavailable on this build")
         with apartment(multithreaded=True) as ole, ExitStack() as stack:
@@ -109,7 +111,9 @@ class WindowsVirtualDesktopAPI:
             yield stack, shell, create
 
     @contextmanager
-    def _session(self) -> Iterator[tuple[ExitStack, ctypes.c_void_p, _Create]]:
+    def _session(
+        self,
+    ) -> Generator[tuple[ExitStack, ctypes.c_void_p, _Create], None, None]:
         with self._shell() as (stack, shell, create):
             manager = _object(
                 stack,

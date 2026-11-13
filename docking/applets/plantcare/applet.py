@@ -506,7 +506,14 @@ class PlantCareApplet(Applet):
             enabled.set_active(task.enabled)
             interval = Gtk.SpinButton()
             interval.set_adjustment(
-                Gtk.Adjustment(task.interval_days, 1, 3650, 1, 7, 0)
+                Gtk.Adjustment(
+                    value=task.interval_days,
+                    lower=1,
+                    upper=3650,
+                    step_increment=1,
+                    page_increment=7,
+                    page_size=0,
+                )
             )
             interval.set_numeric(True)
             interval.set_sensitive(task.enabled)

@@ -237,7 +237,7 @@ class AmbientApplet(Applet):
         if not self._pipeline:
             return
         # playbin has a volume property directly
-        if self._pipeline.find_property("volume"):
+        if any(prop.name == "volume" for prop in self._pipeline.list_properties()):
             self._pipeline.set_property("volume", self._state.volume)
         elif isinstance(self._pipeline, Gst.Bin):
             # noise pipeline: find the volume element by name

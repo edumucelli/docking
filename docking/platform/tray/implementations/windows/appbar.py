@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import ctypes as c
 import struct
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 
 from docking.platform.native.windows.ffi import bind, windows_ctypes
@@ -27,7 +27,7 @@ class SharedMemory:
         self._unlock = bind(shell, "SHUnlockShared", c.c_int32, c.c_void_p)
 
     @contextmanager
-    def lock(self, handle: int, pid: int) -> Iterator[int]:
+    def lock(self, handle: int, pid: int) -> Generator[int, None, None]:
         pointer = self._lock(handle, pid)
         if not pointer:
             raise OSError("Could not map an AppBar reply")
