@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 from collections.abc import Callable
 from shlex import join as shell_join
@@ -78,6 +79,9 @@ class DesktopExecLauncher:
             argv = host_argv
             working_directory = None
 
+        env = os.environ.copy()
+        # Caja suppresses its default window when it inherits a session autostart ID.
+        env.pop("DESKTOP_AUTOSTART_ID", None)
         try:
             process = self._popen(
                 argv,
@@ -87,6 +91,7 @@ class DesktopExecLauncher:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 cwd=working_directory,
+                env=env,
             )
         except OSError as exc:
             log.bind(

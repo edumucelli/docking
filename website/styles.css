@@ -1,23 +1,26 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss" source(none);
+@config "./tailwind.config.cjs";
 
 :root { color-scheme: dark; }
 
-body {
-  font-family: "Instrument Sans", sans-serif;
-  background:
-    radial-gradient(circle at 16% 14%, rgba(239, 68, 68, 0.18), transparent 22%),
-    radial-gradient(circle at 80% 14%, rgba(59, 130, 246, 0.19), transparent 24%),
-    radial-gradient(circle at 52% 74%, rgba(245, 158, 11, 0.16), transparent 26%),
-    linear-gradient(180deg, #111a2c 0%, #152035 52%, #121b2e 100%);
-}
+@layer base {
+  button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
 
-h1,
-h2,
-h3,
-.font-display {
-  font-family: "Space Grotesk", sans-serif;
+  body {
+    font-family: "Instrument Sans", sans-serif;
+    background:
+      radial-gradient(circle at 16% 14%, rgba(239, 68, 68, 0.18), transparent 22%),
+      radial-gradient(circle at 80% 14%, rgba(59, 130, 246, 0.19), transparent 24%),
+      radial-gradient(circle at 52% 74%, rgba(245, 158, 11, 0.16), transparent 26%),
+      linear-gradient(180deg, #111a2c 0%, #152035 52%, #121b2e 100%);
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: "Space Grotesk", sans-serif;
+  }
 }
 
 .grid-fade {
