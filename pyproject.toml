@@ -147,7 +147,7 @@ allowed-unresolved-imports = [
 ]
 
 [tool.ty.rules]
-unresolved-import = "error"
+import-not-found = "error"
 unresolved-attribute = "error"
 invalid-argument-type = "error"
 no-matching-overload = "error"
