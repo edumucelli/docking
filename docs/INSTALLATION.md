@@ -30,7 +30,8 @@ gpg --show-keys --with-fingerprint /tmp/docking-cloudsmith.asc
 The fingerprint must be `811B48CD4A69170DD98F4F49185CED80A7947754`.
 
 Copy the complete block below. It detects the distribution base and stops before
-writing the source if that base is unsupported or cannot be identified.
+writing the source if that base is unsupported or cannot be identified. Quoted
+`printf` arguments keep the repository URL intact when pasting into Bash or Zsh.
 
 ```bash
 (
@@ -55,14 +56,14 @@ case "$APT_DISTRO:$APT_SUITE" in
     ubuntu:jammy|ubuntu:noble|ubuntu:resolute|debian:bookworm|debian:trixie) ;;
     *) echo "Unsupported APT base: $APT_DISTRO/$APT_SUITE" >&2; exit 1 ;;
 esac
-sudo tee /etc/apt/sources.list.d/docking.sources > /dev/null <<EOF
-Types: deb
-URIs: https://dl.cloudsmith.io/public/docking/docking-apt/deb/${APT_DISTRO}
-Suites: ${APT_SUITE}
-Components: main
-Architectures: amd64 arm64
-Signed-By: /etc/apt/keyrings/docking-cloudsmith.asc
-EOF
+printf '%s\n' \
+    'Types: deb' \
+    "URIs: https://dl.cloudsmith.io/public/docking/docking-apt/deb/$APT_DISTRO" \
+    "Suites: $APT_SUITE" \
+    'Components: main' \
+    'Architectures: amd64 arm64' \
+    'Signed-By: /etc/apt/keyrings/docking-cloudsmith.asc' | \
+    sudo tee /etc/apt/sources.list.d/docking.sources > /dev/null
 sudo apt update
 sudo apt install docking
 )
