@@ -1194,10 +1194,15 @@
     "fr": "2. Ajouter le dépôt et installer Docking",
     "es": "2. Añadir el repositorio e instalar Docking"
   },
-  "Copy the complete block below. It detects your distribution base and stops before writing the source if the base is unsupported or cannot be identified.": {
-    "pt": "Copie o bloco completo abaixo. Deteta a base da distribuição e para antes de gravar a configuração se a base não for compatível ou não puder ser identificada.",
-    "fr": "Copiez le bloc complet ci-dessous. Il détecte la base de votre distribution et s’arrête avant d’écrire la configuration si elle n’est pas prise en charge ou ne peut pas être identifiée.",
-    "es": "Copia el bloque completo de abajo. Detecta la base de tu distribución y se detiene antes de escribir la configuración si la base no es compatible o no se puede identificar."
+  "Copy the complete block below. It detects your distribution base and stops before writing the source if the base is unsupported or cannot be identified. Quoted": {
+    "pt": "Copie o bloco completo abaixo. Deteta a base da distribuição e para antes de gravar a configuração se a base não for compatível ou não puder ser identificada. Os argumentos de",
+    "fr": "Copiez le bloc complet ci-dessous. Il détecte la base de votre distribution et s’arrête avant d’écrire la configuration si elle n’est pas prise en charge ou ne peut pas être identifiée. Les arguments de",
+    "es": "Copia el bloque completo de abajo. Detecta la base de tu distribución y se detiene antes de escribir la configuración si la base no es compatible o no se puede identificar. Los argumentos de"
+  },
+  "arguments keep the repository URL intact when pasting into Bash or Zsh.": {
+    "pt": "entre aspas mantêm o URL do repositório intacto ao colar no Bash ou no Zsh.",
+    "fr": "entre guillemets préservent l’URL du dépôt lors du collage dans Bash ou Zsh.",
+    "es": "entre comillas mantienen intacta la URL del repositorio al pegar en Bash o Zsh."
   },
   "For later updates, run": {
     "pt": "Para atualizações posteriores, execute",
