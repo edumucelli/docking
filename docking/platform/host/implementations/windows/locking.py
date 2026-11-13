@@ -5,7 +5,7 @@ from __future__ import annotations
 import ctypes
 import hashlib
 import os
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import AbstractContextManager, contextmanager
 from ctypes import wintypes
 from pathlib import Path
@@ -18,7 +18,7 @@ def writer_lock(fd: int, *, path: Path) -> AbstractContextManager[None]:
 
 
 @contextmanager
-def _windows_mutex(path: Path) -> Iterator[None]:
+def _windows_mutex(path: Path) -> Generator[None, None, None]:
     kernel = windows_ctypes.WinDLL("kernel32", use_last_error=True)
     create = kernel.CreateMutexW
     create.argtypes = (ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR)

@@ -159,3 +159,31 @@ def test_ipc_reads_fragmented_frames_and_rejects_invalid_headers(tmp_path, inval
             assert SwayIpcClient(str(path)).query(4) == {"native": True}
     finally:
         thread.join(timeout=1)
+
+
+def test_subscription_io_channel_reads_socket_and_stop_keeps_fd_ownership(tmp_path):
+    import time
+
+    from gi.repository import GLib
+
+    client = Client()
+    client.path = str(tmp_path / "events.sock")
+    service = SwayWindowService(model=_model(), client=client, **identity_services())
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
+        server.bind(client.path)
+        server.listen()
+        try:
+            service.start()
+            assert service._socket is not None
+            subscribed = service._socket
+            with server.accept()[0] as peer:
+                peer.recv(100)
+                peer.sendall(b"i3")
+                context = GLib.MainContext.default()
+                deadline = time.monotonic() + 1
+                while not service._buffer and time.monotonic() < deadline:
+                    context.iteration(False)
+                assert service._buffer == b"i3"
+        finally:
+            service.stop()
+    assert subscribed.fileno() == -1

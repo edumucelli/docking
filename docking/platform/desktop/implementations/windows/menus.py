@@ -88,7 +88,7 @@ class WindowsMenuFocus:
             self._unhook(self._event_hook)
             self._event_hook = None
 
-    def identity(self, hwnd):
+    def identity(self, hwnd) -> tuple[int, int] | None:
         if not hwnd:
             return None
         pid = wintypes.DWORD()
@@ -96,7 +96,7 @@ class WindowsMenuFocus:
             return None
         return int(hwnd), pid.value
 
-    def foreground(self):
+    def foreground(self) -> tuple[int, int] | None:
         return self.identity(self._foreground())
 
     def active(self):

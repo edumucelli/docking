@@ -40,7 +40,7 @@ from docking.core.position import is_horizontal
 from docking.core.tips import StartupTip, select_startup_tip
 from docking.i18n import _
 from docking.log import get_logger
-from docking.ui.display import clamp_popup, window_screen_position
+from docking.ui.display import clamp_popup, window_screen_position, window_size
 from docking.ui.popup_surface import (
     configure_transparent_startup_popup_window,
     wrap_startup_popup_content,
@@ -240,7 +240,7 @@ class StartupTipsController:
             return
         window_pos = window_screen_position(self._window)
         win_x, win_y = window_pos.x, window_pos.y
-        win_w, win_h = self._window.get_size()
+        win_w, win_h = window_size(self._window)
         pref = self._popup.get_preferred_size()[1]
         popup_w = max(pref.width, 1)
         popup_h = max(pref.height, 1)

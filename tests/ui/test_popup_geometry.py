@@ -113,3 +113,19 @@ def test_bounded_clamp_preserves_wayland_parent_relative_path(relative):
     assert result == (
         ScreenPosition(0, -37) if relative else ScreenPosition(-1280, 600)
     )
+
+
+def test_window_size_preserves_gtk_initial_and_mapped_dimensions():
+    from gi.repository import Gtk
+
+    from docking.ui.display import window_size
+
+    window = Gtk.Window()
+    try:
+        window.set_default_size(431, 217)
+        assert window_size(window) == (431, 217)
+        window.show()
+        assert window_size(window) == window.get_size()
+        assert all(isinstance(value, int) for value in window_size(window))
+    finally:
+        window.destroy()

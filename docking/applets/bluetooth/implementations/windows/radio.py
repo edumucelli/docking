@@ -13,7 +13,7 @@ import json
 import os
 import subprocess
 import threading
-from collections.abc import Generator, Iterator
+from collections.abc import Generator
 from contextlib import closing, contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -163,7 +163,7 @@ class ClassicInventory:
         return result
 
     @contextmanager
-    def radio_handle(self, address: int) -> Iterator[_HANDLE | None]:
+    def radio_handle(self, address: int) -> Generator[_HANDLE | None, None, None]:
         """Keep the selected radio alive for one operation, never all radios."""
         if type(address) is not int or not 0 < address < 1 << 48:
             raise ValueError("Bluetooth operation requires a valid radio address")

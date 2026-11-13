@@ -19,11 +19,10 @@ case "$APT_DISTRO:$APT_SUITE" in
     ubuntu:jammy|ubuntu:noble|ubuntu:resolute|debian:bookworm|debian:trixie) ;;
     *) echo "Unsupported APT base: $APT_DISTRO/$APT_SUITE" >&2; exit 1 ;;
 esac
-cat <<EOF
-Types: deb
-URIs: https://dl.cloudsmith.io/public/docking/docking-apt/deb/${APT_DISTRO}
-Suites: ${APT_SUITE}
-Components: main
-Architectures: amd64 arm64
-Signed-By: /etc/apt/keyrings/docking-cloudsmith.asc
-EOF
+printf '%s\n' \
+    'Types: deb' \
+    "URIs: https://dl.cloudsmith.io/public/docking/docking-apt/deb/$APT_DISTRO" \
+    "Suites: $APT_SUITE" \
+    'Components: main' \
+    'Architectures: amd64 arm64' \
+    'Signed-By: /etc/apt/keyrings/docking-cloudsmith.asc'
