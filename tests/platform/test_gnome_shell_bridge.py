@@ -29,7 +29,7 @@ def _item(desktop_id: str, wm_class: str = "") -> DockItem:
 
 def _model(*items: SimpleNamespace) -> SimpleNamespace:
     return SimpleNamespace(
-        visible_items=MagicMock(return_value=list(items)),
+        tracked_items=MagicMock(return_value=list(items)),
         update_running=MagicMock(),
     )
 

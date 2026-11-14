@@ -564,7 +564,7 @@ def test_foreign_toplevel_adapter_replays_initial_events_after_service_start():
     toplevel.dispatcher["done"](toplevel)
 
     model = SimpleNamespace(
-        visible_items=MagicMock(
+        tracked_items=MagicMock(
             return_value=[DockItem(desktop_id="foot.desktop", wm_class="foot")]
         ),
         update_running=MagicMock(),

@@ -84,7 +84,7 @@ def test_registry_generation_reaches_applications_run_and_search_consumers(
     run_applet._build_app_row = lambda application: application
     run_applet._apply_app_filter = lambda _query: None
 
-    model = SimpleNamespace(visible_items=MagicMock(return_value=[]))
+    model = SimpleNamespace(tracked_items=MagicMock(return_value=[]))
     windows = SimpleNamespace(list_windows=MagicMock(return_value=()))
     search = ApplicationSearchProvider(
         registry=registry,

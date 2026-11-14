@@ -57,7 +57,7 @@ def test_cycle_retains_last_native_focus_during_mouse_activation_handoff(
 ):
     native, state = native_focus
     service = WindowsWindowService(
-        model=SimpleNamespace(visible_items=list, update_running=MagicMock()),
+        model=SimpleNamespace(tracked_items=list, update_running=MagicMock()),
         native=native,
         **identity_services(application("Fixture.App")),
     )
@@ -125,7 +125,7 @@ def test_cycle_uses_current_native_focus_instead_of_the_previous_poll(
         perform=MagicMock(return_value=ActionResult.OK),
     )
     service = WindowsWindowService(
-        model=SimpleNamespace(visible_items=list, update_running=MagicMock()),
+        model=SimpleNamespace(tracked_items=list, update_running=MagicMock()),
         native=native,
         **identity_services(application("Fixture.App")),
     )
@@ -143,7 +143,7 @@ def test_cycle_does_not_activate_windows_closed_since_the_previous_poll():
         perform=MagicMock(return_value=ActionResult.OK),
     )
     service = WindowsWindowService(
-        model=SimpleNamespace(visible_items=list, update_running=MagicMock()),
+        model=SimpleNamespace(tracked_items=list, update_running=MagicMock()),
         native=native,
         **identity_services(application("Fixture.App")),
     )
@@ -245,7 +245,7 @@ def test_ghost_keeps_one_original_identity_with_presentation_state_in_either_z_o
         original.on_current_workspace,
         original.sticky,
     )
-    model = SimpleNamespace(visible_items=list, update_running=MagicMock())
+    model = SimpleNamespace(tracked_items=list, update_running=MagicMock())
     service = WindowsWindowService(
         model=model, **identity_services(application("Fixture.App"))
     )
@@ -333,7 +333,7 @@ def test_preview_target_requires_both_current_application_and_native_surface():
     native = MagicMock()
     ghost = WindowsWindowTarget(900, 500)
     native.target.return_value = ghost
-    model = SimpleNamespace(visible_items=list, update_running=MagicMock())
+    model = SimpleNamespace(tracked_items=list, update_running=MagicMock())
     service = WindowsWindowService(
         model=model, native=native, **identity_services(application("Fixture.App"))
     )
@@ -369,7 +369,7 @@ def test_windows_covered_by_desktop_keep_running_entries_without_reporting_overl
     rows = native.windows()
     assert not rows[0].visible and not rows[0].minimized
     assert rows[1].visible
-    model = SimpleNamespace(visible_items=list, update_running=MagicMock())
+    model = SimpleNamespace(tracked_items=list, update_running=MagicMock())
     service = WindowsWindowService(
         model=model, **identity_services(application("Example.App"))
     )
@@ -400,7 +400,7 @@ def test_windows_grouping_actions_and_disappearing_windows(monkeypatch):
     native = MagicMock()
     native.windows.return_value = (first, second)
     native.perform.return_value = ActionResult.OK
-    model = SimpleNamespace(visible_items=list, update_running=MagicMock())
+    model = SimpleNamespace(tracked_items=list, update_running=MagicMock())
     service = WindowsWindowService(
         model=model,
         native=native,
@@ -531,7 +531,7 @@ def test_shell_cloaked_other_desktop_windows_keep_membership_without_overlap(
 def test_current_workspace_filter_excludes_only_established_other_desktop(
     current_only, current, keep
 ):
-    model = SimpleNamespace(visible_items=list, update_running=MagicMock())
+    model = SimpleNamespace(tracked_items=list, update_running=MagicMock())
     service = WindowsWindowService(
         model=model,
         config=Config(current_workspace_only=current_only),
@@ -555,7 +555,7 @@ def test_offdesktop_activation_switches_before_native_action_but_close_does_not(
     native.perform.return_value = workspaces.activate_then.return_value = (
         ActionResult.OK
     )
-    model = SimpleNamespace(visible_items=list, update_running=MagicMock())
+    model = SimpleNamespace(tracked_items=list, update_running=MagicMock())
     service = WindowsWindowService(
         model=model,
         native=native,
@@ -607,7 +607,7 @@ def test_explicit_per_window_id_separates_applications_in_one_host_process():
         )
         for hwnd in (10, 20)
     ]
-    model = SimpleNamespace(visible_items=list, update_running=MagicMock())
+    model = SimpleNamespace(tracked_items=list, update_running=MagicMock())
     service = WindowsWindowService(
         model=model,
         **identity_services(application("Calc.App"), application("Clock.App")),
@@ -684,7 +684,7 @@ def test_uncataloged_native_program_projects_one_item_for_two_windows(tmp_path):
     header[0x3C:0x40] = (64).to_bytes(4, "little")
     executable.write_bytes(header + b"PE\0\0")
     identity = ProcessIdentity(pid=42, executable_path=executable)
-    model = SimpleNamespace(visible_items=list, update_running=MagicMock())
+    model = SimpleNamespace(tracked_items=list, update_running=MagicMock())
     from docking.platform.applications.implementations.windows.registration import (
         WindowsExecutableRegistration,
     )

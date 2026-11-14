@@ -395,7 +395,7 @@ def test_shell_backend_lifecycle_tracks_windows_and_releases_reservation(monkeyp
         clear_dock_visibility=MagicMock(),
     )
     model = MagicMock()
-    model.visible_items.return_value = []
+    model.tracked_items.return_value = []
     backend = CinnamonShellSessionBackend(
         client=client, model=model, **identity_services()
     )

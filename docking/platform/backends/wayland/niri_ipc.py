@@ -605,7 +605,7 @@ class NiriWindowService(WindowService):
             self._workspaces = _workspaces_by_id(workspaces_raw)
 
     def _replace_windows(self, items: list[JsonValue]) -> None:
-        self._matcher.sync_visible_items(self._model.visible_items())
+        self._matcher.sync_visible_items(self._model.tracked_items())
         records: dict[int, NiriWindowRecord] = {}
         for item in items:
             item_object = as_json_object(item)

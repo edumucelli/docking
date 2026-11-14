@@ -668,7 +668,7 @@ class GlobalSearchController(ShortcutController):
                 item.is_running,
                 item.is_recent,
             )
-            for item in self._model.visible_items()
+            for item in self._model.tracked_items()
         )
 
     def _on_hidden(self) -> None:

@@ -21,7 +21,7 @@ from tests.platform.application_fakes import identity_services
 
 def _model() -> SimpleNamespace:
     return SimpleNamespace(
-        visible_items=MagicMock(
+        tracked_items=MagicMock(
             return_value=[DockItem(desktop_id="firefox.desktop", wm_class="firefox")]
         ),
         update_running=MagicMock(),

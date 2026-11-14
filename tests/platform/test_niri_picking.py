@@ -221,7 +221,7 @@ def test_live_window_does_not_reuse_cached_state_after_query_failure():
         {"id": 8, "app_id": "Alacritty", "title": "Fixture", "pid": 1234},
     ]
     service = NiriWindowService(
-        model=SimpleNamespace(visible_items=list, update_running=lambda **_: None),
+        model=SimpleNamespace(tracked_items=list, update_running=lambda **_: None),
         **identity_services(),
         client=client,
         event_stream_factory=lambda _: None,

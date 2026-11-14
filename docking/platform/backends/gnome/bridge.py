@@ -309,7 +309,7 @@ class GnomeShellBridgeWindowService(WindowService):
 
     def refresh(self) -> None:
         """Refresh cached bridge state and publish running app state."""
-        self._matcher.sync_visible_items(self._model.visible_items())
+        self._matcher.sync_visible_items(self._model.tracked_items())
         rows = self._bridge.list_windows()
         windows: dict[int, _BridgeWindow] = {}
         for row in rows:
