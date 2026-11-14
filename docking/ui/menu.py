@@ -392,7 +392,12 @@ class MenuHandler:
         self._cleanup_folder_menu_tree(menu)
         self._runtime.menu_popup_closed()
         # GTK can hide a menu before dispatching its selected item's action.
-        GLib.idle_add(menu.destroy)
+        GLib.idle_add(self._destroy_closed_menu, menu)
+
+    def _destroy_closed_menu(self, menu: Gtk.Menu) -> bool:
+        if menu not in self._open_menus:
+            menu.destroy()
+        return False
 
     @staticmethod
     def _applet_icon_source_options(applet: Applet) -> tuple[IconSource, ...]:
@@ -969,6 +974,7 @@ class MenuHandler:
         parent.check_resize()
         parent.queue_draw()
         if refresh_popup:
+            self._open_menus.add(parent)
             self._runtime.menu_popup_opened()
             self._runtime.prepare_menu_popup(parent)
             parent.popup_at_pointer(event)
