@@ -18,6 +18,8 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass, field
+from pathlib import PurePosixPath, PureWindowsPath
+from urllib.parse import unquote, urlsplit
 
 from docking.i18n import _
 
@@ -85,7 +87,31 @@ class Clip:
             return _("Image ({width} × {height})").format(
                 width=self.width, height=self.height
             )
-        return _truncate(self.text)
+        return _truncate(_file_names(self.text) or self.text)
+
+
+def _file_names(text: str) -> str | None:
+    names = []
+    for line in text.strip().splitlines():
+        path = line.strip()
+        if len(path) >= 2 and path[0] == path[-1] and path[0] in "\"'":
+            path = path[1:-1]
+        if path.lower().startswith("file:"):
+            try:
+                path = unquote(urlsplit(path).path)
+            except ValueError:
+                return None
+            name = PurePosixPath(path).name
+        elif PureWindowsPath(path).is_absolute():
+            name = PureWindowsPath(path).name
+        elif PurePosixPath(path).is_absolute():
+            name = PurePosixPath(path).name
+        else:
+            return None
+        if not name:
+            return None
+        names.append(name)
+    return ", ".join(names) or None
 
 
 def normalize_max_entries(value: object) -> int:

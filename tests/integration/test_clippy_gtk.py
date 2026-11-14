@@ -134,7 +134,9 @@ def test_native_history_stack_scrolls_to_oldest_and_copies_before_closing(
     applet = ClippyApplet(icon_size, config)
     applet._clipboard = clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
     for index in range(count - 1):
-        applet.add_clip(f"Readable clipboard fixture number {index} with more text")
+        applet.add_clip(
+            f"file:///Clipboard%20fixtures/Folder-{index}/report-{index}.txt"
+        )
     image = Clip.from_image(
         pixels=b"\x12\x34\x56" * 6, width=3, height=2, rowstride=9, alpha=False
     )
@@ -165,6 +167,7 @@ def test_native_history_stack_scrolls_to_oldest_and_copies_before_closing(
         adjustment.set_value(adjustment.get_upper() - adjustment.get_page_size())
         wait_until(lambda: adjustment.get_value() > 0)
         oldest = stack._folder_stack_cards[-1]
+        assert oldest.label == "report-0.txt"
         area = stack._folder_stack_area
         x, y = oldest.label_x + oldest.label_w / 2, oldest.label_y + oldest.label_h / 2
         _, popup_y = area.translate_coordinates(
@@ -183,7 +186,7 @@ def test_native_history_stack_scrolls_to_oldest_and_copies_before_closing(
         copied = []
         clipboard.request_text(lambda _clipboard, text: copied.append(text))
         wait_until(lambda: bool(copied))
-        assert copied == ["Readable clipboard fixture number 0 with more text"]
+        assert copied == ["file:///Clipboard%20fixtures/Folder-0/report-0.txt"]
         runtime.menu_popup_closed.assert_called_once()
     finally:
         stack.close()

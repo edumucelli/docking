@@ -227,7 +227,8 @@ default limit is 15 entries; retained images share a 32 MiB memory budget. Oldes
 entries are evicted when either limit is reached. Images are copied at their
 original size; the history stack shows thumbnails and image dimensions. Hex
 color entries show a color swatch. The stack scrolls through the full retained
-history when it does not fit on screen.
+history when it does not fit on screen. Copied file paths show only filenames,
+while copying an entry preserves its original clipboard content.
 
 **Click:** Open the newest-first history stack; select an entry to copy it and
 close the stack

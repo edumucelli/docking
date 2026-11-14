@@ -306,12 +306,53 @@ class TestClipStack:
         first = applet.stack_content(48).entries[0]
         assert first.icon.get_width() == 48
         assert applet.stack_content(48).entries[0].icon is first.icon
-        applet.get_menu_items()
+        applet._preview(applet._clips[0], 24)
         assert {size for _, size in applet._previews} == {24, 48}
         applet.stack_content(96)
         assert {size for _, size in applet._previews} == {24, 96}
         applet._clear()
         assert applet._previews == {}
+
+    def test_matching_filenames_keep_their_original_paths_when_copied(self):
+        applet = ClippyApplet(48, config=Config())
+        first, second = "file:///folder-a/report.txt", "file:///folder-b/report.txt"
+        applet.add_clip(first)
+        applet.add_clip(second)
+        applet._clipboard = MagicMock()
+        content = applet.stack_content(48)
+        assert [entry.label for entry in content.entries] == [
+            "report.txt",
+            "report.txt",
+        ]
+        assert content.entries[0].key != content.entries[1].key
+        content.entries[1].activate()
+        applet._clipboard.set_text.assert_called_once_with(first, -1)
+
+
+@pytest.mark.parametrize(
+    "text,label",
+    [
+        ("file:///tmp/Folder/report%20final.pdf", "report final.pdf"),
+        ("FILE:///C:/Folder/report.txt", "report.txt"),
+        ("file://server/share/report.txt", "report.txt"),
+        ("/tmp/Folder/report.pdf", "report.pdf"),
+        ('"/tmp/Folder/report final.pdf"', "report final.pdf"),
+        (r"C:\Folder\report.pdf", "report.pdf"),
+        (r'"C:\Folder\report final.pdf"', "report final.pdf"),
+        (r"\\server\share\report.pdf", "report.pdf"),
+        ("file:///tmp/r%C3%A9sum%C3%A9.pdf", "résumé.pdf"),
+        ("file:///tmp/first.txt\nfile:///tmp/second.pdf", "first.txt, second.pdf"),
+        ("/tmp/Folder/", "Folder"),
+        ("/", "/"),
+        ("file:///", "file:///"),
+        ("file://[broken/report.txt", "file://[broken/report.txt"),
+        ("https://example.com/report.txt", "https://example.com/report.txt"),
+        ("ordinary clipboard text", "ordinary clipboard text"),
+        ("/tmp/report.txt\nordinary text", "/tmp/report.txt ordinary text"),
+    ],
+)
+def test_file_labels_show_only_names_and_other_text_keeps_its_preview(text, label):
+    assert Clip(text=text).label == label
 
 
 class TestImagesAndColors:
