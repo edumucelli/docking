@@ -68,8 +68,8 @@ filters.addEventListener("click", (event) => {
     const active = candidate === button;
     candidate.setAttribute("aria-pressed", String(active));
     candidate.className = `rounded-full border px-4 py-2 text-sm font-semibold transition ${active
-      ? "border-amber-200/30 bg-ember/14 text-white"
-      : "border-white/12 bg-white/[0.06] text-slate-300 hover:border-white/24 hover:text-white"}`;
+      ? "border-amber-200/30 text-white"
+      : "bg-white/[0.06] text-slate-300 hover:text-white"}`;
   });
   filterApplets();
 });

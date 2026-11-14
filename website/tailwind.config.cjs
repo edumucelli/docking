@@ -9,7 +9,10 @@ module.exports = {
         "midnight": "#101827",
         "accent": "#ef4444",
         "skyline": "#3b82f6",
-        "ember": "#f59e0b"
+        "ember": "#f59e0b",
+        "red": { "500": "#ef4444" },
+        "rose": { "500": "#f43f5e" },
+        "amber": { "400": "#fbbf24" }
       },
       "boxShadow": {
         "glow": "0 0 0 1px rgba(255,255,255,0.07), 0 30px 90px rgba(15,23,42,0.22), 0 16px 52px rgba(245,158,11,0.16)",

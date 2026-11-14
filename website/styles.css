@@ -4,6 +4,7 @@
 :root { color-scheme: dark; }
 
 @layer base {
+  *, ::before, ::after, ::backdrop, ::file-selector-button { border-color: #e5e7eb; }
   button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
 
   body {
