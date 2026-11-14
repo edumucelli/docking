@@ -264,11 +264,9 @@ class TestClipLifecycle:
 
 
 class TestClipStack:
-    def test_empty_history_still_opens_a_stack(self):
+    def test_empty_history_does_not_offer_a_stack(self):
         applet = ClippyApplet(48, config=Config())
-        content = applet.stack_content(48)
-        assert content.entries == ()
-        assert content.empty_label == "Clippy (empty)"
+        assert applet.stack_content(48) is None
 
     def test_stack_contains_the_full_history_newest_first(self):
         applet = ClippyApplet(48, config=Config())

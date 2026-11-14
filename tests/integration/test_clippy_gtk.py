@@ -148,12 +148,13 @@ def test_native_history_stack_scrolls_to_oldest_and_copies_before_closing(
         hide_hover_ui=MagicMock(),
     )
     stack = StackPopupController(config=config, runtime=runtime, dock_window=parent)
+    anchor = PopupAnchor(x=640, y=700, position=Position.BOTTOM, parent=parent)
     try:
         clipboard.set_text("Original clipboard fixture", -1)
         assert stack.show_stack(
             owner_id="applet://clippy",
             provider=applet.stack_content,
-            anchor=PopupAnchor(x=640, y=700, position=Position.BOTTOM, parent=parent),
+            anchor=anchor,
         )
         wait_until(lambda: stack._folder_stack_window.get_mapped())
         assert len(stack._folder_stack_cards) == count
@@ -188,6 +189,13 @@ def test_native_history_stack_scrolls_to_oldest_and_copies_before_closing(
         wait_until(lambda: bool(copied))
         assert copied == ["file:///Clipboard%20fixtures/Folder-0/report-0.txt"]
         runtime.menu_popup_closed.assert_called_once()
+        assert stack.show_stack(
+            owner_id="applet://clippy", provider=applet.stack_content, anchor=anchor
+        )
+        applet._clear()
+        assert stack.refresh(owner_id="applet://clippy") is False
+        assert not stack._folder_stack_window.get_visible()
+        assert runtime.menu_popup_closed.call_count == 2
     finally:
         stack.close()
         if stack._folder_stack_window is not None:

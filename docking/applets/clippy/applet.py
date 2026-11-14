@@ -105,7 +105,9 @@ class ClippyApplet(Applet):
         if self._clips and 0 < self._cur_position <= len(self._clips):
             self._copy_to_clipboard(self._clips[self._cur_position - 1])
 
-    def stack_content(self, icon_size: int) -> StackContent:
+    def stack_content(self, icon_size: int) -> StackContent | None:
+        if not self._clips:
+            return None
         self._previews = {
             key: preview
             for key, preview in self._previews.items()
@@ -130,7 +132,6 @@ class ClippyApplet(Applet):
             )
         return StackContent(
             entries=tuple(entries),
-            empty_label=_("Clippy (empty)"),
             entry_limit=None,
             label_max_width=320,
         )

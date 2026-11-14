@@ -231,7 +231,7 @@ history when it does not fit on screen. Copied file paths show only filenames,
 while copying an entry preserves its original clipboard content.
 
 **Click:** Open the newest-first history stack; select an entry to copy it and
-close the stack
+close the stack. Empty history does not open a stack.
 **Middle-click:** Copy the currently selected clip back to the clipboard
 **Scroll:** Cycle through clipboard history (tooltip updates instantly)
 **Right-click:** Use the keyboard-accessible **Clipboard History** submenu,
