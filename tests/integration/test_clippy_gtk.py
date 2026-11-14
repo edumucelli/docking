@@ -18,8 +18,12 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 import docking.applets.clippy.applet as clippy_mod
 from docking.applets.clippy.applet import ClippyApplet
+from docking.applets.clippy.state import Clip
+from docking.applets.popup import PopupAnchor
 from docking.core.config import Config
+from docking.core.position import Position
 from docking.ui.menu import MenuHandler
+from docking.ui.stack import StackPopupController
 
 
 def wait_until(predicate):
@@ -62,13 +66,16 @@ def test_native_text_image_and_menu_lifetime(monkeypatch):
         assert (copied[0].get_width(), copied[0].get_height()) == (3, 2)
 
         clip = applet._clips[-1]
+        stack_content = applet.stack_content(48)
+        assert stack_content.entries[0].thumbnail_style
+        stack_content.entries[0].activate()
         rows = applet.get_menu_items()
-        image_row = rows[0]
+        for row in rows:
+            menu.append(row)
+        image_row = rows[0].get_submenu().get_children()[0]
         assert isinstance(image_row.get_child(), Gtk.Box)
         shown = image_row.get_child().get_children()[0].get_pixbuf()
         assert (shown.get_width(), shown.get_height()) == (24, 16)
-        for row in rows:
-            menu.append(row)
         menu.show_all()
         retained = weakref.ref(clip)
         applet._retain_clip(replace(clip))
@@ -113,3 +120,75 @@ def test_native_menu_releases_widgets_after_selected_action():
         assert events == ["activate", "destroy"]
     finally:
         menu.destroy()
+
+
+@pytest.mark.parametrize("count,icon_size", [(15, 48), (500, 128)])
+def test_native_history_stack_scrolls_to_oldest_and_copies_before_closing(
+    count, icon_size
+):
+    if not os.environ.get("DISPLAY") or not Gtk.init_check(None)[0]:
+        pytest.skip("Requires an isolated X11 display")
+    config = Config(
+        icon_size=icon_size, applet_prefs={"clippy": {"max_entries": count}}
+    )
+    applet = ClippyApplet(icon_size, config)
+    applet._clipboard = clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
+    for index in range(count - 1):
+        applet.add_clip(f"Readable clipboard fixture number {index} with more text")
+    image = Clip.from_image(
+        pixels=b"\x12\x34\x56" * 6, width=3, height=2, rowstride=9, alpha=False
+    )
+    applet._retain_clip(image)
+    parent = Gtk.Window()
+    runtime = SimpleNamespace(
+        menu_popup_opened=MagicMock(),
+        menu_popup_closed=MagicMock(),
+        hide_hover_ui=MagicMock(),
+    )
+    stack = StackPopupController(config=config, runtime=runtime, dock_window=parent)
+    try:
+        clipboard.set_text("Original clipboard fixture", -1)
+        assert stack.show_stack(
+            owner_id="applet://clippy",
+            provider=applet.stack_content,
+            anchor=PopupAnchor(x=640, y=700, position=Position.BOTTOM, parent=parent),
+        )
+        wait_until(lambda: stack._folder_stack_window.get_mapped())
+        assert len(stack._folder_stack_cards) == count
+        before = []
+        clipboard.request_text(lambda _clipboard, text: before.append(text))
+        wait_until(lambda: bool(before))
+        assert before == ["Original clipboard fixture"]
+        scroller = stack._folder_stack_revealer.get_child()
+        assert isinstance(scroller, Gtk.ScrolledWindow)
+        adjustment = scroller.get_vadjustment()
+        adjustment.set_value(adjustment.get_upper() - adjustment.get_page_size())
+        wait_until(lambda: adjustment.get_value() > 0)
+        oldest = stack._folder_stack_cards[-1]
+        area = stack._folder_stack_area
+        x, y = oldest.label_x + oldest.label_w / 2, oldest.label_y + oldest.label_h / 2
+        _, popup_y = area.translate_coordinates(
+            stack._folder_stack_window, int(x), int(y)
+        )
+        assert 0 <= popup_y < stack._folder_stack_window.get_size()[1]
+        stack._folder_stack_show_started_us = 0
+        for kind, signal in (
+            (Gdk.EventType.BUTTON_PRESS, "button-press-event"),
+            (Gdk.EventType.BUTTON_RELEASE, "button-release-event"),
+        ):
+            event = Gdk.Event.new(kind)
+            event.button, event.x, event.y = 1, x, y
+            area.emit(signal, event)
+        assert not stack._folder_stack_window.get_visible()
+        copied = []
+        clipboard.request_text(lambda _clipboard, text: copied.append(text))
+        wait_until(lambda: bool(copied))
+        assert copied == ["Readable clipboard fixture number 0 with more text"]
+        runtime.menu_popup_closed.assert_called_once()
+    finally:
+        stack.close()
+        if stack._folder_stack_window is not None:
+            stack._folder_stack_window.destroy()
+        parent.destroy()
+        applet.stop()
+        clipboard.clear()

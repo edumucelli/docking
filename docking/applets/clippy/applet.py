@@ -15,8 +15,10 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from functools import partial
 from typing import TYPE_CHECKING
 
 import gi
@@ -26,7 +28,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
-from docking.applets.base import Applet
+from docking.applets.base import Applet, load_theme_icon
 from docking.applets.clippy import meta
 from docking.applets.clippy.render import clip_pixbuf, clip_preview, create_icon
 from docking.applets.clippy.state import (
@@ -42,6 +44,7 @@ from docking.applets.clippy.state import (
 from docking.applets.menu import menu_sections, radio_submenu
 from docking.i18n import _
 from docking.platform.environment import is_x11_backend
+from docking.ui.stack import StackContent, StackEntry
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -61,7 +64,7 @@ class _Selection:
 
 
 class ClippyApplet(Applet):
-    """Session clipboard history; scroll to select and click to copy."""
+    """Session clipboard history shown through the reusable item stack."""
 
     id = meta.id
     name = _("Clippy")
@@ -74,7 +77,8 @@ class ClippyApplet(Applet):
         self._selections: list[_Selection] = []
         self._primary_available = False
         self._stopped = True
-        self._previews: dict[ClipKey, GdkPixbuf.Pixbuf] = {}
+        self._previews: dict[tuple[ClipKey, int], GdkPixbuf.Pixbuf] = {}
+        self._text_icons: dict[int, GdkPixbuf.Pixbuf | None] = {}
         prefs = config.applet_prefs.get("clippy", {})
         self._max_entries = normalize_max_entries(prefs.get("max_entries", 15))
         self._tracking_enabled = prefs.get("tracking_enabled", True) is not False
@@ -97,8 +101,48 @@ class ClippyApplet(Applet):
             self.item.name += "\n" + _("Clipboard tracking paused")
 
     def on_clicked(self) -> None:
+        """Copy the selected clip on middle-click; left-click opens the stack."""
         if self._clips and 0 < self._cur_position <= len(self._clips):
             self._copy_to_clipboard(self._clips[self._cur_position - 1])
+
+    def stack_content(self, icon_size: int) -> StackContent:
+        self._previews = {
+            key: preview
+            for key, preview in self._previews.items()
+            if key[1] in (24, icon_size)
+        }
+        if icon_size not in self._text_icons:
+            self._text_icons = {icon_size: load_theme_icon("text-x-generic", icon_size)}
+        entries = []
+        for clip in reversed(self._clips):
+            preview = self._preview(clip, icon_size)
+            entries.append(
+                StackEntry(
+                    # Opaque IDs keep clipboard text out of stack diagnostics.
+                    key=hashlib.sha256(repr(clip.key).encode("utf-8")).hexdigest(),
+                    label=clip.label,
+                    icon=preview
+                    if preview is not None
+                    else self._text_icons[icon_size],
+                    activate=partial(self._copy_retained_clip, clip.key),
+                    thumbnail_style=bool(clip.pixels),
+                )
+            )
+        return StackContent(
+            entries=tuple(entries),
+            empty_label=_("Clippy (empty)"),
+            entry_limit=None,
+            label_max_width=320,
+        )
+
+    def _preview(self, clip: Clip, size: int) -> GdkPixbuf.Pixbuf | None:
+        key = (clip.key, size)
+        preview = self._previews.get(key)
+        if preview is None:
+            preview = clip_preview(clip, size=size)
+            if preview is not None:
+                self._previews[key] = preview
+        return preview
 
     def on_scroll(self, direction_up: bool) -> None:
         """Cycle through clipboard history."""
@@ -112,13 +156,10 @@ class ClippyApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         primary: list[Gtk.MenuItem] = []
+        history = Gtk.Menu()
         for clip in reversed(self._clips):
             menu_item = Gtk.MenuItem(label=clip.label)
-            preview = self._previews.get(clip.key)
-            if preview is None:
-                preview = clip_preview(clip)
-                if preview is not None:
-                    self._previews[clip.key] = preview
+            preview = self._preview(clip, 24)
             if preview is not None:
                 box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
                 box.pack_start(Gtk.Image.new_from_pixbuf(preview), False, False, 0)
@@ -130,8 +171,14 @@ class ClippyApplet(Applet):
                     menu_item.remove(child)
                 menu_item.add(box)
             # Retain only the key: open menus must not pin evicted image payloads.
-            menu_item.connect("activate", self._copy_retained_clip, clip.key)
-            primary.append(menu_item)
+            menu_item.connect(
+                "activate", lambda _widget, key=clip.key: self._copy_retained_clip(key)
+            )
+            history.append(menu_item)
+        if self._clips:
+            history_item = Gtk.MenuItem(label=_("Clipboard History"))
+            history_item.set_submenu(history)
+            primary.append(history_item)
 
         enabled = Gtk.CheckMenuItem(label=_("Enable Clipboard Tracking"))
         enabled.set_active(self._tracking_enabled)
@@ -198,6 +245,7 @@ class ClippyApplet(Applet):
         self._primary_available = False
         self._clips.clear()
         self._previews.clear()
+        self._text_icons.clear()
         self._cur_position = 0
         super().stop()
 
@@ -304,7 +352,7 @@ class ClippyApplet(Applet):
                 self._clipboard.set_text(clip.text, -1)
             self._clipboard.store()
 
-    def _copy_retained_clip(self, _widget: Gtk.MenuItem, key: ClipKey) -> None:
+    def _copy_retained_clip(self, key: ClipKey) -> None:
         for clip in self._clips:
             if clip.key == key:
                 self._copy_to_clipboard(clip)
@@ -313,7 +361,9 @@ class ClippyApplet(Applet):
     def _prune_previews(self) -> None:
         retained = {clip.key for clip in self._clips}
         self._previews = {
-            key: preview for key, preview in self._previews.items() if key in retained
+            key: preview
+            for key, preview in self._previews.items()
+            if key[0] in retained
         }
 
     def _cancel_request(self, selection: _Selection) -> None:

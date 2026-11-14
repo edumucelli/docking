@@ -225,13 +225,16 @@ Shows today's date as a calendar page icon with red header (weekday) and day num
 Clipboard history for text and images, kept only for the current session. The
 default limit is 15 entries; retained images share a 32 MiB memory budget. Oldest
 entries are evicted when either limit is reached. Images are copied at their
-original size; menus show thumbnails and image dimensions. Hex color entries
-show a color swatch.
+original size; the history stack shows thumbnails and image dimensions. Hex
+color entries show a color swatch. The stack scrolls through the full retained
+history when it does not fit on screen.
 
-**Click:** Copy the currently selected clip back to the clipboard
+**Click:** Open the newest-first history stack; select an entry to copy it and
+close the stack
+**Middle-click:** Copy the currently selected clip back to the clipboard
 **Scroll:** Cycle through clipboard history (tooltip updates instantly)
-**Right-click:** Choose a clip from the newest-first history, pause or resume
-tracking, enable image capture, and change **Maximum Entries**. **Disabled**
+**Right-click:** Use the keyboard-accessible **Clipboard History** submenu,
+pause or resume tracking, enable image capture, and change **Maximum Entries**. **Disabled**
 stops retention and clears the history. Pausing preserves existing clips for
 copying. **Clear** empties history without changing the system clipboard.
 

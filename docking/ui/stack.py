@@ -128,6 +128,8 @@ class StackContent:
     entries: tuple[StackEntry, ...] = ()
     action: StackAction | None = None
     empty_label: str = _("No items")
+    entry_limit: int | None = FOLDER_STACK_MAX_VISIBLE_ROWS
+    label_max_width: int = FOLDER_STACK_LABEL_MAX_WIDTH_PX
 
 
 StackContentProvider = Callable[[int], StackContent | None]
@@ -473,7 +475,7 @@ class StackPopupController:
     @staticmethod
     def _stack_content_signature(content: StackContent) -> tuple[object, ...]:
         """Return the visible structure while excluding replaceable callbacks."""
-        entries = content.entries[:FOLDER_STACK_MAX_VISIBLE_ROWS]
+        entries = content.entries[: content.entry_limit]
         return (
             tuple(
                 (entry.key, entry.label, id(entry.icon), entry.thumbnail_style)
@@ -485,6 +487,7 @@ class StackPopupController:
                 else None
             ),
             content.empty_label,
+            content.label_max_width,
         )
 
     def _close_stack(self) -> None:
@@ -504,6 +507,9 @@ class StackPopupController:
             GLib.source_remove(self._folder_stack_anim_source)
             self._folder_stack_anim_source = 0
         on_closed = self._stack_closed
+        if self._stack_owner_id is not None:
+            self.invalidate_owner(self._stack_owner_id)
+        self._folder_stack_cards.clear()
         self._folder_stack_area = None
         self._folder_stack_popup_size = None
         self._stack_owner_id = None
@@ -829,13 +835,13 @@ class StackPopupController:
 
     def _stack_layout(self, *, owner_id: str, content: StackContent) -> StackLayout:
         icon_px = max(int(self._config.icon_size), 1)
-        entries = tuple(content.entries[:FOLDER_STACK_MAX_VISIBLE_ROWS])
-        if len(content.entries) > FOLDER_STACK_MAX_VISIBLE_ROWS:
+        entries = tuple(content.entries[: content.entry_limit])
+        if len(content.entries) > len(entries):
             log.warning(
                 "Stack %s supplied %d entries; displaying the first %d",
                 owner_id,
                 len(content.entries),
-                FOLDER_STACK_MAX_VISIBLE_ROWS,
+                len(entries),
             )
         cache_key = (
             owner_id,
@@ -851,7 +857,9 @@ class StackPopupController:
             action=content.action,
             empty_label=content.empty_label,
             icon_px=icon_px,
+            label_max_width=content.label_max_width,
         )
+        self.invalidate_owner(owner_id)
         self._folder_stack_cache.put_layout(cache_key, layout)
         return layout
 
@@ -862,6 +870,7 @@ class StackPopupController:
         action: StackAction | None,
         empty_label: str,
         icon_px: int,
+        label_max_width: int = FOLDER_STACK_LABEL_MAX_WIDTH_PX,
     ) -> StackLayout:
         """Lay out stack cards along a stable, bottom-anchored curve.
 
@@ -935,7 +944,7 @@ class StackPopupController:
         )
         fold_center_x = int(
             FOLDER_STACK_POPUP_SIDE_PADDING_PX
-            + FOLDER_STACK_LABEL_MAX_WIDTH_PX
+            + label_max_width
             + FOLDER_STACK_ICON_GAP_PX
             + icon_px / 2
         )
@@ -951,8 +960,10 @@ class StackPopupController:
 
         total_rows = len(entries)
         content_span = (total_rows - 1) * row_step
-        arc_span = (max(total_rows, FOLDER_STACK_CURVE_MIN_ROWS) - 1) * row_step
-        top_progress = content_span / arc_span if arc_span > 0 else 0.0
+        curve_rows = min(total_rows, FOLDER_STACK_MAX_VISIBLE_ROWS)
+        arc_span = (max(curve_rows, FOLDER_STACK_CURVE_MIN_ROWS) - 1) * row_step
+        progress_span = max(content_span, arc_span)
+        top_progress = content_span / progress_span if progress_span > 0 else 0.0
         stack_top = FOLDER_STACK_TOP_PADDING_PX
         max_right = fold_center_x
         if action is not None:
@@ -991,7 +1002,9 @@ class StackPopupController:
         )
         for index, entry in enumerate(entries):
             distance_from_bottom = (total_rows - 1 - index) * row_step
-            arc_progress = distance_from_bottom / arc_span if arc_span > 0 else 0.0
+            arc_progress = (
+                distance_from_bottom / progress_span if progress_span > 0 else 0.0
+            )
             icon_center_x = fold_center_x + _stack_arc_offset(
                 arc_progress,
                 arc_span,
@@ -1000,7 +1013,7 @@ class StackPopupController:
             icon_x = round(icon_center_x - icon_px / 2)
             icon_y = round(icon_center_y - icon_px / 2)
             name = entry.label
-            label_w = self._stack_label_width(label=name)
+            label_w = self._stack_label_width(label=name, max_width=label_max_width)
             label_pull = round(arc_progress * 10)
             label_x = max(
                 FOLDER_STACK_POPUP_SIDE_PADDING_PX,
@@ -1400,9 +1413,11 @@ class StackPopupController:
             + 10,
         )
 
-    def _stack_label_width(self, *, label: str) -> int:
+    def _stack_label_width(
+        self, *, label: str, max_width: int = FOLDER_STACK_LABEL_MAX_WIDTH_PX
+    ) -> int:
         return min(
-            FOLDER_STACK_LABEL_MAX_WIDTH_PX,
+            max_width,
             max(
                 24,
                 _measure_stack_text_px(label)
@@ -1440,9 +1455,9 @@ class StackPopupController:
         elapsed_ms = max((now_us - self._folder_stack_show_started_us) / 1000.0, 0.0)
         reveal_budget_ms = (
             FOLDER_STACK_REVEAL_DURATION_MS
-            + max(
-                len(self._folder_stack_cards) - 1,
-                0,
+            + min(
+                max(len(self._folder_stack_cards) - 1, 0),
+                FOLDER_STACK_MAX_VISIBLE_ROWS,
             )
             * FOLDER_STACK_REVEAL_STAGGER_MS
         )
@@ -1474,7 +1489,10 @@ class StackPopupController:
         if self._folder_stack_show_started_us <= 0:
             return 1.0
         elapsed_ms = max((now_us - self._folder_stack_show_started_us) / 1000.0, 0.0)
-        elapsed_ms -= sequence_index * FOLDER_STACK_REVEAL_STAGGER_MS
+        elapsed_ms -= (
+            min(sequence_index, FOLDER_STACK_MAX_VISIBLE_ROWS)
+            * FOLDER_STACK_REVEAL_STAGGER_MS
+        )
         if elapsed_ms <= 0:
             return 0.0
         return _ease_out_cubic(elapsed_ms / FOLDER_STACK_REVEAL_DURATION_MS)

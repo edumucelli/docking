@@ -247,7 +247,7 @@ def test_images_round_trip_without_resizing_the_original(capture):
     clipboard.finish_targets(["image/png", "UTF8_STRING"])
     clipboard.finish_image(original)
     assert applet.item.name == "Image (4 × 2)"
-    applet.on_clicked()
+    applet.stack_content(48).entries[0].activate()
     copied = clipboard.copied_images[0]
     assert (copied.get_width(), copied.get_height()) == (4, 2)
     assert copied.get_pixels() == original.get_pixels()

@@ -129,7 +129,9 @@ class TestClipMenu:
         d = ClippyApplet(48, config=Config())
         d.add_clip("old")
         d.add_clip("new")
-        items = d.get_menu_items()
+        history = d.get_menu_items()[0]
+        assert history.get_label() == "Clipboard History"
+        items = history.get_submenu().get_children()
         assert items[0].get_label() == "new"
         assert items[1].get_label() == "old"
 
@@ -259,6 +261,57 @@ class TestClipLifecycle:
 
         applet._clipboard.set_text.assert_called_once_with("hello", -1)
         applet._clipboard.store.assert_called_once()
+
+
+class TestClipStack:
+    def test_empty_history_still_opens_a_stack(self):
+        applet = ClippyApplet(48, config=Config())
+        content = applet.stack_content(48)
+        assert content.entries == ()
+        assert content.empty_label == "Clippy (empty)"
+
+    def test_stack_contains_the_full_history_newest_first(self):
+        applet = ClippyApplet(48, config=Config())
+        for index in range(15):
+            applet.add_clip(f"Clipboard fixture {index}")
+        content = applet.stack_content(48)
+        assert [entry.label for entry in content.entries] == [
+            f"Clipboard fixture {index}" for index in reversed(range(15))
+        ]
+        assert content.entry_limit is None
+        assert content.label_max_width == 320
+        assert all("Clipboard fixture" not in entry.key for entry in content.entries)
+
+    def test_equal_labels_keep_distinct_stable_actions_and_ignore_evicted_clips(self):
+        applet = ClippyApplet(48, config=Config())
+        first, second = "same prefix " * 6 + "first", "same prefix " * 6 + "second"
+        applet.add_clip(first)
+        applet.add_clip(second)
+        clipboard = applet._clipboard = MagicMock()
+        content = applet.stack_content(48)
+        assert content.entries[0].label == content.entries[1].label
+        assert content.entries[0].key != content.entries[1].key
+        content.entries[1].activate()
+        clipboard.set_text.assert_called_once_with(first, -1)
+        applet.add_clip(first)
+        assert applet.stack_content(48).entries[0].key == content.entries[1].key
+        applet._set_max_entries(1)
+        clipboard.reset_mock()
+        content.entries[0].activate()
+        clipboard.set_text.assert_not_called()
+
+    def test_previews_are_cached_at_menu_and_current_stack_sizes(self):
+        applet = ClippyApplet(48, config=Config())
+        applet.add_clip("#f00")
+        first = applet.stack_content(48).entries[0]
+        assert first.icon.get_width() == 48
+        assert applet.stack_content(48).entries[0].icon is first.icon
+        applet.get_menu_items()
+        assert {size for _, size in applet._previews} == {24, 48}
+        applet.stack_content(96)
+        assert {size for _, size in applet._previews} == {24, 96}
+        applet._clear()
+        assert applet._previews == {}
 
 
 class TestImagesAndColors:
