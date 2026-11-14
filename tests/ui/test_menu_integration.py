@@ -123,6 +123,7 @@ class FakeMenu:
         self.resize_queued = False
         self.resize_checked = False
         self.draw_queued = False
+        self.destroyed = False
         self._signals: dict[str, list[object]] = {}
 
     def append(self, item) -> None:
@@ -145,6 +146,9 @@ class FakeMenu:
     def emit(self, signal: str) -> None:
         for callback, args in self._signals.get(signal, []):
             callback(self, *args)
+
+    def destroy(self) -> None:
+        self.destroyed = True
 
     def show_all(self) -> None:
         self.shown = True
@@ -1580,6 +1584,12 @@ class TestDockMenu:
         event = SimpleNamespace(x=10.0, y=5.0)
         frame = _frame(item=None, insert_index=1)
         captured_menu = None
+        pending_destroy = []
+        monkeypatch.setattr(
+            menu_mod.GLib,
+            "idle_add",
+            lambda callback: pending_destroy.append(callback) or 1,
+        )
 
         class CaptureMenu(FakeMenu):
             def __init__(self):
@@ -1612,7 +1622,12 @@ class TestDockMenu:
         handler._runtime.menu_popup_opened.assert_called_once()
         handler._runtime.prepare_menu_popup.assert_called_once_with(captured_menu)
         captured_menu.emit("deactivate")
+        captured_menu.emit("hide")
         handler._runtime.menu_popup_closed.assert_called_once()
+        assert not captured_menu.destroyed
+        assert len(pending_destroy) == 1
+        pending_destroy[0]()
+        assert captured_menu.destroyed
 
     def test_build_dock_menu_shows_empty_add_applet_submenu_when_all_active(
         self, handler

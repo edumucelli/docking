@@ -222,11 +222,24 @@ Shows today's date as a calendar page icon with red header (weekday) and day num
 
 ### Clippy
 
-Clipboard history manager. Monitors the system clipboard and stores the last 15 text entries.
+Clipboard history for text and images, kept only for the current session. The
+default limit is 15 entries; retained images share a 32 MiB memory budget. Oldest
+entries are evicted when either limit is reached. Images are copied at their
+original size; menus show thumbnails and image dimensions. Hex color entries
+show a color swatch.
 
 **Click:** Copy the currently selected clip back to the clipboard
 **Scroll:** Cycle through clipboard history (tooltip updates instantly)
-**Right-click:** List of all clips (newest first), click to copy. "Clear" to empty history.
+**Right-click:** Choose a clip from the newest-first history, pause or resume
+tracking, enable image capture, and change **Maximum Entries**. **Disabled**
+stops retention and clears the history. Pausing preserves existing clips for
+copying. **Clear** empties history without changing the system clipboard.
+
+**Track Mouse Selections** optionally captures X11 PRIMARY selections and is
+disabled on other backends. Clipboard access on native Wayland and Windows
+depends on GTK and the desktop session. Capture is asynchronous and skips
+selections advertising the password-manager sensitive-content hint. Neither
+clipboard contents nor image data are saved to disk.
 
 ### Clock
 

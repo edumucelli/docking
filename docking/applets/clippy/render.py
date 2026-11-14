@@ -22,7 +22,50 @@ import gi
 
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from gi.repository import Gdk, GdkPixbuf
+from gi.repository import Gdk, GdkPixbuf, GLib
+
+from docking.applets.clippy.state import Clip, parse_hex_color
+
+
+def clip_pixbuf(clip: Clip) -> GdkPixbuf.Pixbuf:
+    """Rebuild the original image from owned, tightly packed RGB pixels."""
+    return GdkPixbuf.Pixbuf.new_from_bytes(
+        GLib.Bytes.new(clip.pixels),
+        GdkPixbuf.Colorspace.RGB,
+        clip.alpha,
+        8,
+        clip.width,
+        clip.height,
+        clip.width * (4 if clip.alpha else 3),
+    )
+
+
+def clip_preview(clip: Clip, size: int = 24) -> GdkPixbuf.Pixbuf | None:
+    if clip.pixels:
+        scale = size / max(clip.width, clip.height)
+        return clip_pixbuf(clip).scale_simple(
+            max(1, int(clip.width * scale)),
+            max(1, int(clip.height * scale)),
+            GdkPixbuf.InterpType.BILINEAR,
+        )
+    color = parse_hex_color(clip.text)
+    if color is None:
+        return None
+    surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
+    cr = cairo.Context(surface)
+    for y in range(0, size, 4):
+        for x in range(0, size, 4):
+            shade = 0.75 if (x + y) % 8 else 1.0
+            cr.set_source_rgb(shade, shade, shade)
+            cr.rectangle(x, y, 4, 4)
+            cr.fill()
+    cr.set_source_rgba(*color)
+    cr.paint()
+    cr.set_source_rgba(0, 0, 0, 0.5)
+    cr.set_line_width(1)
+    cr.rectangle(0.5, 0.5, size - 1, size - 1)
+    cr.stroke()
+    return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
 
 
 def _draw_scissors(*, cr: cairo.Context, size: int) -> None:

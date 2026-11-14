@@ -343,6 +343,7 @@ class MenuHandler:
         self._folder_menu_context: dict[int, tuple[Gtk.Menu, DockItem, str, bool]] = {}
         self._folder_menu_refresh_sources: dict[int, int] = {}
         self._folder_menu_signal_connected: set[int] = set()
+        self._open_menus: set[Gtk.Menu] = set()
 
     def show(
         self,
@@ -378,14 +379,20 @@ class MenuHandler:
 
     def _new_popup_menu(self) -> Gtk.Menu:
         menu = Gtk.Menu()
+        self._open_menus.add(menu)
         self._runtime.menu_popup_opened()
         menu.connect("hide", self._on_menu_popup_closed)
         menu.connect("deactivate", self._on_menu_popup_closed)
         return menu
 
     def _on_menu_popup_closed(self, menu: Gtk.Menu) -> None:
+        if menu not in self._open_menus:
+            return
+        self._open_menus.remove(menu)
         self._cleanup_folder_menu_tree(menu)
         self._runtime.menu_popup_closed()
+        # GTK can hide a menu before dispatching its selected item's action.
+        GLib.idle_add(menu.destroy)
 
     @staticmethod
     def _applet_icon_source_options(applet: Applet) -> tuple[IconSource, ...]:
