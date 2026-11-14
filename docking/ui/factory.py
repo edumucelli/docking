@@ -226,6 +226,7 @@ def build_dock_window(
         menu=menu,
         folder_stack=folder_stack,
     )
+    window.tooltip.set_stack_owner_provider(interactions.open_stack_owner_id)
     input_controller = DockInputController(
         window=window,
         interactions=interactions,

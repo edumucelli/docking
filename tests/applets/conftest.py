@@ -64,6 +64,12 @@ class _FakeMenuItem:
     def add(self, child) -> None:
         self._child = child
 
+    def get_child(self):
+        return self._child
+
+    def remove(self, _child) -> None:
+        self._child = None
+
 
 class _FakeCheckMenuItem(_FakeMenuItem):
     def __init__(self, label: str = "") -> None:

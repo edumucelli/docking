@@ -163,6 +163,7 @@ from __future__ import annotations
 
 import datetime as dt
 import math
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import gi
@@ -339,6 +340,17 @@ class TooltipManager:
         self._last_item: DockItem | None = None
         self._last_name: str = ""
         self._pending_show_source: int = 0
+        self._stack_owner_provider: Callable[[], str | None] | None = None
+
+    def set_stack_owner_provider(self, provider: Callable[[], str | None]) -> None:
+        """Connect shared-stack visibility after the UI graph is assembled."""
+        self._stack_owner_provider = provider
+
+    def _stack_popup_visible(self) -> bool:
+        return (
+            self._stack_owner_provider is not None
+            and self._stack_owner_provider() is not None
+        )
 
     def set_theme(self, theme: Theme) -> None:
         """Update the theme used for tooltip spacing."""
@@ -355,7 +367,7 @@ class TooltipManager:
         tooltip visible to avoid flicker. The dock's _on_leave hides it
         when the mouse actually exits the dock.
         """
-        if not self._config.tooltips_enabled:
+        if not self._config.tooltips_enabled or self._stack_popup_visible():
             self.hide()
             return
 
@@ -434,6 +446,9 @@ class TooltipManager:
 
         def run() -> bool:
             self._pending_show_source = 0
+            if self._stack_popup_visible():
+                self.hide()
+                return False
             self._last_item = item
             self._last_name = text
             self._show_tooltip(

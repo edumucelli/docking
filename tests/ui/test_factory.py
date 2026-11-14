@@ -297,6 +297,9 @@ class TestBuildDockWindow:
             menu=components.menu,
             folder_stack=components.folder_stack,
         )
+        window.tooltip.set_stack_owner_provider.assert_called_once_with(
+            components.interactions.open_stack_owner_id
+        )
         factory_mod.DockInputController.assert_called_once_with(
             window=window,
             interactions=components.interactions,

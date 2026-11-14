@@ -1,6 +1,5 @@
 """Tests for the Clippy clipboard history applet."""
 
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,9 +9,12 @@ from docking.applets.clippy.applet import ClippyApplet
 from docking.applets.clippy.state import (
     DEFAULT_MAX_ENTRIES,
     MAX_MAX_ENTRIES,
+    Clip,
     _truncate,
     add_clip,
     normalize_max_entries,
+    parse_hex_color,
+    trim_clips,
 )
 from docking.core.config import Config
 
@@ -40,31 +42,30 @@ class TestClipHistory:
             48, config=Config(applet_prefs={"clippy": {"max_entries": cap}})
         )
         clipboard = MagicMock()
-        clipboard.wait_for_text.side_effect = ["private text", ""]
         applet._clipboard = clipboard
 
-        applet._on_owner_change(clipboard, None)
-        applet._on_owner_change(clipboard, None)
+        applet.add_clip("private text")
+        applet.add_clip("")
         applet.on_clicked()
 
         assert applet._clips == []
         assert applet._cur_position == 0
         assert "empty" in applet.item.name.lower()
-        assert applet.get_menu_items() == []
+        assert len(applet.get_menu_items()) == 4
         clipboard.set_text.assert_not_called()
 
     def test_add_clip(self):
         d = ClippyApplet(48, config=Config())
         d.add_clip("first")
         d.add_clip("second")
-        assert d._clips == ["first", "second"]
+        assert d._clips == [Clip(text="first"), Clip(text="second")]
 
     def test_dedup_moves_to_end(self):
         d = ClippyApplet(48, config=Config())
         d.add_clip("a")
         d.add_clip("b")
         d.add_clip("a")
-        assert d._clips == ["b", "a"]
+        assert d._clips == [Clip(text="b"), Clip(text="a")]
 
     def test_cap_at_max_entries(self):
         d = ClippyApplet(48, config=Config())
@@ -72,7 +73,7 @@ class TestClipHistory:
         for i in range(5):
             d.add_clip(str(i))
         assert len(d._clips) == 3
-        assert d._clips == ["2", "3", "4"]
+        assert d._clips == [Clip(text="2"), Clip(text="3"), Clip(text="4")]
 
     def test_position_tracks_newest(self):
         d = ClippyApplet(48, config=Config())
@@ -115,50 +116,22 @@ class TestClipScroll:
 
 
 class TestClipMenu:
-    def _fake_gtk(self, monkeypatch):
-        class _FakeMenuItem:
-            def __init__(self, label: str = "") -> None:
-                self._label = label
-                self._signals: dict[str, list[object]] = {}
-                self._sensitive = True
-
-            def get_label(self) -> str:
-                return self._label
-
-            def connect(self, signal: str, callback) -> None:
-                self._signals.setdefault(signal, []).append(callback)
-
-            def set_sensitive(self, value: bool) -> None:
-                self._sensitive = value
-
-            def get_sensitive(self) -> bool:
-                return self._sensitive
-
-        class _FakeSeparatorMenuItem(_FakeMenuItem):
-            def __init__(self) -> None:
-                super().__init__(label="")
-
-        monkeypatch.setattr(
-            clippy_mod,
-            "Gtk",
-            SimpleNamespace(
-                MenuItem=_FakeMenuItem,
-                SeparatorMenuItem=_FakeSeparatorMenuItem,
-            ),
-        )
-
-    def test_empty_returns_empty(self):
+    def test_empty_still_offers_tracking_controls(self):
         d = ClippyApplet(48, config=Config())
-        assert d.get_menu_items() == []
+        assert [item.get_label() for item in d.get_menu_items()] == [
+            "Enable Clipboard Tracking",
+            "Track Mouse Selections",
+            "Track Images",
+            "Maximum Entries",
+        ]
 
-    def test_returns_clips_newest_first(self, monkeypatch):
-        self._fake_gtk(monkeypatch)
+    def test_returns_clips_newest_first(self):
         d = ClippyApplet(48, config=Config())
         d.add_clip("old")
         d.add_clip("new")
-        items = d.get_menu_items()
-        # 2 clips + separator + clear = 4 items
-        assert len(items) == 4
+        history = d.get_menu_items()[0]
+        assert history.get_label() == "Clipboard History"
+        items = history.get_submenu().get_children()
         assert items[0].get_label() == "new"
         assert items[1].get_label() == "old"
 
@@ -245,15 +218,15 @@ class TestClipLifecycle:
         applet.add_clip("first")
         applet.add_clip("second")
 
-        assert applet._clips == ["second"]
+        assert applet._clips == [Clip(text="second")]
 
     def test_add_clip_tolerates_a_zero_cap(self):
         """The pop loop must stop at the empty list whatever the cap is."""
-        assert add_clip(clips=[], text="hi", max_entries=-5) == ([], 0)
+        assert add_clip(clips=[], clip=Clip(text="hi"), max_entries=-5) == ([], 0)
 
     def test_on_clicked_copies_current_clip_when_available(self):
         applet = ClippyApplet(48, config=Config())
-        applet._clips = ["a", "b"]
+        applet._clips = [Clip(text="a"), Clip(text="b")]
         applet._cur_position = 2
         applet._clipboard = MagicMock()
 
@@ -270,32 +243,210 @@ class TestClipLifecycle:
             clippy_mod.Gtk.Clipboard, "get", lambda *_a, **_k: clipboard
         )
 
+        monkeypatch.setattr(clippy_mod.Gdk.Display, "get_default", lambda: None)
         applet.start(lambda: None)
         assert applet._clipboard is clipboard
-        assert applet._handler_id == 99
+        assert applet._selections[0].handler_id == 99
 
         applet.stop()
         clipboard.disconnect.assert_called_once_with(99)
         assert applet._clipboard is None
-        assert applet._handler_id == 0
-
-    def test_owner_change_adds_clip_and_refreshes(self):
-        applet = ClippyApplet(48, config=Config())
-        clipboard = MagicMock()
-        clipboard.wait_for_text.return_value = "new text"
-        applet.add_clip = MagicMock()
-        applet.present = MagicMock()
-
-        applet._on_owner_change(clipboard, None)
-
-        applet.add_clip.assert_called_once_with(text="new text")
-        applet.present.assert_called_once()
+        assert applet._selections == []
 
     def test_copy_to_clipboard_helper_uses_clipboard(self):
         applet = ClippyApplet(48, config=Config())
         applet._clipboard = MagicMock()
 
-        applet._copy_to_clipboard("hello")
+        applet._copy_to_clipboard(Clip(text="hello"))
 
         applet._clipboard.set_text.assert_called_once_with("hello", -1)
         applet._clipboard.store.assert_called_once()
+
+
+class TestClipStack:
+    def test_empty_history_does_not_offer_a_stack(self):
+        applet = ClippyApplet(48, config=Config())
+        assert applet.stack_content(48) is None
+
+    def test_stack_contains_the_full_history_newest_first(self):
+        applet = ClippyApplet(48, config=Config())
+        for index in range(15):
+            applet.add_clip(f"Clipboard fixture {index}")
+        content = applet.stack_content(48)
+        assert [entry.label for entry in content.entries] == [
+            f"Clipboard fixture {index}" for index in reversed(range(15))
+        ]
+        assert content.entry_limit is None
+        assert content.label_max_width == 320
+        assert all("Clipboard fixture" not in entry.key for entry in content.entries)
+
+    def test_equal_labels_keep_distinct_stable_actions_and_ignore_evicted_clips(self):
+        applet = ClippyApplet(48, config=Config())
+        first, second = "same prefix " * 6 + "first", "same prefix " * 6 + "second"
+        applet.add_clip(first)
+        applet.add_clip(second)
+        clipboard = applet._clipboard = MagicMock()
+        content = applet.stack_content(48)
+        assert content.entries[0].label == content.entries[1].label
+        assert content.entries[0].key != content.entries[1].key
+        content.entries[1].activate()
+        clipboard.set_text.assert_called_once_with(first, -1)
+        applet.add_clip(first)
+        assert applet.stack_content(48).entries[0].key == content.entries[1].key
+        applet._set_max_entries(1)
+        clipboard.reset_mock()
+        content.entries[0].activate()
+        clipboard.set_text.assert_not_called()
+
+    def test_previews_are_cached_at_menu_and_current_stack_sizes(self):
+        applet = ClippyApplet(48, config=Config())
+        applet.add_clip("#f00")
+        first = applet.stack_content(48).entries[0]
+        assert first.icon.get_width() == 48
+        assert applet.stack_content(48).entries[0].icon is first.icon
+        applet._preview(applet._clips[0], 24)
+        assert {size for _, size in applet._previews} == {24, 48}
+        applet.stack_content(96)
+        assert {size for _, size in applet._previews} == {24, 96}
+        applet._clear()
+        assert applet._previews == {}
+
+    def test_matching_filenames_keep_their_original_paths_when_copied(self):
+        applet = ClippyApplet(48, config=Config())
+        first, second = "file:///folder-a/report.txt", "file:///folder-b/report.txt"
+        applet.add_clip(first)
+        applet.add_clip(second)
+        applet._clipboard = MagicMock()
+        content = applet.stack_content(48)
+        assert [entry.label for entry in content.entries] == [
+            "report.txt",
+            "report.txt",
+        ]
+        assert content.entries[0].key != content.entries[1].key
+        content.entries[1].activate()
+        applet._clipboard.set_text.assert_called_once_with(first, -1)
+
+
+@pytest.mark.parametrize(
+    "text,label",
+    [
+        ("file:///tmp/Folder/report%20final.pdf", "report final.pdf"),
+        ("FILE:///C:/Folder/report.txt", "report.txt"),
+        ("file://server/share/report.txt", "report.txt"),
+        ("/tmp/Folder/report.pdf", "report.pdf"),
+        ('"/tmp/Folder/report final.pdf"', "report final.pdf"),
+        (r"C:\Folder\report.pdf", "report.pdf"),
+        (r'"C:\Folder\report final.pdf"', "report final.pdf"),
+        (r"\\server\share\report.pdf", "report.pdf"),
+        ("file:///tmp/r%C3%A9sum%C3%A9.pdf", "résumé.pdf"),
+        ("file:///tmp/first.txt\nfile:///tmp/second.pdf", "first.txt, second.pdf"),
+        ("/tmp/Folder/", "Folder"),
+        ("/", "/"),
+        ("file:///", "file:///"),
+        ("file://[broken/report.txt", "file://[broken/report.txt"),
+        ("file:///tmp/invalid%00.txt", "file:///tmp/invalid%00.txt"),
+        ("https://example.com/report.txt", "https://example.com/report.txt"),
+        ("ordinary clipboard text", "ordinary clipboard text"),
+        ("/tmp/report.txt\nordinary text", "/tmp/report.txt ordinary text"),
+    ],
+)
+def test_file_labels_show_only_names_and_other_text_keeps_its_preview(text, label):
+    assert Clip(text=text).label == label
+
+
+class TestImagesAndColors:
+    def test_row_padding_does_not_affect_image_identity(self):
+        padded = Clip.from_image(
+            pixels=b"abcXdef", width=1, height=2, rowstride=4, alpha=False
+        )
+        packed = Clip.from_image(
+            pixels=b"abcdef", width=1, height=2, rowstride=3, alpha=False
+        )
+        assert padded == packed
+        assert padded.pixels == b"abcdef"
+        assert add_clip([padded], packed, 15) == ([packed], 1)
+
+    def test_equal_pixels_with_different_geometry_remain_distinct(self):
+        wide = Clip.from_image(
+            pixels=b"abcdef", width=2, height=1, rowstride=6, alpha=False
+        )
+        tall = Clip.from_image(
+            pixels=b"abcdef", width=1, height=2, rowstride=3, alpha=False
+        )
+        assert add_clip([wide], tall, 15) == ([wide, tall], 2)
+
+    def test_cumulative_image_memory_evicts_oldest_entries(self, monkeypatch):
+        from docking.applets.clippy import state
+
+        first = Clip.from_image(
+            pixels=b"abc", width=1, height=1, rowstride=3, alpha=False
+        )
+        second = Clip.from_image(
+            pixels=b"def", width=1, height=1, rowstride=3, alpha=False
+        )
+        monkeypatch.setattr(state, "MAX_IMAGE_BYTES", 4)
+        assert trim_clips([first, Clip(text="keep text"), second], 15) == [
+            Clip(text="keep text"),
+            second,
+        ]
+
+    @pytest.mark.parametrize(
+        "changes",
+        [
+            {"width": 0},
+            {"height": 0},
+            {"height": 32769},
+            {"rowstride": 1},
+            {"pixels": b"ab"},
+        ],
+    )
+    def test_invalid_image_data_is_rejected(self, changes):
+        data = {
+            "pixels": b"abc",
+            "width": 1,
+            "height": 1,
+            "rowstride": 3,
+            "alpha": False,
+        }
+        data.update(changes)
+        with pytest.raises(ValueError, match="Invalid clipboard image"):
+            Clip.from_image(**data)
+
+    @pytest.mark.parametrize("color", ["#f00", "#f00f", "#ff0000", " #FF0000FF "])
+    def test_hex_color_lengths_and_whitespace(self, color):
+        assert parse_hex_color(color) == (1, 0, 0, 1)
+
+    @pytest.mark.parametrize(
+        "color", ["red", "#12345", "#1234567", "#ggg", "x#fff", "#fff\ntext"]
+    )
+    def test_invalid_hex_color_is_not_a_swatch(self, color):
+        assert parse_hex_color(color) is None
+
+    def test_alpha_is_preserved(self):
+        assert parse_hex_color("#f008") == (1, 0, 0, 136 / 255)
+
+    @pytest.mark.parametrize(
+        "width,height,expected", [(1, 500, (1, 24)), (500, 1, (24, 1))]
+    )
+    def test_thumbnails_keep_nonzero_dimensions(self, width, height, expected):
+        from docking.applets.clippy.render import clip_preview
+
+        clip = Clip.from_image(
+            pixels=b"a" * (width * height * 3),
+            width=width,
+            height=height,
+            rowstride=width * 3,
+            alpha=False,
+        )
+        preview = clip_preview(clip)
+        assert preview is not None
+        assert (preview.get_width(), preview.get_height()) == expected
+
+    def test_swatches_render_without_a_display(self):
+        from docking.applets.clippy.render import clip_preview
+
+        preview = clip_preview(Clip(text="#ff0000"))
+        assert preview is not None
+        pixels = preview.get_pixels()
+        center = 12 * preview.get_rowstride() + 12 * preview.get_n_channels()
+        assert pixels[center : center + 3] == b"\xff\x00\x00"

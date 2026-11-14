@@ -105,6 +105,40 @@ def test_thumbnail_style_invalidates_cached_layout_and_refresh_signature():
     assert controller._stack_layout(owner_id="recentfiles", content=styled) is second
 
 
+def test_long_history_is_scrollable_without_an_unbounded_fan_or_reveal_delay():
+    controller = _controller()
+    content = StackContent(
+        entries=tuple(
+            _entry(f"clip-{index}", "Text excerpt " * 5) for index in range(500)
+        ),
+        entry_limit=None,
+        label_max_width=320,
+    )
+    layout = controller._stack_layout(owner_id="clippy", content=content)
+    assert len(layout.cards) == 500
+    assert layout.cards[0].target == "clip-0"
+    assert layout.cards[-1].target == "clip-499"
+    assert all(148 < card.label_w <= 320 for card in layout.cards)
+    assert layout.popup_w < 600
+    assert layout.popup_h > 500 * 48
+    controller._folder_stack_show_started_us = 1_000_000
+    assert controller._stack_reveal_progress(sequence_index=499, now_us=1_500_000) == 1
+
+
+def test_wider_labels_invalidate_layout_and_discard_the_old_snapshot():
+    controller = _controller()
+    original = StackContent(entries=(_entry("text", "Long text excerpt " * 4),))
+    narrow = controller._stack_layout(owner_id="clippy", content=original)
+    wider = replace(original, label_max_width=320)
+    wide = controller._stack_layout(owner_id="clippy", content=wider)
+    assert narrow.cards[0].label_w == 148
+    assert wide.cards[0].label_w == 320
+    assert controller._stack_content_signature(original) != (
+        controller._stack_content_signature(wider)
+    )
+    assert len(controller._folder_stack_cache.layouts) == 1
+
+
 def test_documented_curve_samples_for_48px_icons():
     controller = _controller()
     samples: dict[int, list[tuple[int, float]]] = {}
@@ -414,6 +448,11 @@ def test_close_hides_notifies_and_reports_closure_once():
     on_closed = MagicMock()
     controller._stack_closed = on_closed
     window = controller._folder_stack_window
+    layout = controller._stack_layout(
+        owner_id=controller._stack_owner_id,
+        content=StackContent(entries=(_entry("private-history"),)),
+    )
+    controller._folder_stack_cards = list(layout.cards)
 
     controller.close()
     controller.close()
@@ -425,6 +464,8 @@ def test_close_hides_notifies_and_reports_closure_once():
     assert controller._stack_owner_id is None
     assert controller._stack_provider is None
     assert controller._stack_content is None
+    assert controller._folder_stack_cards == []
+    assert controller._folder_stack_cache.layouts == {}
 
 
 def test_cleanup_stops_the_running_animation(monkeypatch):
