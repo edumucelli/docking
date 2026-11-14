@@ -8,6 +8,8 @@ from collections.abc import Callable
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.ui.tooltip as tooltip_mod
 from docking.core.layout import LayoutItem
 from docking.core.position import Position
@@ -1153,3 +1155,53 @@ def test_open_applet_popup_suppresses_and_cancels_its_tooltip(monkeypatch):
     applet.popup_visible = False
     tooltip.update(item, frame)
     assert len(scheduled) == 1
+
+
+@pytest.mark.parametrize("hovered", [False, True])
+def test_shared_stack_hides_and_cancels_tooltips_until_closed(monkeypatch, hovered):
+    tooltip = _make_tooltip()
+    owner = MagicMock(return_value="applet://clippy")
+    tooltip.set_stack_owner_provider(owner)
+    item = _make_item("report.txt")
+    item.desktop_id = "applet://clippy"
+    frame = _frame_for_item(item, anchor_x=20.0, anchor_y=10.0)
+    tooltip._tooltip_window = MagicMock()
+    tooltip._pending_show_source = 77
+    removed, scheduled = [], []
+    monkeypatch.setattr(tooltip_mod.GLib, "source_remove", removed.append)
+    monkeypatch.setattr(
+        tooltip_mod.GLib, "idle_add", lambda callback: scheduled.append(callback) or 78
+    )
+
+    tooltip.update(item if hovered else None, frame)
+
+    assert removed == [77]
+    assert scheduled == []
+    tooltip._tooltip_window.hide.assert_called_once()
+    owner.return_value = None
+    tooltip.update(item, frame)
+    assert len(scheduled) == 1
+
+
+def test_queued_tooltip_cannot_reappear_after_a_stack_opens(monkeypatch):
+    tooltip = _make_tooltip()
+    owner = MagicMock(return_value=None)
+    tooltip.set_stack_owner_provider(owner)
+    item = _make_item("report.txt")
+    item.desktop_id = "applet://clippy"
+    frame = _frame_for_item(item, anchor_x=20.0, anchor_y=10.0)
+    scheduled = []
+    monkeypatch.setattr(
+        tooltip_mod.GLib, "idle_add", lambda callback: scheduled.append(callback) or 78
+    )
+    show = MagicMock()
+    monkeypatch.setattr(tooltip, "_show_tooltip", show)
+    tooltip.update(item, frame)
+    assert len(scheduled) == 1
+
+    owner.return_value = "applet://clippy"
+    assert scheduled[0]() is False
+
+    show.assert_not_called()
+    assert tooltip._pending_show_source == 0
+    assert tooltip._last_item is None

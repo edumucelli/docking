@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-11-14 23:01+0100\n"
+"POT-Creation-Date: 2026-11-14 23:15+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1476,29 +1476,29 @@ msgstr ""
 msgid "Copy Last URL"
 msgstr ""
 
-#: docking/applets/freshness.py:29 docking/ui/tooltip.py:221
+#: docking/applets/freshness.py:29 docking/ui/tooltip.py:222
 msgid "1 hour"
 msgstr ""
 
-#: docking/applets/freshness.py:29 docking/ui/tooltip.py:221
+#: docking/applets/freshness.py:29 docking/ui/tooltip.py:222
 #, python-brace-format
 msgid "{count} hours"
 msgstr ""
 
-#: docking/applets/freshness.py:33 docking/ui/tooltip.py:215
+#: docking/applets/freshness.py:33 docking/ui/tooltip.py:216
 msgid "1 minute"
 msgstr ""
 
-#: docking/applets/freshness.py:35 docking/ui/tooltip.py:217
+#: docking/applets/freshness.py:35 docking/ui/tooltip.py:218
 #, python-brace-format
 msgid "{count} minutes"
 msgstr ""
 
-#: docking/applets/freshness.py:37 docking/ui/tooltip.py:208
+#: docking/applets/freshness.py:37 docking/ui/tooltip.py:209
 msgid "1 second"
 msgstr ""
 
-#: docking/applets/freshness.py:37 docking/ui/tooltip.py:210
+#: docking/applets/freshness.py:37 docking/ui/tooltip.py:211
 #, python-brace-format
 msgid "{count} seconds"
 msgstr ""
@@ -6056,20 +6056,20 @@ msgstr ""
 msgid "Next Tip"
 msgstr ""
 
-#: docking/ui/tooltip.py:223
+#: docking/ui/tooltip.py:224
 msgid "1 day"
 msgstr ""
 
-#: docking/ui/tooltip.py:223
+#: docking/ui/tooltip.py:224
 #, python-brace-format
 msgid "{count} days"
 msgstr ""
 
-#: docking/ui/tooltip.py:241
+#: docking/ui/tooltip.py:242
 msgid "just now"
 msgstr ""
 
-#: docking/ui/tooltip.py:242
+#: docking/ui/tooltip.py:243
 #, python-brace-format
 msgid "{age} ago"
 msgstr ""

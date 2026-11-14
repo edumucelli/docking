@@ -24,6 +24,7 @@ from docking.core.config import Config
 from docking.core.position import Position
 from docking.ui.menu import MenuHandler
 from docking.ui.stack import StackPopupController
+from docking.ui.tooltip import TooltipManager
 
 
 def wait_until(predicate):
@@ -148,15 +149,30 @@ def test_native_history_stack_scrolls_to_oldest_and_copies_before_closing(
         hide_hover_ui=MagicMock(),
     )
     stack = StackPopupController(config=config, runtime=runtime, dock_window=parent)
+    tooltip = TooltipManager(
+        parent, config, MagicMock(), SimpleNamespace(launch_bounce_height=0.0)
+    )
+    tooltip.set_stack_owner_provider(stack.open_owner_id)
     anchor = PopupAnchor(x=640, y=700, position=Position.BOTTOM, parent=parent)
     try:
         clipboard.set_text("Original clipboard fixture", -1)
+        tooltip._show_tooltip(
+            text="report-0.txt",
+            pos=Position.BOTTOM,
+            anchor_x=640,
+            anchor_y=700,
+            widget=None,
+            content_changed=True,
+        )
+        assert tooltip._tooltip_window.get_visible()
         assert stack.show_stack(
             owner_id="applet://clippy",
             provider=applet.stack_content,
             anchor=anchor,
         )
         wait_until(lambda: stack._folder_stack_window.get_mapped())
+        tooltip.update(applet.item)
+        assert not tooltip._tooltip_window.get_visible()
         assert len(stack._folder_stack_cards) == count
         before = []
         clipboard.request_text(lambda _clipboard, text: before.append(text))
@@ -197,6 +213,9 @@ def test_native_history_stack_scrolls_to_oldest_and_copies_before_closing(
         assert not stack._folder_stack_window.get_visible()
         assert runtime.menu_popup_closed.call_count == 2
     finally:
+        tooltip.hide()
+        if tooltip._tooltip_window is not None:
+            tooltip._tooltip_window.destroy()
         stack.close()
         if stack._folder_stack_window is not None:
             stack._folder_stack_window.destroy()
