@@ -46,12 +46,15 @@ class Clipboard:
     def request_text(self, callback, data):
         self.texts.append((callback, data))
 
-    def finish_targets(self, names):
+    def finish_targets(self, names, *, include_count=True):
         callback, data = self.targets.pop(0)
         targets = (
             None if names is None else [Gdk.Atom.intern(name, False) for name in names]
         )
-        callback(self, targets, len(targets) if targets is not None else 0, data)
+        if include_count:
+            callback(self, targets, len(targets) if targets is not None else 0, data)
+        else:
+            callback(self, targets, data)
 
     def finish_text(self, value):
         callback, data = self.texts.pop(0)
@@ -132,7 +135,8 @@ def image(width=4, height=2):
     return pixbuf
 
 
-def test_debounces_owner_changes_and_reads_text_asynchronously(capture):
+@pytest.mark.parametrize("include_count", [False, True])
+def test_debounces_owner_changes_and_reads_text_asynchronously(capture, include_count):
     applet, clipboard, _, clock = capture
     clipboard.changed()
     clipboard.changed()
@@ -140,7 +144,7 @@ def test_debounces_owner_changes_and_reads_text_asynchronously(capture):
     assert clock.delays == [500, 500]
     assert not clipboard.targets
     clock.run()
-    clipboard.finish_targets(["UTF8_STRING"])
+    clipboard.finish_targets(["UTF8_STRING"], include_count=include_count)
     assert not applet._clips
     clipboard.finish_text("latest text")
     assert applet._clips == [Clip(text="latest text")]

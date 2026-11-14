@@ -282,9 +282,13 @@ class ClippyApplet(Applet):
         self,
         clipboard: Gtk.Clipboard,
         targets: Sequence[Gdk.Atom] | None,
-        _count: int,
-        request: tuple[_Selection, int],
+        count_or_request: int | tuple[_Selection, int],
+        request: tuple[_Selection, int] | None = None,
     ) -> None:
+        # GI annotations can hide the array length or expose it to Python.
+        if request is None:
+            assert isinstance(count_or_request, tuple)
+            request = count_or_request
         if not self._eligible(*request) or not targets:
             return
         if any(target.name() == PASSWORD_MANAGER_HINT for target in targets):
