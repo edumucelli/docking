@@ -25,6 +25,7 @@ import assert from 'node:assert/strict';
 import https from 'node:https';
 import * as namespace from 'node:https';
 
+delete process.env.INPUT_TOKEN;
 const calls = [];
 const request = {};
 https.get = (...args) => { calls.push(args); return request; };
@@ -36,6 +37,7 @@ assert.equal(namespace.get(pinned, callback), request);
 assert.equal(calls[0][0], 'https://api.github.com/repos/anyvm-org/anyvm/releases/assets/589232152');
 assert.equal(calls[0][1].headers.Accept, 'application/octet-stream');
 assert.equal(calls[0][1].headers['User-Agent'], 'docking-bsd-ci');
+assert.equal(calls[0][1].headers.Authorization, undefined);
 assert.equal(calls[0][2], callback);
 
 const options = { timeout: 1000, headers: { 'X-Test': 'preserved' } };
@@ -52,10 +54,19 @@ for (const [version, id] of [['0.7.4', 658797422], ['0.7.5', 662367953]]) {
   assert.equal(calls.at(-1)[2], callback);
 }
 
+process.env.INPUT_TOKEN = 'fixture-token';
+namespace.get(pinned, callback);
+assert.equal(calls.at(-1)[1].headers.Authorization, 'Bearer fixture-token');
+const explicit = { headers: { Authorization: 'Bearer explicit-fixture' } };
+namespace.get(pinned, explicit, callback);
+assert.equal(calls.at(-1)[1].headers.Authorization, 'Bearer explicit-fixture');
+assert.deepEqual(explicit, { headers: { Authorization: 'Bearer explicit-fixture' } });
+
 // Leave other versions, VM images, and normal HTTPS traffic untouched.
 for (const url of [
   'https://github.com/anyvm-org/anyvm/releases/download/v0.7.6/anyvm.py',
   'https://api.github.com/repos/anyvm-org/freebsd-builder/releases',
+  'https://example.com/redirected-asset',
 ]) {
   namespace.get(url, options, callback);
   assert.deepEqual(calls.at(-1), [url, options, callback]);

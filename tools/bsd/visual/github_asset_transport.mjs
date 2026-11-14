@@ -26,11 +26,14 @@ https.get = (url, ...args) => {
   }
   const [options = {}, callback] =
     typeof args[0] === "function" ? [{}, args[0]] : args;
+  const token = process.env.INPUT_TOKEN;
   return originalGet(
     assetUrl,
     {
       ...options,
       headers: {
+        // Reuse the action's token to avoid shared runner-IP rate limits.
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
         Accept: "application/octet-stream",
         "User-Agent": "docking-bsd-ci",
