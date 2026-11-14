@@ -441,6 +441,9 @@ class _FakePopupMenu:
     def popup_at_pointer(self, event) -> None:
         self.popup_event = event
 
+    def destroy(self) -> None:
+        self.shown = False
+
 
 class TestMenuLifecycleScenarios:
     def test_background_menu_open_and_hide_follow_real_popup_lifecycle(
