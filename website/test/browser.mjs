@@ -121,7 +121,9 @@ test("compiled styles preserve the custom theme and keyboard focus", async (t) =
   assert.equal(await page.locator(".animate-marquee").evaluate((el) => getComputedStyle(el).animationName), "marquee");
   assert.equal(await page.locator(".animate-marquee").evaluate((el) => getComputedStyle(el).animationDuration), "24s");
   assert.notEqual(await page.locator(".shadow-soft").first().evaluate((el) => getComputedStyle(el).boxShadow), "none");
-  assert.notEqual(await page.locator(".bg-gradient-to-r").first().evaluate((el) => getComputedStyle(el).backgroundImage), "none");
+  assert.notEqual(await page.locator('[class~="bg-linear-to-r/srgb"]').first().evaluate((el) => getComputedStyle(el).backgroundImage), "none");
+  assert.equal(await page.locator("[data-applet-card]").first().evaluate((el) => getComputedStyle(el).borderColor), "rgb(229, 231, 235)");
+  assert.equal(await page.locator("[data-applet-card]").first().evaluate((el) => getComputedStyle(el).backgroundImage), "none");
   await page.locator("#applet-search").focus();
   assert.equal(await page.locator("#applet-search").evaluate((el) => getComputedStyle(el).outlineWidth), "2px");
 });

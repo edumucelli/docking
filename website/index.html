@@ -174,7 +174,7 @@
       <div class="mx-auto flex max-w-6xl justify-center">
         <div class="relative hidden md:block">
           <div class="relative rounded-2xl border border-white/[0.08] bg-white/[0.05] px-4 py-1.5 shadow-[0_4px_20px_rgba(0,0,0,0.18)] backdrop-blur-lg">
-            <div class="pointer-events-none absolute inset-x-6 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/[0.1] to-transparent"></div>
+            <div class="pointer-events-none absolute inset-x-6 top-0 h-[1px] bg-linear-to-r/srgb from-transparent via-white/[0.1] to-transparent"></div>
             <nav aria-label="Main navigation" class="relative flex items-center justify-center gap-3 lg:gap-4">
               <a href="#top" title="Docking" aria-label="Docking home" class="group relative flex h-11 w-11 items-center justify-center transition duration-200 hover:-translate-y-px hover:scale-[1.08]">
                 <img src="/logo.png" alt="Docking logo" width="256" height="256" class="h-8 w-8 object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.25)]">
@@ -236,10 +236,10 @@
           </div>
           <div id="mobile-dock-menu" class="mt-3 hidden rounded-[1.4rem] border border-white/20 bg-[linear-gradient(180deg,rgba(255,255,255,0.18),rgba(255,255,255,0.10))] p-3 backdrop-blur-xl">
             <div class="grid grid-cols-2 gap-2 text-center">
-              <a href="#features" class="rounded-[1rem] border border-white/15 bg-skyline/12 px-3 py-3 text-sm text-white">Features</a>
-              <a href="#compatibility" class="rounded-[1rem] border border-white/15 bg-ember/12 px-3 py-3 text-sm text-white">Compatibility</a>
-              <a href="#applets" class="rounded-[1rem] border border-white/15 bg-accent/12 px-3 py-3 text-sm text-white">Applets</a>
-              <a href="#install" class="rounded-[1rem] border border-white/15 bg-ember/12 px-3 py-3 text-sm text-white">Install</a>
+              <a href="#features" class="rounded-[1rem] border border-white/15 px-3 py-3 text-sm text-white">Features</a>
+              <a href="#compatibility" class="rounded-[1rem] border border-white/15 px-3 py-3 text-sm text-white">Compatibility</a>
+              <a href="#applets" class="rounded-[1rem] border border-white/15 px-3 py-3 text-sm text-white">Applets</a>
+              <a href="#install" class="rounded-[1rem] border border-white/15 px-3 py-3 text-sm text-white">Install</a>
               <a href="#source" class="col-span-2 rounded-[1rem] border border-white/15 bg-skyline/10 px-3 py-3 text-sm text-white">From Source</a>
             </div>
           </div>
@@ -266,8 +266,8 @@
 
             <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">A fast, customizable dock with built-in applets for Linux, FreeBSD, OpenBSD, NetBSD, and Windows 11. Supports X11 on Linux and BSD, Wayland on Linux, and native Windows integration.</p>
             <div class="mt-10 flex flex-col gap-4 sm:flex-row">
-              <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_18px_48px_rgba(239,68,68,0.28)] transition hover:scale-[1.02]">Download</a>
-              <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">View on GitHub</a>
+              <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl bg-linear-to-r/srgb from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_18px_48px_rgba(239,68,68,0.28)] transition hover:scale-[1.02]">Download</a>
+              <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">View on GitHub</a>
             </div>
           </div>
         </div>
@@ -276,7 +276,7 @@
         <div class="reveal mx-auto max-w-6xl px-6 pb-14 lg:px-8">
           <div class="relative flex items-center justify-center">
             <!-- Soft ambient glow -->
-            <div class="absolute inset-x-24 -bottom-4 h-28 rounded-full bg-ember/16 blur-[80px]"></div>
+            <div class="absolute inset-x-24 -bottom-4 h-28 rounded-full blur-[80px]"></div>
             <div class="absolute -left-12 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-accent/10 blur-[70px]"></div>
             <div class="absolute right-0 top-1/2 h-36 w-36 sm:-right-12 -translate-y-1/2 rounded-full bg-skyline/10 blur-[70px]"></div>
             <div class="relative w-full max-w-[960px] transition duration-500 hover:scale-[1.008]">
@@ -290,24 +290,24 @@
 
         <!-- Marquee -->
         <div class="mx-auto max-w-7xl px-6 pb-10 lg:px-8">
-          <div class="marquee-mask overflow-hidden rounded-[2rem] border border-white/12 bg-gradient-to-r from-accent/8 to-skyline/8 px-4 py-4 shadow-soft backdrop-blur-xl sm:px-6">
+          <div class="marquee-mask overflow-hidden rounded-[2rem] border px-4 py-4 shadow-soft backdrop-blur-xl sm:px-6">
             <div class="flex min-w-max animate-marquee gap-4 whitespace-nowrap pr-4 text-sm text-slate-200 sm:pr-6">
-              <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Themeable</span>
-              <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Auto-hide</span>
-              <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Multi-monitor</span>
-              <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">GTK + Cairo</span>
-              <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Applet system</span>
-              <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Cross desktop environments</span>
-              <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Open source</span>
-              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">Built-in Applets</span>
-              <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Themeable</span>
-              <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Auto-hide</span>
-              <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Multi-monitor</span>
-              <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">GTK + Cairo</span>
-              <span class="rounded-full border border-white/12 bg-gradient-to-r from-accent/8 to-accent/5 px-4 py-2">Applet system</span>
-              <span class="rounded-full border border-white/12 bg-gradient-to-r from-skyline/8 to-skyline/5 px-4 py-2">Cross desktop environments</span>
-              <span class="rounded-full border border-white/12 bg-gradient-to-r from-ember/8 to-ember/5 px-4 py-2">Open source</span>
-              <span class="rounded-full border border-amber-300/18 bg-gradient-to-r from-ember/10 to-accent/6 px-4 py-2">Built-in Applets</span>
+              <span class="rounded-full border to-accent/5 px-4 py-2">Themeable</span>
+              <span class="rounded-full border to-skyline/5 px-4 py-2">Auto-hide</span>
+              <span class="rounded-full border to-ember/5 px-4 py-2">Multi-monitor</span>
+              <span class="rounded-full border to-skyline/5 px-4 py-2">GTK + Cairo</span>
+              <span class="rounded-full border to-accent/5 px-4 py-2">Applet system</span>
+              <span class="rounded-full border to-skyline/5 px-4 py-2">Cross desktop environments</span>
+              <span class="rounded-full border to-ember/5 px-4 py-2">Open source</span>
+              <span class="rounded-full border bg-linear-to-r/srgb from-ember/10 px-4 py-2">Built-in Applets</span>
+              <span class="rounded-full border to-accent/5 px-4 py-2">Themeable</span>
+              <span class="rounded-full border to-skyline/5 px-4 py-2">Auto-hide</span>
+              <span class="rounded-full border to-ember/5 px-4 py-2">Multi-monitor</span>
+              <span class="rounded-full border to-skyline/5 px-4 py-2">GTK + Cairo</span>
+              <span class="rounded-full border to-accent/5 px-4 py-2">Applet system</span>
+              <span class="rounded-full border to-skyline/5 px-4 py-2">Cross desktop environments</span>
+              <span class="rounded-full border to-ember/5 px-4 py-2">Open source</span>
+              <span class="rounded-full border bg-linear-to-r/srgb from-ember/10 px-4 py-2">Built-in Applets</span>
             </div>
           </div>
         </div>
@@ -320,33 +320,33 @@
         </div>
 
         <div class="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-accent/6 p-6 shadow-soft backdrop-blur-2xl">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/14 text-rose-200"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 19V5l14 7-14 7Z"></path></svg></div>
+          <article class="reveal rounded-[2rem] border p-6 shadow-soft backdrop-blur-2xl">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-rose-200"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 19V5l14 7-14 7Z"></path></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Fast launcher workflow</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Quick access to your core apps, work surfaces, and utilities without visual noise or startup drag.</p>
           </article>
-          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-ember/6 p-6 shadow-soft backdrop-blur-2xl">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-ember/14 text-amber-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg></div>
+          <article class="reveal rounded-[2rem] border p-6 shadow-soft backdrop-blur-2xl">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-amber-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Built-in applets</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Ship a dock that already knows how to show system status, weather, media, timers, notes, and more.</p>
           </article>
-          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-skyline/6 p-6 shadow-soft backdrop-blur-2xl">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-skyline/16 text-blue-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 15c2-4 5-6 8-6s6 2 8 6"></path><path d="M4 9c2 4 5 6 8 6s6-2 8-6"></path></svg></div>
+          <article class="reveal rounded-[2rem] border p-6 shadow-soft backdrop-blur-2xl">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-blue-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 15c2-4 5-6 8-6s6 2 8 6"></path><path d="M4 9c2 4 5 6 8 6s6-2 8-6"></path></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Fully customizable themes</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Adjust themes, sizing, behavior, and pinned item icons so the dock fits the desktop you already use.</p>
           </article>
-          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 p-6 shadow-soft backdrop-blur-2xl">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/14 text-rose-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="8" height="14" rx="2"></rect><rect x="13" y="8" width="8" height="8" rx="2"></rect></svg></div>
+          <article class="reveal rounded-[2rem] border p-6 shadow-soft backdrop-blur-2xl">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-rose-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="8" height="14" rx="2"></rect><rect x="13" y="8" width="8" height="8" rx="2"></rect></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Multi-monitor and auto-hide</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Keep the dock where it belongs, visible when needed and out of the way when focus matters.</p>
           </article>
-          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 p-6 shadow-soft backdrop-blur-2xl">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-ember/14 text-amber-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14"></path><path d="M12 5v14"></path><path d="M4 4l16 16"></path></svg></div>
+          <article class="reveal rounded-[2rem] border p-6 shadow-soft backdrop-blur-2xl">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-amber-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14"></path><path d="M12 5v14"></path><path d="M4 4l16 16"></path></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Cross desktop compatibility</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Built for Linux, BSD and Windows setups that span more than one desktop environment and more than one way of working.</p>
           </article>
-          <article class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 p-6 shadow-soft backdrop-blur-2xl">
-            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-skyline/16 text-blue-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 7V5a2 2 0 1 1 4 0v2"></path><path d="M12 7V5a2 2 0 1 1 4 0v2"></path><path d="M5 7h14v12H5z"></path><path d="M9 11h6M9 15h4"></path></svg></div>
+          <article class="reveal rounded-[2rem] border p-6 shadow-soft backdrop-blur-2xl">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-blue-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 7V5a2 2 0 1 1 4 0v2"></path><path d="M12 7V5a2 2 0 1 1 4 0v2"></path><path d="M5 7h14v12H5z"></path><path d="M9 11h6M9 15h4"></path></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Extensible applet system</h3>
             <p class="mt-3 text-sm leading-7 text-slate-300">Add your own widgets and behaviors without compromising the dock’s main runtime model.</p>
           </article>
@@ -359,10 +359,10 @@
             <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Compatibility: Linux, BSD and Windows desktops</h2>
             <p class="mt-4 text-lg leading-8 text-slate-300">Docking selects the best backend for the current session and falls back cleanly when a compositor does not expose every window-management feature.</p>
           </div>
-          <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">Linux X11 and Wayland · BSD X11 · Windows 11</div>
+          <div class="rounded-full border border-white/15 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">Linux X11 and Wayland · BSD X11 · Windows 11</div>
         </div>
 
-        <div class="mt-10 overflow-hidden rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/10 via-white/[0.04] to-ember/8 shadow-soft backdrop-blur-2xl">
+        <div class="mt-10 overflow-hidden rounded-[2rem] border bg-linear-to-br/srgb from-skyline/10 via-white/[0.04] shadow-soft backdrop-blur-2xl">
           <div class="grid border-b border-white/10 bg-white/[0.04] px-5 py-4 text-center text-xs font-semibold uppercase tracking-[0.24em] text-slate-400 md:grid-cols-[1fr_1fr_1.6fr]">
             <div>Environment</div>
             <div class="hidden md:block">Backend Path</div>
@@ -385,7 +385,7 @@
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="windows" data-status="native">
               <div>
                 <div class="flex items-center gap-3">
-                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <span class="rounded-full border border-sky-300/20 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
                   <h3 class="text-lg font-semibold text-white">Windows 11</h3>
                 </div>
                 <p class="mt-2 text-sm text-slate-400">Unsigned installer and portable ZIP</p>
@@ -448,7 +448,7 @@
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="kde-wayland" data-status="partial">
               <div>
                 <div class="flex items-center gap-3">
-                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <span class="rounded-full border border-sky-300/20 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
                   <h3 class="text-lg font-semibold text-white">KDE Plasma Wayland</h3>
                 </div>
                 <p class="mt-2 text-sm text-slate-400">KWin / Plasma 6</p>
@@ -460,7 +460,7 @@
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="cinnamon-wayland" data-status="partial">
               <div>
                 <div class="flex items-center gap-3">
-                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <span class="rounded-full border border-sky-300/20 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
                   <h3 class="text-lg font-semibold text-white">Cinnamon Wayland</h3>
                 </div>
                 <p class="mt-2 text-sm text-slate-400">Cinnamon 6.4 and newer</p>
@@ -472,7 +472,7 @@
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="cosmic" data-status="native">
               <div>
                 <div class="flex items-center gap-3">
-                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <span class="rounded-full border border-sky-300/20 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
                   <h3 class="text-lg font-semibold text-white">COSMIC Wayland</h3>
                 </div>
                 <p class="mt-2 text-sm text-slate-400">COSMIC desktop sessions</p>
@@ -484,7 +484,7 @@
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="niri" data-status="native">
               <div>
                 <div class="flex items-center gap-3">
-                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <span class="rounded-full border border-sky-300/20 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
                   <h3 class="text-lg font-semibold text-white">Niri Wayland</h3>
                 </div>
                 <p class="mt-2 text-sm text-slate-400">Niri compositor sessions</p>
@@ -496,7 +496,7 @@
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="wayfire" data-status="native">
               <div>
                 <div class="flex items-center gap-3">
-                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <span class="rounded-full border border-sky-300/20 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
                   <h3 class="text-lg font-semibold text-white">Wayfire Wayland</h3>
                 </div>
                 <p class="mt-2 text-sm text-slate-400">Wayfire compositor sessions</p>
@@ -508,7 +508,7 @@
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="protocol-wayland" data-status="partial">
               <div>
                 <div class="flex items-center gap-3">
-                  <span class="rounded-full border border-amber-300/20 bg-ember/12 px-3 py-1 text-xs font-semibold text-amber-100">Varies</span>
+                  <span class="rounded-full border border-amber-300/20 px-3 py-1 text-xs font-semibold text-amber-100">Varies</span>
                   <h3 class="text-lg font-semibold text-white">Protocol-capable Wayland</h3>
                 </div>
                 <p class="mt-2 text-sm text-slate-400">Sway, labwc, river, Louvre-based, Jay, Miriway, Phosh / phoc</p>
@@ -520,7 +520,7 @@
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="treeland" data-status="native">
               <div>
                 <div class="flex items-center gap-3">
-                  <span class="rounded-full border border-sky-300/20 bg-skyline/14 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
+                  <span class="rounded-full border border-sky-300/20 px-3 py-1 text-xs font-semibold text-blue-100">Native</span>
                   <h3 class="text-lg font-semibold text-white">Deepin Wayland</h3>
                 </div>
                 <p class="mt-2 text-sm text-slate-400">Treeland compositor sessions</p>
@@ -532,7 +532,7 @@
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="gamescope" data-status="partial">
               <div>
                 <div class="flex items-center gap-3">
-                  <span class="rounded-full border border-amber-300/20 bg-ember/12 px-3 py-1 text-xs font-semibold text-amber-100">Overlay</span>
+                  <span class="rounded-full border border-amber-300/20 px-3 py-1 text-xs font-semibold text-amber-100">Overlay</span>
                   <h3 class="text-lg font-semibold text-white">GameScope</h3>
                 </div>
                 <p class="mt-2 text-sm text-slate-400">Nested and gaming sessions</p>
@@ -563,11 +563,11 @@
             <p class="mt-4 text-lg leading-8 text-slate-300">Filter the catalog by workflow and find the applets that make Docking more than a launcher: system controls, command launchers, media, notes, weather, privacy indicators, and folder-friendly utilities.</p>
           </div>
           <div class="flex items-center gap-3 self-start lg:self-auto">
-            <div class="rounded-full border border-white/15 bg-gradient-to-r from-skyline/8 to-ember/8 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl"><span id="applet-total-count">65</span> built-in applets plus folder stacks and a separator item</div>
+            <div class="rounded-full border border-white/15 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl"><span id="applet-total-count">65</span> built-in applets plus folder stacks and a separator item</div>
           </div>
         </div>
 
-        <div id="applet-controls" hidden class="reveal mt-10 rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/10 via-white/[0.04] to-accent/8 p-5 shadow-soft backdrop-blur-2xl">
+        <div id="applet-controls" hidden class="reveal mt-10 rounded-[2rem] border bg-linear-to-br/srgb from-skyline/10 via-white/[0.04] p-5 shadow-soft backdrop-blur-2xl">
           <div class="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
             <label class="block" for="applet-search">
               <span class="sr-only">Search applets</span>
@@ -575,13 +575,13 @@
             </label>
             <p id="applet-result-count" role="status" aria-live="polite" data-count-template="Showing {visible} of {total} applets" class="text-sm text-slate-300">Browse the applet catalog</p>
           </div>
-          <div id="applet-category-filters" class="mt-4 flex flex-wrap gap-2" aria-label="Applet category filters"><button type="button" data-applet-category="All" class="rounded-full border px-4 py-2 text-sm font-semibold transition border-amber-200/30 bg-ember/14 text-white" aria-pressed="true">All</button><button type="button" data-applet-category="Time &amp; Productivity" class="rounded-full border px-4 py-2 text-sm font-semibold transition border-white/12 bg-white/[0.06] text-slate-300 hover:border-white/24 hover:text-white" aria-pressed="false">Time &amp; Productivity</button><button type="button" data-applet-category="Wellness &amp; Ambient" class="rounded-full border px-4 py-2 text-sm font-semibold transition border-white/12 bg-white/[0.06] text-slate-300 hover:border-white/24 hover:text-white" aria-pressed="false">Wellness &amp; Ambient</button><button type="button" data-applet-category="Launcher &amp; Navigation" class="rounded-full border px-4 py-2 text-sm font-semibold transition border-white/12 bg-white/[0.06] text-slate-300 hover:border-white/24 hover:text-white" aria-pressed="false">Launcher &amp; Navigation</button><button type="button" data-applet-category="Information and Environment" class="rounded-full border px-4 py-2 text-sm font-semibold transition border-white/12 bg-white/[0.06] text-slate-300 hover:border-white/24 hover:text-white" aria-pressed="false">Information and Environment</button><button type="button" data-applet-category="System &amp; Power" class="rounded-full border px-4 py-2 text-sm font-semibold transition border-white/12 bg-white/[0.06] text-slate-300 hover:border-white/24 hover:text-white" aria-pressed="false">System &amp; Power</button></div>
+          <div id="applet-category-filters" class="mt-4 flex flex-wrap gap-2" aria-label="Applet category filters"><button type="button" data-applet-category="All" class="rounded-full border px-4 py-2 text-sm font-semibold transition border-amber-200/30 text-white" aria-pressed="true">All</button><button type="button" data-applet-category="Time &amp; Productivity" class="rounded-full border px-4 py-2 text-sm font-semibold transition bg-white/[0.06] text-slate-300 hover:text-white" aria-pressed="false">Time &amp; Productivity</button><button type="button" data-applet-category="Wellness &amp; Ambient" class="rounded-full border px-4 py-2 text-sm font-semibold transition bg-white/[0.06] text-slate-300 hover:text-white" aria-pressed="false">Wellness &amp; Ambient</button><button type="button" data-applet-category="Launcher &amp; Navigation" class="rounded-full border px-4 py-2 text-sm font-semibold transition bg-white/[0.06] text-slate-300 hover:text-white" aria-pressed="false">Launcher &amp; Navigation</button><button type="button" data-applet-category="Information and Environment" class="rounded-full border px-4 py-2 text-sm font-semibold transition bg-white/[0.06] text-slate-300 hover:text-white" aria-pressed="false">Information and Environment</button><button type="button" data-applet-category="System &amp; Power" class="rounded-full border px-4 py-2 text-sm font-semibold transition bg-white/[0.06] text-slate-300 hover:text-white" aria-pressed="false">System &amp; Power</button></div>
         </div>
 
         <div id="applet-grid" class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+          <article class="rounded-[1.4rem] border text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/aiusage.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -591,9 +591,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Track sessions, token usage, and estimated spend across Claude, Codex, and OpenCode.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+          <article class="rounded-[1.4rem] border text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/alarm.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -603,9 +603,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Multiple local-time alarm presets with weekday repeats, snooze, and dismiss controls.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-skyline/6 text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
+          <article class="rounded-[1.4rem] border text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/ambient.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -615,9 +615,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Calming ambient controls for focus, atmosphere, and quieter desktop sessions.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+          <article class="rounded-[1.4rem] border text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/applications.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -627,9 +627,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Browse and launch installed desktop applications from a compact app menu.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+          <article class="rounded-[1.4rem] border text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/apod.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -639,9 +639,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">NASA APOD thumbnails with title, credit, and explanation in the tooltip.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/battery.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -651,9 +651,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Battery level, charging state, and power context at a glance.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/bluetooth.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -663,9 +663,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Bluetooth adapter and device awareness with quick access from the dock.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+          <article class="rounded-[1.4rem] border text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/bookmarks.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -675,9 +675,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Pinned shortcuts for places, links, and resources you revisit often.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/brightness.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -687,9 +687,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Screen brightness control without leaving the dock.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/caffeine.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -699,9 +699,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Keep the session awake with optional timers for focus blocks or long tasks.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+          <article class="rounded-[1.4rem] border text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/calculator.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -711,9 +711,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Quick calculations without opening a larger application.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+          <article class="rounded-[1.4rem] border text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/calendar.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -723,9 +723,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Compact date browsing and schedule context.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/camshield.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -735,9 +735,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Camera privacy indicator that shows when a process holds a video device.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/capslock.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -747,9 +747,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Caps and Num Lock LED states for keyboards without physical indicators.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/certwatch.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -759,9 +759,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">TLS certificate expiry monitor with a color-coded shield and days-remaining badge.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+          <article class="rounded-[1.4rem] border text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/clippy.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -771,9 +771,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Clipboard history for recent snippets and repeated text.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+          <article class="rounded-[1.4rem] border text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/clock.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -783,9 +783,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Analog or digital clock display with optional seconds and alarm reminder support.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+          <article class="rounded-[1.4rem] border text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/colorpicker.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -795,9 +795,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Pick and inspect colors directly from the desktop.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+          <article class="rounded-[1.4rem] border text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/crypto.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -807,9 +807,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Track selected coins and NFT collections with live prices and compact sparklines.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+          <article class="rounded-[1.4rem] border text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/currencyfx.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -819,9 +819,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Live exchange-rate pairs with a sparkline right on the dock icon.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-skyline/6 text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
+          <article class="rounded-[1.4rem] border text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/deskpresence.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -831,9 +831,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Track time at desk versus away, with today&#x27;s total in the badge.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+          <article class="rounded-[1.4rem] border text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/desktop.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -843,9 +843,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Desktop actions and surface shortcuts in one place.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+          <article class="rounded-[1.4rem] border text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/devices.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -855,9 +855,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Browse every mounted device in a live stack that updates as mounts change.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/docker.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -867,9 +867,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">See running containers and stop or restart them from the dock menu.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+          <article class="rounded-[1.4rem] border text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/dragshare.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -879,9 +879,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Drop a file to upload it to tmpfiles.org and copy the temporary share URL.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+          <article class="rounded-[1.4rem] border text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/hackernews.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -891,9 +891,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Top headlines with manual navigation and next batches loaded up to 100 items.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-skyline/6 text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
+          <article class="rounded-[1.4rem] border text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/hydration.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -903,9 +903,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">A lightweight reminder to keep healthy breaks in view.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/kdeconnect.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -915,9 +915,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">See phone battery and charging status, ring your phone, and send files.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/keyboardlayout.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -927,9 +927,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">See and switch your current keyboard layout.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+          <article class="rounded-[1.4rem] border text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/lastfm.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -939,9 +939,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Recent Last.fm and Libre.fm scrobbles with album art and profile shortcuts.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/micshield.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -951,9 +951,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Microphone mute toggle with a privacy dot while an app captures input.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+          <article class="rounded-[1.4rem] border text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/moon.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -963,9 +963,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Current lunar phase with a rendered moon disc and illumination shading.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/music.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -975,9 +975,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Media playback status, album-art rendering, and transport controls.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/network.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -987,9 +987,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Connection state and quick network awareness.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+          <article class="rounded-[1.4rem] border text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/news.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -999,9 +999,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Follow country-based RSS publications and browse their latest headlines from the dock.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/notifications.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1011,9 +1011,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Notification status, Do Not Disturb toggle, and pending badge when available.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-skyline/6 text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
+          <article class="rounded-[1.4rem] border text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/pet.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1023,9 +1023,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">A playful dock companion that reacts to system activity.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-skyline/6 text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
+          <article class="rounded-[1.4rem] border text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/plantcare.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1035,9 +1035,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Offline recurring care reminders for multiple plants, with due and overdue status.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+          <article class="rounded-[1.4rem] border text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/pomodoro.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1047,9 +1047,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Focused work sessions with a built-in timer rhythm.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/powerprofiles.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1059,9 +1059,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Switch laptop and handheld performance modes based on how you work.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+          <article class="rounded-[1.4rem] border text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/quicknote.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1071,9 +1071,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Capture short notes without opening a larger app.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+          <article class="rounded-[1.4rem] border text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/quote.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1083,9 +1083,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Rotating quote and joke applet with local fallback content and online refresh.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+          <article class="rounded-[1.4rem] border text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/trivia.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1095,9 +1095,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Quick trivia questions with answer choices and result feedback.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+          <article class="rounded-[1.4rem] border text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/recentfiles.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1107,9 +1107,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Jump back into documents you touched most recently.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+          <article class="rounded-[1.4rem] border text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/reddit.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1119,9 +1119,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Browse posts from your favorite subreddits and open them in your browser.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+          <article class="rounded-[1.4rem] border text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/runcommand.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1131,9 +1131,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Alt+F2-style command launcher with terminal mode and searchable app matching.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/screenshot.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1143,9 +1143,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Launch screenshot and portal capture actions directly from the dock.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+          <article class="rounded-[1.4rem] border text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/search.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1155,9 +1155,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Find applications, dock items, open windows, recent files, calculations, and paths.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/session.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1167,9 +1167,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Lock, logout, shutdown, and session actions close at hand.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/speedtest.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1179,9 +1179,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">One-click internet speed test with a speedometer dial and Mbps badge.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-emerald-400/12 to-skyline/6 text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
+          <article class="rounded-[1.4rem] border text-emerald-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Wellness &amp; Ambient">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/stretchcoach.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1191,9 +1191,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Healthy movement reminders during long sessions.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+          <article class="rounded-[1.4rem] border text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/sunrise.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1203,9 +1203,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Sunrise, sunset, twilight phases, and a solar dial for selected cities.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/systemmonitor.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1215,9 +1215,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Live CPU, memory, and system activity in one widget.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/systemtray.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1227,9 +1227,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Legacy X11 tray area for status icons, with takeover and release controls.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+          <article class="rounded-[1.4rem] border text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/telegram.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1239,9 +1239,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Keep Telegram signed in, see unread unmuted chat counts, and receive desktop notifications.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/thermals.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1251,9 +1251,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Hottest sensor temperature, fan RPM tooltip, and Celsius/Fahrenheit toggle.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+          <article class="rounded-[1.4rem] border text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/todayinhistory.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1263,9 +1263,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">One notable event at a time with online refresh and offline fallback data.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/trash.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1275,9 +1275,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Trash state and cleanup access without opening a file manager.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+          <article class="rounded-[1.4rem] border text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/unitconverter.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1287,9 +1287,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Convert between units directly from the dock.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-ember/12 to-skyline/6 text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
+          <article class="rounded-[1.4rem] border text-amber-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Time &amp; Productivity">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/urlshortener.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1299,9 +1299,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Shorten URLs via is.gd and copy the result to the clipboard.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/usbwatch.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1311,9 +1311,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Safe-remove access for mounted removable USB storage devices.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/volume.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1323,9 +1323,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Playback and audio control integrated into the same dock surface.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/6 text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
+          <article class="rounded-[1.4rem] border text-slate-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Information and Environment">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/weather.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1335,9 +1335,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Forecast, conditions, air quality, and Celsius/Fahrenheit display at a glance.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+          <article class="rounded-[1.4rem] border text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/whatsapp.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1347,9 +1347,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Persistent WhatsApp Web with desktop notifications and an unread-message badge.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/6 text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
+          <article class="rounded-[1.4rem] border text-rose-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="System &amp; Power">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/windowkiller.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1359,9 +1359,9 @@
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Click the applet, then click any window to force-close it.</p>
           </article>
-          <article class="rounded-[1.4rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-emerald-400/6 text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
+          <article class="rounded-[1.4rem] border text-blue-100 p-5 shadow-soft backdrop-blur-2xl" data-applet-card data-category="Launcher &amp; Navigation">
             <div class="flex items-start gap-3">
-              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border border-white/12 bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-[1rem] border bg-white/[0.08] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
                 <img src="/icons/workspaces.png" alt="" width="32" height="32" class="h-full w-full object-contain" loading="lazy" decoding="async">
               </div>
               <div class="min-w-0">
@@ -1372,13 +1372,13 @@
             <p class="mt-4 text-sm leading-7 text-slate-300">Switch and track workspaces from the dock.</p>
           </article>
         </div>
-        <p id="applet-empty-state" class="hidden mt-8 rounded-[1.4rem] border border-white/12 bg-white/[0.06] px-5 py-4 text-sm text-slate-300">No applets match that search.</p>
+        <p id="applet-empty-state" class="hidden mt-8 rounded-[1.4rem] border bg-white/[0.06] px-5 py-4 text-sm text-slate-300">No applets match that search.</p>
 
 
       </section>
 
       <section id="install" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
-        <div class="reveal overflow-hidden rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/8 p-8 shadow-glow backdrop-blur-2xl lg:p-10">
+        <div class="reveal overflow-hidden rounded-[2rem] border p-8 shadow-glow backdrop-blur-2xl lg:p-10">
           <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
             <div>
               <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Install Docking</h2>
@@ -1386,24 +1386,24 @@
             </div>
 
             <div>
-              <div class="mb-4 mx-auto flex w-fit rounded-full border border-white/12 bg-white/8 p-1 shadow-soft backdrop-blur-xl" data-install-arch-toggle role="group" aria-label="Linux package architecture">
+              <div class="mb-4 mx-auto flex w-fit rounded-full border p-1 shadow-soft backdrop-blur-xl" data-install-arch-toggle role="group" aria-label="Linux package architecture">
                 <button type="button" class="rounded-full px-4 py-2 text-sm font-semibold text-slate-300 transition hover:text-white" data-install-arch-option="x64" aria-pressed="true">x64</button>
                 <button type="button" class="rounded-full px-4 py-2 text-sm font-semibold transition text-slate-300 hover:text-white" data-install-arch-option="arm64" aria-pressed="false">arm64</button>
               </div>
               <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.AppImage" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">AppImage</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.deb" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">.deb</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">RPM</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.flatpak" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Flatpak</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.snap" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Snap</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.xz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Arch</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-output.tar.gz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">Nix</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-windows-x86_64-setup.exe" target="_blank" rel="noopener noreferrer" aria-label="Download Windows installer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">.exe</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.AppImage" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">AppImage</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.deb" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">.deb</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">RPM</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.flatpak" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Flatpak</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.snap" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Snap</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.xz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Arch</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-output.tar.gz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Nix</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-windows-x86_64-setup.exe" target="_blank" rel="noopener noreferrer" aria-label="Download Windows installer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">.exe</a>
               </div>
               <p class="mt-4 text-sm leading-7 text-slate-300">Nix release assets include an output tarball and a matching <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt" data-install-store-path data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-store-path.txt" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 transition hover:decoration-white">store path</a> for the selected architecture.</p>
             </div>
           </div>
-          <details id="apt-install" class="group mt-8 rounded-2xl border border-white/12 bg-white/[0.04] p-5 sm:p-6">
+          <details id="apt-install" class="group mt-8 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
             <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
               <span>Debian &amp; Ubuntu: install with APT</span>
               <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
@@ -1459,7 +1459,7 @@ sudo apt install docking
             <p class="mt-4 text-sm leading-7 text-slate-300">For later updates, run <code class="text-slate-100">sudo apt update</code> and <code class="text-slate-100">sudo apt upgrade</code>. Existing .deb installations can upgrade directly through APT.</p>
             <p class="mt-2 text-xs leading-6 text-slate-400">APT packages hosted by <a href="https://cloudsmith.com" target="_blank" rel="noopener noreferrer" class="underline decoration-white/30 underline-offset-4 hover:text-white">Cloudsmith</a>.</p>
           </details>
-          <details id="rpm-install" class="group mt-4 rounded-2xl border border-white/12 bg-white/[0.04] p-5 sm:p-6">
+          <details id="rpm-install" class="group mt-4 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
             <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
               <span>Fedora &amp; openSUSE: install with DNF or Zypper</span>
               <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
@@ -1524,7 +1524,7 @@ fi
             <p class="mt-4 text-sm leading-7 text-slate-300">For later updates, run <code class="text-slate-100">sudo dnf upgrade</code> or <code class="text-slate-100">sudo zypper update</code>. Existing .rpm installations can upgrade directly through the repository.</p>
             <p class="mt-2 text-xs leading-6 text-slate-400">RPM packages hosted by <a href="https://cloudsmith.com" target="_blank" rel="noopener noreferrer" class="underline decoration-white/30 underline-offset-4 hover:text-white">Cloudsmith</a>.</p>
           </details>
-          <details id="bsd-install" class="group mt-4 rounded-2xl border border-white/12 bg-white/[0.04] p-5 sm:p-6">
+          <details id="bsd-install" class="group mt-4 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
             <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
               <span>FreeBSD, OpenBSD &amp; NetBSD: native packages</span>
               <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
@@ -1552,7 +1552,7 @@ fi
             </div>
             <p class="mt-4 text-sm leading-7 text-slate-300">Follow the guide to install dependencies, verify the package checksum, and install or update with <code>pkg</code> or <code>pkg_add</code>. See <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">GitHub Releases</a> for current package availability.</p>
           </details>
-          <details id="windows-install" class="group mt-4 rounded-2xl border border-white/12 bg-white/[0.04] p-5 sm:p-6">
+          <details id="windows-install" class="group mt-4 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
             <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
               <span>Windows 11: installer or portable ZIP</span>
               <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
@@ -1585,8 +1585,8 @@ Get-FileHash .\docking-latest-windows-x86_64.zip -Algorithm SHA256</code></pre>
             <p class="mt-4 max-w-xl text-sm leading-7 text-slate-300">For BSD, install the native dependencies from the <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#freebsd-and-openbsd" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">BSD installation guide</a> before setting up the Python environment.</p>
           </div>
 
-          <div class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-skyline/12 to-accent/8 p-4 shadow-soft backdrop-blur-2xl">
-            <div class="flex items-center justify-between rounded-[1.4rem] border border-white/12 bg-gradient-to-r from-skyline/10 to-accent/8 px-4 py-3">
+          <div class="reveal rounded-[2rem] border p-4 shadow-soft backdrop-blur-2xl">
+            <div class="flex items-center justify-between rounded-[1.4rem] border bg-linear-to-r/srgb from-skyline/10 px-4 py-3">
               <div class="flex items-center gap-2">
                 <span class="h-2.5 w-2.5 rounded-full bg-rose-400"></span>
                 <span class="h-2.5 w-2.5 rounded-full bg-amber-300"></span>
@@ -1594,7 +1594,7 @@ Get-FileHash .\docking-latest-windows-x86_64.zip -Algorithm SHA256</code></pre>
               </div>
               <span class="text-xs uppercase tracking-[0.3em] text-slate-400">bash</span>
             </div>
-            <div class="code-scroll mt-4 overflow-x-auto rounded-[1.4rem] border border-white/10 bg-gradient-to-br from-skyline/8 to-accent/6 p-5 backdrop-blur-xl">
+            <div class="code-scroll mt-4 overflow-x-auto rounded-[1.4rem] border border-white/10 p-5 backdrop-blur-xl">
               <pre class="text-sm leading-8 text-slate-200"><code>git clone https://github.com/edumucelli/docking.git
 cd docking
 python3 -m venv --system-site-packages .venv
@@ -1608,8 +1608,8 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
       </section>
 
       <section class="mx-auto max-w-5xl px-6 py-16 lg:px-8 lg:py-24">
-        <div class="reveal rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-skyline/8 p-10 text-center shadow-glow backdrop-blur-2xl">
-          <div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-gradient-to-br from-accent/30 via-ember/24 to-skyline/20 text-white shadow-soft">
+        <div class="reveal rounded-[2rem] border p-10 text-center shadow-glow backdrop-blur-2xl">
+          <div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-linear-to-br/srgb from-accent/30 to-skyline/20 text-white shadow-soft">
             <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18"></path><path d="M3 12h18"></path><path d="M6.5 6.5 17.5 17.5"></path></svg>
           </div>
           <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Flexible, extensible, and built for real workflows.</h2>
@@ -1621,23 +1621,23 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
         <div class="reveal">
           <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Frequently asked questions</h2>
           <div class="mt-10 space-y-6">
-            <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-skyline/8 to-skyline/4 p-5 backdrop-blur-xl">
+            <details class="group rounded-2xl border p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>What operating systems and desktops does Docking support?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
               <p class="mt-4 text-sm leading-7 text-slate-300">Docking supports Linux with X11 or Wayland, and FreeBSD, OpenBSD, and NetBSD with X11. Native Windows 11 packages are also available as an unsigned installer and portable ZIP. Linux Wayland integration depends on the desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when compositor integration is unavailable.</p>
             </details>
-            <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-accent/8 to-accent/4 p-5 backdrop-blur-xl">
+            <details class="group rounded-2xl border p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Can I create my own applets?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
               <p class="mt-4 text-sm leading-7 text-slate-300">Yes. Docking has an extensible applet system. Each applet is a Python package with a state, render, and applet module. You can add custom widgets and behaviors without modifying the dock's core runtime.</p>
             </details>
-            <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-skyline/8 to-accent/4 p-5 backdrop-blur-xl">
+            <details class="group rounded-2xl border p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Does Docking support Wayland?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
               <p class="mt-4 text-sm leading-7 text-slate-300">Yes, on Linux. Wayland support is selected per desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when needed. FreeBSD, OpenBSD, and NetBSD support uses X11.</p>
             </details>
-            <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-skyline/8 to-ember/4 p-5 backdrop-blur-xl">
+            <details class="group rounded-2xl border p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Are all applets available on BSD?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
               <p class="mt-4 text-sm leading-7 text-slate-300">Applet availability depends on the operating system and installed services. Cam Shield supports FreeBSD and OpenBSD. Classic Bluetooth is supported on FreeBSD; OpenBSD has no Bluetooth stack. Cam Shield and Bluetooth controls are unavailable on NetBSD.</p>
             </details>
-            <details class="group rounded-2xl border border-white/12 bg-gradient-to-br from-ember/8 to-skyline/4 p-5 backdrop-blur-xl">
+            <details class="group rounded-2xl border p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Is Docking free and open source?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
               <p class="mt-4 text-sm leading-7 text-slate-300">Yes. Docking is licensed under GPL-3.0-or-later and fully open source. The code is hosted on GitHub and contributions are welcome.</p>
             </details>
@@ -1646,8 +1646,8 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
       </section>
 
       <section class="mx-auto max-w-6xl px-6 pb-24 pt-8 lg:px-8">
-        <div class="reveal overflow-hidden rounded-[2rem] border border-white/12 bg-gradient-to-br from-accent/12 to-ember/10 p-10 shadow-glow backdrop-blur-2xl">
-          <div class="absolute inset-x-20 bottom-0 h-32 rounded-full bg-ember/22 blur-3xl"></div>
+        <div class="reveal overflow-hidden rounded-[2rem] border to-ember/10 p-10 shadow-glow backdrop-blur-2xl">
+          <div class="absolute inset-x-20 bottom-0 h-32 rounded-full blur-3xl"></div>
           <div class="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
             <div class="max-w-2xl">
               <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Start using Docking today</h2>
@@ -1655,8 +1655,8 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
             </div>
 
             <div class="flex flex-col gap-4 sm:flex-row">
-              <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_16px_42px_rgba(239,68,68,0.24)] transition hover:scale-[1.01]">Download</a>
-              <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-r from-skyline/10 to-skyline/6 px-6 py-3.5 text-base font-semibold text-white transition hover:border-white/30 hover:from-skyline/14 hover:to-skyline/10">GitHub Star</a>
+              <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl bg-linear-to-r/srgb from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_16px_42px_rgba(239,68,68,0.24)] transition hover:scale-[1.01]">Download</a>
+              <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white transition hover:border-white/30 hover:to-skyline/10">GitHub Star</a>
             </div>
           </div>
         </div>
