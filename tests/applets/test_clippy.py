@@ -346,6 +346,7 @@ class TestClipStack:
         ("/", "/"),
         ("file:///", "file:///"),
         ("file://[broken/report.txt", "file://[broken/report.txt"),
+        ("file:///tmp/invalid%00.txt", "file:///tmp/invalid%00.txt"),
         ("https://example.com/report.txt", "https://example.com/report.txt"),
         ("ordinary clipboard text", "ordinary clipboard text"),
         ("/tmp/report.txt\nordinary text", "/tmp/report.txt ordinary text"),

@@ -101,6 +101,8 @@ def _file_names(text: str) -> str | None:
                 path = unquote(urlsplit(path).path)
             except ValueError:
                 return None
+            if "\0" in path:
+                return None
             name = PurePosixPath(path).name
         elif PureWindowsPath(path).is_absolute():
             name = PureWindowsPath(path).name
