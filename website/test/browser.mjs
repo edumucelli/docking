@@ -112,6 +112,20 @@ for (const javaScriptEnabled of [true, false]) {
   }
 }
 
+test("compiled styles preserve the custom theme and keyboard focus", async (t) => {
+  const context = await newContext({ locale: "en", reducedMotion: "no-preference" });
+  t.after(() => context.close());
+  const page = await context.newPage();
+  await page.goto(origin);
+  assert.equal(await page.locator("body").evaluate((el) => getComputedStyle(el).backgroundColor), "rgb(16, 24, 39)");
+  assert.equal(await page.locator(".animate-marquee").evaluate((el) => getComputedStyle(el).animationName), "marquee");
+  assert.equal(await page.locator(".animate-marquee").evaluate((el) => getComputedStyle(el).animationDuration), "24s");
+  assert.notEqual(await page.locator(".shadow-soft").first().evaluate((el) => getComputedStyle(el).boxShadow), "none");
+  assert.notEqual(await page.locator(".bg-gradient-to-r").first().evaluate((el) => getComputedStyle(el).backgroundImage), "none");
+  await page.locator("#applet-search").focus();
+  assert.equal(await page.locator("#applet-search").evaluate((el) => getComputedStyle(el).outlineWidth), "2px");
+});
+
 for (const locale of ["pt-BR", "fr-CA", "es-MX", "de-DE"]) {
   test(`${locale}: language suggestions respect URLs and explicit choices`, async (t) => {
     const context = await newContext({ locale });
