@@ -10,7 +10,7 @@ from gi.repository import GdkPixbuf
 
 import docking.search.controller as controller_mod
 from docking.core.config import Config
-from docking.core.items import APPLET_KIND
+from docking.core.items import APP_KIND, APPLET_KIND
 from docking.platform.applications.types import (
     ApplicationInfo,
     ApplicationLocation,
@@ -163,6 +163,7 @@ def _make_controller(
     items = [] if model_items is None else model_items
     model = SimpleNamespace(
         visible_items=lambda: list(items),
+        tracked_items=lambda: list(items),
         add_change_listener=model_listeners.append,
         remove_change_listener=model_listeners.remove,
         find_by_desktop_id=lambda **_kwargs: None,
@@ -376,6 +377,30 @@ def test_action_revalidation_rejects_old_generation(monkeypatch) -> None:
         result_identity=result.identity,
         action_identity=action.identity,
     )
+
+
+def test_hidden_running_app_changes_refresh_search(monkeypatch) -> None:
+    app = SimpleNamespace(
+        desktop_id="firefox.desktop",
+        kind=APP_KIND,
+        name="Firefox",
+        target="firefox.desktop",
+        icon_name="firefox",
+        is_pinned=False,
+        is_running=True,
+        is_recent=False,
+    )
+    controller, window, *_ = _make_controller(monkeypatch, model_items=[app])
+    controller._model.visible_items = list
+    controller.start()
+    controller.show(initial_query="fire")
+    before = len(window.snapshots)
+
+    app.is_running = False
+    app.is_recent = True
+    controller._refresh_for_model_change()
+
+    assert len(window.snapshots) > before
 
 
 def test_live_applet_tooltip_updates_do_not_restart_search(monkeypatch) -> None:

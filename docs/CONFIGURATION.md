@@ -140,8 +140,14 @@ boundary is limited when necessary to keep the hovered item clickable.
 | Setting | Default | Values | Description |
 |---|---:|---|---|
 | `lock_icons` | `false` | boolean | Prevents reordering, drag-in, and drag-off removal. |
+| `pinned_only` | `false` | boolean | Hides unpinned applications, including running apps, recent apps, and launcher-only items. Pinned apps retain their running indicators, windows, and badges. |
 | `anchor_applets` | `false` | boolean | Keeps applets grouped at the end of the dock. |
 | `anchor_files` | `false` | boolean | Keeps pinned files and folders grouped at the end independently of applets. |
+
+**Preferences → Appearance → Layout → Pinned Only** changes which applications
+appear in the dock. It keeps tracking hidden applications and recording recent
+history according to the existing recent-app settings. Turning it off restores
+the current running and recent items without changing pins or deleting history.
 
 ### Mouse, Menus, and Stacks
 

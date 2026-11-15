@@ -22,7 +22,7 @@ import docking.platform.model as model_mod
 from docking.applets.services import AppletServices
 from docking.core.config import Config, PinnedEntry
 from docking.core.icons import CUSTOM_ICON_PATH_KEY, ICON_SOURCE_PREF_KEY, IconSource
-from docking.core.items import APP_KIND, FILE_KIND, FOLDER_KIND
+from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND
 from docking.platform.applications.implementations.unix.entries import (
     GeneratedDesktopEntry,
 )
@@ -135,6 +135,7 @@ def _make_config(pinned: list[str], *, show_recent_apps: bool = False):
     config.scaled_icon_size = 48
     config.zoom_percent = 2.0
     config.anchor_applets = False
+    config.pinned_only = False
     config.anchor_files = False
     config.item_prefs = {}
     config.show_launcher_badges = True
@@ -943,6 +944,111 @@ class TestCustomIcons:
         )
         assert config.pinned == [PinnedEntry(kind=APP_KIND, target="tool.desktop")]
         config.save.assert_called_once()
+
+
+class TestPinnedOnly:
+    def test_hides_running_and_overlay_apps_without_losing_live_state(self):
+        config = _make_config(["pinned.desktop"])
+        config.pinned_only = True
+        model = _make_model(
+            config,
+            _make_dependencies(
+                "pinned.desktop",
+                "running.desktop",
+                "overlay.desktop",
+            ),
+        )
+        model.update_running(
+            {
+                "pinned.desktop": _running(count=2, active=True),
+                "running.desktop": _running(count=3, urgent=True),
+            }
+        )
+        for desktop_id in ("pinned.desktop", "overlay.desktop"):
+            state = LauncherEntryState(
+                sender_name=f":1.{7 if desktop_id == 'pinned.desktop' else 8}",
+                app_uri=f"application://{desktop_id}",
+                desktop_id=desktop_id,
+                badge_count=7,
+                badge_visible=True,
+            )
+            assert model.apply_launcher_entry(
+                sender_name=state.sender_name,
+                app_uri=state.app_uri,
+                state=state,
+                create_transient=True,
+            )
+
+        (pinned,) = model.visible_items()
+        assert pinned.desktop_id == "pinned.desktop"
+        assert pinned.instance_count == 2
+        assert pinned.is_active
+        assert pinned.badge_count == 7
+        hidden = model.find_by_desktop_id("running.desktop")
+        assert hidden is not None and hidden.instance_count == 3 and hidden.is_urgent
+        tracked = model.tracked_items()
+        assert {item.desktop_id for item in tracked} == {
+            "pinned.desktop",
+            "running.desktop",
+            "overlay.desktop",
+        }
+        config.pinned_only = False
+        assert model.visible_items() == tracked
+        assert model.find_by_desktop_id("running.desktop") is hidden
+
+    @pytest.mark.parametrize("anchored", [False, True])
+    def test_keeps_non_app_items_and_outgoing_slots(self, anchored):
+        config = _make_config(["pinned.desktop"], show_recent_apps=True)
+        config.pinned_only = True
+        config.anchor_applets = anchored
+        config.anchor_files = anchored
+        model = _make_model(config, _make_dependencies("pinned.desktop"))
+        file = DockItem("file:///tmp/report.txt", kind=FILE_KIND, is_pinned=True)
+        folder = DockItem("file:///tmp/folder", kind=FOLDER_KIND, is_pinned=True)
+        applet = DockItem("applet://separator", kind=APPLET_KIND, is_pinned=True)
+        model.pinned_items.extend([file, folder, applet])
+        model._recent_apps.append(DockItem("recent.desktop", is_recent=True))
+        outgoing_file = DockItem(
+            "file:///tmp/removed.txt",
+            kind=FILE_KIND,
+            removal_index=1,
+        )
+        outgoing_app = DockItem("removed.desktop", removal_index=0)
+        model._animating_out.extend([outgoing_app, outgoing_file])
+
+        assert model.visible_items() == [
+            model.pinned_items[0],
+            outgoing_file,
+            file,
+            folder,
+            applet,
+        ]
+        assert outgoing_app in model.tracked_items()
+
+    def test_hidden_apps_can_be_pinned_and_unpinned_and_visible_indices_reorder(self):
+        config = _make_config(["a.desktop", "b.desktop"])
+        config.pinned_only = True
+        model = _make_model(
+            config,
+            _make_dependencies(
+                "a.desktop",
+                "b.desktop",
+                "hidden.desktop",
+            ),
+        )
+        model.update_running({"hidden.desktop": _running()})
+        hidden = model.find_by_desktop_id("hidden.desktop")
+        model.reorder_visible(1, 0)
+        assert [item.desktop_id for item in model.visible_items()] == [
+            "b.desktop",
+            "a.desktop",
+        ]
+        model.pin_item("hidden.desktop")
+        assert model.visible_items()[-1] is hidden
+        model.unpin_item("hidden.desktop")
+        assert hidden not in model.visible_items()
+        assert model.find_by_desktop_id("hidden.desktop") is hidden
+        assert hidden.is_running
 
 
 class TestReorderVisible:

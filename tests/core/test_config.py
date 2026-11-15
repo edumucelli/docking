@@ -59,12 +59,33 @@ class TestConfigDefaults:
         assert c.show_window_count_numbers is False
         assert c.show_launcher_badges is True
         assert c.show_launcher_progress is True
+        assert c.pinned_only is False
         assert c.global_search_enabled is True
         assert c.global_search_shortcut == "CTRL+ALT+space"
         assert c.global_search_web_engine == "duckduckgo"
         assert c.theme == "default"
         assert c.transparency == 1.0
         assert isinstance(c.pinned, list)
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            (True, True),
+            (False, False),
+            ("yes", True),
+            ("false", False),
+            (None, False),
+            ("garbage", False),
+            ([], False),
+        ],
+    )
+    def test_pinned_only_normalizes_and_persists(self, tmp_path, raw, expected):
+        path = tmp_path / "dock.json"
+        path.write_text(json.dumps({"pinned_only": raw}))
+        config = Config.load(path)
+        assert config.pinned_only is expected
+        config.save()
+        assert Config.load(path).pinned_only is expected
 
     def test_window_preview_thumbnails_enabled_default_true(self):
         # Given / When

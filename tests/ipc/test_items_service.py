@@ -182,6 +182,25 @@ class TestDockItemsServiceLifecycle:
 
 
 class TestDockItemsServiceDispatch:
+    def test_hidden_tracked_item_can_be_pinned_but_is_not_counted(self):
+        model = _make_model()
+        model.visible_items.return_value = list(model.pinned_items)
+        service = DockItemsService(model=model, window=_make_window())
+
+        assert service._dispatch_call(
+            method_name="GetCount",
+            parameters=GLib.Variant("()", ()),
+        ).unpack() == (1,)
+        assert service._dispatch_call(
+            method_name="ListTransientIds",
+            parameters=GLib.Variant("()", ()),
+        ).unpack() == ([],)
+        assert service._dispatch_call(
+            method_name="Pin",
+            parameters=GLib.Variant("(s)", ("slack.desktop",)),
+        ).unpack() == (True,)
+        model.pin_item.assert_called_once_with("slack.desktop")
+
     def test_typed_list_and_count_methods(self):
         service = DockItemsService(model=_make_model(), window=_make_window())
 

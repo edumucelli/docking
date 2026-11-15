@@ -356,7 +356,7 @@ class WindowTracker:
         self._cycle_index: dict[str, int] = {}
         self._cycle_order_by_desktop: dict[str, list[int]] = {}
 
-        self._matcher.sync_visible_items(self._model.visible_items())
+        self._matcher.sync_visible_items(self._model.tracked_items())
         # Defer screen init to after GTK is ready
         GLib.idle_add(self._init_screen)
 
@@ -462,10 +462,10 @@ class WindowTracker:
 
     def _update_running(self) -> None:
         """Scan all windows and update the dock model."""
-        # Keep WM_CLASS mapping in sync with current visible items. The set of
-        # pinned/transient items can change at runtime (pin/unpin/reorder),
+        # Keep WM_CLASS mapping in sync with tracked items, including hidden apps.
+        # Pinned/transient items can change at runtime (pin/unpin/reorder),
         # and a stale map causes running indicators to miss windows.
-        self._matcher.sync_visible_items(self._model.visible_items())
+        self._matcher.sync_visible_items(self._model.tracked_items())
 
         if self._screen is None:
             return
@@ -750,7 +750,7 @@ class WindowTracker:
 
     def icon_name_for_desktop(self, desktop_id: str) -> str:
         """Return icon name for desktop_id from the current dock model."""
-        for item in self._model.visible_items():
+        for item in self._model.tracked_items():
             if item.desktop_id == desktop_id:
                 return item.icon_name or "application-x-executable"
         return "application-x-executable"

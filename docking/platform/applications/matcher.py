@@ -219,7 +219,7 @@ class AppIdMatcher:
         self._registry_generation = self._registry.generation
 
     def sync_visible_items(self, items: Iterable[DockItem]) -> None:
-        """Rebuild application-only aliases from the current dock projection."""
+        """Rebuild application aliases from the model's unfiltered projection."""
         self._sync_registry_generation()
         self._visible_aliases.clear()
         for item in items:

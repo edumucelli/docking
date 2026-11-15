@@ -49,7 +49,7 @@ def _match_id(matcher: AppIdMatcher, app_id: str) -> str | None:
 
 def _model(*items: SimpleNamespace) -> SimpleNamespace:
     return SimpleNamespace(
-        visible_items=MagicMock(return_value=list(items)),
+        tracked_items=MagicMock(return_value=list(items)),
         update_running=MagicMock(),
     )
 
@@ -122,6 +122,24 @@ def test_foreign_toplevel_service_publishes_running_state_and_snapshots():
     assert snapshot.can_close is True
     assert snapshot.can_minimize is True
     assert snapshot.can_preview is False
+
+
+def test_hidden_application_alias_survives_wayland_window_transitions():
+    model = _model(_item("custom.desktop", wm_class="HiddenTool"))
+    model.visible_items = MagicMock(return_value=[])
+    service = WaylandForeignToplevelWindowService(
+        model=model,
+        **identity_services(),
+        protocol=_protocol(),
+    )
+    handle = object()
+    service.toplevel_created(handle)
+    service.app_id_changed(handle, "HiddenTool")
+    service.state_changed(handle, [STATE_ACTIVATED])
+    service.done(handle)
+    assert model.update_running.call_args.kwargs["running"]["custom.desktop"].active
+    service.closed(handle)
+    assert model.update_running.call_args.kwargs["running"] == {}
 
 
 def test_foreign_toplevel_service_marks_snapshots_previewable_when_matched():

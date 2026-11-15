@@ -123,7 +123,10 @@ class _Windows:
         return ActionResult.OK
 
 
-def test_application_provider_merges_dock_state_and_actions(monkeypatch) -> None:
+@pytest.mark.parametrize("hidden", [False, True])
+def test_application_provider_merges_dock_state_and_actions(
+    monkeypatch, hidden
+) -> None:
     app = ApplicationInfo(
         desktop_id="firefox.desktop",
         name="Firefox",
@@ -155,12 +158,13 @@ def test_application_provider_merges_dock_state_and_actions(monkeypatch) -> None
     dock_item = SimpleNamespace(
         desktop_id="firefox.desktop",
         kind=APP_KIND,
-        is_pinned=True,
+        is_pinned=not hidden,
         is_running=True,
         is_recent=False,
     )
     model = SimpleNamespace(
-        visible_items=lambda: [dock_item],
+        visible_items=lambda: [] if hidden else [dock_item],
+        tracked_items=lambda: [dock_item],
         pin_application=MagicMock(return_value=True),
         unpin_item=MagicMock(),
     )
@@ -207,12 +211,12 @@ def test_application_provider_merges_dock_state_and_actions(monkeypatch) -> None
     result = _results(provider, "fire")[0]
 
     assert result.title == "Firefox"
-    assert result.state == "Running · Pinned"
+    assert result.state == ("Running" if hidden else "Running · Pinned")
     assert [action.label for action in result.actions] == [
         "Focus",
         "Open New Window",
         "New Private Window",
-        "Remove from Dock",
+        "Keep in Dock" if hidden else "Remove from Dock",
         "Close",
     ]
     assert provider.invoke(
@@ -276,7 +280,7 @@ def test_application_provider_uses_canonical_search_projection_order(
         registry=cast(Any, registry),
         application_launcher=MagicMock(),
         target_service=MagicMock(),
-        model=cast(Any, SimpleNamespace(visible_items=lambda: items)),
+        model=cast(Any, SimpleNamespace(tracked_items=lambda: items)),
         windows=cast(Any, _Windows()),
         recent_docs_limit=5,
     )
@@ -321,7 +325,7 @@ def test_application_provider_dispatches_through_injected_services(
         get=lambda _desktop_id: application,
     )
     model = SimpleNamespace(
-        visible_items=list,
+        tracked_items=list,
         pin_application=MagicMock(return_value=True),
         unpin_item=MagicMock(),
     )

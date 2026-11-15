@@ -173,6 +173,7 @@ class _ReorderDock:
             zoom_enabled=True,
             lock_icons=False,
             show_recent_apps=False,
+            pinned_only=False,
             anchor_applets=False,
             anchor_files=False,
             pinned=[],
@@ -295,6 +296,20 @@ class TestInternalReorderDragMotion:
         dock = _ReorderDock()
         dock.start_drag(1)
         dock.model.pinned_items.pop(1)
+
+        dock.drag_to(dock.slot_centres()[-1] + 100)
+
+        assert dock.order() == ["a.desktop", "c.desktop", "d.desktop"]
+        assert dock.dnd.drag_index == -1
+        dock.config.save.assert_not_called()
+
+    def test_pinned_only_toggle_hides_drag_source_without_reordering_neighbor(self):
+        dock = _ReorderDock()
+        dragged = dock.model.pinned_items.pop(1)
+        dragged.is_pinned = False
+        dock.model._transient.append(dragged)
+        dock.start_drag(3)
+        dock.config.pinned_only = True
 
         dock.drag_to(dock.slot_centres()[-1] + 100)
 

@@ -525,7 +525,7 @@ class WayfireWindowService(WindowService):
         focused_id = _focused_view_id(focused)
         if not isinstance(views, list):
             return
-        self._matcher.sync_visible_items(self._model.visible_items())
+        self._matcher.sync_visible_items(self._model.tracked_items())
         records: dict[int, WayfireWindowRecord] = {}
         for item in views:
             item = as_json_object(item)
@@ -607,7 +607,7 @@ class WayfireWindowService(WindowService):
                 self._records.pop(view_id, None)
             self._publish_running()
             return
-        self._matcher.sync_visible_items(self._model.visible_items())
+        self._matcher.sync_visible_items(self._model.tracked_items())
         record = _record_from_view(
             view,
             matcher=self._matcher,

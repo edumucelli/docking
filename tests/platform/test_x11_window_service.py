@@ -150,7 +150,7 @@ def make_service(
 def test_constructor_reuses_canonical_identity_services(monkeypatch):
     monkeypatch.setattr(tracker_mod.GLib, "idle_add", MagicMock(return_value=1))
     model = MagicMock()
-    model.visible_items.return_value = []
+    model.tracked_items.return_value = []
     registry = MagicMock()
     registry.generation = 7
     process_identity_service = MagicMock()

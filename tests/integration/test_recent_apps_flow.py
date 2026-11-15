@@ -97,6 +97,33 @@ def _make_model(
 class TestRecentAppsFullFlow:
     """End-to-end: app launched, closed, appears in recent, pinned, etc."""
 
+    def test_pinned_only_preserves_history_and_records_hidden_app_closures(self):
+        config = Config(pinned=[], pinned_only=True, show_recent_apps=True)
+        dependencies = _make_dependencies("firefox.desktop", "gedit.desktop")
+        model = _make_model(config, dependencies, AppletServices())
+        for desktop_id in ("firefox.desktop", "gedit.desktop"):
+            model.update_running({desktop_id: _make_running()})
+            model.update_running({})
+            assert model.visible_items() == []
+        history = list(config.recent_apps)
+        tracked = model.tracked_items()
+        assert {item.desktop_id for item in tracked if item.is_recent} == {
+            "firefox.desktop",
+            "gedit.desktop",
+        }
+
+        config.pinned_only = False
+        model.notify()
+        assert model.visible_items() == tracked
+        assert config.recent_apps == history
+        config.pinned_only = True
+        model.update_running({"firefox.desktop": _make_running(count=2)})
+        assert model.visible_items() == []
+        config.pinned_only = False
+        firefox = model.find_by_desktop_id("firefox.desktop")
+        assert firefox in model.visible_items()
+        assert firefox.is_running and firefox.instance_count == 2
+
     def test_launch_close_reappear_flow(self):
         """App is launched, closed, shown as recent, then relaunched."""
         config = Config()

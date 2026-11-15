@@ -36,7 +36,7 @@ def _row(sequence=1, **fields):
 
 def _service(*rows):
     model = SimpleNamespace(
-        visible_items=lambda: [DockItem(desktop_id="firefox.desktop")],
+        tracked_items=lambda: [DockItem(desktop_id="firefox.desktop")],
         update_running=MagicMock(),
     )
     client = SimpleNamespace(

@@ -80,9 +80,9 @@ class ApplicationSearchProvider:
             yield SearchBatch.replace(self.provider_id, request.generation)
             return
 
-        visible_apps = {
+        tracked_apps = {
             item.desktop_id: item
-            for item in self._model.visible_items()
+            for item in self._model.tracked_items()
             if item.kind == APP_KIND
         }
         canonical = {
@@ -110,7 +110,7 @@ class ApplicationSearchProvider:
             description = _clean_text(application.description)
             categories = _normalized_values(application.categories)
             keywords = _normalized_values(application.keywords)
-            item = visible_apps.get(application.desktop_id)
+            item = tracked_apps.get(application.desktop_id)
             pinned = bool(item and item.is_pinned)
             running = bool(item and item.is_running)
             recent = bool(item and item.is_recent)

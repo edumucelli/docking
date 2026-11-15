@@ -459,7 +459,7 @@ class AtspiWindowService(WindowService):
 
         # Sync visible items into the matcher
         with contextlib.suppress(Exception):
-            matcher.sync_visible_items(model.visible_items())
+            matcher.sync_visible_items(model.tracked_items())
 
         # Group windows by resolved desktop_id
         by_desktop: dict[str, list[_AtspiWindow]] = {}

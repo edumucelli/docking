@@ -312,7 +312,7 @@ def tracker_env(monkeypatch):
     monkeypatch.setattr(window_tracker_mod.Gtk, "get_current_event_time", lambda: 123)
 
     model = MagicMock()
-    model.visible_items.return_value = [
+    model.tracked_items.return_value = [
         DockItem(desktop_id="firefox.desktop", wm_class="Firefox"),
         DockItem(desktop_id="code.desktop", wm_class="Code"),
         DockItem(desktop_id="no-class.desktop", wm_class=""),
@@ -331,6 +331,23 @@ def tracker_env(monkeypatch):
 
 
 class TestWindowTrackerInit:
+    def test_hidden_application_alias_stays_matched(self, tracker_env):
+        tracker, model, _launcher = tracker_env
+        model.visible_items.return_value = []
+        model.tracked_items.return_value = [
+            DockItem(desktop_id="custom.desktop", wm_class="HiddenTool"),
+        ]
+        tracker._screen = FakeScreen(windows=[], active_window=None)
+        tracker._update_running()
+
+        assert (
+            _matched_desktop_id(
+                tracker._matcher,
+                FakeWindow(50, class_group="HiddenTool"),
+            )
+            == "custom.desktop"
+        )
+
     def test_syncs_window_matcher_on_init(self, tracker_env):
         # Given
         tracker, _model, _launcher = tracker_env
@@ -537,7 +554,7 @@ class TestWindowTrackerRunningAggregation:
         running.parent.mkdir(parents=True)
         pinned.write_bytes(b"\x7fELF")
         running.write_bytes(b"\x7fELF")
-        model.visible_items.return_value = [
+        model.tracked_items.return_value = [
             DockItem(
                 desktop_id="tool-v1.desktop",
                 name="Shared Tool",
@@ -997,7 +1014,7 @@ class TestWindowActions:
     def test_icon_name_for_desktop_uses_model_item_icon(self, tracker_env):
         # Given
         tracker, model, _launcher = tracker_env
-        model.visible_items.return_value = [
+        model.tracked_items.return_value = [
             DockItem(desktop_id="firefox.desktop", icon_name="firefox"),
             DockItem(desktop_id="code.desktop", icon_name="code"),
         ]

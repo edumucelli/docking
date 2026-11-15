@@ -276,6 +276,7 @@ DEFAULT_WINDOW_PREVIEW_OUTLINE_WINDOW_ON_HOVER = False
 DEFAULT_WINDOW_PREVIEW_THUMBNAIL_WIDTH = 200
 DEFAULT_LOCK_ICONS = False
 DEFAULT_CURRENT_WORKSPACE_ONLY = False
+DEFAULT_PINNED_ONLY = False
 DEFAULT_ANCHOR_APPLETS = False
 DEFAULT_ANCHOR_FILES = False
 DEFAULT_TOOLTIPS_ENABLED = True
@@ -841,6 +842,8 @@ class Config:
     lock_icons: bool = DEFAULT_LOCK_ICONS
     # Only show running apps from the active workspace
     current_workspace_only: bool = DEFAULT_CURRENT_WORKSPACE_ONLY
+    # Hide unpinned applications without changing tracking or recent history
+    pinned_only: bool = DEFAULT_PINNED_ONLY
     # Whether applets are anchored to the end of the dock
     anchor_applets: bool = DEFAULT_ANCHOR_APPLETS
     # Whether file/folder entries are anchored to the end independently
@@ -1005,6 +1008,10 @@ class Config:
         self.current_workspace_only = coerce_bool(
             self.current_workspace_only,
             default=DEFAULT_CURRENT_WORKSPACE_ONLY,
+        )
+        self.pinned_only = coerce_bool(
+            self.pinned_only,
+            default=DEFAULT_PINNED_ONLY,
         )
         self.anchor_applets = coerce_bool(
             self.anchor_applets,

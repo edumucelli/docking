@@ -22,7 +22,7 @@ from tests.platform.application_fakes import layer_shell as _layer_shell
 
 def _model() -> SimpleNamespace:
     return SimpleNamespace(
-        visible_items=MagicMock(
+        tracked_items=MagicMock(
             return_value=[DockItem(desktop_id="firefox.desktop", wm_class="firefox")]
         ),
         update_running=MagicMock(),

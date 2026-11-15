@@ -1128,12 +1128,14 @@ class DockModel:
         return True
 
     def visible_items(self) -> list[DockItem]:
-        """All items to display with optional independent anchoring rules.
+        """Apply the dock's display policy without discarding tracked apps."""
+        return self._ordered_items(pinned_only=self._config.pinned_only)
 
-        Visual order: pinned_items + recent_apps + transient_items.
-        Recent apps that are currently running are suppressed (they appear
-        in either pinned or transient instead).
-        """
+    def tracked_items(self) -> list[DockItem]:
+        """Unfiltered items in dock order for identity matching and Search."""
+        return self._ordered_items(pinned_only=False)
+
+    def _ordered_items(self, *, pinned_only: bool) -> list[DockItem]:
         if not self._config.show_recent_apps:
             recent: list[DockItem] = []
         else:
@@ -1159,6 +1161,10 @@ class DockModel:
                     regular.append(item)
             ordered = regular + files + applet_items
 
+        if pinned_only:
+            ordered = [
+                item for item in ordered if item.kind != APP_KIND or item.is_pinned
+            ]
         if not self._animating_out:
             return ordered
 
@@ -1175,6 +1181,8 @@ class DockModel:
                 else len(ordered) + len(self._animating_out)
             ),
         ):
+            if pinned_only and item.kind == APP_KIND and not item.is_pinned:
+                continue
             if item.removal_index < 0 or item.removal_index > len(result):
                 result.append(item)
             else:
