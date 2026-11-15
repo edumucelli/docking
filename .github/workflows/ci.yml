@@ -12,6 +12,13 @@ on:
   pull_request:
 
 jobs:
+  # Existing branch protection requires this status name.
+  changes:
+    name: Detect CI-relevant changes
+    runs-on: ubuntu-24.04
+    steps:
+      - run: echo 'All changes run CI.'
+
   quality:
     name: Quality (ruff + ty)
     runs-on: ubuntu-24.04
