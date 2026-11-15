@@ -203,6 +203,40 @@ def test_codex_registration_preserves_any_unowned_handler(
     assert path.read_text() == notify
 
 
+@pytest.mark.parametrize("owned", [False, True])
+def test_codex_registration_ignores_brackets_and_quotes_in_array_comments(
+    tmp_path, monkeypatch, owned
+):
+    tomllib = pytest.importorskip("tomllib")
+    module = "docking.applets.aiusage.hook" if owned else "another_tool.hook"
+    source = (
+        'model = "example"\n'
+        "notify = [\n"
+        f'  "python", "-m", "{module}", # ] [ " \'\n'
+        '  "codex", # another ]\n'
+        "]\n"
+        "[profiles.work]\n"
+        "keep = true\n"
+    )
+    expected = tomllib.loads(source)
+    path = tmp_path / "config.toml"
+    path.write_text(source)
+    monkeypatch.setattr(codex, "_CODEX_CONFIG", path)
+
+    codex.register_hook()
+    first = path.read_text()
+    parsed = tomllib.loads(first)
+    if owned:
+        assert parsed["notify"] != expected["notify"]
+        assert parsed["notify"][-1] == "codex"
+        expected["notify"] = parsed["notify"]
+    else:
+        assert first == source
+    assert parsed == expected
+    codex.register_hook()
+    assert path.read_text() == first
+
+
 def test_codex_daily_deltas_keep_model_switches_and_midnight_separate(tmp_path):
     path = tmp_path / "session.jsonl"
     yesterday = _timestamp("2026-04-28", 23, 59)

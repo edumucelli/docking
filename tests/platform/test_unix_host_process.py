@@ -1,11 +1,28 @@
 """Unix diagnostics must leave WebKit's garbage-collection signal available."""
 
 import os
+import shlex
 import subprocess
 import sys
+from pathlib import Path
 from textwrap import dedent
 
 import pytest
+
+from docking.platform.host.implementations.unix.process import hook_command
+
+
+@pytest.mark.parametrize("directory", ["My Projects", "developer's tools"])
+def test_hook_command_quotes_project_and_interpreter_paths(directory):
+    root = Path("/tmp") / directory / "docking"
+    executable = str(root / ".venv/bin/python")
+
+    assert shlex.split(hook_command(root, executable)) == [
+        f"PYTHONPATH={root}",
+        executable,
+        "-m",
+        "docking.applets.aiusage.hook",
+    ]
 
 
 @pytest.mark.skipif(os.name == "nt", reason="Unix diagnostic signals")

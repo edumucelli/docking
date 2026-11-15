@@ -125,7 +125,9 @@ def _load_image(
             or width * height > MAX_IMAGE_PIXELS
         ):
             return None
-        scale = min(max_width / width, max_height / height, 1.0)
+        # Either dimension may become the width after applying orientation.
+        edge = max(max_width, max_height)
+        scale = min(edge / width, edge / height, 1.0)
         shown_width = max(1, round(width * scale))
         shown_height = max(1, round(height * scale))
         pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
@@ -139,6 +141,16 @@ def _load_image(
         oriented = pixbuf.apply_embedded_orientation()
         if oriented is not None:
             pixbuf = oriented
+        shown_width, shown_height = pixbuf.get_width(), pixbuf.get_height()
+        scale = min(max_width / shown_width, max_height / shown_height, 1.0)
+        if scale < 1.0:
+            pixbuf = pixbuf.scale_simple(
+                max(1, round(shown_width * scale)),
+                max(1, round(shown_height * scale)),
+                GdkPixbuf.InterpType.BILINEAR,
+            )
+            if pixbuf is None:
+                return None
         format_name = str(image_format.get_name() or "").upper()
     except (GLib.Error, OSError, ValueError):
         return None

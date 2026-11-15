@@ -289,7 +289,9 @@ class FolderStackController(StackPopupController):
             return
         prefs = self.folder_prefs(item)
         prefs[key] = value
-        self._config.item_prefs[item.prefs_key or item.target] = prefs
+        self._config.item_prefs.setdefault(item.prefs_key or item.target, {}).update(
+            prefs
+        )
         self._config.save()
         self._runtime.queue_draw()
         self.invalidate_target(item.target)

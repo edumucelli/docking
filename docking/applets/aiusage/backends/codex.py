@@ -72,7 +72,7 @@ def register_hook() -> None:
 
     notify_match = re.search(
         r"""^[ \t]*(?:notify|"notify"|'notify')\s*=\s*\["""
-        r"""(?:"(?:\\.|[^"\\])*"|'[^']*'|[^\]"'])*\]""",
+        r"""(?:#[^\n]*|"(?:\\.|[^"\\])*"|'[^']*'|[^\]"'#])*\]""",
         content,
         re.MULTILINE,
     )

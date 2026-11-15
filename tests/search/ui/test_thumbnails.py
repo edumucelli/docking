@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import os
 
+import pytest
 from gi.repository import GdkPixbuf
+from PIL import Image
 
 from docking.search.ui.thumbnails import SearchImageCache
 
@@ -33,6 +35,38 @@ def test_thumbnail_preserves_aspect_ratio_and_is_cached(tmp_path) -> None:
     assert first.pixbuf.get_width() == 32
     assert first.pixbuf.get_height() == 16
     assert second is first
+
+
+@pytest.mark.parametrize("orientation", [1, 3, 6, 8])
+@pytest.mark.parametrize("bounds", [(40, 24), (24, 40)])
+def test_oriented_jpeg_fits_rectangular_bounds(tmp_path, orientation, bounds):
+    path = tmp_path / "oriented.jpg"
+    exif = Image.Exif()
+    exif[274] = orientation
+    Image.new("RGB", (120, 80), "blue").save(path, exif=exif)
+
+    loaded = SearchImageCache().load(
+        path=str(path), max_width=bounds[0], max_height=bounds[1]
+    )
+
+    assert loaded is not None
+    size = loaded.pixbuf.get_width(), loaded.pixbuf.get_height()
+    if orientation in (6, 8):
+        assert size == ((16, 24) if bounds == (40, 24) else (24, 36))
+    else:
+        assert size == ((36, 24) if bounds == (40, 24) else (24, 16))
+
+
+def test_small_oriented_jpeg_is_not_enlarged(tmp_path):
+    path = tmp_path / "small.jpg"
+    exif = Image.Exif()
+    exif[274] = 6
+    Image.new("RGB", (12, 8), "blue").save(path, exif=exif)
+
+    loaded = SearchImageCache().load(path=str(path), max_width=40, max_height=24)
+
+    assert loaded is not None
+    assert (loaded.pixbuf.get_width(), loaded.pixbuf.get_height()) == (8, 12)
 
 
 def test_file_modification_invalidates_thumbnail(tmp_path) -> None:
