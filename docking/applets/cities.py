@@ -23,6 +23,7 @@ import csv
 import gzip
 import math
 from collections.abc import Mapping
+from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
 
@@ -111,3 +112,27 @@ def search_cities(
             if len(results) >= limit:
                 break
     return results
+
+
+class CityPref(NamedTuple):
+    """A persisted city entry."""
+
+    city_display: str
+    lat: float
+    lng: float
+
+
+def _city_from_pref(raw: object) -> CityPref | None:
+    if not isinstance(raw, Mapping):
+        return None
+    display = raw.get("city_display")
+    coordinates = parse_coordinates(raw)
+    if not isinstance(display, str) or not display or coordinates is None:
+        return None
+    return CityPref(display, *coordinates)
+
+
+@lru_cache(maxsize=1)
+def cached_cities() -> tuple[CityEntry, ...]:
+    """Load city database on first access (cached)."""
+    return tuple(load_cities())

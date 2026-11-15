@@ -35,6 +35,7 @@ from docking.platform.tray.state import (
 from docking.platform.tray.state import (
     TrayState as StatusTrayState,
 )
+from tests.applets.inline_worker import ImmediateWorker
 from tests.platform_factories import make_applet_platform
 
 
@@ -313,18 +314,10 @@ def _menu_layout() -> DBusMenuLayout:
 
 
 class _ImmediateWorker:
+    run = ImmediateWorker.run
+
     def stop(self) -> None:
         pass
-
-    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
-        try:
-            result = fn()
-        except Exception as exc:
-            if on_error is not None:
-                on_error(exc)
-            return
-        if on_result is not None:
-            on_result(result)
 
 
 class _DeferredWorker:

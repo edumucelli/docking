@@ -16,9 +16,10 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Hashable, Sequence
+from collections import OrderedDict
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any
 
 import cairo
 import gi
@@ -41,6 +42,7 @@ from docking.ui.display import (
     window_size,
     window_surface_service,
 )
+from docking.ui.effects import ease_out_cubic
 from docking.ui.shelf import rounded_rect
 
 if TYPE_CHECKING:
@@ -52,8 +54,6 @@ FOLDER_STACK_MAX_VISIBLE_ROWS = 9
 FOLDER_STACK_GAP_PX = 8
 FOLDER_STACK_POPUP_SIDE_PADDING_PX = 14
 FOLDER_STACK_TOP_PADDING_PX = 6
-K = TypeVar("K", bound=Hashable)
-V = TypeVar("V")
 FOLDER_STACK_ACTION_GAP_PX = 18
 FOLDER_STACK_ICON_GAP_PX = 10
 FOLDER_STACK_LABEL_HEIGHT_PX = 24
@@ -217,35 +217,22 @@ class StackLayoutCache:
     """Bounded cache for reusable stack layouts."""
 
     def __init__(self) -> None:
-        self.layouts: dict[tuple[object, ...], StackLayout] = {}
-
-    @staticmethod
-    def _get_lru(cache: dict[K, V], key: K) -> V | None:
-        cached = cache.pop(key, None)
-        if cached is not None:
-            cache[key] = cached
-        return cached
-
-    @staticmethod
-    def _put_lru(cache: dict[K, V], key: K, value: V, *, max_entries: int) -> None:
-        cache[key] = value
-        while len(cache) > max_entries:
-            cache.pop(next(iter(cache)))
+        self.layouts: OrderedDict[tuple[object, ...], StackLayout] = OrderedDict()
 
     def get_layout(self, key: tuple[object, ...]) -> StackLayout | None:
-        return self._get_lru(self.layouts, key)
+        cached = self.layouts.get(key)
+        if cached is not None:
+            self.layouts.move_to_end(key)
+        return cached
 
     def put_layout(
         self,
         key: tuple[object, ...],
         layout: StackLayout,
     ) -> None:
-        self._put_lru(
-            self.layouts,
-            key,
-            layout,
-            max_entries=FOLDER_STACK_LAYOUT_CACHE_MAX_ENTRIES,
-        )
+        self.layouts[key] = layout
+        while len(self.layouts) > FOLDER_STACK_LAYOUT_CACHE_MAX_ENTRIES:
+            self.layouts.popitem(last=False)
 
     def invalidate_owner(self, owner_id: str) -> None:
         for key in [key for key in self.layouts if key[0] == owner_id]:
@@ -256,11 +243,6 @@ def _is_stack_action_card(card: StackCard) -> bool:
     return card.action or (
         card.centered and card.target is not None and card.icon is None
     )
-
-
-def _ease_out_cubic(value: float) -> float:
-    value = min(max(value, 0.0), 1.0)
-    return 1.0 - (1.0 - value) ** 3
 
 
 def _stack_arc_offset(progress: float, span: float) -> float:
@@ -1495,7 +1477,7 @@ class StackPopupController:
         )
         if elapsed_ms <= 0:
             return 0.0
-        return _ease_out_cubic(elapsed_ms / FOLDER_STACK_REVEAL_DURATION_MS)
+        return ease_out_cubic(elapsed_ms / FOLDER_STACK_REVEAL_DURATION_MS)
 
     def _activate_stack_key(self, key: str) -> None:
         content = self._stack_content

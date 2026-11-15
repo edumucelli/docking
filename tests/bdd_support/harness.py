@@ -272,7 +272,7 @@ class DockHarness:
                 window_tracker=MagicMock(),
                 tooltip=MagicMock(),
                 preview=None,
-                _cache=dock_window_mod._DockWindowCache.create(),
+                _cache=dock_window_mod._DockWindowCache(),
                 local_cursor_main=MagicMock(return_value=-1e6),
                 get_position=MagicMock(return_value=(100, 200)),
                 get_size=MagicMock(return_value=(1920, 122)),
@@ -400,6 +400,7 @@ class DockHarness:
             hide_mode="none",
             monitor_index=-1,
             monitor_connector=None,
+            dock_alignment=0.5,
             additional_distance_from_edge=0,
             pressure_reveal_enabled=False,
             pressure_threshold=50,
@@ -827,7 +828,7 @@ class DockHarness:
                 geometry=SimpleNamespace(build_frame=build_live_frame),
                 surface_service=surface_service,
                 drawing_area=SimpleNamespace(queue_draw=MagicMock()),
-                _cache=dock_window_mod._DockWindowCache.create(),
+                _cache=dock_window_mod._DockWindowCache(),
             )
         )
         window.update_input_region = MethodType(
@@ -862,7 +863,7 @@ class DockHarness:
         interaction.point_inside_event_frame.return_value = False
         interaction.is_pointer_inside_dock.return_value = True
         self._left_edge_window = SimpleNamespace(
-            _cache=dock_window_mod._DockWindowCache.create(),
+            _cache=dock_window_mod._DockWindowCache(),
             get_display=lambda: SimpleNamespace(get_xdisplay=lambda: None),
             interaction=interaction,
             dock_hovered=True,

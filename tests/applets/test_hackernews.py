@@ -38,22 +38,9 @@ from docking.applets.hackernews.state import (
     story_rank,
     story_to_pref,
 )
+from docking.applets.selection import retained_index
 from docking.core.config import Config
-
-
-class _ImmediateWorker:
-    def __init__(self, **_kwargs) -> None:
-        pass
-
-    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
-        try:
-            result = fn()
-        except Exception as exc:
-            if on_error is not None:
-                on_error(exc)
-            return
-        if on_result is not None:
-            on_result(result)
+from tests.applets.inline_worker import ImmediateWorker as _ImmediateWorker
 
 
 class _PendingWorker:
@@ -892,14 +879,19 @@ class TestHackerNewsApplet:
     def test_refreshed_active_index_edge_cases(self):
         applet = _make_applet()
         assert (
-            applet._refreshed_active_index(current_story=_story(), previous_index=99)
+            retained_index(
+                (item.id for item in applet._stories),
+                current_id=_story().id,
+                previous_index=99,
+            )
             == 0
         )
 
         applet._stories = [_story(id=1), _story(id=2)]
         assert (
-            applet._refreshed_active_index(
-                current_story=_story(id=3),
+            retained_index(
+                (item.id for item in applet._stories),
+                current_id=_story(id=3).id,
                 previous_index=99,
             )
             == 1

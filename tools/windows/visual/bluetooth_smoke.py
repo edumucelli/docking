@@ -55,7 +55,7 @@ def main():
         Radio,
         address_text,
     )
-    from tools.windows.visual.desktop_driver import WindowsDesktop
+    from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
     from tools.windows.visual.powerprofiles_smoke import powershell
 
     native = WindowsDesktop()
@@ -85,9 +85,7 @@ def main():
     )
 
     def publish():
-        temporary = output / "result.tmp"
-        temporary.write_text(json.dumps(report, indent=2), encoding="utf-8")
-        temporary.replace(output / "result.json")
+        write_shared_json(output / "result.json", report)
 
     original = app.build_dock_window
 

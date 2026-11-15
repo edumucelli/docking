@@ -125,18 +125,6 @@ def _visible_trash_directory() -> Path:
     return xdg_data_home() / "Trash"
 
 
-def _kde_trash_directory() -> Path:
-    return xdg_data_home() / "Trash"
-
-
-def _kde_trash_files_directory() -> Path:
-    return _kde_trash_directory() / "files"
-
-
-def _kde_trash_info_directory() -> Path:
-    return _kde_trash_directory() / "info"
-
-
 def _visible_trash_files_directory() -> Path:
     return _visible_trash_directory() / "files"
 

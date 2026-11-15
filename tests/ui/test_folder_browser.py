@@ -159,6 +159,24 @@ def test_directory_lru_remains_bounded(tmp_path, browser):
     )
 
 
+def test_directory_cache_keeps_recently_reopened_folder(tmp_path, browser, monkeypatch):
+    from docking.ui.folder import _browser
+
+    monkeypatch.setattr(_browser, "FOLDER_DIRECTORY_CACHE_MAX_ENTRIES", 2)
+    subject, _loader = browser
+    folders = [tmp_path / name for name in ("first", "second", "third")]
+    for folder in folders:
+        folder.mkdir()
+    for index in (0, 1, 0, 2):
+        subject.list_directory(
+            target=str(folders[index]), prefs=FolderPrefs(), icon_limit=0
+        )
+    assert [key[0] for key in subject._directory_rows] == [
+        folders[0].as_uri(),
+        folders[2].as_uri(),
+    ]
+
+
 def test_production_stack_requests_only_visible_icons_and_menu_requests_all(
     folder, browser
 ):

@@ -27,7 +27,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npx playwright install --with-deps chromium
-      - run: npm run test:browser
+      - run: node --test test/browser.mjs
 
   promote:
     name: Approve tested website for Komodo

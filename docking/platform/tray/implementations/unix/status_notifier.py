@@ -28,6 +28,10 @@ from gi.repository import Gio, GLib
 
 from docking.i18n import _
 from docking.log import get_logger, with_context
+from docking.platform.tray.implementations.unix.dbusmenu import (
+    _unbox_variant,
+    _unpack_variant,
+)
 
 if TYPE_CHECKING:
     from docking.platform.tray.implementations.unix.dbusmenu import DBusMenuClient
@@ -618,15 +622,6 @@ def _item_properties(reply: object) -> dict[str, Any] | None:
     return {str(key): _unpack_variant(value) for key, value in properties.items()}
 
 
-def _unbox_variant(value: object) -> GLib.Variant | None:
-    """Return the concrete variant behind an optional ``v`` wrapper."""
-    if not isinstance(value, GLib.Variant):
-        return None
-    while value.get_type_string() == "v":
-        value = value.get_variant()
-    return value
-
-
 def _is_sequence_variant(variant: GLib.Variant) -> bool:
     """Return True for tuple and array variants, the shapes a tooltip can take.
 
@@ -799,15 +794,3 @@ def legacy_tray_owner_name() -> str:
         return f"0x{owner:x}"
     finally:
         lib.XCloseDisplay(display)
-
-
-def _unpack_variant(value: object) -> Any:
-    if isinstance(value, GLib.Variant):
-        return _unpack_variant(value.unpack())
-    if isinstance(value, dict):
-        return {key: _unpack_variant(val) for key, val in value.items()}
-    if isinstance(value, tuple):
-        return tuple(_unpack_variant(item) for item in value)
-    if isinstance(value, list):
-        return [_unpack_variant(item) for item in value]
-    return value

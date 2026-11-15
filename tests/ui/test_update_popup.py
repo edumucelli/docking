@@ -196,6 +196,8 @@ def controller(fake_gtk_window, fake_config):
 @pytest.fixture
 def popup_gtk(monkeypatch):
     """Replace Gtk/Gdk/GLib with fakes suitable for popup construction."""
+    import docking.ui.popup_surface as ps
+
     monkeypatch.setattr(
         mod,
         "Gtk",
@@ -211,7 +213,7 @@ def popup_gtk(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        mod,
+        ps,
         "Gdk",
         SimpleNamespace(
             WindowTypeHint=SimpleNamespace(NOTIFICATION="notification"),
@@ -219,11 +221,8 @@ def popup_gtk(monkeypatch):
     )
     monkeypatch.setattr(mod, "GLib", MagicMock())
 
-    # Also patch popup_surface helpers that _show_popup now uses
-    import docking.ui.popup_surface as ps
-
     monkeypatch.setattr(
-        mod,
+        ps,
         "configure_transparent_startup_popup_window",
         lambda popup: None,
     )
@@ -232,9 +231,7 @@ def popup_gtk(monkeypatch):
         "wrap_startup_popup_content",
         lambda content: content,
     )
-    # Ensure popup_surface's Gtk/Gdk are patched too for configure/wrap calls
-    monkeypatch.setattr(ps, "Gdk", MagicMock())
-    monkeypatch.setattr(ps, "Gtk", MagicMock())
+    monkeypatch.setattr(ps, "Gtk", mod.Gtk)
     monkeypatch.setattr(ps, "ensure_startup_popup_css", lambda: None)
 
 
@@ -958,7 +955,7 @@ class TestUpdateCheckPositionPopup:
         controller._position_popup()
 
     def test_position_popup_computes_and_moves(self, monkeypatch):
-        import docking.ui.update_popup as mod
+        import docking.ui.popup_surface as mod
 
         window = _FakeWindow(realized=True, pos=Position.BOTTOM)
         config = MagicMock()

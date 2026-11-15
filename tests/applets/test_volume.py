@@ -26,23 +26,11 @@ from docking.applets.volume.state import (
 )
 from docking.core.config import Config
 from docking.platform import environment
+from tests.applets.inline_worker import ImmediateWorker
 from tests.platform_factories import TestAppletBackendFactories, make_applet_platform
 
 
-class _ImmediateWorker:
-    def __init__(self, **_kwargs) -> None:
-        pass
-
-    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
-        try:
-            result = fn()
-        except Exception as exc:
-            if on_error is not None:
-                on_error(exc)
-            return
-        if on_result is not None:
-            on_result(result)
-
+class _ImmediateWorker(ImmediateWorker):
     def run_guarded(self, *, key, **kwargs):
         self.run(**kwargs)
         return True

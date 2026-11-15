@@ -200,15 +200,7 @@ class WaylandForeignToplevelWindowService(WindowService):
 
     def minimize_all(self, desktop_id: str) -> ActionResult:
         """Request minimization for all known windows of an app."""
-        states = self._states_for_desktop(desktop_id)
-        if not states:
-            return ActionResult.NOT_FOUND
-        result = ActionResult.OK
-        for state in states:
-            action_result = self._call_action(state=state, action="set_minimized")
-            if action_result is not ActionResult.OK:
-                result = action_result
-        return result
+        return self._all(desktop_id, action="set_minimized")
 
     def close(self, window_id: WindowId) -> ActionResult:
         """Close one foreign toplevel."""
@@ -219,12 +211,15 @@ class WaylandForeignToplevelWindowService(WindowService):
 
     def close_all(self, desktop_id: str) -> ActionResult:
         """Close all known windows for an app."""
+        return self._all(desktop_id, action="close")
+
+    def _all(self, desktop_id: str, *, action: str) -> ActionResult:
         states = self._states_for_desktop(desktop_id)
         if not states:
             return ActionResult.NOT_FOUND
         result = ActionResult.OK
         for state in states:
-            action_result = self._call_action(state=state, action="close")
+            action_result = self._call_action(state=state, action=action)
             if action_result is not ActionResult.OK:
                 result = action_result
         return result

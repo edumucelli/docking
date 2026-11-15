@@ -38,6 +38,7 @@ from docking.applets.speedtest.state import (
     speed_tier,
 )
 from docking.core.config import Config
+from tests.applets.inline_worker import ImmediateWorker as _ImmediateWorker
 
 _TS = datetime(2026, 4, 24, 11, 0, tzinfo=timezone.utc)
 
@@ -59,21 +60,6 @@ def _result(
         server=server,
         timestamp=ts,
     )
-
-
-class _ImmediateWorker:
-    def __init__(self, **_kwargs) -> None:
-        pass
-
-    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
-        try:
-            result = fn()
-        except Exception as exc:
-            if on_error is not None:
-                on_error(exc)
-            return
-        if on_result is not None:
-            on_result(result)
 
 
 def _make_applet(
@@ -220,6 +206,7 @@ class TestLibrespeedNetworkHelpers:
             return response
 
         monkeypatch.setattr(librespeed.urllib.request, "urlopen", fake_urlopen)
+        monkeypatch.setattr("docking.applets.http.urlopen", fake_urlopen)
 
         assert _http_get_text(url="https://x.test", timeout=3.0) == "hello"
         _http_get_drain(url="https://x.test/ping", timeout=4.0)

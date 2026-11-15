@@ -240,22 +240,6 @@ class TestApplet:
             def destroy(self):
                 self.destroyed = True
 
-        class _FakeEntry:
-            def __init__(self, text):
-                self._text = text
-
-            def set_placeholder_text(self, _text):
-                return
-
-            def set_activates_default(self, _value):
-                return
-
-            def grab_focus(self):
-                return
-
-            def get_text(self):
-                return self._text
-
         entries = iter([_FakeEntry("Docs"), _FakeEntry("https://docs.python.org")])
         monkeypatch.setattr(
             bookmarks_applet_mod.Gtk, "Dialog", lambda **kwargs: _FakeDialog(**kwargs)
@@ -332,22 +316,6 @@ class TestApplet:
             def destroy(self):
                 return
 
-        class _FakeEntry:
-            def __init__(self, text):
-                self._text = text
-
-            def set_placeholder_text(self, _text):
-                return
-
-            def set_activates_default(self, _value):
-                return
-
-            def grab_focus(self):
-                return
-
-            def get_text(self):
-                return self._text
-
         entries = iter([_FakeEntry(""), _FakeEntry("   ")])
         monkeypatch.setattr(
             bookmarks_applet_mod.Gtk, "Dialog", lambda **kwargs: _FakeDialog(**kwargs)
@@ -376,3 +344,20 @@ class TestApplet:
         assert applet._bookmarks == []
         assert saved == [{"bookmarks": []}]
         assert presented == [True]
+
+
+class _FakeEntry:
+    def __init__(self, text):
+        self._text = text
+
+    def set_placeholder_text(self, _text):
+        return
+
+    def set_activates_default(self, _value):
+        return
+
+    def grab_focus(self):
+        return
+
+    def get_text(self):
+        return self._text

@@ -27,7 +27,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.cities import search_cities
+from docking.applets.city_picker import show_city_dialog
 from docking.applets.freshness import cadence_label, updated_label
 from docking.applets.live_state import (
     live_state_error,
@@ -35,7 +35,6 @@ from docking.applets.live_state import (
     resolve_live_status,
 )
 from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
-from docking.applets.popup import prepare_dialog_content
 from docking.applets.weather import meta
 from docking.applets.weather.api import (
     REFRESH_INTERVAL,
@@ -50,7 +49,6 @@ from docking.applets.weather.state import (
     CityPref,
     TemperatureUnit,
     build_tooltip,
-    cached_cities,
     cycle_active_index,
     format_temperature,
     format_temperature_range,
@@ -68,11 +66,6 @@ if TYPE_CHECKING:
 
 log = with_context(get_logger(name="weather"), applet_id=meta.id)
 
-CITY_DIALOG_WIDTH_PX = 350
-DIALOG_CONTENT_SPACING_PX = 8
-DIALOG_HORIZONTAL_MARGIN_PX = 12
-CITY_SEARCH_MIN_CHARS = 2
-CITY_SEARCH_RESULT_LIMIT = 10
 STARTUP_FETCH_DELAY_S = 1
 
 
@@ -203,8 +196,7 @@ class WeatherApplet(Applet):
                     for unit in (TemperatureUnit.CELSIUS, TemperatureUnit.FAHRENHEIT)
                 ),
                 active_value=self._temperature_unit,
-                on_selected=lambda widget, value: self._on_temperature_unit_selected(
-                    widget=widget,
+                on_selected=lambda _widget, value: self._on_temperature_unit_selected(
                     temperature_unit=value,
                 ),
                 gtk=Gtk,
@@ -258,11 +250,8 @@ class WeatherApplet(Applet):
     def _on_temperature_unit_selected(
         self,
         *,
-        widget: Gtk.RadioMenuItem,
         temperature_unit: TemperatureUnit,
     ) -> None:
-        if not widget.get_active():
-            return
         if temperature_unit == self._temperature_unit:
             return
         self._temperature_unit = temperature_unit
@@ -270,65 +259,7 @@ class WeatherApplet(Applet):
         self.present()
 
     def _show_city_dialog(self) -> None:
-        dialog = Gtk.Dialog(
-            title=_("Search for the city"),
-            modal=True,
-            destroy_with_parent=True,
-        )
-        dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
-        dialog.connect("response", lambda dlg, _response: dlg.destroy())
-        box = prepare_dialog_content(
-            dialog=dialog,
-            width=CITY_DIALOG_WIDTH_PX,
-            spacing=DIALOG_CONTENT_SPACING_PX,
-            margin=DIALOG_HORIZONTAL_MARGIN_PX,
-        )
-
-        entry = Gtk.Entry()
-        entry.set_placeholder_text(_("Type city name..."))
-        box.pack_start(entry, False, False, 0)
-
-        completion = Gtk.EntryCompletion()
-        store = Gtk.ListStore(str, float, float)  # display, lat, lng
-        completion.set_model(store)
-        completion.set_text_column(0)
-        completion.set_minimum_key_length(CITY_SEARCH_MIN_CHARS)
-
-        def on_changed(changed_entry: Gtk.Entry) -> None:
-            text = changed_entry.get_text()
-            store.clear()
-            if len(text) < CITY_SEARCH_MIN_CHARS:
-                return
-            for city in search_cities(
-                text,
-                cached_cities(),
-                limit=CITY_SEARCH_RESULT_LIMIT,
-            ):
-                store.append([city.display, city.lat, city.lng])
-
-        def on_match_selected(
-            _completion: Gtk.EntryCompletion,
-            model: Gtk.TreeModel,
-            tree_iter: Gtk.TreeIter,
-        ) -> bool:
-            display = model.get_value(tree_iter, 0)
-            lat = model.get_value(tree_iter, 1)
-            lng = model.get_value(tree_iter, 2)
-            self._add_city(display=display, lat=lat, lng=lng)
-
-            def destroy_dialog() -> bool:
-                dialog.destroy()
-                return False
-
-            GLib.idle_add(destroy_dialog)
-            return True
-
-        entry.connect("changed", on_changed)
-        completion.connect("match-selected", on_match_selected)
-        entry.set_completion(completion)
-
-        dialog.show_all()
-        entry.grab_focus()
+        show_city_dialog(self._add_city)
 
     def _tick(self) -> bool:
         if self._active_city:

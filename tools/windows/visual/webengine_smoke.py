@@ -12,6 +12,7 @@ def main():
     import threading
     import time
     import uuid
+    from functools import partial
     from pathlib import Path
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
@@ -55,7 +56,8 @@ def main():
         WindowsCompanionBrowser,
     )
     from docking.applets.whatsapp.state import PROFILE as WHATSAPP
-    from tools.windows.visual.desktop_driver import WindowsDesktop
+    from tools.windows.visual.browser_driver import worker_request
+    from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
     from tools.windows.visual.webengine_fixture import TLSFixture
     from tools.windows.visual.webengine_protocol import (
         FixtureMessage,
@@ -156,24 +158,11 @@ def main():
         pending.pop(identifier, None)
         return results[0]
 
-    def request(action, title=None):
-        script(
-            "window.fixture.workerReply=null;window.fixture.workerRequest("
-            + json.dumps(action)
-            + ","
-            + json.dumps({"title": title})
-            + ").then(rows=>window.fixture.workerReply={ok:true,rows})"
-            ".catch(e=>window.fixture.workerReply={ok:false,error:e.message});true"
-        )
-        answer = native.wait_for(
-            lambda: script("window.fixture.workerReply"), "No worker reply", 25
-        )
-        assert answer["ok"], answer
-        return answer["rows"]
+    request = partial(worker_request, script, native.wait_for)
 
     def stage(name):
         report["stages"].append(name)
-        (root / "result.json").write_text(json.dumps(report, indent=2))
+        write_shared_json(root / "result.json", report)
         print(name, flush=True)
 
     def drive():
@@ -410,7 +399,7 @@ def main():
         GLib.source_remove(pulse_source)
         WindowsCompanionBrowser._packet = original_packet
         folder._finalizer.detach()
-        (root / "result.json").write_text(json.dumps(report, indent=2))
+        write_shared_json(root / "result.json", report)
         print(json.dumps(report))
     if errors:
         raise errors[0]

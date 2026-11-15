@@ -33,6 +33,25 @@ from docking.platform.backends.base import (
     WindowSnapshot,
 )
 from docking.platform.model import DockItem
+from docking.ui.folder._browser import FolderRow
+from tests.ui.menu_support import FakePixbuf
+
+
+def _folder_row(
+    *,
+    target="",
+    name="",
+    kind="",
+    is_dir=False,
+    has_children=False,
+    size=0,
+    created=0,
+    modified=0,
+    icon=None,
+):
+    return FolderRow(
+        target, name, kind, is_dir, has_children, size, created, modified, icon
+    )
 
 
 def _mock_file_factory(monkeypatch, constructor):
@@ -634,24 +653,6 @@ class FakeDrawingArea:
         )
 
 
-class FakePixbuf:
-    def __init__(self, width: int, height: int, scaled=None) -> None:
-        self.width = width
-        self.height = height
-        self.scaled = scaled
-        self.scale_calls: list[tuple[int, int, object]] = []
-
-    def get_width(self) -> int:
-        return self.width
-
-    def get_height(self) -> int:
-        return self.height
-
-    def scale_simple(self, width: int, height: int, interp):
-        self.scale_calls.append((width, height, interp))
-        return self.scaled
-
-
 class FakeMonitor:
     def __init__(self) -> None:
         self.changed = None
@@ -1040,12 +1041,12 @@ class TestItemMenus:
             handler._folder_stack,
             "list_directory",
             lambda **kwargs: [
-                {
-                    "target": f"file:///tmp/docs/{i}",
-                    "name": f"Item {i}",
-                    "is_dir": False,
-                    "icon": None,
-                }
+                _folder_row(
+                    target=f"file:///tmp/docs/{i}",
+                    name=f"Item {i}",
+                    is_dir=False,
+                    icon=None,
+                )
                 for i in range(23)
             ],
         )
@@ -1072,12 +1073,12 @@ class TestItemMenus:
             handler._folder_stack,
             "list_directory",
             lambda **kwargs: [
-                {
-                    "target": "file:///tmp/docs/very-long-name",
-                    "name": "this-is-a-very-long-filename-that-should-not-stretch-the-menu",
-                    "is_dir": False,
-                    "icon": None,
-                }
+                _folder_row(
+                    target="file:///tmp/docs/very-long-name",
+                    name="this-is-a-very-long-filename-that-should-not-stretch-the-menu",
+                    is_dir=False,
+                    icon=None,
+                )
             ],
         )
 
@@ -1105,13 +1106,13 @@ class TestItemMenus:
         handler._append_directory_row(
             menu=menu,
             folder_item=item,
-            child={
-                "target": "file:///tmp/docs/empty",
-                "name": "empty",
-                "is_dir": True,
-                "has_children": False,
-                "icon": None,
-            },
+            child=_folder_row(
+                target="file:///tmp/docs/empty",
+                name="empty",
+                is_dir=True,
+                has_children=False,
+                icon=None,
+            ),
         )
 
         row = menu.children[0]
@@ -1156,7 +1157,7 @@ class TestItemMenus:
 
         rows = handler._folder_stack.list_directory(folder_item=item, target=root_uri)
 
-        assert rows[0]["icon"] == "folder-pixbuf"
+        assert rows[0].icon == "folder-pixbuf"
         handler._target_service.resolve_file_icon.assert_called_once_with(
             target=child_uri,
             gicon=gicon,
@@ -1861,12 +1862,12 @@ class TestMenuCallbacks:
             lambda **_kwargs: (
                 calls.append("listed")
                 or [
-                    {
-                        "target": "file:///tmp/docs/readme.txt",
-                        "name": "readme.txt",
-                        "is_dir": False,
-                        "icon": object(),
-                    }
+                    _folder_row(
+                        target="file:///tmp/docs/readme.txt",
+                        name="readme.txt",
+                        is_dir=False,
+                        icon=object(),
+                    )
                 ]
             ),
         )
@@ -1895,12 +1896,12 @@ class TestMenuCallbacks:
             lambda **kwargs: (
                 requested_icon_sizes.append(kwargs["icon_px"])
                 or [
-                    {
-                        "target": "file:///tmp/docs/readme.txt",
-                        "name": "readme.txt",
-                        "is_dir": False,
-                        "icon": object(),
-                    }
+                    _folder_row(
+                        target="file:///tmp/docs/readme.txt",
+                        name="readme.txt",
+                        is_dir=False,
+                        icon=object(),
+                    )
                 ]
             ),
         )
@@ -1929,12 +1930,12 @@ class TestMenuCallbacks:
             handler._folder_stack,
             "_list_directory_rows",
             lambda **_kwargs: [
-                {
-                    "target": f"file:///tmp/docs/{i}.txt",
-                    "name": f"Item {i}",
-                    "is_dir": False,
-                    "icon": object(),
-                }
+                _folder_row(
+                    target=f"file:///tmp/docs/{i}.txt",
+                    name=f"Item {i}",
+                    is_dir=False,
+                    icon=object(),
+                )
                 for i in range(14)
             ],
         )
@@ -1973,12 +1974,12 @@ class TestMenuCallbacks:
             handler._folder_stack,
             "_list_directory_rows",
             lambda **_kwargs: [
-                {
-                    "target": f"file:///tmp/docs/{i}.txt",
-                    "name": f"Item {i}",
-                    "is_dir": False,
-                    "icon": object(),
-                }
+                _folder_row(
+                    target=f"file:///tmp/docs/{i}.txt",
+                    name=f"Item {i}",
+                    is_dir=False,
+                    icon=object(),
+                )
                 for i in range(14)
             ],
         )
@@ -2002,12 +2003,12 @@ class TestMenuCallbacks:
             handler._folder_stack,
             "_list_directory_rows",
             lambda **_kwargs: [
-                {
-                    "target": "file:///tmp/docs/doc",
-                    "name": "doc",
-                    "is_dir": True,
-                    "icon": object(),
-                }
+                _folder_row(
+                    target="file:///tmp/docs/doc",
+                    name="doc",
+                    is_dir=True,
+                    icon=object(),
+                )
             ],
         )
 
@@ -2033,12 +2034,12 @@ class TestMenuCallbacks:
             handler._folder_stack,
             "_list_directory_rows",
             lambda **_kwargs: [
-                {
-                    "target": f"file:///tmp/docs/{i}.txt",
-                    "name": f"Item {i}",
-                    "is_dir": False,
-                    "icon": object(),
-                }
+                _folder_row(
+                    target=f"file:///tmp/docs/{i}.txt",
+                    name=f"Item {i}",
+                    is_dir=False,
+                    icon=object(),
+                )
                 for i in range(4)
             ],
         )
@@ -2069,12 +2070,12 @@ class TestMenuCallbacks:
             handler._folder_stack,
             "_list_directory_rows",
             lambda **_kwargs: [
-                {
-                    "target": f"file:///tmp/docs/{i}.txt",
-                    "name": f"Item {i}",
-                    "is_dir": False,
-                    "icon": object(),
-                }
+                _folder_row(
+                    target=f"file:///tmp/docs/{i}.txt",
+                    name=f"Item {i}",
+                    is_dir=False,
+                    icon=object(),
+                )
                 for i in range(5)
             ],
         )
@@ -2407,11 +2408,7 @@ class TestMenuCallbacks:
             handler._folder_stack,
             "_list_directory_rows",
             lambda **_kwargs: [
-                {
-                    "target": "file:///tmp/docs/file",
-                    "name": "file",
-                    "icon": None,
-                }
+                _folder_row(target="file:///tmp/docs/file", name="file", icon=None)
             ],
         )
 
@@ -2821,8 +2818,8 @@ class TestMenuCallbacks:
         handler._on_folder_submenu_show(existing_menu, folder_item, folder_item.target)
         populate.assert_not_called()
 
-        row = {"kind": 1, "name": "B", "size": 2, "created": 3, "modified": 4}
-        assert handler._folder_stack._browser.sort_key(row, "kind") == (1, "b")
+        row = _folder_row(kind="document", name="B", size=2, created=3, modified=4)
+        assert handler._folder_stack._browser.sort_key(row, "kind") == ("document", "b")
         assert handler._folder_stack._browser.sort_key(row, "size") == (2, "b")
         assert handler._folder_stack._browser.sort_key(row, "created") == (3, "b")
         assert handler._folder_stack._browser.sort_key(row, "modified") == (4, "b")

@@ -20,10 +20,10 @@ import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from enum import Enum
-from functools import lru_cache
-from typing import Any, NamedTuple
+from typing import Any
 
-from docking.applets.cities import CityEntry, load_cities, parse_coordinates
+from docking.applets.cities import CityPref, _city_from_pref
+from docking.applets.cities import cached_cities as cached_cities
 from docking.core.math import clamp_index
 from docking.i18n import _
 
@@ -34,24 +34,6 @@ ZENITH_SUNRISE = 90.833
 ZENITH_CIVIL = 96.0
 ZENITH_NAUTICAL = 102.0
 ZENITH_ASTRONOMICAL = 108.0
-
-
-class CityPref(NamedTuple):
-    """A persisted city entry."""
-
-    city_display: str
-    lat: float
-    lng: float
-
-
-def _city_from_pref(raw: object) -> CityPref | None:
-    if not isinstance(raw, Mapping):
-        return None
-    display = raw.get("city_display")
-    coordinates = parse_coordinates(raw)
-    if not isinstance(display, str) or not display or coordinates is None:
-        return None
-    return CityPref(display, *coordinates)
 
 
 class SolarPhase(str, Enum):
@@ -180,12 +162,6 @@ def cycle_active_index(*, count: int, current: int, direction_up: bool) -> int:
         return 0
     delta = -1 if direction_up else 1
     return (current + delta) % count
-
-
-@lru_cache(maxsize=1)
-def cached_cities() -> tuple[CityEntry, ...]:
-    """Load city database on first access."""
-    return tuple(load_cities())
 
 
 def build_snapshot(

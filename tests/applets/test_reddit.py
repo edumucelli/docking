@@ -39,21 +39,7 @@ from docking.applets.reddit.state import (
     source_label,
 )
 from docking.core.config import Config
-
-
-class _ImmediateWorker:
-    def __init__(self, **_kwargs) -> None:
-        pass
-
-    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
-        try:
-            result = fn()
-        except Exception as exc:
-            if on_error is not None:
-                on_error(exc)
-            return
-        if on_result is not None:
-            on_result(result)
+from tests.applets.inline_worker import ImmediateWorker as _ImmediateWorker
 
 
 class _PendingWorker:

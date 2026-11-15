@@ -110,3 +110,26 @@ class TestSearchCities:
         results = search_cities("Berlin, G", cities)
         assert len(results) == 1
         assert results[0].name == "Berlin"
+
+
+def test_weather_and_sunrise_share_one_lazy_city_database(monkeypatch):
+    from docking.applets import cities
+    from docking.applets.sunrise import state as sunrise_state
+    from docking.applets.weather import state as weather_state
+
+    calls = []
+    berlin = cities.CityEntry("Berlin", "Germany", "Berlin, Germany", 52.52, 13.41)
+
+    def load():
+        calls.append(True)
+        return [berlin]
+
+    monkeypatch.setattr(cities, "load_cities", load)
+    cities.cached_cities.cache_clear()
+    try:
+        assert weather_state.CityPref is sunrise_state.CityPref
+        assert weather_state.cached_cities() == (berlin,)
+        assert sunrise_state.cached_cities() is weather_state.cached_cities()
+        assert calls == [True]
+    finally:
+        cities.cached_cities.cache_clear()

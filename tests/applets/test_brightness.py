@@ -20,23 +20,11 @@ from docking.applets.brightness.implementations.unix.backend import (
 )
 from docking.applets.brightness.state import BrightnessState, brightness_icon_name
 from docking.core.config import Config
+from tests.applets.inline_worker import ImmediateWorker
 from tests.platform_factories import TestAppletBackendFactories, make_applet_platform
 
 
-class _ImmediateWorker:
-    def __init__(self, **_kwargs) -> None:
-        pass
-
-    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
-        try:
-            result = fn()
-        except Exception as exc:
-            if on_error is not None:
-                on_error(exc)
-            return
-        if on_result is not None:
-            on_result(result)
-
+class _ImmediateWorker(ImmediateWorker):
     def run_guarded(self, *, fn, on_result=None, on_error=None, **_kwargs) -> bool:
         self.run(fn=fn, on_result=on_result, on_error=on_error)
         return True

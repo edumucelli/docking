@@ -34,6 +34,7 @@ from docking.applets.certwatch.state import (
     worst_status,
 )
 from docking.core.config import Config
+from tests.applets.inline_worker import ImmediateWorker as _ImmediateWorker
 
 _NOW = datetime(2026, 4, 24, 12, 0, tzinfo=timezone.utc)
 
@@ -54,21 +55,6 @@ def _cert(
         issuer="CN=Let's Encrypt",
         error=error,
     )
-
-
-class _ImmediateWorker:
-    def __init__(self, **_kwargs) -> None:
-        pass
-
-    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
-        try:
-            result = fn()
-        except Exception as exc:
-            if on_error is not None:
-                on_error(exc)
-            return
-        if on_result is not None:
-            on_result(result)
 
 
 def _make_applet(

@@ -10,12 +10,12 @@ import pytest
 
 from docking.core.greeting import (
     StartupGreetingState,
-    _coerce_bool,
     _coerce_int,
     consume_new_year_greeting,
     load_state,
     save_state,
 )
+from docking.core.json_types import coerce_bool
 
 
 class TestLoadState:
@@ -164,28 +164,28 @@ class TestConsumeNewYearGreeting:
 
 class TestCoerceBool:
     def test_true_like_strings(self):
-        assert _coerce_bool("true", default=False) is True
-        assert _coerce_bool("1", default=False) is True
-        assert _coerce_bool("yes", default=False) is True
-        assert _coerce_bool("on", default=False) is True
+        assert coerce_bool("true", default=False) is True
+        assert coerce_bool("1", default=False) is True
+        assert coerce_bool("yes", default=False) is True
+        assert coerce_bool("on", default=False) is True
 
     def test_false_like_strings(self):
-        assert _coerce_bool("false", default=True) is False
-        assert _coerce_bool("0", default=True) is False
-        assert _coerce_bool("no", default=True) is False
-        assert _coerce_bool("off", default=True) is False
+        assert coerce_bool("false", default=True) is False
+        assert coerce_bool("0", default=True) is False
+        assert coerce_bool("no", default=True) is False
+        assert coerce_bool("off", default=True) is False
 
     def test_actual_bool_passes_through(self):
-        assert _coerce_bool(True, default=False) is True
-        assert _coerce_bool(False, default=True) is False
+        assert coerce_bool(True, default=False) is True
+        assert coerce_bool(False, default=True) is False
 
     def test_int_coerced_to_bool(self):
-        assert _coerce_bool(1, default=False) is True
-        assert _coerce_bool(0, default=True) is False
+        assert coerce_bool(1, default=False) is True
+        assert coerce_bool(0, default=True) is False
 
     def test_unknown_value_returns_default(self):
-        assert _coerce_bool("unknown", default=True) is True
-        assert _coerce_bool(3.14, default=False) is False
+        assert coerce_bool("unknown", default=True) is True
+        assert coerce_bool(3.14, default=False) is False
 
 
 class TestCoerceInt:

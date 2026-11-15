@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
 import docking.ui.popup_surface as ps
+from docking.core.position import Position
 from docking.ui.popup_surface import (
     STARTUP_POPUP_SURFACE_CLASS,
     STARTUP_POPUP_WINDOW_CLASS,
@@ -14,6 +16,67 @@ from docking.ui.popup_surface import (
     ensure_startup_popup_css,
     wrap_startup_popup_content,
 )
+
+
+@pytest.mark.parametrize(
+    "position, absolute, relative",
+    [
+        (Position.BOTTOM, (120, 54), (20, -146)),
+        (Position.TOP, (120, 264), (20, 64)),
+        (Position.LEFT, (416, 159), (316, -41)),
+        (Position.RIGHT, (0, 159), (-276, -41)),
+    ],
+)
+@pytest.mark.parametrize("parent_relative", [False, True])
+def test_startup_popup_placement_preserves_edges_and_backend_coordinates(
+    position, absolute, relative, parent_relative
+):
+    dock = SimpleNamespace(
+        config=SimpleNamespace(pos=position),
+        surface_service=SimpleNamespace(
+            popups_use_parent_relative_coordinates=parent_relative,
+            get_surface_position=lambda: (100, 200),
+        ),
+        get_size=lambda: (300, 48),
+    )
+    popup = SimpleNamespace(
+        get_preferred_size=lambda: (None, SimpleNamespace(width=260, height=130)),
+        get_transient_for=lambda: dock,
+        get_screen=lambda: SimpleNamespace(
+            get_width=lambda: 800, get_height=lambda: 600
+        ),
+        move=MagicMock(),
+    )
+    ps.position_startup_popup(popup, dock, gap=16)
+    popup.move.assert_called_once_with(*(relative if parent_relative else absolute))
+
+
+def test_startup_popup_constructor_keeps_window_flags_parent_and_destroy_signal(
+    monkeypatch,
+):
+    popup, parent, destroyed = MagicMock(), object(), MagicMock()
+    constructor = MagicMock(return_value=popup)
+    configure = MagicMock()
+    monkeypatch.setattr(
+        ps,
+        "Gtk",
+        SimpleNamespace(Window=constructor, WindowType=SimpleNamespace(POPUP=1)),
+    )
+    monkeypatch.setattr(
+        ps, "Gdk", SimpleNamespace(WindowTypeHint=SimpleNamespace(NOTIFICATION=2))
+    )
+    monkeypatch.setattr(ps, "configure_transparent_startup_popup_window", configure)
+
+    assert ps.create_startup_popup_window(parent, destroyed) is popup
+
+    constructor.assert_called_once_with(type=1)
+    popup.set_decorated.assert_called_once_with(False)
+    popup.set_skip_taskbar_hint.assert_called_once_with(True)
+    popup.set_resizable.assert_called_once_with(False)
+    popup.set_type_hint.assert_called_once_with(2)
+    configure.assert_called_once_with(popup)
+    popup.set_transient_for.assert_called_once_with(parent)
+    popup.connect.assert_called_once_with("destroy", destroyed)
 
 
 class _FakeStyleContext:

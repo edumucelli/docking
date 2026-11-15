@@ -54,21 +54,12 @@ from docking.applets.news.state import (
     source_to_pref,
 )
 from docking.core.config import Config
+from tests.applets.inline_worker import ImmediateWorker
 
 
-class _ImmediateWorker:
+class _ImmediateWorker(ImmediateWorker):
     def __init__(self, **_kwargs) -> None:
         self._active_keys: set[str] = set()
-
-    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
-        try:
-            result = fn()
-        except Exception as exc:
-            if on_error is not None:
-                on_error(exc)
-            return
-        if on_result is not None:
-            on_result(result)
 
     def run_guarded(self, *, key, **kwargs) -> bool:
         if key in self._active_keys:

@@ -518,15 +518,7 @@ def fetch_live_rate(
         quote=urllib.parse.quote(quote),
     )
     try:
-        req = urllib.request.Request(
-            url,
-            headers={
-                "Accept": "application/json",
-                "User-Agent": "Docking/1.0",
-            },
-        )
-        with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT_S) as resp:
-            data = json.loads(resp.read())
+        data = _fetch_json(url)
     except Exception as exc:
         log.warning("Failed to fetch live FX rate: %s", exc)
         return None
@@ -592,15 +584,7 @@ def fetch_history(
     )
     url = f"{url}?{query}"
     try:
-        req = urllib.request.Request(
-            url,
-            headers={
-                "Accept": "application/json",
-                "User-Agent": "Docking/1.0",
-            },
-        )
-        with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT_S) as resp:
-            data = json.loads(resp.read())
+        data = _fetch_json(url)
     except Exception as exc:
         log.warning("Failed to fetch FX history: %s", exc)
         return ()
@@ -805,3 +789,12 @@ def _parse_sample_timestamp(value: str) -> dt.datetime | None:
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=dt.timezone.utc)
     return parsed.astimezone(dt.timezone.utc)
+
+
+def _fetch_json(url: str) -> object:
+    req = urllib.request.Request(
+        url,
+        headers={"Accept": "application/json", "User-Agent": "Docking/1.0"},
+    )
+    with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT_S) as resp:
+        return json.loads(resp.read())

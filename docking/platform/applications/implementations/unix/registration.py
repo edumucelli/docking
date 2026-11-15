@@ -4,6 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from docking.platform.applications.backend import ExecutableRegistrationBackend
+from docking.platform.applications.executable import executable_format
 
 from ...backend import GeneratedDesktopEntry
 from . import entries
@@ -12,11 +13,7 @@ from . import entries
 @lru_cache(maxsize=512)
 def _is_native_executable(path: Path) -> bool:
     """Return whether *path* currently has the Linux ELF signature."""
-    try:
-        with path.open("rb") as handle:
-            return handle.read(4) == b"\x7fELF"
-    except OSError:
-        return False
+    return executable_format(path) == "elf"
 
 
 class UnixExecutableRegistrationBackend(ExecutableRegistrationBackend):

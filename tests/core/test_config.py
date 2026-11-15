@@ -1236,12 +1236,12 @@ class TestUriIsDir:
 
 class TestNormalizeBool:
     def test_normalize_bool_non_matching_string_returns_default(self):
-        assert config_mod._normalize_bool("maybe", default=True) is True
-        assert config_mod._normalize_bool("maybe", default=False) is False
+        assert config_mod.coerce_bool("maybe", default=True) is True
+        assert config_mod.coerce_bool("maybe", default=False) is False
 
     def test_normalize_bool_non_string_type_returns_default(self):
-        assert config_mod._normalize_bool([True], default=True) is True
-        assert config_mod._normalize_bool(None, default=False) is False
+        assert config_mod.coerce_bool([True], default=True) is True
+        assert config_mod.coerce_bool(None, default=False) is False
 
 
 class TestNormalizeInt:

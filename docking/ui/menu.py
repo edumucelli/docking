@@ -180,7 +180,7 @@ from docking.applets.identity import (
 from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.applets.separator import meta as _separator_meta
 from docking.core.config import WindowListSort
-from docking.core.icons import IconSource, icon_source_from_value
+from docking.core.icons import IconSource, normalize_icon_sources
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.i18n import _
 from docking.log import get_logger
@@ -188,6 +188,7 @@ from docking.platform import icon_overrides
 from docking.platform.applications.recent_documents import recent_documents_for
 from docking.ui.about import AboutDialogController
 from docking.ui.diagnostics import DiagnosticsDialogController
+from docking.ui.folder._browser import FolderRow
 from docking.ui.folder.stack import FolderStackController
 from docking.ui.geometry import DockGeometryFrame
 from docking.ui.runtime import DockRuntime
@@ -403,13 +404,7 @@ class MenuHandler:
     def _applet_icon_source_options(applet: Applet) -> tuple[IconSource, ...]:
         declared = getattr(applet, "icon_source_options", None)
         if isinstance(declared, tuple | list):
-            options = tuple(
-                source
-                for source in (icon_source_from_value(value) for value in declared)
-                if source is not None
-            )
-            if options:
-                return tuple(dict.fromkeys(options))
+            return normalize_icon_sources(declared)
         return (IconSource.DOCKING,)
 
     def _build_applet_icon_source_menu(self, applet: Applet) -> Gtk.MenuItem:
@@ -995,26 +990,26 @@ class MenuHandler:
             self._append_directory_row(menu=menu, folder_item=folder_item, child=child)
 
     def _append_directory_row(
-        self, menu: Gtk.Menu, folder_item: DockItem, child: dict[str, Any]
+        self, menu: Gtk.Menu, folder_item: DockItem, child: FolderRow
     ) -> None:
-        row = Gtk.MenuItem(label=child["name"])
+        row = Gtk.MenuItem(label=child.name)
         _set_menu_item_icon(
             item=row,
-            label=child["name"],
-            pixbuf=child["icon"],
+            label=child.name,
+            pixbuf=child.icon,
             icon_px=self._folder_stack.icon_px(folder_item=folder_item),
         )
-        if child["is_dir"] and child.get("has_children", False):
+        if child.is_dir and child.has_children:
             submenu = Gtk.Menu()
             submenu.connect(
                 "show",
                 self._on_folder_submenu_show,
                 folder_item,
-                child["target"],
+                child.target,
             )
             row.set_submenu(submenu)
         else:
-            row.connect("activate", self._on_open_target, child["target"])
+            row.connect("activate", self._on_open_target, child.target)
         menu.append(row)
 
     def _on_folder_submenu_show(

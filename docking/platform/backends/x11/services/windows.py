@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING
 
 from docking.platform.backends.base import (
     ActionResult,
-    DisplayServer,
     WindowId,
     WindowService,
 )
@@ -56,25 +55,6 @@ class X11WindowService(WindowTracker, WindowService):
             status="stopped", detail="Window tracking has stopped."
         )
 
-    def activate(self, window_id: WindowId) -> ActionResult:
-        """Activate one X11 window by backend-neutral window ID."""
-        xid = self._xid_from_window_id(window_id)
-        if xid is None:
-            return ActionResult.UNSUPPORTED
-        window = self._window_for_xid(xid=xid)
-        if window is None:
-            return ActionResult.NOT_FOUND
-        self.activate_window(window=window)
-        return ActionResult.OK
-
-    def activate_most_recent(self, desktop_id: str) -> ActionResult:
-        """Activate the most recent window for a desktop ID."""
-        if self._screen is None:
-            return ActionResult.UNSUPPORTED
-        if not self._get_windows_for(desktop_id=desktop_id):
-            return ActionResult.NOT_FOUND
-        return super().activate_most_recent(desktop_id=desktop_id)
-
     def cycle(self, desktop_id: str) -> ActionResult:
         """Cycle windows for a desktop ID using the existing X11 policy."""
         if self._screen is None:
@@ -93,15 +73,6 @@ class X11WindowService(WindowTracker, WindowService):
         self._minimize_windows(desktop_id=desktop_id)
         return ActionResult.OK
 
-    def close(self, window_id: WindowId) -> ActionResult:
-        """Close one X11 window by backend-neutral window ID."""
-        xid = self._xid_from_window_id(window_id)
-        if xid is None:
-            return ActionResult.UNSUPPORTED
-        if self._window_for_xid(xid=xid) is None:
-            return ActionResult.NOT_FOUND
-        return super().close(window_id=window_id)
-
     def close_all(self, desktop_id: str) -> ActionResult:
         """Close all known windows for a desktop ID."""
         if self._screen is None:
@@ -116,12 +87,3 @@ class X11WindowService(WindowTracker, WindowService):
         if xid is None:
             return None
         return self._window_for_xid(xid=xid)
-
-    @staticmethod
-    def _xid_from_window_id(window_id: WindowId) -> int | None:
-        if window_id.backend is not DisplayServer.X11:
-            return None
-        try:
-            return int(window_id.value)
-        except (TypeError, ValueError):
-            return None

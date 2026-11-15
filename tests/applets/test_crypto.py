@@ -26,24 +26,10 @@ from docking.applets.crypto.state import (
     prefs_payload,
 )
 from docking.core.config import Config
+from tests.applets.inline_worker import ImmediateWorker as _InlineWorker
 
 BTC = CryptoAsset(AssetType.COIN, "bitcoin", "BTC", "Bitcoin")
 PUNK = CryptoAsset(AssetType.NFT, "cryptopunks", "PUNK", "CryptoPunks")
-
-
-class _InlineWorker:
-    def __init__(self, **_kwargs) -> None:
-        pass
-
-    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
-        try:
-            result = fn()
-        except Exception as exc:
-            if on_error is not None:
-                on_error(exc)
-            return
-        if on_result is not None:
-            on_result(result)
 
 
 def _snapshot(asset: CryptoAsset = BTC) -> CryptoSnapshot:

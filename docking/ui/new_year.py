@@ -37,12 +37,12 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk
 
+from docking.applets.draw import rounded_rect
 from docking.core.greeting import consume_new_year_greeting
-from docking.core.position import Position, is_horizontal
+from docking.core.position import Position
 from docking.i18n import _
 from docking.log import get_logger
-from docking.ui.display import clamp_popup, window_screen_position, window_size
-from docking.ui.tooltip import compute_tooltip_position
+from docking.ui.popup_surface import position_startup_popup
 
 if TYPE_CHECKING:
     from docking.ui.dock_window import DockWindow
@@ -216,48 +216,8 @@ class NewYearGreetingController:
         return box
 
     def _position_popup(self) -> None:
-        if self._popup is None:
-            return
-
-        window_pos = window_screen_position(self._window)
-        win_x, win_y = window_pos.x, window_pos.y
-        win_w, win_h = window_size(self._window)
-        pref = self._popup.get_preferred_size()[1]
-        popup_w = max(pref.width, 1)
-        popup_h = max(pref.height, 1)
-        pos = self._window.config.pos
-
-        if is_horizontal(pos):
-            anchor_x = win_x + win_w / 2
-            anchor_y = win_y if pos.value == "bottom" else win_y + win_h
-        else:
-            anchor_x = win_x + win_w if pos.value == "left" else win_x
-            anchor_y = win_y + win_h / 2
-
-        popup_x, popup_y = compute_tooltip_position(
-            pos=pos,
-            anchor_x=anchor_x,
-            anchor_y=anchor_y,
-            tooltip_w=popup_w,
-            tooltip_h=popup_h,
-            gap=GREETING_GAP_PX,
-        )
-
-        clamped = clamp_popup(self._popup, popup_x, popup_y, popup_w, popup_h)
-        log.debug(
-            "Positioned New Year greeting popup at (%s, %s) "
-            "size=%sx%s dock=(%s,%s %sx%s pos=%s)",
-            clamped.x,
-            clamped.y,
-            popup_w,
-            popup_h,
-            win_x,
-            win_y,
-            win_w,
-            win_h,
-            pos.value,
-        )
-        self._popup.move(clamped.x, clamped.y)
+        if self._popup is not None:
+            position_startup_popup(self._popup, self._window, gap=GREETING_GAP_PX)
 
     def _on_popup_draw(self, widget: Gtk.Widget, cr) -> bool:
         alloc = widget.get_allocation()
@@ -308,8 +268,8 @@ class NewYearGreetingController:
             cr.line_to(body_x + body_w, tip_center + tip_half)
         cr.close_path()
 
-        self._append_rounded_rect(
-            cr,
+        rounded_rect(
+            cr=cr,
             x=body_x,
             y=body_y,
             width=body_w,
@@ -322,48 +282,6 @@ class NewYearGreetingController:
         cr.set_line_width(1.0)
         cr.stroke()
         return False
-
-    def _append_rounded_rect(
-        self,
-        cr,
-        *,
-        x: float,
-        y: float,
-        width: float,
-        height: float,
-        radius: float,
-    ) -> None:
-        radius = min(radius, width / 2, height / 2)
-        cr.new_sub_path()
-        cr.arc(
-            x + width - radius,
-            y + radius,
-            radius,
-            -3.141592653589793 / 2,
-            0,
-        )
-        cr.arc(
-            x + width - radius,
-            y + height - radius,
-            radius,
-            0,
-            3.141592653589793 / 2,
-        )
-        cr.arc(
-            x + radius,
-            y + height - radius,
-            radius,
-            3.141592653589793 / 2,
-            3.141592653589793,
-        )
-        cr.arc(
-            x + radius,
-            y + radius,
-            radius,
-            3.141592653589793,
-            3.141592653589793 * 3 / 2,
-        )
-        cr.close_path()
 
     def _hide_popup(self) -> bool:
         self._hide_source_id = 0

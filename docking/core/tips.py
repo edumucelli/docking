@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import random
 import tempfile
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -366,9 +366,5 @@ def _normalize_shown_tip_ids(value: Any) -> tuple[str, ...]:
     )
 
 
-def _dedupe(values: Sequence[str] | Any) -> tuple[str, ...]:
-    result: list[str] = []
-    for value in values:
-        if value not in result:
-            result.append(value)
-    return tuple(result)
+def _dedupe(values: Iterable[str]) -> tuple[str, ...]:
+    return tuple(dict.fromkeys(values))

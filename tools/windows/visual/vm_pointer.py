@@ -12,6 +12,7 @@ import argparse
 import json
 import socket
 import struct
+import sys
 import time
 from pathlib import Path
 
@@ -94,11 +95,12 @@ def main() -> None:
     complete = args.request.with_name(
         args.request.name.removesuffix("-request.json") + "-complete.json"
     )
-    temporary = complete.with_suffix(".tmp")
-    temporary.write_text(json.dumps(result))
-    temporary.replace(complete)
+    from tools.windows.visual.desktop_driver import write_shared_json
+
+    write_shared_json(complete, result)
     print(json.dumps(result))
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
     main()

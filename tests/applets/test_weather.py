@@ -6,11 +6,14 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
 import gi
+import pytest
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
+import docking.applets.city_picker as city_picker_mod
 import docking.applets.weather.applet as weather_applet_mod
+from docking.applets.sunrise.applet import SunriseApplet
 from docking.applets.weather.api import (
     AirQualityData,
     DailyForecast,
@@ -30,6 +33,7 @@ from docking.applets.weather.state import (
     prefs_payload,
 )
 from docking.core.config import Config
+from tests.applets.inline_worker import ImmediateWorker
 
 _SAMPLE_WEATHER = WeatherData(
     temperature=22.0,
@@ -47,20 +51,7 @@ _TOKYO = CityPref(city_display="Tokyo, Japan", lat=35.68, lng=139.69)
 _LONDON = CityPref(city_display="London, United Kingdom", lat=51.51, lng=-0.13)
 
 
-class _ImmediateWorker:
-    def __init__(self, **_kwargs) -> None:
-        pass
-
-    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
-        try:
-            result = fn()
-        except Exception as exc:
-            if on_error is not None:
-                on_error(exc)
-            return
-        if on_result is not None:
-            on_result(result)
-
+class _ImmediateWorker(ImmediateWorker):
     def run_guarded(self, **kwargs) -> bool:
         self.run(**kwargs)
         return True
@@ -484,7 +475,6 @@ class TestWeatherPrefs:
         item.set_active(True)
 
         applet._on_temperature_unit_selected(
-            widget=item,
             temperature_unit=TemperatureUnit.FAHRENHEIT,
         )
 
@@ -1007,19 +997,18 @@ class _FakeWeatherDialog:
 
 
 class TestWeatherDialogAndWidget:
-    def test_show_city_dialog_search_and_select(self, monkeypatch):
+    @pytest.mark.parametrize("applet_type", (WeatherApplet, SunriseApplet))
+    def test_show_city_dialog_search_and_select(self, monkeypatch, applet_type):
         # Given
-        applet = _make_applet()
+        applet = applet_type(48, config=Config())
         created_entry = _FakeWeatherEntry()
         created_completion = _FakeWeatherCompletion()
         created_dialog = _FakeWeatherDialog()
         city = SimpleNamespace(display="Berlin, Germany", lat=52.52, lng=13.41)
-        monkeypatch.setattr(weather_applet_mod, "cached_cities", lambda: [city])
+        monkeypatch.setattr(city_picker_mod, "cached_cities", lambda: [city])
+        monkeypatch.setattr(city_picker_mod, "search_cities", lambda *_a, **_k: [city])
         monkeypatch.setattr(
-            weather_applet_mod, "search_cities", lambda *_a, **_k: [city]
-        )
-        monkeypatch.setattr(
-            weather_applet_mod,
+            city_picker_mod,
             "Gtk",
             SimpleNamespace(
                 Dialog=lambda **_kwargs: created_dialog,
@@ -1040,10 +1029,16 @@ class TestWeatherDialogAndWidget:
         )
         add_city = MagicMock()
         monkeypatch.setattr(applet, "_add_city", add_city)
-        monkeypatch.setattr(weather_applet_mod.GLib, "idle_add", lambda fn: fn())
+        pending = []
+        monkeypatch.setattr(
+            city_picker_mod.GLib, "idle_add", lambda fn: pending.append(fn)
+        )
 
         # When
         applet._show_city_dialog()
+        created_entry.set_text("b")
+        created_entry.callbacks["changed"](created_entry)
+        assert created_completion.model.rows == []
         created_entry.set_text("be")
         created_entry.callbacks["changed"](created_entry)
         store = created_completion.model
@@ -1051,9 +1046,10 @@ class TestWeatherDialogAndWidget:
 
         # Then
         assert len(store.rows) == 1
-        add_city.assert_called_once_with(
-            display="Berlin, Germany", lat=52.52, lng=13.41
-        )
+        add_city.assert_called_once_with("Berlin, Germany", 52.52, 13.41)
+        created_dialog.destroy.assert_not_called()
+        assert len(pending) == 1
+        assert pending[0]() is False
         created_dialog.destroy.assert_called_once()
 
     def test_build_tooltip_widget_minimal_branch(self):
@@ -1067,19 +1063,6 @@ class TestWeatherDialogAndWidget:
 
             def get_children(self):
                 return self._children
-
-        class _FakeLabel:
-            def __init__(self, label=""):
-                self._label = label
-
-            def override_color(self, state, rgba):
-                _ = state, rgba
-
-            def set_markup(self, markup):
-                self._label = markup
-
-            def set_xalign(self, value):
-                _ = value
 
         weather_applet_mod.Gtk = SimpleNamespace(  # type: ignore[assignment]
             Box=_FakeBox,
@@ -1112,19 +1095,6 @@ class TestWeatherDialogAndWidget:
             def get_children(self):
                 return self._children
 
-        class _FakeLabel:
-            def __init__(self, label=""):
-                self._label = label
-
-            def override_color(self, state, rgba):
-                _ = state, rgba
-
-            def set_markup(self, markup):
-                self._label = markup
-
-            def set_xalign(self, value):
-                _ = value
-
         weather_applet_mod.Gtk = SimpleNamespace(  # type: ignore[assignment]
             Box=_FakeBox,
             Label=_FakeLabel,
@@ -1152,3 +1122,17 @@ class TestWeatherDialogAndWidget:
         ]
         assert "Air: Fair" in labels
         assert "UV Index: 5.7" in labels
+
+
+class _FakeLabel:
+    def __init__(self, label=""):
+        self._label = label
+
+    def override_color(self, state, rgba):
+        _ = state, rgba
+
+    def set_markup(self, markup):
+        self._label = markup
+
+    def set_xalign(self, value):
+        _ = value

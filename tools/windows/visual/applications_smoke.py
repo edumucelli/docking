@@ -112,7 +112,7 @@ def main():
         WindowsHotkeyAPI,
     )
     from docking.ui.dnd import DnDHandler
-    from tools.windows.visual.desktop_driver import WindowsDesktop
+    from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
 
     config = profile_root / "config/docking/dock.json"
     config.parent.mkdir(parents=True, exist_ok=True)
@@ -1065,9 +1065,7 @@ def main():
         if errors:
             raise errors[0]
     finally:
-        temporary = output / "result.json.tmp"
-        temporary.write_text(json.dumps(report, indent=2), encoding="utf-8")
-        temporary.replace(output / "result.json")
+        write_shared_json(output / "result.json", report)
         print(json.dumps(report, indent=2))
         if profile is not None:
             profile.cleanup()

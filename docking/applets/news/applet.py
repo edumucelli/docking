@@ -51,6 +51,7 @@ from docking.applets.news.state import (
     source_label,
 )
 from docking.applets.popup import prepare_dialog_content
+from docking.applets.selection import retained_index
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -431,8 +432,9 @@ class NewsApplet(Applet):
         current_id = self._current_article.id if self._current_article else ""
         previous_index = self._active_article_index
         self._articles = list(articles)
-        self._active_article_index = self._refreshed_article_index(
-            current_id=current_id,
+        self._active_article_index = retained_index(
+            (item.id for item in self._articles),
+            current_id=current_id or None,
             previous_index=previous_index,
         )
         self._fetched_at = dt.datetime.now(dt.timezone.utc)
@@ -449,13 +451,6 @@ class NewsApplet(Applet):
         log.bind(action="fetch_error").debug("News RSS fetch failed: %s", exc)
         self.present()
         return False
-
-    def _refreshed_article_index(self, *, current_id: str, previous_index: int) -> int:
-        if current_id:
-            for index, article in enumerate(self._articles):
-                if article.id == current_id:
-                    return index
-        return normalize_active_index(index=previous_index, count=len(self._articles))
 
     def _open_current_article(self) -> None:
         article = self._current_article

@@ -2531,7 +2531,7 @@ class TestSettingsRuntimeCallbacks:
             config=config,
         )
 
-        controller._after_icon_size_changed()
+        controller._after_theme_changed()
 
         runtime.reposition.assert_called()
         runtime.queue_draw.assert_called()

@@ -17,23 +17,7 @@ from docking.platform.backends.wayland.treeland import (
 )
 from docking.platform.backends.wayland.treeland_session import TreelandSessionBackend
 from tests.platform.application_fakes import identity_services
-
-
-def _layer_shell() -> SimpleNamespace:
-    return SimpleNamespace(
-        Edge=SimpleNamespace(TOP=1, BOTTOM=2, LEFT=4, RIGHT=8),
-        Layer=SimpleNamespace(TOP=1),
-        KeyboardMode=SimpleNamespace(NONE=0),
-        init_for_window=MagicMock(),
-        set_namespace=MagicMock(),
-        set_layer=MagicMock(),
-        set_keyboard_mode=MagicMock(),
-        set_anchor=MagicMock(),
-        set_margin=MagicMock(),
-        set_monitor=MagicMock(),
-        set_size=MagicMock(),
-        set_exclusive_zone=MagicMock(),
-    )
+from tests.platform.application_fakes import layer_shell as _layer_shell
 
 
 def _runtime() -> SimpleNamespace:

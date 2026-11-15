@@ -6,10 +6,8 @@ import os
 import socket
 import tempfile
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from docking.core.items import DockItem
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -30,19 +28,7 @@ from docking.platform.backends.wayland.niri_ipc import (
     load_niri_workspace_service,
 )
 from tests.platform.application_fakes import identity_services
-
-
-def _model() -> SimpleNamespace:
-    return SimpleNamespace(
-        visible_items=MagicMock(
-            return_value=[
-                DockItem(desktop_id="Alacritty.desktop", wm_class="Alacritty"),
-                DockItem(desktop_id="firefox.desktop", wm_class="firefox"),
-            ]
-        ),
-        update_running=MagicMock(),
-    )
-
+from tests.platform.application_fakes import window_model as _model
 
 # ---------------------------------------------------------------------------
 # Socket path detection

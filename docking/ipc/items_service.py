@@ -134,17 +134,14 @@ class DockItemsService:
     def _attach_model_change_listener(self) -> None:
         if self._subscribed_to_model:
             return
-        self._model.add_change_listener(self._handle_model_change)
+        self._model.add_change_listener(self._schedule_changed_signal)
         self._subscribed_to_model = True
 
     def _detach_model_change_listener(self) -> None:
         if not self._subscribed_to_model:
             return
-        self._model.remove_change_listener(self._handle_model_change)
+        self._model.remove_change_listener(self._schedule_changed_signal)
         self._subscribed_to_model = False
-
-    def _handle_model_change(self) -> None:
-        self._schedule_changed_signal()
 
     def _schedule_changed_signal(self) -> None:
         if self._connection is None or self._registration_id <= 0:
@@ -235,10 +232,8 @@ class DockItemsService:
 
         if method_name == "Pin":
             return GLib.Variant("(b)", (self._pin(desktop_id=desktop_id),))
-        if method_name == "Unpin":
+        if method_name in {"Unpin", "Remove"}:
             return GLib.Variant("(b)", (self._unpin(desktop_id=desktop_id),))
-        if method_name == "Remove":
-            return GLib.Variant("(b)", (self._remove(desktop_id=desktop_id),))
 
         anchor = self._window.get_hover_anchor(desktop_id=desktop_id)
         if anchor is None:
@@ -259,6 +254,3 @@ class DockItemsService:
             return False
         self._model.unpin_item(desktop_id)
         return True
-
-    def _remove(self, *, desktop_id: str) -> bool:
-        return self._unpin(desktop_id=desktop_id)

@@ -49,7 +49,7 @@ def main():
         MOD_CONTROL,
         WindowsHotkeyAPI,
     )
-    from tools.windows.visual.desktop_driver import WindowsDesktop
+    from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
 
     # The applet's normal startup performs registration against these fixtures.
     claude._CLAUDE_SETTINGS = output / "claude/settings.json"
@@ -265,9 +265,7 @@ def main():
         if errors:
             raise errors[0]
     finally:
-        (output / "result.json").write_text(
-            json.dumps(report, indent=2), encoding="utf-8"
-        )
+        write_shared_json(output / "result.json", report)
         print(json.dumps(report, indent=2))
 
 

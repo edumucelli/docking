@@ -34,18 +34,16 @@ import gi
 
 gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gdk, GLib, Gtk
+from gi.repository import GLib, Gtk
 
-from docking.core.position import is_horizontal
 from docking.core.tips import StartupTip, select_startup_tip
 from docking.i18n import _
 from docking.log import get_logger
-from docking.ui.display import clamp_popup, window_screen_position, window_size
 from docking.ui.popup_surface import (
-    configure_transparent_startup_popup_window,
+    create_startup_popup_window,
+    position_startup_popup,
     wrap_startup_popup_content,
 )
-from docking.ui.tooltip import compute_tooltip_position
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -143,15 +141,9 @@ class StartupTipsController:
             return False
         self._current_tip = tip
         if self._popup is None:
-            popup = Gtk.Window(type=Gtk.WindowType.POPUP)
-            popup.set_decorated(False)
-            popup.set_skip_taskbar_hint(True)
-            popup.set_resizable(False)
-            popup.set_type_hint(Gdk.WindowTypeHint.NOTIFICATION)
-            configure_transparent_startup_popup_window(popup)
-            popup.set_transient_for(self._window)
-            popup.connect("destroy", self._on_popup_destroy)
-            self._popup = popup
+            self._popup = create_startup_popup_window(
+                self._window, self._on_popup_destroy
+            )
         else:
             child = self._popup.get_child()
             if child is not None:
@@ -236,31 +228,10 @@ class StartupTipsController:
         widget.get_style_context().add_class(class_name)
 
     def _position_popup(self) -> None:
-        if self._popup is None:
-            return
-        window_pos = window_screen_position(self._window)
-        win_x, win_y = window_pos.x, window_pos.y
-        win_w, win_h = window_size(self._window)
-        pref = self._popup.get_preferred_size()[1]
-        popup_w = max(pref.width, 1)
-        popup_h = max(pref.height, 1)
-        pos = self._window.config.pos
-        if is_horizontal(pos):
-            anchor_x = win_x + win_w / 2
-            anchor_y = win_y if pos.value == "bottom" else win_y + win_h
-        else:
-            anchor_x = win_x + win_w if pos.value == "left" else win_x
-            anchor_y = win_y + win_h / 2
-        popup_x, popup_y = compute_tooltip_position(
-            pos=pos,
-            anchor_x=anchor_x,
-            anchor_y=anchor_y,
-            tooltip_w=popup_w,
-            tooltip_h=popup_h,
-            gap=STARTUP_TIP_POPUP_GAP_PX,
-        )
-        clamped = clamp_popup(self._popup, popup_x, popup_y, popup_w, popup_h)
-        self._popup.move(clamped.x, clamped.y)
+        if self._popup is not None:
+            position_startup_popup(
+                self._popup, self._window, gap=STARTUP_TIP_POPUP_GAP_PX
+            )
 
     def _on_never_show(self, _button: Gtk.Button) -> None:
         self._config.startup_tips_enabled = False

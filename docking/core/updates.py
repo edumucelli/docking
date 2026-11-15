@@ -23,7 +23,6 @@ from __future__ import annotations
 import json
 import re
 import tempfile
-import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -182,11 +181,8 @@ def fetch_latest_release(
             "User-Agent": UPDATE_USER_AGENT,
         },
     )
-    try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            payload = response.read()
-    except urllib.error.URLError:
-        raise
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        payload = response.read()
     data = json.loads(payload.decode("utf-8"))
     return parse_github_release(data)
 

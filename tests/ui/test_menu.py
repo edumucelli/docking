@@ -1,11 +1,15 @@
 """Tests for menu constants and configuration."""
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
+
+import pytest
 
 import docking.ui.menu as menu_mod
 from docking.core.position import Position
 from docking.core.theme import _BUILTIN_THEMES_DIR
 from docking.ui.menu import _build_radio_submenu
+from tests.ui.menu_support import FakePixbuf as _FakePixbuf
 
 
 class _FakeMenu:
@@ -109,24 +113,6 @@ class _FakeImage:
 
     def set_pixel_size(self, value: int) -> None:
         self.pixel_size = value
-
-
-class _FakePixbuf:
-    def __init__(self, width: int, height: int, scaled=None) -> None:
-        self.width = width
-        self.height = height
-        self.scaled = scaled
-        self.scale_calls: list[tuple[int, int, object]] = []
-
-    def get_width(self) -> int:
-        return self.width
-
-    def get_height(self) -> int:
-        return self.height
-
-    def scale_simple(self, width: int, height: int, interp):
-        self.scale_calls.append((width, height, interp))
-        return self.scaled
 
 
 class _FakeGtk:
@@ -297,3 +283,19 @@ class TestMakeMenuHeader:
         item = menu_mod._make_menu_header("Test Header")
         assert isinstance(item, _FakeMenuItem)
         assert item.get_label() == "Test Header"
+
+
+@pytest.mark.parametrize(
+    "declaration, expected",
+    [
+        (["system", "invalid", "docking", "system"], ("system", "docking")),
+        (("invalid", None), ("docking",)),
+        ([], ("docking",)),
+        (iter(("system",)), ("docking",)),
+    ],
+)
+def test_icon_source_menu_preserves_order_fallback_and_declaration_gate(
+    declaration, expected
+):
+    applet = SimpleNamespace(icon_source_options=declaration)
+    assert menu_mod.MenuHandler._applet_icon_source_options(applet) == expected

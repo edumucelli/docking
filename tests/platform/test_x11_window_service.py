@@ -7,6 +7,8 @@ import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 try:
     import gi  # noqa: F401
 except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environments
@@ -260,3 +262,22 @@ def test_close_uses_x11_window_id(monkeypatch):
 
     assert result is ActionResult.OK
     assert window.closed_with == [456]
+
+
+@pytest.mark.parametrize("action", ["activate_most_recent", "close_all"])
+def test_app_actions_distinguish_unavailable_tracking_from_missing_windows(action):
+    service = make_service([])
+    assert getattr(service, action)("missing.desktop") is ActionResult.NOT_FOUND
+
+    service._screen = None
+    assert getattr(service, action)("missing.desktop") is ActionResult.UNSUPPORTED
+
+
+@pytest.mark.parametrize("action", ["activate", "close"])
+def test_window_actions_reject_invalid_ids_and_missing_windows(action):
+    service = make_service([])
+    assert (
+        getattr(service, action)(WindowId(DisplayServer.X11, "invalid"))
+        is ActionResult.UNSUPPORTED
+    )
+    assert getattr(service, action)(WindowId.x11(99)) is ActionResult.NOT_FOUND

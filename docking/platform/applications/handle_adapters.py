@@ -54,14 +54,7 @@ def desktop_file_keys(path: Path) -> tuple[Path, ...]:
 
 
 def unique_paths(paths: Iterable[Path]) -> tuple[Path, ...]:
-    result: list[Path] = []
-    seen: set[Path] = set()
-    for value in paths:
-        path = Path(value).expanduser()
-        if path not in seen:
-            seen.add(path)
-            result.append(path)
-    return tuple(result)
+    return tuple(dict.fromkeys(Path(value).expanduser() for value in paths))
 
 
 def _plain_text(value: object) -> str:

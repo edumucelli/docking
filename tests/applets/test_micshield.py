@@ -25,23 +25,11 @@ from docking.applets.micshield.state import (
     stream_label,
 )
 from docking.core.config import Config
+from tests.applets.inline_worker import ImmediateWorker
 from tests.platform_factories import make_applet_platform
 
 
-class _ImmediateWorker:
-    def __init__(self, **_kwargs) -> None:
-        pass
-
-    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
-        try:
-            result = fn()
-        except Exception as exc:
-            if on_error is not None:
-                on_error(exc)
-            return
-        if on_result is not None:
-            on_result(result)
-
+class _ImmediateWorker(ImmediateWorker):
     def run_guarded(self, **kwargs):
         self.run(**kwargs)
         return True

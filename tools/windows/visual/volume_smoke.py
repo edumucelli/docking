@@ -12,8 +12,6 @@ import argparse
 import ctypes
 import json
 import os
-import shutil
-import subprocess
 import sys
 import threading
 import time
@@ -30,34 +28,13 @@ def main():
     if (output / "result.json").exists():
         parser.error("Choose a fresh output directory; keep earlier evidence")
     output.mkdir(parents=True, exist_ok=True)
-    cached = subprocess.run(
-        [
-            sys.executable,
-            "-c",
-            (
-                "import json;from gi.repository import GLib;"
-                "print(json.dumps(GLib.get_user_cache_dir()))"
-            ),
-        ],
-        capture_output=True,
-        stdin=subprocess.DEVNULL,
-        text=True,
-        check=True,
-        creationflags=subprocess.CREATE_NO_WINDOW,
-        timeout=30,
-    )
-    registries = list(
-        (Path(json.loads(cached.stdout)) / "gstreamer-1.0").glob("registry.*.bin")
-    )
-    if not registries:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+    from tools.windows.visual.desktop_driver import copy_gstreamer_registry
+
+    if not copy_gstreamer_registry(output / "cache"):
         parser.error("Prepare the complete native GStreamer registry first")
-    target = output / "cache/gstreamer-1.0"
-    target.mkdir(parents=True, exist_ok=True)
-    for registry in registries:
-        shutil.copy2(registry, target / registry.name)
     os.environ["XDG_CONFIG_HOME"] = str(output / "config")
     os.environ["XDG_CACHE_HOME"] = str(output / "cache")
-    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
     from docking.launcher import prepare_display
 
     prepare_display()
@@ -76,7 +53,7 @@ def main():
         MOD_CONTROL,
         WindowsHotkeyAPI,
     )
-    from tools.windows.visual.desktop_driver import WindowsDesktop
+    from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
 
     config = output / "config/docking/dock.json"
     config.parent.mkdir(parents=True, exist_ok=True)
@@ -371,9 +348,7 @@ def main():
         if errors:
             raise errors[0]
     finally:
-        temporary = output / "result.json.tmp"
-        temporary.write_text(json.dumps(report, indent=2), encoding="utf-8")
-        temporary.replace(output / "result.json")
+        write_shared_json(output / "result.json", report)
         print(json.dumps(report, indent=2))
 
 

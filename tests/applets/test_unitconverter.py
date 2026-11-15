@@ -25,21 +25,8 @@ from docking.applets.unitconverter.state import (
     set_currency_units,
 )
 from docking.core.config import Config
-
-
-class _ImmediateWorker:
-    def __init__(self, **_kwargs) -> None:
-        pass
-
-    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
-        try:
-            result = fn()
-        except Exception as exc:
-            if on_error is not None:
-                on_error(exc)
-            return
-        if on_result is not None:
-            on_result(result)
+from tests.applets.completion_support import FakeEntryCompletion as _FakeEntryCompletion
+from tests.applets.inline_worker import ImmediateWorker as _ImmediateWorker
 
 
 def _make_applet(config: Config | None = None) -> UnitConverterApplet:
@@ -231,38 +218,6 @@ class _FakeComboModel:
 
     def get_value(self, tree_iter: int, _column: int) -> str:
         return self.items[tree_iter]
-
-
-class _FakeEntryCompletion:
-    def __init__(self) -> None:
-        self.model = None
-        self.text_column = None
-        self.inline_completion = False
-        self.popup_completion = False
-        self.match_func = None
-
-    def set_model(self, model) -> None:
-        self.model = model
-
-    def get_model(self):
-        return self.model
-
-    def set_text_column(self, column: int) -> None:
-        self.text_column = column
-
-    def set_inline_completion(self, value: bool) -> None:
-        self.inline_completion = value
-
-    def set_popup_completion(self, value: bool) -> None:
-        self.popup_completion = value
-
-    def set_match_func(self, func, user_data) -> None:
-        self.match_func = lambda completion, key, tree_iter, _data: func(
-            completion,
-            key,
-            tree_iter,
-            user_data,
-        )
 
 
 class _FakeLabel:

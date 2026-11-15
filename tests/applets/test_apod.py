@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from io import BytesIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from urllib.parse import urlparse
@@ -22,6 +21,7 @@ from docking.applets.apod.state import (
     prefs_payload,
 )
 from docking.core.config import Config
+from tests.applets.inline_worker import ImmediateWorker as _ImmediateWorker
 
 _SAMPLE_PAYLOAD = {
     "date": "2026-04-24",
@@ -33,21 +33,6 @@ _SAMPLE_PAYLOAD = {
     "url": "https://apod.nasa.gov/apod/image/2604/thumb.jpg",
     "copyright": "NASA Team",
 }
-
-
-class _ImmediateWorker:
-    def __init__(self, **_kwargs) -> None:
-        pass
-
-    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
-        try:
-            result = fn()
-        except Exception as exc:
-            if on_error is not None:
-                on_error(exc)
-            return
-        if on_result is not None:
-            on_result(result)
 
 
 def _make_applet(icon_size: int = 48, *, config: Config | None = None) -> ApodApplet:
@@ -721,9 +706,3 @@ class TestAppletResponseStream:
             url="https://example.com/image.png", date_iso="2026-04-24"
         )
         assert path.endswith(".png")
-
-
-def test_bytesio_keeps_linter_happy():
-    # Silences linters about unused import; BytesIO stays importable to make
-    # future streaming-image tests easier to add without reshuffling imports.
-    assert BytesIO is not None

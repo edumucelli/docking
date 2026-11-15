@@ -3,14 +3,68 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from PIL import Image, ImageDraw
 
 from tools.linux.visual import behaviour, compare, scenarios
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="Compositor adapters need jq")
+@pytest.mark.parametrize("adapter", ["labwc", "wayfire", "cage"])
+@pytest.mark.parametrize("captured", [False, True])
+def test_framebuffer_geometry_measures_the_capture_and_propagates_capture_failure(
+    tmp_path, adapter, captured
+):
+    root = Path(__file__).resolve().parents[1]
+    adapters = root / "tools/linux/visual/adapters"
+    source = tmp_path / "capture.png"
+    Image.new("RGB", (913, 277)).save(source)
+    grim = 'grim() { cp "$capture" "$1"; }' if captured else "grim() { return 17; }"
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            'source "$1"; source "$2"; capture="$3"; ' + grim + "; adapter_geometry",
+            "geometry-test",
+            str(adapters / "common.sh"),
+            str(adapters / f"{adapter}.sh"),
+            str(source),
+        ],
+        env={
+            **os.environ,
+            "XDG_RUNTIME_DIR": str(tmp_path),
+            "XDG_CONFIG_HOME": str(tmp_path),
+            "LAB_DIR": str(tmp_path),
+            "LAB_SCRIPTS": str(adapters.parent),
+        },
+        text=True,
+        capture_output=True,
+        timeout=10,
+    )
+    if captured:
+        assert result.returncode == 0, result.stderr
+        assert json.loads(result.stdout) == {
+            "outputs": [
+                {
+                    "name": "headless-1",
+                    "x": 0,
+                    "y": 0,
+                    "width": 913,
+                    "height": 277,
+                    "scale": 1,
+                }
+            ],
+            "dock_rect": None,
+        }
+    else:
+        assert result.returncode == 17 and not result.stdout
+    assert not (tmp_path / ".geometry.png").exists()
 
 
 @pytest.mark.parametrize("dock", ["correct", "over-panel", "absent"])

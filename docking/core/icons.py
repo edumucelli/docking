@@ -16,6 +16,7 @@ from each other.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from enum import Enum
 
 
@@ -45,3 +46,13 @@ def icon_source_from_value(value: object) -> IconSource | None:
         return IconSource(value)
     except ValueError:
         return None
+
+
+def normalize_icon_sources(values: Iterable[object]) -> tuple[IconSource, ...]:
+    """Parse unique declarations in order, retaining the built-in fallback."""
+    sources = dict.fromkeys(
+        source
+        for value in values
+        if (source := icon_source_from_value(value)) is not None
+    )
+    return tuple(sources) or (IconSource.DOCKING,)

@@ -26,9 +26,8 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.cities import search_cities
+from docking.applets.city_picker import show_city_dialog
 from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
-from docking.applets.popup import prepare_dialog_content
 from docking.applets.sunrise import meta
 from docking.applets.sunrise.render import render_icon
 from docking.applets.sunrise.state import (
@@ -37,7 +36,6 @@ from docking.applets.sunrise.state import (
     LabelMode,
     SolarSnapshot,
     build_snapshot,
-    cached_cities,
     cycle_active_index,
     label_mode_label,
     menu_header_label,
@@ -49,12 +47,6 @@ from docking.i18n import _
 
 if TYPE_CHECKING:
     from docking.core.config import Config
-
-CITY_DIALOG_WIDTH_PX = 350
-DIALOG_CONTENT_SPACING_PX = 8
-DIALOG_HORIZONTAL_MARGIN_PX = 12
-CITY_SEARCH_MIN_CHARS = 2
-CITY_SEARCH_RESULT_LIMIT = 10
 
 
 class SunriseApplet(Applet):
@@ -131,8 +123,7 @@ class SunriseApplet(Applet):
                     )
                 ),
                 active_value=self._label_mode,
-                on_selected=lambda widget, value: self._on_label_mode_selected(
-                    widget=widget,
+                on_selected=lambda _widget, value: self._on_label_mode_selected(
                     label_mode=value,
                 ),
                 gtk=Gtk,
@@ -179,65 +170,7 @@ class SunriseApplet(Applet):
         )
 
     def _show_city_dialog(self) -> None:
-        dialog = Gtk.Dialog(
-            title=_("Search for the city"),
-            modal=True,
-            destroy_with_parent=True,
-        )
-        dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
-        dialog.connect("response", lambda dlg, _response: dlg.destroy())
-        box = prepare_dialog_content(
-            dialog=dialog,
-            width=CITY_DIALOG_WIDTH_PX,
-            spacing=DIALOG_CONTENT_SPACING_PX,
-            margin=DIALOG_HORIZONTAL_MARGIN_PX,
-        )
-
-        entry = Gtk.Entry()
-        entry.set_placeholder_text(_("Type city name..."))
-        box.pack_start(entry, False, False, 0)
-
-        completion = Gtk.EntryCompletion()
-        store = Gtk.ListStore(str, float, float)
-        completion.set_model(store)
-        completion.set_text_column(0)
-        completion.set_minimum_key_length(CITY_SEARCH_MIN_CHARS)
-
-        def on_changed(changed_entry: Gtk.Entry) -> None:
-            text = changed_entry.get_text()
-            store.clear()
-            if len(text) < CITY_SEARCH_MIN_CHARS:
-                return
-            for city in search_cities(
-                text,
-                cached_cities(),
-                limit=CITY_SEARCH_RESULT_LIMIT,
-            ):
-                store.append([city.display, city.lat, city.lng])
-
-        def on_match_selected(
-            _completion: Gtk.EntryCompletion,
-            model: Gtk.TreeModel,
-            tree_iter: Gtk.TreeIter,
-        ) -> bool:
-            display = model.get_value(tree_iter, 0)
-            lat = model.get_value(tree_iter, 1)
-            lng = model.get_value(tree_iter, 2)
-            self._add_city(display=display, lat=lat, lng=lng)
-
-            def destroy_dialog() -> bool:
-                dialog.destroy()
-                return False
-
-            GLib.idle_add(destroy_dialog)
-            return True
-
-        entry.connect("changed", on_changed)
-        completion.connect("match-selected", on_match_selected)
-        entry.set_completion(completion)
-
-        dialog.show_all()
-        entry.grab_focus()
+        show_city_dialog(self._add_city)
 
     def _add_city(self, display: str, lat: float, lng: float) -> None:
         for i, city in enumerate(self._cities):
@@ -265,11 +198,8 @@ class SunriseApplet(Applet):
     def _on_label_mode_selected(
         self,
         *,
-        widget: Gtk.RadioMenuItem,
         label_mode: LabelMode,
     ) -> None:
-        if not widget.get_active():
-            return
         if label_mode == self._label_mode:
             return
         self._label_mode = label_mode

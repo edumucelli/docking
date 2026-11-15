@@ -156,7 +156,8 @@ def test_candidate_workflow_orders_exact_wheel_before_strict_client_and_release(
     called = ci.split("  windows-client-input:\n", 1)[1].split(
         "\n  windows-release-evidence:", 1
     )[0]
-    assert "needs: [changes, quality, windows-desktop]" in called
+    assert "needs: [quality, windows-desktop]" in called
+    assert "if: ${{ !cancelled() }}" in called
     assert "candidate-artifact: windows-input-candidate-ucrt64-x64" in called
     assert "name: windows-input-candidate-ucrt64-x64" in server
     assert "--input-coverage server-api" in server
@@ -174,7 +175,7 @@ def test_candidate_workflow_orders_exact_wheel_before_strict_client_and_release(
     evidence = ci.split("  windows-release-evidence:\n", 1)[1].split(
         "\n  release:\n", 1
     )[0]
-    assert "needs: [changes, windows-desktop, windows-client-input]" in evidence
+    assert "needs: [windows-desktop, windows-client-input]" in evidence
     assert "path: artifacts/windows-release/client-input" in evidence
     assert (
         "tools.windows.release" in evidence and '--source-sha "$GITHUB_SHA"' in evidence

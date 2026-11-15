@@ -17,6 +17,7 @@ from docking.platform.backends.cinnamon.muffin import MuffinWindowService
 from docking.platform.backends.cinnamon.session import CinnamonWaylandSessionBackend
 from docking.platform.backends.diagnostics import WindowReason
 from tests.platform.application_fakes import identity_services
+from tests.platform.application_fakes import layer_shell as _layer_shell
 
 
 def _model() -> SimpleNamespace:
@@ -25,23 +26,6 @@ def _model() -> SimpleNamespace:
             return_value=[DockItem(desktop_id="firefox.desktop", wm_class="firefox")]
         ),
         update_running=MagicMock(),
-    )
-
-
-def _layer_shell() -> SimpleNamespace:
-    return SimpleNamespace(
-        Edge=SimpleNamespace(TOP=1, BOTTOM=2, LEFT=4, RIGHT=8),
-        Layer=SimpleNamespace(TOP=1),
-        KeyboardMode=SimpleNamespace(NONE=0),
-        init_for_window=MagicMock(),
-        set_namespace=MagicMock(),
-        set_layer=MagicMock(),
-        set_keyboard_mode=MagicMock(),
-        set_anchor=MagicMock(),
-        set_margin=MagicMock(),
-        set_monitor=MagicMock(),
-        set_size=MagicMock(),
-        set_exclusive_zone=MagicMock(),
     )
 
 

@@ -79,19 +79,7 @@ adapter_screenshot() {
     grim "$1"
 }
 
-adapter_geometry() {
-    local probe="$XDG_RUNTIME_DIR/.geometry.png"
-    grim "$probe"
-    local dims width height
-    dims="$(png_dimensions "$probe")"
-    rm -f "$probe"
-    width="${dims%x*}"
-    height="${dims#*x}"
-
-    jq -n --argjson w "$width" --argjson h "$height" \
-        '{outputs: [{name: "headless-1", x: 0, y: 0, width: $w, height: $h, scale: 1}],
-          dock_rect: null}'
-}
+adapter_geometry() { framebuffer_geometry; }
 
 adapter_pointer() { [ "$LAB_INPUT_SUPPORTED" = true ] && lab_pointer "$@"; }
 

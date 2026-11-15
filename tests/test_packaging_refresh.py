@@ -61,7 +61,6 @@ def test_packaging_uses_shared_canonical_desktop_entry():
 def test_application_desktop_entries_do_not_disable_autostart():
     desktop_entries = (
         ROOT / "packaging/shared/org.docking.Docking.desktop",
-        ROOT / "packaging/deb/org.docking.Docking.desktop",
         ROOT / "packaging/flatpak/cc.docking.Docking.desktop",
     )
 

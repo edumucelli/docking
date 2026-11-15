@@ -339,3 +339,10 @@ class TestAppletDefaultHooks:
         applet = _DeferredInitApplet(Config())
         # Should not raise
         applet.refresh_tooltip()
+
+
+def test_icon_declarations_keep_class_lookup_when_instance_overrides():
+    applet = _SystemIconApplet(Config())
+    applet.icon_source_options = (IconSource.DOCKING,)
+
+    assert applet.supports_icon_source(IconSource.SYSTEM)

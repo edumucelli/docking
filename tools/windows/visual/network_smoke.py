@@ -272,7 +272,7 @@ def main():
         MOD_CONTROL,
         WindowsHotkeyAPI,
     )
-    from tools.windows.visual.desktop_driver import WindowsDesktop
+    from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
 
     config = output / "config/docking/dock.json"
     config.parent.mkdir(parents=True, exist_ok=True)
@@ -614,9 +614,7 @@ def main():
         if errors:
             raise errors[0]
     finally:
-        temporary = output / "result.json.tmp"
-        temporary.write_text(json.dumps(report, indent=2), encoding="utf-8")
-        temporary.replace(output / "result.json")
+        write_shared_json(output / "result.json", report)
         print(json.dumps(report, indent=2))
 
 

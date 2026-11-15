@@ -66,18 +66,7 @@ def discover_windows_applications(source: Iterable[object]) -> DiscoveryResult:
         )
         applications.append(app)
         handles[application_id] = handle
-        diagnostics.append(
-            ApplicationDiagnostic(
-                desktop_id=application_id,
-                name=name,
-                desktop_file=None,
-                visible=app.visible,
-                has_gio_source=True,
-                wm_class=basename,
-                launcher_basename=basename,
-                aliases=aliases,
-            )
-        )
+        diagnostics.append(diagnostic_for(app))
     return DiscoveryResult(
         applications=tuple(applications),
         handles=handles,
@@ -119,17 +108,19 @@ def merge_shell_catalog(
         result,
         applications=tuple(records),
         presentation_order=tuple(app.desktop_id for app in records),
-        diagnostics=tuple(
-            ApplicationDiagnostic(
-                desktop_id=app.desktop_id,
-                name=app.name,
-                desktop_file=app.desktop_file,
-                visible=app.visible,
-                has_gio_source=app.has_gio_source,
-                wm_class=app.wm_class,
-                launcher_basename=app.wm_class,
-                aliases=app.aliases,
-            )
-            for app in records
-        ),
+        diagnostics=tuple(diagnostic_for(app) for app in records),
+    )
+
+
+def diagnostic_for(app: ApplicationInfo) -> ApplicationDiagnostic:
+    """Project native application facts without Unix desktop-file provenance."""
+    return ApplicationDiagnostic(
+        desktop_id=app.desktop_id,
+        name=app.name,
+        desktop_file=app.desktop_file,
+        visible=app.visible,
+        has_gio_source=app.has_gio_source,
+        wm_class=app.wm_class,
+        launcher_basename=app.wm_class,
+        aliases=app.aliases,
     )

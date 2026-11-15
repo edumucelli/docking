@@ -38,22 +38,8 @@ from docking.applets.thermals.state import (
     thermal_level,
 )
 from docking.core.config import Config
+from tests.applets.inline_worker import ImmediateWorker as _ImmediateWorker
 from tests.platform_factories import read_thermal_snapshot
-
-
-class _ImmediateWorker:
-    def __init__(self, **_kwargs) -> None:
-        pass
-
-    def run(self, *, fn, on_result=None, on_error=None, **_kwargs) -> None:
-        try:
-            result = fn()
-        except Exception as exc:
-            if on_error is not None:
-                on_error(exc)
-            return
-        if on_result is not None:
-            on_result(result)
 
 
 class _StaticThermalsBackend:
@@ -340,7 +326,6 @@ class TestThermalsApplet:
         item = Gtk.RadioMenuItem(label="Celsius")
         item.set_active(True)
         applet._on_temperature_unit_selected(
-            widget=item,
             temperature_unit=TemperatureUnit.CELSIUS,
         )
 

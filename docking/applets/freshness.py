@@ -67,3 +67,24 @@ def format_local_time(timestamp: dt.datetime) -> str:
     if timestamp.tzinfo is None:
         timestamp = timestamp.replace(tzinfo=dt.timezone.utc)
     return timestamp.astimezone().strftime("%Y-%m-%d %H:%M")
+
+
+def publication_age(timestamp: int, *, now: dt.datetime | None = None) -> str:
+    """Return a compact relative publication age."""
+    if timestamp <= 0:
+        return ""
+    current = now or dt.datetime.now(dt.timezone.utc)
+    try:
+        published = dt.datetime.fromtimestamp(timestamp, tz=dt.timezone.utc)
+    except (OSError, OverflowError, ValueError):
+        return ""
+    seconds = max(0, int((current - published).total_seconds()))
+    if seconds < 60:
+        return _("now")
+    minutes = seconds // 60
+    if minutes < 60:
+        return _("{minutes}m ago").format(minutes=minutes)
+    hours = minutes // 60
+    if hours < 48:
+        return _("{hours}h ago").format(hours=hours)
+    return _("{days}d ago").format(days=hours // 24)

@@ -129,8 +129,10 @@ class TestDockItemsServiceLifecycle:
         assert connection.register_calls == [
             (OBJECT_PATH, ITEMS_INTERFACE, service._handle_method_call, None, None)
         ]
-        model.add_change_listener.assert_called_once_with(service._handle_model_change)
-        assert model._listeners == [service._handle_model_change]
+        model.add_change_listener.assert_called_once_with(
+            service._schedule_changed_signal
+        )
+        assert model._listeners == [service._schedule_changed_signal]
 
         model._listeners[0]()
 
@@ -174,7 +176,7 @@ class TestDockItemsServiceLifecycle:
         assert unowned == [23]
         assert removed == [77]
         model.remove_change_listener.assert_called_once_with(
-            service._handle_model_change
+            service._schedule_changed_signal
         )
         assert model._listeners == []
 

@@ -11,6 +11,7 @@ from enum import Enum
 from typing import Any, cast
 from urllib.parse import quote, urlsplit
 
+from docking.applets.freshness import publication_age
 from docking.applets.http import http_get_bytes
 from docking.applets.live_state import (
     live_freshness_lines,
@@ -296,30 +297,11 @@ def post_rank(*, index: int, count: int) -> str:
 
 def normalize_active_index(*, index: int, count: int) -> int:
     """Clamp the active post or subreddit index."""
-    if count <= 0:
-        return 0
     return clamp_index(index, count)
 
 
 def post_age(*, post: RedditPost, now: dt.datetime | None = None) -> str:
-    """Return a compact relative publication age."""
-    if post.published <= 0:
-        return ""
-    current = now or dt.datetime.now(dt.timezone.utc)
-    try:
-        published = dt.datetime.fromtimestamp(post.published, tz=dt.timezone.utc)
-    except (OSError, OverflowError, ValueError):
-        return ""
-    seconds = max(0, int((current - published).total_seconds()))
-    if seconds < 60:
-        return _("now")
-    minutes = seconds // 60
-    if minutes < 60:
-        return _("{minutes}m ago").format(minutes=minutes)
-    hours = minutes // 60
-    if hours < 48:
-        return _("{hours}h ago").format(hours=hours)
-    return _("{days}d ago").format(days=hours // 24)
+    return publication_age(post.published, now=now)
 
 
 def build_tooltip(

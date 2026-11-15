@@ -623,16 +623,16 @@ class WayfireWindowService(WindowService):
             return
         if event_name == "view-focused":
             self._records = {
-                rid: _replace_record(
+                rid: replace(
                     existing,
                     active=rid == record.id,
                 )
                 for rid, existing in self._records.items()
             }
-            record = _replace_record(record, active=True)
+            record = replace(record, active=True)
         elif record.id in self._records:
             existing = self._records[record.id]
-            record = _replace_record(
+            record = replace(
                 record,
                 active=existing.active,
             )
@@ -973,41 +973,36 @@ class WayfireVisibilityMonitor(VisibilityMonitor):
         dock_rect: Rect,
         windows: list[tuple[Rect | None, bool, bool, bool]],
     ) -> bool:
-        for geometry, is_active, is_minimized, _is_fullscreen in windows:
-            if is_minimized:
-                continue
-            if not is_active:
-                continue
-            if geometry is not None and dock_rect.overlaps(geometry):
-                return True
-        return False
+        return any(
+            not is_minimized
+            and is_active
+            and geometry is not None
+            and dock_rect.overlaps(geometry)
+            for geometry, is_active, is_minimized, _is_fullscreen in windows
+        )
 
     @staticmethod
     def _eval_window_dodge(
         dock_rect: Rect,
         windows: list[tuple[Rect | None, bool, bool, bool]],
     ) -> bool:
-        for geometry, _is_active, is_minimized, _is_fullscreen in windows:
-            if is_minimized:
-                continue
-            if geometry is not None and dock_rect.overlaps(geometry):
-                return True
-        return False
+        return any(
+            not is_minimized and geometry is not None and dock_rect.overlaps(geometry)
+            for geometry, _is_active, is_minimized, _is_fullscreen in windows
+        )
 
     @staticmethod
     def _eval_dodge_maximized(
         dock_rect: Rect,
         windows: list[tuple[Rect | None, bool, bool, bool]],
     ) -> bool:
-        for geometry, _is_active, is_minimized, is_maximized in windows:
-            if (
-                not is_minimized
-                and is_maximized
-                and geometry is not None
-                and dock_rect.overlaps(geometry)
-            ):
-                return True
-        return False
+        return any(
+            not is_minimized
+            and is_maximized
+            and geometry is not None
+            and dock_rect.overlaps(geometry)
+            for geometry, _is_active, is_minimized, is_maximized in windows
+        )
 
 
 class WayfireVisibilityService(VisibilityService):
@@ -1506,14 +1501,3 @@ def _optional_int(value: object) -> int | None:
         return int(value)
     except (TypeError, ValueError, OverflowError):
         return None
-
-
-def _replace_record(
-    record: WayfireWindowRecord,
-    *,
-    active: bool | None = None,
-) -> WayfireWindowRecord:
-    """Return a copy of *record* with the given fields replaced."""
-    if active is None:
-        return record
-    return replace(record, active=active)

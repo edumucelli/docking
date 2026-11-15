@@ -156,6 +156,7 @@ from typing import TYPE_CHECKING, Any
 
 from docking.applets.identity import applet_desktop_id, is_applet_desktop_id
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, ItemKind
+from docking.core.json_types import coerce_bool
 from docking.core.paths import ensure_parent_dir, local_path_from_uri_or_path
 from docking.core.position import Position
 from docking.log import get_logger
@@ -657,20 +658,6 @@ def _uri_is_dir(target: str) -> bool:
         return False
 
 
-def _normalize_bool(value: object, *, default: bool) -> bool:
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, int):
-        return bool(value)
-    if isinstance(value, str):
-        lowered = value.strip().lower()
-        if lowered in {"1", "true", "yes", "on"}:
-            return True
-        if lowered in {"0", "false", "no", "off"}:
-            return False
-    return default
-
-
 def _normalize_int(
     value: object,
     *,
@@ -949,7 +936,7 @@ class Config:
             minimum=MIN_ICON_SIZE,
             maximum=MAX_ICON_SIZE,
         )
-        self.zoom_enabled = _normalize_bool(
+        self.zoom_enabled = coerce_bool(
             self.zoom_enabled,
             default=DEFAULT_ZOOM_ENABLED,
         )
@@ -993,15 +980,15 @@ class Config:
             self.hide_time_ms,
             default=DEFAULT_HIDE_TIME_MS,
         )
-        self.window_preview_thumbnails_enabled = _normalize_bool(
+        self.window_preview_thumbnails_enabled = coerce_bool(
             self.window_preview_thumbnails_enabled,
             default=DEFAULT_WINDOW_PREVIEW_THUMBNAILS_ENABLED,
         )
-        self.window_preview_highlight_thumbnails_on_hover = _normalize_bool(
+        self.window_preview_highlight_thumbnails_on_hover = coerce_bool(
             self.window_preview_highlight_thumbnails_on_hover,
             default=DEFAULT_WINDOW_PREVIEW_HIGHLIGHT_THUMBNAILS_ON_HOVER,
         )
-        self.window_preview_outline_window_on_hover = _normalize_bool(
+        self.window_preview_outline_window_on_hover = coerce_bool(
             self.window_preview_outline_window_on_hover,
             default=DEFAULT_WINDOW_PREVIEW_OUTLINE_WINDOW_ON_HOVER,
         )
@@ -1011,31 +998,31 @@ class Config:
             minimum=MIN_WINDOW_PREVIEW_THUMBNAIL_WIDTH,
             maximum=MAX_WINDOW_PREVIEW_THUMBNAIL_WIDTH,
         )
-        self.lock_icons = _normalize_bool(
+        self.lock_icons = coerce_bool(
             self.lock_icons,
             default=DEFAULT_LOCK_ICONS,
         )
-        self.current_workspace_only = _normalize_bool(
+        self.current_workspace_only = coerce_bool(
             self.current_workspace_only,
             default=DEFAULT_CURRENT_WORKSPACE_ONLY,
         )
-        self.anchor_applets = _normalize_bool(
+        self.anchor_applets = coerce_bool(
             self.anchor_applets,
             default=DEFAULT_ANCHOR_APPLETS,
         )
-        self.anchor_files = _normalize_bool(
+        self.anchor_files = coerce_bool(
             self.anchor_files,
             default=DEFAULT_ANCHOR_FILES,
         )
-        self.tooltips_enabled = _normalize_bool(
+        self.tooltips_enabled = coerce_bool(
             self.tooltips_enabled,
             default=DEFAULT_TOOLTIPS_ENABLED,
         )
-        self.active_display = _normalize_bool(
+        self.active_display = coerce_bool(
             self.active_display,
             default=DEFAULT_ACTIVE_DISPLAY,
         )
-        self.update_check_enabled = _normalize_bool(
+        self.update_check_enabled = coerce_bool(
             self.update_check_enabled,
             default=DEFAULT_UPDATE_CHECK_ENABLED,
         )
@@ -1044,7 +1031,7 @@ class Config:
             default=DEFAULT_UPDATE_CHECK_INTERVAL_HOURS,
             minimum=1,
         )
-        self.startup_tips_enabled = _normalize_bool(
+        self.startup_tips_enabled = coerce_bool(
             self.startup_tips_enabled,
             default=DEFAULT_STARTUP_TIPS_ENABLED,
         )
@@ -1054,7 +1041,7 @@ class Config:
         self.middle_click_action = _normalize_middle_click_action(
             self.middle_click_action,
         )
-        self.dock_item_click_effects_enabled = _normalize_bool(
+        self.dock_item_click_effects_enabled = coerce_bool(
             self.dock_item_click_effects_enabled,
             default=DEFAULT_DOCK_ITEM_CLICK_EFFECTS_ENABLED,
         )
@@ -1067,15 +1054,15 @@ class Config:
         self.window_list_sort = _normalize_window_list_sort(
             self.window_list_sort,
         )
-        self.show_window_count_numbers = _normalize_bool(
+        self.show_window_count_numbers = coerce_bool(
             self.show_window_count_numbers,
             default=DEFAULT_SHOW_WINDOW_COUNT_NUMBERS,
         )
-        self.show_launcher_badges = _normalize_bool(
+        self.show_launcher_badges = coerce_bool(
             self.show_launcher_badges,
             default=DEFAULT_SHOW_LAUNCHER_BADGES,
         )
-        self.show_launcher_progress = _normalize_bool(
+        self.show_launcher_progress = coerce_bool(
             self.show_launcher_progress,
             default=DEFAULT_SHOW_LAUNCHER_PROGRESS,
         )
@@ -1087,7 +1074,7 @@ class Config:
             minimum=MIN_ADDITIONAL_DISTANCE_FROM_EDGE,
             maximum=MAX_ADDITIONAL_DISTANCE_FROM_EDGE,
         )
-        self.pressure_reveal_enabled = _normalize_bool(
+        self.pressure_reveal_enabled = coerce_bool(
             self.pressure_reveal_enabled,
             default=DEFAULT_PRESSURE_REVEAL_ENABLED,
         )
@@ -1100,7 +1087,7 @@ class Config:
         self.pinned = normalize_pinned_entries(self.pinned)
         self.applet_prefs = _normalize_pref_map(self.applet_prefs)
         self.item_prefs = _normalize_pref_map(self.item_prefs)
-        self.show_recent_apps = _normalize_bool(
+        self.show_recent_apps = coerce_bool(
             self.show_recent_apps,
             default=DEFAULT_SHOW_RECENT_APPS,
         )
@@ -1117,7 +1104,7 @@ class Config:
             maximum=MAX_RECENT_APPS_RETENTION_DAYS,
         )
         self.recent_apps = _normalize_recent_apps(self.recent_apps)
-        self.show_recent_docs_in_menu = _normalize_bool(
+        self.show_recent_docs_in_menu = coerce_bool(
             self.show_recent_docs_in_menu,
             default=DEFAULT_SHOW_RECENT_DOCS_IN_MENU,
         )
@@ -1127,7 +1114,7 @@ class Config:
             minimum=1,
             maximum=25,
         )
-        self.global_search_enabled = _normalize_bool(
+        self.global_search_enabled = coerce_bool(
             self.global_search_enabled,
             default=DEFAULT_GLOBAL_SEARCH_ENABLED,
         )

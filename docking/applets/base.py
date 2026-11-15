@@ -81,7 +81,12 @@ from gi.repository import GdkPixbuf, GLib, Gtk, Pango, PangoCairo
 
 from docking.applets.identity import applet_desktop_id
 from docking.applets.popup import PopupAnchor
-from docking.core.icons import ICON_SOURCE_PREF_KEY, IconSource, icon_source_from_value
+from docking.core.icons import (
+    ICON_SOURCE_PREF_KEY,
+    IconSource,
+    icon_source_from_value,
+    normalize_icon_sources,
+)
 from docking.core.items import APPLET_KIND, DockItem
 from docking.log import get_logger
 
@@ -416,18 +421,9 @@ class Applet(ABC):
         return self.icon_name
 
     def _declared_icon_source_options(self) -> tuple[IconSource, ...]:
-        declared = getattr(
-            type(self),
-            "icon_source_options",
-            Applet.icon_source_options,
-        )
+        declared = type(self).icon_source_options
         if declared is not Applet.icon_source_options:
-            options: list[IconSource] = []
-            for source in declared:
-                parsed = icon_source_from_value(source)
-                if parsed is not None and parsed not in options:
-                    options.append(parsed)
-            return tuple(options) or (IconSource.DOCKING,)
+            return normalize_icon_sources(declared)
         return Applet.icon_source_options
 
     def supports_icon_source(self, source: IconSource | str) -> bool:
@@ -454,9 +450,7 @@ class Applet(ABC):
         if parsed.value == self.icon_source():
             return
 
-        prefs = self.load_prefs()
-        prefs[ICON_SOURCE_PREF_KEY] = parsed.value
-        self.save_prefs(prefs)
+        self.save_prefs({ICON_SOURCE_PREF_KEY: parsed.value})
         self.present()
 
     def refresh_tooltip(self) -> None:
