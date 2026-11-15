@@ -328,13 +328,13 @@ class WaylandForeignToplevelWindowService(WindowService):
         return state
 
     def _refresh_match(self, *, state: _ToplevelState) -> None:
-        self._matcher.sync_visible_items(self._model.visible_items())
+        self._matcher.sync_visible_items(self._model.tracked_items())
         state.application_match = (
             self._matcher.match_result(state.app_id) if state.app_id else None
         )
 
     def _publish_running(self) -> None:
-        self._matcher.sync_visible_items(self._model.visible_items())
+        self._matcher.sync_visible_items(self._model.tracked_items())
         windows_by_desktop: dict[str, list[RunningWindowInfo]] = {}
         for state in self._state_by_id.values():
             if state.closed or not self._taskbar_state(state):

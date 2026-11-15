@@ -327,6 +327,7 @@ class SettingsWindowController:
         self._window_preview_thumbnail_width_spin: Any = None
         self._tooltips_switch: Any = None
         self._lock_icons_switch: Any = None
+        self._pinned_only_switch: Any = None
         self._workspace_only_switch: Any = None
         self._active_display_switch: Any = None
         self._monitor_combo: Any = None
@@ -517,6 +518,7 @@ class SettingsWindowController:
         self._launcher_badges_switch = self._new_switch()
         self._launcher_progress_switch = self._new_switch()
         self._lock_icons_switch = self._new_switch()
+        self._pinned_only_switch = self._new_switch()
         self._workspace_only_switch = self._new_switch()
         self._active_display_switch = self._new_switch()
         self._anchor_applets_switch = self._new_switch()
@@ -860,6 +862,11 @@ class SettingsWindowController:
             outer=outer,
             title=_("Layout"),
             rows=[
+                (
+                    _("Pinned Only"),
+                    self._pinned_only_switch,
+                    _("Show only pinned applications, applets, files, and folders."),
+                ),
                 (
                     _("Lock Positions"),
                     self._lock_icons_switch,
@@ -1394,6 +1401,11 @@ class SettingsWindowController:
                 config_attr="tooltips_enabled",
                 widget=self._tooltips_switch,
                 on_change=self._after_tooltips_changed,
+            ),
+            self._register_switch_binding(
+                config_attr="pinned_only",
+                widget=self._pinned_only_switch,
+                on_change=lambda: self._model.notify(),
             ),
             self._register_switch_binding(
                 config_attr="lock_icons",

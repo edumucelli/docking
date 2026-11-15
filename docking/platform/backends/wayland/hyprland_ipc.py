@@ -442,7 +442,7 @@ class HyprlandWindowService(WindowService):
         )
         if not isinstance(clients, list):
             clients = []
-        self._matcher.sync_visible_items(self._model.visible_items())
+        self._matcher.sync_visible_items(self._model.tracked_items())
         records: dict[str, HyprlandWindowRecord] = {}
         for item in clients:
             if not isinstance(item, Mapping):

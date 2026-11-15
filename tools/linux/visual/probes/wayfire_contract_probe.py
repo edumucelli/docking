@@ -86,7 +86,7 @@ registry = ApplicationRegistry(
 )
 assert registry.refresh()
 model = SimpleNamespace(
-    visible_items=lambda: [
+    tracked_items=lambda: [
         DockItem(
             desktop_id="lab-wayfire-contract.desktop", wm_class="lab-wayfire-contract"
         )

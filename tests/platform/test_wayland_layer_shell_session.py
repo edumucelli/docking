@@ -93,7 +93,7 @@ def test_wayland_layer_shell_session_exposes_surface_capabilities():
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(
-            visible_items=MagicMock(return_value=[]),
+            tracked_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
         **identity_services(),
@@ -122,7 +122,7 @@ def test_wayland_layer_shell_session_uses_foreign_toplevel_service_when_availabl
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(
-            visible_items=MagicMock(return_value=[]),
+            tracked_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
         **identity_services(),
@@ -151,7 +151,7 @@ def test_wayland_layer_shell_session_uses_wayland_previews_when_available():
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(
-            visible_items=MagicMock(return_value=[]),
+            tracked_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
         **identity_services(),
@@ -182,7 +182,7 @@ def test_wayland_layer_shell_session_uses_hyprland_previews_when_available():
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(
-            visible_items=MagicMock(return_value=[]),
+            tracked_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
         **identity_services(),
@@ -213,7 +213,7 @@ def test_wayland_layer_shell_session_uses_phoc_previews_when_available():
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(
-            visible_items=MagicMock(return_value=[]),
+            tracked_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
         **identity_services(),
@@ -240,7 +240,7 @@ def test_wayland_layer_shell_session_uses_workspace_and_capture_services_when_av
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(
-            visible_items=MagicMock(return_value=[]),
+            tracked_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
         **identity_services(),
@@ -264,7 +264,7 @@ def test_wayland_layer_shell_session_uses_idle_protocol_when_available():
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(
-            visible_items=MagicMock(return_value=[]),
+            tracked_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
         **identity_services(),
@@ -283,7 +283,7 @@ def test_wayland_layer_shell_session_uses_idle_protocol_when_available():
 def test_hyprland_session_uses_ipc_windows_and_layer_shell_capabilities():
     window_service = HyprlandWindowService(
         model=SimpleNamespace(
-            visible_items=MagicMock(return_value=[]),
+            tracked_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
         **identity_services(),
@@ -341,7 +341,7 @@ def test_wayland_layer_shell_session_lifecycle_is_safe():
     backend = WaylandLayerShellSessionBackend(
         layer_shell=_layer_shell(),
         model=SimpleNamespace(
-            visible_items=MagicMock(return_value=[]),
+            tracked_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
         **identity_services(),
@@ -496,7 +496,7 @@ def test_layer_shell_support_probe_handles_missing_or_failing_probe():
 def test_niri_session_uses_ipc_windows_and_layer_shell_capabilities():
     window_service = NiriWindowService(
         model=SimpleNamespace(
-            visible_items=MagicMock(return_value=[]),
+            tracked_items=MagicMock(return_value=[]),
             update_running=MagicMock(),
         ),
         **identity_services(),
@@ -567,7 +567,7 @@ def test_niri_session_exposes_and_stops_native_picker():
 
     windows = NiriWindowService(
         model=SimpleNamespace(
-            visible_items=MagicMock(return_value=[]), update_running=MagicMock()
+            tracked_items=MagicMock(return_value=[]), update_running=MagicMock()
         ),
         **identity_services(),
         client=MagicMock(),

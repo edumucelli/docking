@@ -35,7 +35,7 @@ class _Handle:
 
 def _model() -> SimpleNamespace:
     return SimpleNamespace(
-        visible_items=MagicMock(
+        tracked_items=MagicMock(
             return_value=[DockItem(desktop_id="foot.desktop", wm_class="foot")]
         ),
         update_running=MagicMock(),

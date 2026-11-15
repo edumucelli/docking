@@ -55,7 +55,7 @@ class SnapshotWindowService(WindowService):
         self._changes.clear()
 
     def replace_windows(self, windows: Sequence[WindowSnapshot]) -> None:
-        self._matcher.sync_visible_items(self._model.visible_items())
+        self._matcher.sync_visible_items(self._model.tracked_items())
         snapshots: dict[WindowId, WindowSnapshot] = {}
         running: dict[str, list[RunningWindowInfo]] = {}
         for window in windows:

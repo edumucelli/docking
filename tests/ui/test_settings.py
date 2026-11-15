@@ -777,6 +777,7 @@ def _config():
         show_launcher_badges=True,
         show_launcher_progress=True,
         lock_icons=False,
+        pinned_only=False,
         current_workspace_only=False,
         active_display=False,
         monitor_index=-1,
@@ -882,6 +883,13 @@ class TestSettingsWindowController:
             "<b>Layout</b>",
         ]
         preview_section = appearance_box.get_children()[2]
+        layout_section = appearance_box.get_children()[4]
+        pinned_row = layout_section.get_children()[1].get_children()[0]
+        assert pinned_row.get_children()[0].get_label() == "Pinned Only"
+        assert (
+            pinned_row.get_children()[1].get_children()[0]
+            is controller._pinned_only_switch
+        )
         assert [
             row.get_children()[0].get_label()
             for row in preview_section.get_children()[1].get_children()
@@ -1767,6 +1775,37 @@ class TestSettingsWindowController:
         assert selector.get_active_id() == effect
         assert config.save.call_count == 2
         assert actions.queue_draw.call_count == 2
+
+    def test_pinned_only_persists_and_notifies_layout_without_rebuilding(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
+        monkeypatch.setattr(
+            settings_mod, "load_catalog_icon", lambda *_args, **_kwargs: None
+        )
+        monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        config = _config()
+        model = SimpleNamespace(
+            pinned_items=[],
+            get_applet=lambda _desktop_id: None,
+            notify=MagicMock(),
+            rebuild_recent_apps=MagicMock(),
+        )
+        controller = _settings_controller(
+            parent=_parent_window(),
+            actions=MagicMock(),
+            model=model,
+            config=config,
+        )
+        controller.show()
+        model.notify.assert_not_called()
+        for value in (True, False):
+            controller._pinned_only_switch.set_active(value)
+            controller._pinned_only_switch.emit_notify_active()
+            assert config.pinned_only is value
+        assert config.save.call_count == 2
+        assert model.notify.call_count == 2
+        model.rebuild_recent_apps.assert_not_called()
 
     def test_current_workspace_only_updates_surface_scope(self, monkeypatch):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)

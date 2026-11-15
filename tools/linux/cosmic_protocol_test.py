@@ -273,7 +273,7 @@ def test_backend_creation() -> bool:
     config = MagicMock()
     launcher = MagicMock()
     model = MagicMock()
-    model.visible_items = MagicMock(return_value=[])
+    model.tracked_items = MagicMock(return_value=[])
 
     backend = create_session_backend(config=config, launcher=launcher, model=model)
     print(f"  Backend name: {backend.name}")

@@ -18,7 +18,7 @@ def isolate_accessibility_override(monkeypatch):
 
 def _service() -> tuple[atspi_window.AtspiWindowService, MagicMock]:
     model = MagicMock()
-    model.visible_items.return_value = []
+    model.tracked_items.return_value = []
     return (
         atspi_window.AtspiWindowService(
             model=model,

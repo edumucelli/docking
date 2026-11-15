@@ -279,7 +279,25 @@ class Probe:
                 lambda: self.window.autohide.hide_offset > 0.95,
                 "Activated window did not hide dock",
             )
+        model = self.window.model
+        model.unpin_item("lab-native.desktop")
+        self.window.config.pinned_only = True
+        model.notify()
+        await self.settle()
+        assert not model.visible_items()
+        assert self.backend.windows.list_windows("lab-native.desktop")
         await self.check_workspace(row)
+        assert not model.visible_items()
+        self.window.config.pinned_only = False
+        model.notify()
+        await self.wait(
+            lambda: any(
+                item.desktop_id == "lab-native.desktop" and item.is_running
+                for item in model.visible_items()
+            ),
+            "Pinned-only toggle did not restore the tracked application",
+        )
+        model.pin_item("lab-native.desktop")
         assert self.backend.windows.close(row.id).succeeded
         await self.wait(
             lambda: (

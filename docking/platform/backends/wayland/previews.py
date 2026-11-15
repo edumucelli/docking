@@ -276,7 +276,7 @@ class WaylandPreviewHandleTracker:
         return self._state_by_handle[handle]
 
     def _refresh_match(self, state: _PreviewToplevelState) -> None:
-        self._matcher.sync_visible_items(self._model.visible_items())
+        self._matcher.sync_visible_items(self._model.tracked_items())
         state.application_match = (
             self._matcher.match_result(state.app_id) if state.app_id else None
         )
@@ -284,7 +284,7 @@ class WaylandPreviewHandleTracker:
     def _match_handle(
         self, *, desktop_id: str | None, app_id: str, title: str
     ) -> object | None:
-        self._matcher.sync_visible_items(self._model.visible_items())
+        self._matcher.sync_visible_items(self._model.tracked_items())
         matches = []
         for state in self._state_by_handle.values():
             if state.closed:

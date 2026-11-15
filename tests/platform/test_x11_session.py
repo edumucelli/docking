@@ -128,7 +128,7 @@ def test_x11_session_backend_lifecycle_starts_and_stops_services(monkeypatch):
 
 def test_x11_session_backend_always_exposes_window_service():
     model = MagicMock()
-    model.visible_items.return_value = []
+    model.tracked_items.return_value = []
     backend = session.X11SessionBackend(
         model=model,
         config=MagicMock(),

@@ -170,7 +170,7 @@ class MuffinWindowService(WindowService):
         self._model.update_running(running={})
 
     def refresh(self) -> None:
-        self._matcher.sync_visible_items(self._model.visible_items())
+        self._matcher.sync_visible_items(self._model.tracked_items())
         discovery = self._application_registry.diagnostic_snapshot()
         windows: dict[int, _MuffinWindow] = {}
         records: list[WindowDiagnostic] = []
