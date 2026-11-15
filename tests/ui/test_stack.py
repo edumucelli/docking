@@ -37,6 +37,23 @@ def _entry(key: str, label: str | None = None) -> StackEntry:
     )
 
 
+def test_layout_cache_reads_refresh_recency_but_replacing_a_value_keeps_order(
+    monkeypatch,
+):
+    monkeypatch.setattr(stack_mod, "FOLDER_STACK_LAYOUT_CACHE_MAX_ENTRIES", 2)
+    cache = stack_mod.StackLayoutCache()
+    layout = stack_mod.StackLayout((), 1, 1, 0)
+    cache.put_layout(("first",), layout)
+    cache.put_layout(("second",), layout)
+    assert cache.get_layout(("first",)) is layout
+    cache.put_layout(("third",), layout)
+    assert cache.get_layout(("second",)) is None
+    cache.put_layout(("first",), layout)
+    cache.put_layout(("fourth",), layout)
+    assert cache.get_layout(("first",)) is None
+    assert cache.get_layout(("third",)) is layout
+
+
 def test_empty_content_builds_centered_message():
     controller = _controller()
 

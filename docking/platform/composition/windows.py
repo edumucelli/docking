@@ -36,17 +36,12 @@ if TYPE_CHECKING:
     from docking.applets.trash.backend import TrashBackend
     from docking.applets.volume.backend import VolumeBackend
     from docking.applets.webapp.backend import BrowserFactory
-    from docking.core.config import Config
     from docking.platform.applications.backend import (
         ApplicationLaunchBackend,
         ApplicationSources,
         ProcessBackend,
     )
-    from docking.platform.applications.identity import ProcessIdentityService
-    from docking.platform.applications.registry import ApplicationRegistry
-    from docking.platform.backends.base import SessionBackend
     from docking.platform.desktop.base import DesktopServices
-    from docking.platform.model import DockModel
     from docking.platform.tray.backend import TrayBackend
     from docking.platform.tray.state import TrayState
     from docking.search.services.platform import SearchIntegration
@@ -294,23 +289,6 @@ class WindowsPlatformProvider(PlatformProvider):
         )
 
         return WindowsSearchIntegration()
-
-    def session(
-        self,
-        *,
-        config: Config,
-        model: DockModel,
-        application_registry: ApplicationRegistry,
-        process_identity_service: ProcessIdentityService,
-    ) -> SessionBackend:
-        from docking.platform.backends.selection import create_session_backend
-
-        return create_session_backend(
-            config=config,
-            model=model,
-            application_registry=application_registry,
-            process_identity_service=process_identity_service,
-        )
 
     def camera_helper(self, argv: list[str] | None = None) -> int:
         from docking.applets.camshield.implementations.windows.helper import main

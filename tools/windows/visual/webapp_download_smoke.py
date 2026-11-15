@@ -12,6 +12,7 @@ import tempfile
 import threading
 import time
 import uuid
+from functools import partial
 from pathlib import Path
 
 
@@ -59,7 +60,8 @@ def main():
     )
     from docking.platform.native.windows.ffi import bind
     from docking.platform.native.windows.winrt import check
-    from tools.windows.visual.desktop_driver import WindowsDesktop
+    from tools.windows.visual.browser_driver import browser_script
+    from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
     from tools.windows.visual.webapp_fixture import WebAppPageFixture
 
     native = WindowsDesktop()
@@ -157,16 +159,7 @@ def main():
             raise failures[0]
         return results[0]
 
-    def script(source):
-        done, results = threading.Event(), []
-
-        def completed(text):
-            results.append(json.loads(text))
-            done.set()
-
-        call(lambda: browser._engine.execute(source, completed))
-        assert done.wait(20), "Browser script timed out"
-        return results[0]
+    script = partial(browser_script, browser, call)
 
     def click_download():
         point = script(
@@ -378,7 +371,7 @@ def main():
     finally:
         WindowsWebAppBrowser._browser_ready = original_ready
         profile._finalizer.detach()
-        (output / "result.json").write_text(json.dumps(report, indent=2))
+        write_shared_json(output / "result.json", report)
 
 
 if __name__ == "__main__":

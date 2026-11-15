@@ -10,8 +10,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Hashable, Sequence
-from typing import TYPE_CHECKING, Any, TypeVar
+from collections import OrderedDict
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 import gi
 
@@ -67,8 +68,6 @@ FolderStackCard = StackCard
 FolderStackCardGeometry = StackCardGeometry
 FolderStackLayout = StackLayout
 
-K = TypeVar("K", bound=Hashable)
-V = TypeVar("V")
 
 log = get_logger("folder.stack")
 
@@ -147,7 +146,9 @@ class FolderStackController(StackPopupController):
             target_service=target_service,
         )
         self._folder_stack_cache: FolderStackCache = FolderStackCache(target_service)
-        self._folder_content_cache: dict[tuple[object, ...], StackContent] = {}
+        self._folder_content_cache: OrderedDict[tuple[object, ...], StackContent] = (
+            OrderedDict()
+        )
         self._folder_stack_item: DockItem | None = None
         self._folder_stack_monitor: Gio.FileMonitor | None = None
         self._folder_stack_refresh_source: int = 0
@@ -272,15 +273,12 @@ class FolderStackController(StackPopupController):
         folder_item: DockItem,
         target: str,
         icon_px: int | None = None,
-    ) -> list[dict[str, Any]]:
-        return [
-            row.as_dict()
-            for row in self._list_directory_rows(
-                folder_item=folder_item,
-                target=target,
-                icon_px=icon_px,
-            )
-        ]
+    ) -> list[FolderRow]:
+        return self._list_directory_rows(
+            folder_item=folder_item,
+            target=target,
+            icon_px=icon_px,
+        )
 
     def icon_px(self, folder_item: DockItem) -> int:
         _ = folder_item
@@ -336,11 +334,9 @@ class FolderStackController(StackPopupController):
             icon_px,
             app_name,
         )
-        cached = self._folder_stack_cache._get_lru(
-            self._folder_content_cache,
-            cache_key,
-        )
+        cached = self._folder_content_cache.get(cache_key)
         if cached is not None:
+            self._folder_content_cache.move_to_end(cache_key)
             return cached
 
         rows = self._list_directory_rows(
@@ -360,11 +356,11 @@ class FolderStackController(StackPopupController):
         )
         entries = tuple(
             StackEntry(
-                key=str(row["target"]),
-                label=str(row["name"]),
-                icon=row["icon"],
-                activate=lambda target=str(row["target"]): (
-                    self._open_folder_stack_target(target)
+                key=row.target,
+                label=row.name,
+                icon=row.icon,
+                activate=lambda target=row.target: self._open_folder_stack_target(
+                    target
                 ),
             )
             for row in visible_rows
@@ -378,12 +374,9 @@ class FolderStackController(StackPopupController):
             ),
             empty_label=_("Folder is empty"),
         )
-        self._folder_stack_cache._put_lru(
-            self._folder_content_cache,
-            cache_key,
-            content,
-            max_entries=FOLDER_STACK_CONTENT_CACHE_MAX_ENTRIES,
-        )
+        self._folder_content_cache[cache_key] = content
+        while len(self._folder_content_cache) > FOLDER_STACK_CONTENT_CACHE_MAX_ENTRIES:
+            self._folder_content_cache.popitem(last=False)
         return content
 
     def _folder_stack_action_label(

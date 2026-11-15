@@ -45,6 +45,7 @@ from docking.applets.reddit.state import (
     source_label,
     top_period_label,
 )
+from docking.applets.selection import retained_index
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -380,8 +381,9 @@ class RedditApplet(Applet):
         current_id = self._current_post.id if self._current_post is not None else ""
         previous_index = self._active_post_index
         self._posts = list(posts)
-        self._active_post_index = self._refreshed_post_index(
-            current_id=current_id,
+        self._active_post_index = retained_index(
+            (item.id for item in self._posts),
+            current_id=current_id or None,
             previous_index=previous_index,
         )
         self._fetched_at = dt.datetime.now(dt.timezone.utc)
@@ -398,21 +400,6 @@ class RedditApplet(Applet):
         log.bind(action="fetch_error").debug("Reddit RSS fetch failed: %s", exc)
         self.present()
         return False
-
-    def _refreshed_post_index(
-        self,
-        *,
-        current_id: str,
-        previous_index: int,
-    ) -> int:
-        if current_id:
-            for index, post in enumerate(self._posts):
-                if post.id == current_id:
-                    return index
-        return normalize_active_index(
-            index=previous_index,
-            count=len(self._posts),
-        )
 
     def _open_current_post(self) -> None:
         post = self._current_post

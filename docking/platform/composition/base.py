@@ -40,7 +40,6 @@ class PlatformProvider(ABC):
     def tray_backend(self) -> TrayBackend: ...
     @abstractmethod
     def search(self) -> SearchIntegration: ...
-    @abstractmethod
     def session(
         self,
         *,
@@ -48,6 +47,15 @@ class PlatformProvider(ABC):
         model: DockModel,
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
-    ) -> SessionBackend: ...
+    ) -> SessionBackend:
+        from docking.platform.backends.selection import create_session_backend
+
+        return create_session_backend(
+            config=config,
+            model=model,
+            application_registry=application_registry,
+            process_identity_service=process_identity_service,
+        )
+
     @abstractmethod
     def camera_helper(self, argv: list[str] | None = None) -> int: ...

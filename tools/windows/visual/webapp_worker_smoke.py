@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
 import tempfile
 import threading
 import uuid
+from functools import partial
 from pathlib import Path
 
 
@@ -54,7 +54,8 @@ def main():
         WindowsWebAppBrowser,
     )
     from docking.applets.whatsapp.state import PROFILE as WHATSAPP
-    from tools.windows.visual.desktop_driver import WindowsDesktop
+    from tools.windows.visual.browser_driver import browser_script, worker_request
+    from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
     from tools.windows.visual.webapp_fixture import WebAppPageFixture
 
     native = WindowsDesktop()
@@ -111,31 +112,9 @@ def main():
             raise failures[0]
         return results[0]
 
-    def script(source):
-        done, results = threading.Event(), []
+    script = partial(browser_script, browser, call)
 
-        def completed(text):
-            results.append(json.loads(text))
-            done.set()
-
-        call(lambda: browser._engine.execute(source, completed))
-        assert done.wait(20), "Browser script timed out"
-        return results[0]
-
-    def request(action, title=None):
-        script(
-            "window.fixture.workerReply=null;window.fixture.workerRequest("
-            + json.dumps(action)
-            + ","
-            + json.dumps({"title": title})
-            + ").then(rows=>window.fixture.workerReply={ok:true,rows})"
-            ".catch(e=>window.fixture.workerReply={ok:false,error:e.message});true"
-        )
-        answer = native.wait_for(
-            lambda: script("window.fixture.workerReply"), "No worker reply", 25
-        )
-        assert answer["ok"], answer
-        return answer["rows"]
+    request = partial(worker_request, script, native.wait_for)
 
     def rows():
         access, entries = NotificationListener().read(threading.Event())
@@ -238,7 +217,7 @@ def main():
         WindowsWebAppBrowser._notification = original_notification
         report["worker_requests"] = fixture.worker_requests
         profile._finalizer.detach()
-        (output / "result.json").write_text(json.dumps(report, indent=2))
+        write_shared_json(output / "result.json", report)
 
 
 if __name__ == "__main__":

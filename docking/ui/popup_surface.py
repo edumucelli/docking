@@ -15,7 +15,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import lru_cache
+from typing import TYPE_CHECKING
 
 import gi
 
@@ -23,7 +25,16 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, Gtk
 
+from docking.core.position import is_horizontal
+from docking.log import get_logger
 from docking.platform.environment import compositor_active
+from docking.ui.display import clamp_popup, window_screen_position, window_size
+from docking.ui.tooltip import compute_tooltip_position
+
+if TYPE_CHECKING:
+    from docking.ui.dock_window import DockWindow
+
+log = get_logger("popup_surface")
 
 STARTUP_POPUP_WINDOW_CLASS = "dock-startup-popup-window"
 STARTUP_POPUP_SURFACE_CLASS = "dock-startup-popup-surface"
@@ -88,3 +99,56 @@ def wrap_startup_popup_content(content: Gtk.Widget) -> Gtk.Frame:
     frame.get_style_context().add_class(STARTUP_POPUP_SURFACE_CLASS)
     frame.add(content)
     return frame
+
+
+def create_startup_popup_window(
+    parent: Gtk.Window, on_destroy: Callable[[Gtk.Window], None]
+) -> Gtk.Window:
+    """Create the shared notification surface for tips and release notices."""
+    popup = Gtk.Window(type=Gtk.WindowType.POPUP)
+    popup.set_decorated(False)
+    popup.set_skip_taskbar_hint(True)
+    popup.set_resizable(False)
+    popup.set_type_hint(Gdk.WindowTypeHint.NOTIFICATION)
+    configure_transparent_startup_popup_window(popup)
+    popup.set_transient_for(parent)
+    popup.connect("destroy", on_destroy)
+    return popup
+
+
+def position_startup_popup(popup: Gtk.Window, dock: DockWindow, *, gap: int) -> None:
+    """Place startup content outside the dock in the backend's coordinate space."""
+    window_pos = window_screen_position(dock)
+    win_x, win_y = window_pos.x, window_pos.y
+    win_w, win_h = window_size(dock)
+    pref = popup.get_preferred_size()[1]
+    popup_w, popup_h = max(pref.width, 1), max(pref.height, 1)
+    pos = dock.config.pos
+    if is_horizontal(pos):
+        anchor_x = win_x + win_w / 2
+        anchor_y = win_y if pos.value == "bottom" else win_y + win_h
+    else:
+        anchor_x = win_x + win_w if pos.value == "left" else win_x
+        anchor_y = win_y + win_h / 2
+    popup_x, popup_y = compute_tooltip_position(
+        pos=pos,
+        anchor_x=anchor_x,
+        anchor_y=anchor_y,
+        tooltip_w=popup_w,
+        tooltip_h=popup_h,
+        gap=gap,
+    )
+    clamped = clamp_popup(popup, popup_x, popup_y, popup_w, popup_h)
+    log.debug(
+        "Positioned startup popup at (%s, %s) size=%sx%s dock=(%s,%s %sx%s pos=%s)",
+        clamped.x,
+        clamped.y,
+        popup_w,
+        popup_h,
+        win_x,
+        win_y,
+        win_w,
+        win_h,
+        pos.value,
+    )
+    popup.move(clamped.x, clamped.y)

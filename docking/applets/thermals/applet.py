@@ -174,8 +174,7 @@ class ThermalsApplet(PlatformServicesApplet):
                     for unit in (TemperatureUnit.CELSIUS, TemperatureUnit.FAHRENHEIT)
                 ),
                 active_value=self._temperature_unit,
-                on_selected=lambda widget, value: self._on_temperature_unit_selected(
-                    widget=widget,
+                on_selected=lambda _widget, value: self._on_temperature_unit_selected(
                     temperature_unit=value,
                 ),
                 gtk=Gtk,
@@ -217,11 +216,8 @@ class ThermalsApplet(PlatformServicesApplet):
     def _on_temperature_unit_selected(
         self,
         *,
-        widget: Gtk.RadioMenuItem,
         temperature_unit: TemperatureUnit,
     ) -> None:
-        if not widget.get_active():
-            return
         if temperature_unit == self._temperature_unit:
             return
         self._temperature_unit = temperature_unit

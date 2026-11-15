@@ -139,7 +139,7 @@ import math
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from docking.core.paths import ensure_dir
 from docking.core.theme.migration import migrate_loaded_theme_data
@@ -158,6 +158,7 @@ log = get_logger("theme")
 # Color types as Cairo-compatible floats (0.0-1.0)
 RGB = tuple[float, float, float]
 RGBA = tuple[float, float, float, float]
+_ThemeEnum = TypeVar("_ThemeEnum", bound=enum.Enum)
 
 _USER_THEME_TEMPLATE = {
     "shelf": {
@@ -359,6 +360,17 @@ def _theme_value(data: Mapping[str, Any], path: str, default: Any) -> Any:
             return default
         current = current[part]
     return current
+
+
+def _theme_enum(
+    data: Mapping[str, Any], path: str, default: _ThemeEnum, label: str
+) -> _ThemeEnum:
+    value = _theme_value(data, path, default.value)
+    try:
+        return type(default)(value)
+    except ValueError as exc:
+        log.warning("Invalid %s %r; using %r (%s)", label, value, default.value, exc)
+        return default
 
 
 @dataclass(frozen=True)
@@ -636,28 +648,12 @@ class Theme:
         urgent_glow_size = float(
             _theme_value(data, "items.glow.urgent_size_ratio", 0.6)
         )
-        raw_active_shape = _theme_value(data, "items.glow.active_shape", "linear")
-        try:
-            active_shape = ActiveShape(raw_active_shape)
-        except ValueError as exc:
-            log.warning(
-                "Invalid active shape %r; using %r (%s)",
-                raw_active_shape,
-                ActiveShape.LINEAR.value,
-                exc,
-            )
-            active_shape = ActiveShape.LINEAR
-        raw_active_tint = _theme_value(data, "items.glow.active_tint", "icon")
-        try:
-            active_tint = ActiveTint(raw_active_tint)
-        except ValueError as exc:
-            log.warning(
-                "Invalid active tint %r; using %r (%s)",
-                raw_active_tint,
-                ActiveTint.ICON.value,
-                exc,
-            )
-            active_tint = ActiveTint.ICON
+        active_shape = _theme_enum(
+            data, "items.glow.active_shape", ActiveShape.LINEAR, "active shape"
+        )
+        active_tint = _theme_enum(
+            data, "items.glow.active_tint", ActiveTint.ICON, "active tint"
+        )
         # Default mirrors indicators.active_color so themes need no extra edits
         # to switch tint=theme.
         active_color_default = _theme_value(
@@ -666,28 +662,12 @@ class Theme:
         active_color = _rgba(
             values=_theme_value(data, "items.glow.active_color", active_color_default)
         )
-        raw_indicator_style = _theme_value(data, "indicators.style", "dots")
-        try:
-            indicator_style = IndicatorStyle(raw_indicator_style)
-        except ValueError as exc:
-            log.warning(
-                "Invalid indicator style %r; using %r (%s)",
-                raw_indicator_style,
-                IndicatorStyle.DOTS.value,
-                exc,
-            )
-            indicator_style = IndicatorStyle.DOTS
-        raw_indicator_fill = _theme_value(data, "indicators.fill", "flat")
-        try:
-            indicator_fill = IndicatorFill(raw_indicator_fill)
-        except ValueError as exc:
-            log.warning(
-                "Invalid indicator fill %r; using %r (%s)",
-                raw_indicator_fill,
-                IndicatorFill.FLAT.value,
-                exc,
-            )
-            indicator_fill = IndicatorFill.FLAT
+        indicator_style = _theme_enum(
+            data, "indicators.style", IndicatorStyle.DOTS, "indicator style"
+        )
+        indicator_fill = _theme_enum(
+            data, "indicators.fill", IndicatorFill.FLAT, "indicator fill"
+        )
         round_bottom = bool(_theme_value(data, "shelf.round_bottom", False))
         distance_from_edge = int(_theme_value(data, "layout.distance_from_edge_px", 0))
 

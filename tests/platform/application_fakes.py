@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
+from docking.core.items import DockItem
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
 )
@@ -213,3 +216,32 @@ def identity_services(
         "application_registry": registry,
         "process_identity_service": process_identity_service,
     }
+
+
+def window_model() -> SimpleNamespace:
+    return SimpleNamespace(
+        tracked_items=MagicMock(
+            return_value=[
+                DockItem(desktop_id="Alacritty.desktop", wm_class="Alacritty"),
+                DockItem(desktop_id="firefox.desktop", wm_class="firefox"),
+            ]
+        ),
+        update_running=MagicMock(),
+    )
+
+
+def layer_shell() -> SimpleNamespace:
+    return SimpleNamespace(
+        Edge=SimpleNamespace(TOP=1, BOTTOM=2, LEFT=4, RIGHT=8),
+        Layer=SimpleNamespace(TOP=1),
+        KeyboardMode=SimpleNamespace(NONE=0),
+        init_for_window=MagicMock(),
+        set_namespace=MagicMock(),
+        set_layer=MagicMock(),
+        set_keyboard_mode=MagicMock(),
+        set_anchor=MagicMock(),
+        set_margin=MagicMock(),
+        set_monitor=MagicMock(),
+        set_size=MagicMock(),
+        set_exclusive_zone=MagicMock(),
+    )

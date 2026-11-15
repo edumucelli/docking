@@ -215,6 +215,29 @@ def test_foreign_toplevel_service_actions_call_protocol_methods():
     protocol.set_minimized.assert_any_call(handle)
 
 
+@pytest.mark.parametrize("action", ["minimize_all", "close_all"])
+def test_foreign_toplevel_batch_attempts_every_window_and_returns_last_error(
+    action, monkeypatch
+):
+    service = WaylandForeignToplevelWindowService(
+        model=_model(_item("firefox.desktop")),
+        **identity_services(),
+        protocol=_protocol(),
+    )
+    handles = [object() for _ in range(3)]
+    for handle in handles:
+        service.toplevel_created(handle)
+        service.app_id_changed(handle, "firefox")
+        service.done(handle)
+    perform = MagicMock(
+        side_effect=[ActionResult.FAILED, ActionResult.UNSUPPORTED, ActionResult.OK]
+    )
+    monkeypatch.setattr(service, "_call_action", perform)
+
+    assert getattr(service, action)("firefox.desktop") is ActionResult.UNSUPPORTED
+    assert [call.kwargs["state"].handle for call in perform.call_args_list] == handles
+
+
 @pytest.mark.parametrize("active_index, next_index", [(None, 0), (0, 1), (1, 0)])
 def test_foreign_toplevel_cycle_selects_next_live_app_window(active_index, next_index):
     protocol = _protocol()

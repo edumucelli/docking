@@ -123,7 +123,7 @@ class _Harness:
         self.cursor_x = -1.0
         self.cursor_y = -1.0
         self.dock_hovered = False
-        self._cache = dock_window_mod._DockWindowCache.create()
+        self._cache = dock_window_mod._DockWindowCache()
         self._redraw_source_id = None
         self.preview = None
         self._interactions = MagicMock()

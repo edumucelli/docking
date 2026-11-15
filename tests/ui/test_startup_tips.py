@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import docking.ui.popup_surface as popup_surface
 import docking.ui.startup_tips as tips_ui
 from docking.core.position import Position
 from docking.core.tips import FIRST_TIP_ID, StartupTip
@@ -236,15 +237,16 @@ def fake_gtk(monkeypatch):
         ),
     )
     monkeypatch.setattr(
-        tips_ui,
+        popup_surface,
         "Gdk",
         SimpleNamespace(WindowTypeHint=SimpleNamespace(NOTIFICATION="notification")),
     )
     monkeypatch.setattr(
-        tips_ui,
+        popup_surface,
         "configure_transparent_startup_popup_window",
         lambda _popup: None,
     )
+    monkeypatch.setattr(popup_surface, "Gtk", tips_ui.Gtk)
     monkeypatch.setattr(tips_ui, "wrap_startup_popup_content", _wrap_fake_popup)
     return glib
 

@@ -18,11 +18,11 @@ from __future__ import annotations
 import datetime as dt
 from collections.abc import Mapping
 from dataclasses import dataclass
-from functools import lru_cache
-from typing import Any, NamedTuple
+from typing import Any
 
 from docking.applets import temperature as temperature_display
-from docking.applets.cities import CityEntry, load_cities, parse_coordinates
+from docking.applets.cities import CityPref, _city_from_pref
+from docking.applets.cities import cached_cities as cached_cities
 from docking.applets.live_state import (
     live_freshness_lines,
     live_state_error,
@@ -44,14 +44,6 @@ normalize_temperature_unit = temperature_display.normalize_temperature_unit
 temperature_unit_label = temperature_display.temperature_unit_label
 
 
-class CityPref(NamedTuple):
-    """A persisted city entry."""
-
-    city_display: str
-    lat: float
-    lng: float
-
-
 @dataclass(frozen=True, slots=True)
 class WeatherPrefs:
     """Persisted weather applet preferences."""
@@ -60,16 +52,6 @@ class WeatherPrefs:
     active_index: int = 0
     show_temperature: bool = True
     temperature_unit: TemperatureUnit = TemperatureUnit.CELSIUS
-
-
-def _city_from_pref(raw: object) -> CityPref | None:
-    if not isinstance(raw, Mapping):
-        return None
-    display = raw.get("city_display")
-    coordinates = parse_coordinates(raw)
-    if not isinstance(display, str) or not display or coordinates is None:
-        return None
-    return CityPref(display, *coordinates)
 
 
 def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> WeatherPrefs:
@@ -238,9 +220,3 @@ def build_tooltip(
         error=live_state_error(status=status, error=state_error),
         recovery=refresh_recovery_label(status),
     )
-
-
-@lru_cache(maxsize=1)
-def cached_cities() -> tuple[CityEntry, ...]:
-    """Load city database on first access (cached)."""
-    return tuple(load_cities())

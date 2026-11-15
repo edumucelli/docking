@@ -33,6 +33,7 @@ from docking.platform.applications.implementations.windows.catalog_monitor impor
     CatalogChangeMonitor,
 )
 from docking.platform.applications.implementations.windows.discovery import (
+    diagnostic_for,
     discover_windows_applications,
     merge_shell_catalog,
 )
@@ -48,7 +49,7 @@ from docking.platform.applications.metadata import (
     MetadataResolver,
 )
 from docking.platform.applications.steam import SteamDiscoveryResult, SteamGame
-from docking.platform.applications.types import ApplicationDiagnostic, ApplicationInfo
+from docking.platform.applications.types import ApplicationInfo
 
 log = get_logger("application_metadata")
 
@@ -152,18 +153,7 @@ class WindowsApplicationCatalogBackend(ApplicationCatalogBackend):
                 )
             else:
                 diagnostic_indices[app.desktop_id] = len(diagnostics)
-                diagnostics.append(
-                    ApplicationDiagnostic(
-                        desktop_id=app.desktop_id,
-                        name=app.name,
-                        desktop_file=app.desktop_file,
-                        visible=app.visible,
-                        has_gio_source=app.has_gio_source,
-                        wm_class=app.wm_class,
-                        launcher_basename=app.wm_class,
-                        aliases=app.aliases,
-                    )
-                )
+                diagnostics.append(diagnostic_for(app))
         result = replace(
             result,
             applications=tuple(registered),

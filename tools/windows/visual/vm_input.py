@@ -81,7 +81,7 @@ def focus_commands(request: dict) -> list[tuple[str, float]]:
 
 def drive_focus_keyboard(output: Path, *, container: str) -> None:
     """Acknowledge each fresh request only after its hardware input was sent."""
-    from tools.windows.visual.desktop_driver import read_shared_json
+    from tools.windows.visual.desktop_driver import read_shared_json, write_shared_json
 
     for stage in ("origin", "activate"):
         request_path = output / f"keyboard-{stage}.request.json"
@@ -105,9 +105,7 @@ def drive_focus_keyboard(output: Path, *, container: str) -> None:
             time.sleep(float(request["delay"]))
         send_keys(commands, container=container)
         response = {"token": request["token"], "commands": commands}
-        temporary = response_path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(response), encoding="utf-8")
-        temporary.replace(response_path)
+        write_shared_json(response_path, response)
 
 
 def main() -> None:

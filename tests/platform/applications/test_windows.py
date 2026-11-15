@@ -18,6 +18,7 @@ from docking.platform.applications.implementations.windows.launch import (
     WindowsApplicationLaunchBackend,
 )
 from docking.platform.applications.launcher import ApplicationLauncher
+from docking.platform.applications.types import ApplicationDiagnostic
 from tests.platform.application_fakes import application
 from tests.platform_factories import make_windows_application_registry
 
@@ -43,6 +44,18 @@ def test_native_metadata_keeps_windows_paths_and_launch_handles():
     assert "example" in app.aliases
     assert app.exec_line == r'"C:\Program Files\Example\example.exe" "%1"'
     assert result.handles[app.desktop_id] is handle
+    assert result.diagnostics == (
+        ApplicationDiagnostic(
+            desktop_id=app.desktop_id,
+            name=app.name,
+            desktop_file=None,
+            visible=True,
+            has_gio_source=True,
+            wm_class="example",
+            launcher_basename="example",
+            aliases=app.aliases,
+        ),
+    )
 
 
 def test_idless_applications_get_distinct_stable_identities():

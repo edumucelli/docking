@@ -5,11 +5,43 @@ from __future__ import annotations
 import ctypes
 import json
 import os
+import shutil
 import subprocess
+import sys
 import time
 from ctypes import wintypes
 from pathlib import Path
 from typing import ClassVar
+
+
+def copy_gstreamer_registry(cache: Path) -> list[Path]:
+    """Probe GLib before its cache path is changed or cached in this process."""
+    cached = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import json;from gi.repository import GLib;"
+                "print(json.dumps(GLib.get_user_cache_dir()))"
+            ),
+        ],
+        capture_output=True,
+        stdin=subprocess.DEVNULL,
+        text=True,
+        check=True,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+        timeout=30,
+    )
+    registries = list(
+        (Path(json.loads(cached.stdout)) / "gstreamer-1.0").glob("registry.*.bin")
+    )
+    if not registries:
+        return registries
+    target = cache / "gstreamer-1.0"
+    target.mkdir(parents=True, exist_ok=True)
+    for registry in registries:
+        shutil.copy2(registry, target / registry.name)
+    return registries
 
 
 def physical_dock_click(

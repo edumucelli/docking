@@ -12,65 +12,8 @@ on:
   pull_request:
 
 jobs:
-  changes:
-    name: Detect CI-relevant changes
-    runs-on: ubuntu-24.04
-    outputs:
-      run_ci: ${{ steps.filter.outputs.run_ci }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Decide whether CI is required
-        id: filter
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          EVENT_BEFORE: ${{ github.event.before }}
-          EVENT_SHA: ${{ github.sha }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          REF_TYPE: ${{ github.ref_type }}
-        run: |
-          set -euo pipefail
-
-          if [ "${REF_TYPE}" = "tag" ]; then
-            echo "Tag push detected; CI will run."
-            echo "run_ci=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [ "${EVENT_NAME}" = "pull_request" ]; then
-            base_sha="${PR_BASE_SHA}"
-            head_sha="${PR_HEAD_SHA}"
-          else
-            base_sha="${EVENT_BEFORE}"
-            head_sha="${EVENT_SHA}"
-          fi
-
-          if [ -z "${base_sha}" ] || [ "${base_sha}" = "0000000000000000000000000000000000000000" ]; then
-            echo "No comparable base commit; CI will run."
-            echo "run_ci=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          mapfile -t changed_files < <(git diff --name-only "${base_sha}" "${head_sha}")
-
-          if [ "${#changed_files[@]}" -eq 0 ]; then
-            echo "No changed files detected; CI will run."
-            echo "run_ci=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          printf 'Changed files:\n'
-          printf ' - %s\n' "${changed_files[@]}"
-
-          echo "All changes trigger CI; no path-based exclusions."
-          echo "run_ci=true" >> "$GITHUB_OUTPUT"
-
   quality:
     name: Quality (ruff + ty)
-    needs: [changes]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -127,7 +70,7 @@ jobs:
 
   bdd-visual:
     name: BDD + Visual Regression
-    needs: [changes, quality]
+    needs: [quality]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -190,7 +133,7 @@ jobs:
 
   test-ubuntu:
     name: Test (Python ${{ matrix.python }}, Ubuntu ${{ matrix.ubuntu }})
-    needs: [changes, quality]
+    needs: [quality]
     runs-on: ubuntu-${{ matrix.ubuntu }}
     strategy:
       matrix:
@@ -301,7 +244,7 @@ jobs:
 
   test-debian:
     name: Test (Python ${{ matrix.python }}, Debian ${{ matrix.debian }})
-    needs: [changes, quality]
+    needs: [quality]
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -369,7 +312,7 @@ jobs:
 
   test-arm64:
     name: Test (Python 3.12, Ubuntu 24.04 ARM64)
-    needs: [changes, quality]
+    needs: [quality]
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v7
@@ -422,7 +365,7 @@ jobs:
 
   test-fedora-smoke:
     name: Smoke (Fedora 41)
-    needs: [changes, quality]
+    needs: [quality]
     runs-on: ubuntu-24.04
     container:
       image: fedora:41
@@ -462,7 +405,7 @@ jobs:
 
   test-opensuse-smoke:
     name: Smoke (openSUSE Tumbleweed)
-    needs: [changes, quality]
+    needs: [quality]
     runs-on: ubuntu-24.04
     container:
       image: opensuse/tumbleweed:latest
@@ -536,7 +479,7 @@ jobs:
   build-deb:
     name: Build .deb
     runs-on: ubuntu-22.04
-    needs: [changes, quality]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v7
 
@@ -607,7 +550,7 @@ jobs:
   build-deb-arm64:
     name: Build .deb (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, quality]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v7
 
@@ -681,7 +624,7 @@ jobs:
   build-rpm-arm64:
     name: Build RPM (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, quality]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v7
 
@@ -719,7 +662,7 @@ jobs:
   build-rpm:
     name: Build RPM
     runs-on: ubuntu-22.04
-    needs: [changes, quality]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v7
 
@@ -757,7 +700,7 @@ jobs:
   build-flatpak:
     name: Build Flatpak
     runs-on: ubuntu-22.04
-    needs: [changes, quality]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v7
 
@@ -787,7 +730,7 @@ jobs:
   build-flatpak-arm64:
     name: Build Flatpak (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, quality]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v7
 
@@ -817,7 +760,7 @@ jobs:
   build-snap:
     name: Build Snap
     runs-on: ubuntu-22.04
-    needs: [changes, quality]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v7
 
@@ -856,7 +799,7 @@ jobs:
   build-snap-arm64:
     name: Build Snap (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, quality]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v7
 
@@ -895,7 +838,7 @@ jobs:
   build-appimage:
     name: Build AppImage
     runs-on: ubuntu-22.04
-    needs: [changes, quality]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v7
 
@@ -924,7 +867,7 @@ jobs:
   build-appimage-arm64:
     name: Build AppImage (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, quality]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v7
 
@@ -953,7 +896,7 @@ jobs:
   build-arch:
     name: Build Arch package
     runs-on: ubuntu-22.04
-    needs: [changes, quality]
+    needs: [quality]
     container:
       image: archlinux:latest
     steps:
@@ -984,7 +927,7 @@ jobs:
   build-arch-arm64:
     name: Build Arch package (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, quality]
+    needs: [quality]
     container:
       image: adyranov/archlinux:latest
     steps:
@@ -1015,7 +958,7 @@ jobs:
   build-nix:
     name: Build Nix package
     runs-on: ubuntu-22.04
-    needs: [changes, quality]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v7
 
@@ -1048,7 +991,7 @@ jobs:
   build-nix-arm64:
     name: Build Nix package (ARM64)
     runs-on: ubuntu-24.04-arm
-    needs: [changes, quality]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v7
 
@@ -1214,24 +1157,21 @@ jobs:
 
   bsd-desktops:
     name: BSD packages and desktops
-    needs: changes
-    if: needs.changes.outputs.run_ci == 'true'
     uses: ./.github/workflows/bsd.yml
     permissions:
       contents: read
 
   windows-desktop:
     name: Windows backend and desktop
-    needs: [changes, quality]
-    if: needs.changes.outputs.run_ci == 'true'
+    needs: [quality]
     uses: ./.github/workflows/windows.yml
     permissions:
       contents: read
 
   windows-client-input:
     name: Windows 11 input
-    needs: [changes, quality, windows-desktop]
-    if: ${{ !cancelled() && needs.changes.outputs.run_ci == 'true' }}
+    needs: [quality, windows-desktop]
+    if: ${{ !cancelled() }}
     uses: ./.github/workflows/windows-input.yml
     with:
       candidate-artifact: windows-input-candidate-ucrt64-x64
@@ -1241,8 +1181,7 @@ jobs:
   windows-release-evidence:
     name: Windows candidate and client evidence
     runs-on: ubuntu-22.04
-    needs: [changes, windows-desktop, windows-client-input]
-    if: needs.changes.outputs.run_ci == 'true'
+    needs: [windows-desktop, windows-client-input]
     permissions:
       contents: read
     steps:
@@ -1274,7 +1213,6 @@ jobs:
     name: Release
     runs-on: ubuntu-22.04
     needs:
-      - changes
       - quality
       - bdd-visual
       - test-ubuntu

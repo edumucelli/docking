@@ -31,6 +31,7 @@ from docking.search.types import (
 )
 from docking.search.ui.window import SearchWindow
 from docking.ui.autohide import HideState
+from docking.ui.folder._browser import FolderRow
 from docking.ui.folder.stack import FolderStackController
 from docking.ui.geometry import build_geometry_frame, compute_dock_cross_metrics
 from docking.ui.menu import MenuHandler
@@ -394,7 +395,7 @@ def _folder_stack_handler() -> MenuHandler:
     return handler
 
 
-def _folder_stack_rows() -> list[dict[str, object]]:
+def _folder_stack_rows() -> list[FolderRow]:
     names = [
         ("Documents", (235, 94, 55)),
         ("Design", (60, 132, 241)),
@@ -408,15 +409,20 @@ def _folder_stack_rows() -> list[dict[str, object]]:
         ("Archive", (90, 90, 90)),
         ("Exports", (240, 150, 60)),
     ]
-    rows: list[dict[str, object]] = []
+    rows: list[FolderRow] = []
     for name, (red, green, blue) in names:
         rows.append(
-            {
-                "target": f"file:///tmp/docs/{name.lower()}",
-                "name": name,
-                "is_dir": True,
-                "icon": _pixbuf(ICON_SIZE, red=red, green=green, blue=blue),
-            }
+            FolderRow(
+                target=f"file:///tmp/docs/{name.lower()}",
+                name=name,
+                kind="directory",
+                is_dir=True,
+                has_children=True,
+                size=0,
+                created=0,
+                modified=0,
+                icon=_pixbuf(ICON_SIZE, red=red, green=green, blue=blue),
+            )
         )
     return rows
 
@@ -489,9 +495,9 @@ def _draw_folder_stack_case(case_name: str) -> cairo.ImageSurface:
         content = StackContent(
             entries=tuple(
                 StackEntry(
-                    key=str(row["target"]),
-                    label=str(row["name"]),
-                    icon=row["icon"],
+                    key=row.target,
+                    label=row.name,
+                    icon=row.icon,
                     activate=lambda: None,
                 )
                 for row in rows[:count]

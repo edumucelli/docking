@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-import re
 from typing import NamedTuple
 
 from docking.i18n import _
@@ -114,38 +113,6 @@ def _format_duration(seconds: int | None) -> str | None:
     if hours > 0:
         return _("{hours}h {minutes:02d}m").format(hours=hours, minutes=minutes)
     return _("{minutes}m").format(minutes=minutes)
-
-
-def _parse_upower_duration_seconds(*, text: str, key: str) -> int | None:
-    pattern = rf"^\s*{re.escape(key)}:\s*(.+?)\s*$"
-    for line in text.splitlines():
-        match = re.match(pattern, line, re.IGNORECASE)
-        if not match:
-            continue
-        return _parse_duration_seconds(raw=match.group(1))
-    return None
-
-
-def _parse_duration_seconds(*, raw: str) -> int | None:
-    lowered = raw.strip().lower()
-    if not lowered or lowered in {"n/a", "unknown", "0"}:
-        return None
-
-    total = 0.0
-    matched = False
-    pattern = r"([0-9]+(?:\.[0-9]+)?)\s*(hours?|hrs?|minutes?|mins?|seconds?|secs?)"
-    for value, unit in re.findall(pattern, lowered):
-        matched = True
-        amount = float(value)
-        if unit.startswith(("hour", "hr")):
-            total += amount * 3600
-        elif unit.startswith(("minute", "min")):
-            total += amount * 60
-        else:
-            total += amount
-    if not matched or total <= 0:
-        return None
-    return max(1, int(total))
 
 
 def _seconds_from_rate(*, remaining: int | None, rate: int | None) -> int | None:

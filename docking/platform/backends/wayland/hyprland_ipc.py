@@ -436,7 +436,7 @@ class HyprlandWindowService(WindowService):
                         visible.add(str(workspace["id"]))
         self._visible_workspaces = visible
         active_address = (
-            _normalize_address(_mapping_value(active, "address", ""))
+            _normalize_address(active.get("address", ""))
             if isinstance(active, Mapping)
             else ""
         )
@@ -605,33 +605,29 @@ def _record_from_client(
     matcher: AppIdMatcher,
     active_address: str,
 ) -> HyprlandWindowRecord | None:
-    address = _normalize_address(_mapping_value(item, "address", ""))
+    address = _normalize_address(item.get("address", ""))
     if not address:
         return None
-    app_id = str(
-        _mapping_value(item, "class", "")
-        or _mapping_value(item, "initialClass", "")
-        or ""
-    ).strip()
-    pid = _optional_int(_mapping_value(item, "pid", None))
+    app_id = str(item.get("class", "") or item.get("initialClass", "") or "").strip()
+    pid = _optional_int(item.get("pid", None))
     match = matcher.match_result(app_id, process_id=pid) if app_id else None
-    workspace = _mapping_value(item, "workspace", {})
+    workspace = item.get("workspace", {})
     workspace_id = None
     if isinstance(workspace, Mapping):
-        raw_workspace = _mapping_value(workspace, "id", "")
+        raw_workspace = workspace.get("id", "")
         workspace_id = str(raw_workspace) if raw_workspace != "" else None
     geometry = _geometry_from_client(item)
     return HyprlandWindowRecord(
         address=address,
-        title=str(_mapping_value(item, "title", "") or "Window"),
+        title=str(item.get("title", "") or "Window"),
         app_id=app_id,
         application_match=match,
         active=address == active_address,
-        urgent=bool(_mapping_value(item, "urgent", False)),
+        urgent=bool(item.get("urgent", False)),
         minimized=None,
         fullscreen=item.get("fullscreen") == 2,
         maximized=item.get("fullscreen") == 1,
-        pinned=_optional_bool(_mapping_value(item, "pinned", None)),
+        pinned=_optional_bool(item.get("pinned", None)),
         geometry=geometry,
         workspace_id=workspace_id,
         pid=pid,
@@ -641,8 +637,8 @@ def _record_from_client(
 
 
 def _geometry_from_client(item: Mapping[str, Any]) -> Rect | None:
-    at = _mapping_value(item, "at", None)
-    size = _mapping_value(item, "size", None)
+    at = item.get("at", None)
+    size = item.get("size", None)
     if (
         not isinstance(at, Sequence)
         or isinstance(at, str | bytes)
@@ -725,10 +721,6 @@ class HyprlandWorkspaceService(WorkspaceService):
 
     def unwatch_active_workspace(self, handle: object) -> None:
         self._windows.unwatch(handle)
-
-
-def _mapping_value(mapping: Mapping[str, Any], key: str, default: Any) -> Any:
-    return mapping.get(key, default)
 
 
 def _normalize_address(value: object) -> str:

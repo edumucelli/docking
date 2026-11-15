@@ -37,6 +37,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from docking.core.json_types import coerce_bool
 from docking.core.paths import ensure_parent_dir
 from docking.log import get_logger
 from docking.platform.environment import docking_state_dir
@@ -77,7 +78,7 @@ def load_state(path: Path | str | None = None) -> StartupGreetingState:
         return StartupGreetingState()
 
     return StartupGreetingState(
-        completed_first_launch=_coerce_bool(
+        completed_first_launch=coerce_bool(
             raw.get("completed_first_launch"),
             default=False,
         ),
@@ -152,20 +153,6 @@ def consume_new_year_greeting(
     )
     save_state(next_state, path=path)
     return show_year
-
-
-def _coerce_bool(value: Any, *, default: bool) -> bool:
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, int):
-        return bool(value)
-    if isinstance(value, str):
-        lowered = value.strip().lower()
-        if lowered in {"1", "true", "yes", "on"}:
-            return True
-        if lowered in {"0", "false", "no", "off"}:
-            return False
-    return default
 
 
 def _coerce_int(value: Any, *, default: int) -> int:

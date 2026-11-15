@@ -9,7 +9,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from docking.core.items import DockItem
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.backends.wayland.hyprland_ipc import (
     HyprlandEvent,
@@ -21,18 +20,7 @@ from docking.platform.backends.wayland.hyprland_ipc import (
     parse_hyprland_event,
 )
 from tests.platform.application_fakes import identity_services
-
-
-def _model() -> SimpleNamespace:
-    return SimpleNamespace(
-        tracked_items=MagicMock(
-            return_value=[
-                DockItem(desktop_id="Alacritty.desktop", wm_class="Alacritty"),
-                DockItem(desktop_id="firefox.desktop", wm_class="firefox"),
-            ]
-        ),
-        update_running=MagicMock(),
-    )
+from tests.platform.application_fakes import window_model as _model
 
 
 class FakeCommandSocket:

@@ -156,7 +156,7 @@ class _ScalarBinding:
     config_attr: str
     widget: Gtk.Widget
     read_widget: Callable[[], ConfigScalar | None]
-    write_widget: Callable[[ConfigScalar], None]
+    write_widget: Callable[[ConfigScalar], object]
     on_change: Callable[[], None] | None = None
 
 
@@ -1484,7 +1484,7 @@ class SettingsWindowController:
             self._register_int_binding(
                 config_attr="icon_size",
                 widget=self._icon_size_spin,
-                on_change=self._after_icon_size_changed,
+                on_change=self._after_theme_changed,
             ),
             self._register_numeric_binding(
                 config_attr="additional_distance_from_edge",
@@ -1623,7 +1623,7 @@ class SettingsWindowController:
             config_attr=config_attr,
             widget=widget,
             read_widget=widget.get_active_id,
-            write_widget=lambda value: self._set_active_id(widget, value),
+            write_widget=lambda value: widget.set_active_id(str(value)),
             signal="changed",
             on_change=on_change,
         )
@@ -1650,7 +1650,7 @@ class SettingsWindowController:
         config_attr: str,
         widget: Gtk.Widget,
         read_widget: Callable[[], ConfigScalar | None],
-        write_widget: Callable[[ConfigScalar], None],
+        write_widget: Callable[[ConfigScalar], object],
         signal: str,
         on_change: Callable[[], None] | None = None,
     ) -> _ScalarBinding:
@@ -1663,10 +1663,6 @@ class SettingsWindowController:
         )
         widget.connect(signal, lambda *_args, b=binding: self._on_binding_changed(b))
         return binding
-
-    @staticmethod
-    def _set_active_id(widget: Gtk.ComboBoxText, value: ConfigScalar) -> None:
-        widget.set_active_id(str(value))
 
     def _sync_widgets(self) -> None:
         if self._window is None:
@@ -1908,11 +1904,7 @@ class SettingsWindowController:
             return
         choices = self._monitor_choices()
         connector = next(
-            (
-                choice.connector
-                for choice in choices
-                if int(getattr(choice, "index", -2)) == monitor_index
-            ),
+            (choice.connector for choice in choices if choice.index == monitor_index),
             None,
         )
         if (
@@ -1933,11 +1925,6 @@ class SettingsWindowController:
         self._actions.set_theme(theme)
 
     def _after_theme_changed(self) -> None:
-        self._apply_runtime_theme()
-        self._actions.reposition()
-        self._actions.queue_draw()
-
-    def _after_icon_size_changed(self) -> None:
         self._apply_runtime_theme()
         self._actions.reposition()
         self._actions.queue_draw()

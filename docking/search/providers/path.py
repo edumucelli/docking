@@ -44,9 +44,10 @@ class PathSearchProvider:
     def search(self, request: SearchRequest) -> Iterable[SearchBatch]:
         """Resolve and yield one result when the query is an existing path."""
         text = request.query.text.strip()
-        target = _path_target(
-            text,
-            normalize=self._target_service.normalize_file_target,
+        target = (
+            self._target_service.normalize_file_target(text)
+            if is_explicit_path(text)
+            else None
         )
         if target is None:
             yield SearchBatch.replace(self.provider_id, request.generation)
@@ -120,14 +121,6 @@ class PathSearchProvider:
             self._copy_text(value)
             return True
         return False
-
-
-def _path_target(
-    text: str,
-    *,
-    normalize: Callable[[str], str | None],
-) -> str | None:
-    return normalize(text) if is_explicit_path(text) else None
 
 
 __all__ = ["PathSearchProvider"]

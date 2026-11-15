@@ -103,7 +103,6 @@ class BluetoothApplet(PlatformServicesApplet):
         # Optional user-facing line appended to tooltip when an action fails.
         self._action_error: str = ""
         self._recent_connections: dict[str, float] = {}
-        self._prefs_dirty = False
 
         prefs = config.applet_prefs.get(meta.id, {})
         self._active_adapter_path = str(prefs.get("active_adapter_path", "") or "")
@@ -125,8 +124,6 @@ class BluetoothApplet(PlatformServicesApplet):
         super().__init__(
             icon_size=icon_size, config=config, platform_services=platform_services
         )
-        if self._prefs_dirty:
-            self._save_prefs()
         self.present()
 
     def create_icon(self, size: int):
@@ -809,7 +806,6 @@ class BluetoothApplet(PlatformServicesApplet):
         return stopped
 
     def _save_prefs(self) -> None:
-        self._prefs_dirty = False
         self.save_prefs(
             {
                 "active_adapter_path": self._active_adapter_path,
@@ -817,17 +813,6 @@ class BluetoothApplet(PlatformServicesApplet):
                 "recent_connections": self._trim_recent_connections(),
             }
         )
-
-    def _seed_recent_connections(self) -> None:
-        now = time.time()
-        changed = False
-        for address in self._known_connected_addresses:
-            if not address or address in self._recent_connections:
-                continue
-            self._recent_connections[address] = now
-            changed = True
-        if changed:
-            self._prefs_dirty = True
 
     def _record_recent_connections(self, state: BluetoothState) -> None:
         current_connected = self._connected_addresses(state)

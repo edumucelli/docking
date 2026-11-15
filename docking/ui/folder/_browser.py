@@ -15,9 +15,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Hashable, Mapping
+from collections import OrderedDict
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from typing import Any, TypeVar
+from typing import Any
 
 import gi
 
@@ -42,9 +43,6 @@ FOLDER_SORT_OPTIONS = (
 )
 
 log = get_logger("folder.browser")
-
-K = TypeVar("K", bound=Hashable)
-V = TypeVar("V")
 
 
 @dataclass(frozen=True)
@@ -82,25 +80,6 @@ class FolderRow:
     modified: int
     icon: GdkPixbuf.Pixbuf | None
 
-    def __getitem__(self, key: str) -> Any:
-        return getattr(self, key)
-
-    def get(self, key: str, default: Any = None) -> Any:
-        return getattr(self, key, default)
-
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "target": self.target,
-            "name": self.name,
-            "kind": self.kind,
-            "is_dir": self.is_dir,
-            "has_children": self.has_children,
-            "size": self.size,
-            "created": self.created,
-            "modified": self.modified,
-            "icon": self.icon,
-        }
-
 
 @dataclass
 class _FolderEntry:
@@ -121,20 +100,9 @@ class FolderBrowser:
         target_service: TargetService,
     ) -> None:
         self._target_service = target_service
-        self._directory_rows: dict[tuple[str, int, bool, int], list[_FolderEntry]] = {}
-
-    @staticmethod
-    def _get_lru(cache: dict[K, V], key: K) -> V | None:
-        cached = cache.pop(key, None)
-        if cached is not None:
-            cache[key] = cached
-        return cached
-
-    @staticmethod
-    def _put_lru(cache: dict[K, V], key: K, value: V, *, max_entries: int) -> None:
-        cache[key] = value
-        while len(cache) > max_entries:
-            cache.pop(next(iter(cache)))
+        self._directory_rows: OrderedDict[
+            tuple[str, int, bool, int], list[_FolderEntry]
+        ] = OrderedDict()
 
     def invalidate_target(self, target: str) -> None:
         uri = self._target_service.normalize_file_target(target)
@@ -194,17 +162,16 @@ class FolderBrowser:
             bool(prefs.show_hidden),
             resolved_icon_px,
         )
-        cached = self._get_lru(self._directory_rows, cache_key)
+        cached = self._directory_rows.get(cache_key)
         if cached is None:
             cached = self._read_directory(uri=uri, show_hidden=prefs.show_hidden)
             if cached is None:
                 return []
-            self._put_lru(
-                self._directory_rows,
-                cache_key,
-                cached,
-                max_entries=FOLDER_DIRECTORY_CACHE_MAX_ENTRIES,
-            )
+            self._directory_rows[cache_key] = cached
+            while len(self._directory_rows) > FOLDER_DIRECTORY_CACHE_MAX_ENTRIES:
+                self._directory_rows.popitem(last=False)
+        else:
+            self._directory_rows.move_to_end(cache_key)
         entries = sorted(
             cached, key=lambda entry: self.sort_key(row=entry.row, mode=prefs.sort)
         )
@@ -316,17 +283,16 @@ class FolderBrowser:
 
     def sort_key(
         self,
-        row: FolderRow | Mapping[str, Any],
+        row: FolderRow,
         mode: str,
-    ) -> tuple[Any, ...]:
-        value = row.as_dict() if isinstance(row, FolderRow) else row
-        name = str(value["name"]).casefold()
+    ) -> tuple[str | int, ...]:
+        name = row.name.casefold()
         if mode == "kind":
-            return (value["kind"], name)
+            return (row.kind, name)
         if mode == "size":
-            return (value["size"], name)
+            return (row.size, name)
         if mode == "created":
-            return (value["created"], name)
+            return (row.created, name)
         if mode == "modified":
-            return (value["modified"], name)
+            return (row.modified, name)
         return (name,)

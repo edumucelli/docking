@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, cast
 
+from docking.applets.freshness import publication_age
 from docking.applets.http import http_get_json
 from docking.applets.live_state import (
     live_freshness_lines,
@@ -134,25 +135,7 @@ def story_rank(*, index: int, count: int) -> str:
 
 
 def story_age(*, story: HackerNewsStory, now: dt.datetime | None = None) -> str:
-    """Return a short relative age string for an HN story."""
-    if story.time <= 0:
-        return ""
-    current = now or dt.datetime.now(dt.timezone.utc)
-    try:
-        published = dt.datetime.fromtimestamp(story.time, tz=dt.timezone.utc)
-    except (OSError, OverflowError, ValueError):
-        return ""
-    seconds = max(0, int((current - published).total_seconds()))
-    if seconds < 60:
-        return _("now")
-    minutes = seconds // 60
-    if minutes < 60:
-        return _("{minutes}m ago").format(minutes=minutes)
-    hours = minutes // 60
-    if hours < 48:
-        return _("{hours}h ago").format(hours=hours)
-    days = hours // 24
-    return _("{days}d ago").format(days=days)
+    return publication_age(story.time, now=now)
 
 
 def comments_url(story_id: int) -> str:
@@ -162,8 +145,6 @@ def comments_url(story_id: int) -> str:
 
 def normalize_active_index(*, index: int, count: int) -> int:
     """Clamp active index for the current story list."""
-    if count <= 0:
-        return 0
     return clamp_index(index, count)
 
 

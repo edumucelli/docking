@@ -2,12 +2,32 @@
 
 import csv
 import gzip
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
 from docking.applets.cities import load_cities, search_cities
 
 _FIELDS = ["city_ascii", "lat", "lng", "country", "population"]
+
+
+def test_city_data_and_sunrise_state_import_without_gi():
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            """
+import sys
+sys.modules["gi"] = None
+from docking.applets.cities import CityPref, cached_cities, show_city_dialog
+from docking.applets.sunrise import state
+""",
+        ],
+        cwd=Path(__file__).resolve().parents[2],
+        check=True,
+    )
 
 
 @pytest.fixture
@@ -110,3 +130,26 @@ class TestSearchCities:
         results = search_cities("Berlin, G", cities)
         assert len(results) == 1
         assert results[0].name == "Berlin"
+
+
+def test_weather_and_sunrise_share_one_lazy_city_database(monkeypatch):
+    from docking.applets import cities
+    from docking.applets.sunrise import state as sunrise_state
+    from docking.applets.weather import state as weather_state
+
+    calls = []
+    berlin = cities.CityEntry("Berlin", "Germany", "Berlin, Germany", 52.52, 13.41)
+
+    def load():
+        calls.append(True)
+        return [berlin]
+
+    monkeypatch.setattr(cities, "load_cities", load)
+    cities.cached_cities.cache_clear()
+    try:
+        assert weather_state.CityPref is sunrise_state.CityPref
+        assert weather_state.cached_cities() == (berlin,)
+        assert sunrise_state.cached_cities() is weather_state.cached_cities()
+        assert calls == [True]
+    finally:
+        cities.cached_cities.cache_clear()

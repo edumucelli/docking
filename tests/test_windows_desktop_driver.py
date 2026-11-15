@@ -1,6 +1,7 @@
 """Native input helpers distinguish a drag from a double click."""
 
 import ctypes
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -137,6 +138,66 @@ def test_shared_report_persistent_denial_propagates(tmp_path, monkeypatch):
     with pytest.raises(PermissionError, match="denied"):
         mod.write_shared_json(tmp_path / "result.json", {})
     assert replace.call_count == 20
+
+
+@pytest.mark.parametrize("present", [False, True])
+def test_gstreamer_registry_is_probed_before_copying_to_an_isolated_cache(
+    tmp_path, monkeypatch, present
+):
+    installed = tmp_path / "native cache"
+    registry = installed / "gstreamer-1.0"
+    registry.mkdir(parents=True)
+    if present:
+        (registry / "registry.x86_64.bin").write_bytes(b"native-64")
+        (registry / "registry.i686.bin").write_bytes(b"native-32")
+    (registry / "other.bin").write_bytes(b"unrelated")
+    probe = Mock(return_value=SimpleNamespace(stdout=json.dumps(str(installed))))
+    monkeypatch.setattr(mod.subprocess, "run", probe)
+    monkeypatch.setattr(mod.subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(installed))
+    isolated = tmp_path / "isolated"
+
+    copied = mod.copy_gstreamer_registry(isolated)
+    assert bool(copied) is present
+    assert {path.name for path in copied} == (
+        {"registry.x86_64.bin", "registry.i686.bin"} if present else set()
+    )
+
+    probe.assert_called_once_with(
+        [
+            mod.sys.executable,
+            "-c",
+            (
+                "import json;from gi.repository import GLib;"
+                "print(json.dumps(GLib.get_user_cache_dir()))"
+            ),
+        ],
+        capture_output=True,
+        stdin=mod.subprocess.DEVNULL,
+        text=True,
+        check=True,
+        creationflags=0x08000000,
+        timeout=30,
+    )
+    assert mod.os.environ["XDG_CACHE_HOME"] == str(installed)
+    if present:
+        assert {
+            path.name: path.read_bytes()
+            for path in (isolated / "gstreamer-1.0").iterdir()
+        } == {"registry.x86_64.bin": b"native-64", "registry.i686.bin": b"native-32"}
+    else:
+        assert not isolated.exists()
+
+
+def test_gstreamer_registry_probe_failure_is_not_treated_as_an_empty_cache(
+    tmp_path, monkeypatch
+):
+    probe = Mock(side_effect=mod.subprocess.CalledProcessError(1, "native probe"))
+    monkeypatch.setattr(mod.subprocess, "run", probe)
+    monkeypatch.setattr(mod.subprocess, "CREATE_NO_WINDOW", 0, raising=False)
+    with pytest.raises(mod.subprocess.CalledProcessError):
+        mod.copy_gstreamer_registry(tmp_path / "isolated")
+    assert not (tmp_path / "isolated").exists()
 
 
 def test_click_guard_runs_after_movement_settles_before_any_button_or_modifier(

@@ -246,9 +246,6 @@ class _GeometryFrameCacheEntry:
     frame: DockGeometryFrame
     signature: tuple[object, ...]
 
-    def matches(self, *, signature: tuple[object, ...]) -> bool:
-        return self.signature == signature
-
 
 @dataclass
 class _DockWindowCache:
@@ -262,10 +259,6 @@ class _DockWindowCache:
     geometry_frame: _GeometryFrameCacheEntry | None = None
     applied_input_frame: DockGeometryFrame | None = None
     last_blur_region: tuple[object, ...] | None = None
-
-    @classmethod
-    def create(cls) -> _DockWindowCache:
-        return cls()
 
     def invalidate_geometry_frame(self) -> None:
         self.geometry_frame = None
@@ -289,7 +282,7 @@ class _DockWindowCache:
     ) -> DockGeometryFrame | None:
         if self.geometry_frame is None:
             return None
-        if not self.geometry_frame.matches(signature=signature):
+        if self.geometry_frame.signature != signature:
             return None
         return self.geometry_frame.frame
 
@@ -357,7 +350,7 @@ class DockWindow(Gtk.Window):
 
         self.placement = DockPlacementController(self, surface_service=surface_service)
         self.interaction = DockInteractionCoordinator(self)
-        self._cache = _DockWindowCache.create()
+        self._cache = _DockWindowCache()
         self._redraw_source_id: int | None = None
         self.dock_hovered: bool = False
         self._last_autohide_state: HideState | None = None

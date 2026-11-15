@@ -52,7 +52,7 @@ def _window_cache(
     applied_input_frame=None,
     last_blur_region=None,
 ):
-    cache = dock_window_mod._DockWindowCache.create()
+    cache = dock_window_mod._DockWindowCache()
     if current_geometry_frame is not None:
         cache.geometry_frame = dock_window_mod._GeometryFrameCacheEntry(
             frame=current_geometry_frame,

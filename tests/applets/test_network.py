@@ -985,28 +985,6 @@ class TestNetworkAppletInternals:
             raising=False,
         )
 
-        class FakeWifiDevice:
-            def get_device_type(self):
-                return 2
-
-            def get_iface(self):
-                return "wlan0"
-
-            def get_ip4_config(self):
-                addr = MagicMock()
-                addr.get_address.return_value = "192.168.1.10"
-                cfg = MagicMock()
-                cfg.get_addresses.return_value = [addr]
-                return cfg
-
-            def get_active_access_point(self):
-                ssid = MagicMock()
-                ssid.get_data.return_value = b"MyWifi"
-                ap = MagicMock()
-                ap.get_ssid.return_value = ssid
-                ap.get_strength.return_value = 73
-                return ap
-
         class FakeEthDevice:
             def get_device_type(self):
                 return 1
@@ -1103,28 +1081,6 @@ class TestNetworkAppletInternals:
 
             def get_iface(self):
                 return "lo"
-
-        class FakeWifiDevice:
-            def get_device_type(self):
-                return 2
-
-            def get_iface(self):
-                return "wlan0"
-
-            def get_ip4_config(self):
-                addr = MagicMock()
-                addr.get_address.return_value = "192.168.1.10"
-                cfg = MagicMock()
-                cfg.get_addresses.return_value = [addr]
-                return cfg
-
-            def get_active_access_point(self):
-                ssid = MagicMock()
-                ssid.get_data.return_value = b"MyWifi"
-                ap = MagicMock()
-                ap.get_ssid.return_value = ssid
-                ap.get_strength.return_value = 73
-                return ap
 
         monkeypatch.setattr(
             networkmanager_mod.NM, "DeviceWifi", FakeWifiDevice, raising=False
@@ -1803,3 +1759,26 @@ class TestNetworkCommands:
         assert pixbuf is not None
         assert pixbuf.get_width() == 48
         assert pixbuf.get_height() == 48
+
+
+class FakeWifiDevice:
+    def get_device_type(self):
+        return 2
+
+    def get_iface(self):
+        return "wlan0"
+
+    def get_ip4_config(self):
+        addr = MagicMock()
+        addr.get_address.return_value = "192.168.1.10"
+        cfg = MagicMock()
+        cfg.get_addresses.return_value = [addr]
+        return cfg
+
+    def get_active_access_point(self):
+        ssid = MagicMock()
+        ssid.get_data.return_value = b"MyWifi"
+        ap = MagicMock()
+        ap.get_ssid.return_value = ssid
+        ap.get_strength.return_value = 73
+        return ap

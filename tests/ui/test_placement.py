@@ -24,6 +24,7 @@ def _make_window(**overrides):
             hide_mode="none",
             monitor_index=-1,
             monitor_connector=None,
+            dock_alignment=0.5,
             additional_distance_from_edge=0,
             pressure_reveal_enabled=False,
             pressure_threshold=50,
@@ -306,6 +307,7 @@ class TestPlacementControllerGeometry:
             hide_mode="none",
             monitor_index=-1,
             monitor_connector=None,
+            dock_alignment=0.5,
             additional_distance_from_edge=0,
             pressure_reveal_enabled=False,
             pressure_threshold=50,
@@ -340,6 +342,7 @@ class TestPlacementControllerGeometry:
             hide_mode="none",
             monitor_index=-1,
             monitor_connector=None,
+            dock_alignment=0.5,
             additional_distance_from_edge=0,
             pressure_reveal_enabled=False,
             pressure_threshold=50,
@@ -364,7 +367,11 @@ class TestPlacementControllerGeometry:
         window = _make_window(
             get_display=lambda: zero_display,
             config=SimpleNamespace(
-                monitor_index=-1, pressure_reveal_enabled=False, pressure_threshold=50
+                monitor_index=-1,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
+                monitor_connector=None,
+                dock_alignment=0.5,
             ),
         )
         controller = _make_controller(window)
@@ -378,7 +385,11 @@ class TestPlacementControllerGeometry:
         window = _make_window(
             get_display=lambda: display,
             config=SimpleNamespace(
-                monitor_index=99, pressure_reveal_enabled=False, pressure_threshold=50
+                monitor_index=99,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
+                monitor_connector=None,
+                dock_alignment=0.5,
             ),
         )
         controller = _make_controller(window)
@@ -393,7 +404,11 @@ class TestPlacementControllerGeometry:
         window = _make_window(
             get_display=lambda: display,
             config=SimpleNamespace(
-                monitor_index=2, pressure_reveal_enabled=False, pressure_threshold=50
+                monitor_index=2,
+                pressure_reveal_enabled=False,
+                pressure_threshold=50,
+                monitor_connector=None,
+                dock_alignment=0.5,
             ),
         )
         controller = _make_controller(window)
@@ -416,6 +431,7 @@ class TestPlacementControllerGeometry:
                 monitor_connector="DP-1",
                 pressure_reveal_enabled=False,
                 pressure_threshold=50,
+                dock_alignment=0.5,
             ),
         )
         controller = _make_controller(window)
@@ -509,6 +525,8 @@ class TestPlacementControllerGeometry:
                 additional_distance_from_edge=0,
                 pressure_reveal_enabled=False,
                 pressure_threshold=50,
+                monitor_connector=None,
+                dock_alignment=0.5,
             ),
             theme=SimpleNamespace(
                 top_padding=4,
@@ -556,6 +574,8 @@ class TestPlacementControllerGeometry:
                 additional_distance_from_edge=0,
                 pressure_reveal_enabled=False,
                 pressure_threshold=50,
+                monitor_connector=None,
+                dock_alignment=0.5,
             ),
             theme=SimpleNamespace(
                 top_padding=4,
@@ -602,6 +622,8 @@ class TestPlacementControllerGeometry:
                 additional_distance_from_edge=0,
                 pressure_reveal_enabled=False,
                 pressure_threshold=50,
+                monitor_connector=None,
+                dock_alignment=0.5,
             ),
         )
         controller = _make_controller(window)
@@ -725,6 +747,7 @@ class TestPlacementControllerStruts:
             active_display=False,
             monitor_index=-1,
             monitor_connector=None,
+            dock_alignment=0.5,
             additional_distance_from_edge=0,
             pressure_reveal_enabled=False,
             pressure_threshold=50,
@@ -821,6 +844,8 @@ class TestPlacementControllerStruts:
                 additional_distance_from_edge=0,
                 pressure_reveal_enabled=False,
                 pressure_threshold=50,
+                monitor_connector=None,
+                dock_alignment=0.5,
             )
         )
         controller = _make_controller(window)
@@ -849,6 +874,8 @@ class TestPlacementControllerStruts:
                 additional_distance_from_edge=0,
                 pressure_reveal_enabled=False,
                 pressure_threshold=50,
+                monitor_connector=None,
+                dock_alignment=0.5,
             ),
             theme=SimpleNamespace(bottom_padding=8, distance_from_edge=0),
             get_display=lambda: display,
@@ -885,6 +912,8 @@ class TestPlacementControllerStruts:
                 additional_distance_from_edge=0,
                 pressure_reveal_enabled=False,
                 pressure_threshold=50,
+                monitor_connector=None,
+                dock_alignment=0.5,
             ),
             theme=SimpleNamespace(bottom_padding=4.8, distance_from_edge=0),
             get_display=lambda: display,
@@ -918,6 +947,8 @@ class TestPlacementControllerStruts:
                 additional_distance_from_edge=0,
                 pressure_reveal_enabled=False,
                 pressure_threshold=50,
+                monitor_connector=None,
+                dock_alignment=0.5,
             ),
             theme=SimpleNamespace(bottom_padding=8, distance_from_edge=0),
             get_display=lambda: display,
@@ -1223,6 +1254,8 @@ class TestPlacementControllerStruts:
                     monitor_index=-1,
                     pressure_reveal_enabled=False,
                     pressure_threshold=50,
+                    monitor_connector=None,
+                    dock_alignment=0.5,
                 )
             )
         )
@@ -1243,6 +1276,8 @@ class TestPlacementControllerStruts:
                     monitor_index=-1,
                     pressure_reveal_enabled=False,
                     pressure_threshold=50,
+                    monitor_connector=None,
+                    dock_alignment=0.5,
                 )
             )
         )
@@ -1264,6 +1299,8 @@ class TestPlacementControllerStruts:
                     monitor_index=1,
                     pressure_reveal_enabled=False,
                     pressure_threshold=50,
+                    monitor_connector=None,
+                    dock_alignment=0.5,
                 )
             )
         )
@@ -1282,6 +1319,8 @@ class TestPlacementControllerStruts:
                     monitor_index=9,
                     pressure_reveal_enabled=False,
                     pressure_threshold=50,
+                    monitor_connector=None,
+                    dock_alignment=0.5,
                 )
             )
         )
@@ -1303,6 +1342,7 @@ class TestPlacementControllerStruts:
                     monitor_connector="DP-1",
                     pressure_reveal_enabled=False,
                     pressure_threshold=50,
+                    dock_alignment=0.5,
                 )
             )
         )
@@ -1325,6 +1365,7 @@ class TestPlacementControllerStruts:
                     monitor_connector="DP-1",
                     pressure_reveal_enabled=False,
                     pressure_threshold=50,
+                    dock_alignment=0.5,
                 )
             )
         )

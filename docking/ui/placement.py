@@ -235,7 +235,7 @@ class DockPlacementController:
             return -1
         configured = self._monitor_for_connector(
             display=display,
-            connector=getattr(self._window.config, "monitor_connector", None),
+            connector=self._window.config.monitor_connector,
         )
         if configured is not None:
             return self._monitor_index(display=display, monitor=configured)
@@ -646,7 +646,7 @@ class DockPlacementController:
 
         configured = self._monitor_for_connector(
             display=display,
-            connector=getattr(self._window.config, "monitor_connector", None),
+            connector=self._window.config.monitor_connector,
         )
         if configured is not None:
             return configured
@@ -783,7 +783,7 @@ class DockPlacementController:
             + aligned_main_axis_start(
                 available=available_extent,
                 extent=reserved_extent,
-                alignment=getattr(self._window.config, "dock_alignment", 0.5),
+                alignment=self._window.config.dock_alignment,
             )
         )
         return span_start, span_start + reserved_extent

@@ -52,7 +52,7 @@ def main():
         WindowsHotkeyAPI,
     )
     from docking.ui.dnd import DnDHandler
-    from tools.windows.visual.desktop_driver import WindowsDesktop
+    from tools.windows.visual.desktop_driver import WindowsDesktop, write_shared_json
 
     native, recycle = WindowsDesktop(), WindowsRecycleBin()
     assert not any(w["title"] == "Docking" for w in native.windows())
@@ -639,9 +639,7 @@ foreach($i in $w.FindAll($scope,$condition)){{
         if errors:
             raise errors[0]
     finally:
-        temporary = output / "result.json.tmp"
-        temporary.write_text(json.dumps(report, indent=2), encoding="utf-8")
-        temporary.replace(output / "result.json")
+        write_shared_json(output / "result.json", report)
         print(json.dumps(report, indent=2))
 
 

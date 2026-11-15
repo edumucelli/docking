@@ -52,6 +52,7 @@ from docking.applets.live_state import (
     resolve_live_status,
 )
 from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
+from docking.applets.selection import retained_index
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -345,8 +346,9 @@ class HackerNewsApplet(Applet):
             current_story = self._current_story
             previous_index = self._active_index
             self._stories = list(page.stories[:MAX_STORIES])
-            self._active_index = self._refreshed_active_index(
-                current_story=current_story,
+            self._active_index = retained_index(
+                (item.id for item in self._stories),
+                current_id=current_story.id if current_story is not None else None,
                 previous_index=previous_index,
             )
             self._next_story_offset = page.next_offset
@@ -368,20 +370,6 @@ class HackerNewsApplet(Applet):
         log.bind(action="fetch_error").debug("Hacker News fetch failed: %s", exc)
         self.present()
         return False
-
-    def _refreshed_active_index(
-        self,
-        *,
-        current_story: HackerNewsStory | None,
-        previous_index: int,
-    ) -> int:
-        if not self._stories:
-            return 0
-        if current_story is not None:
-            for index, story in enumerate(self._stories):
-                if story.id == current_story.id:
-                    return index
-        return normalize_active_index(index=previous_index, count=len(self._stories))
 
     def _fetch_next_page_async(self) -> None:
         if self._loading or self._page_loading or not self._has_more_stories:

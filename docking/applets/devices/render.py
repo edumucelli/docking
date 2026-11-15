@@ -24,6 +24,8 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
+from docking.applets.draw import draw_centered_label
+
 
 def create_devices_icon(*, size: int, device_count: int) -> GdkPixbuf.Pixbuf | None:
     """Render a storage device with an optional mounted-device badge."""
@@ -70,7 +72,7 @@ def create_devices_icon(*, size: int, device_count: int) -> GdkPixbuf.Pixbuf | N
         cr.set_source_rgb(0.91, 0.98, 0.94)
         cr.set_line_width(max(1.2, size * 0.025))
         cr.stroke()
-        _draw_centered_label(
+        draw_centered_label(
             cr=cr,
             text=str(min(device_count, 9)),
             cx=cx,
@@ -96,20 +98,3 @@ def _rounded_rect(
     cr.arc(x + radius, y + height - radius, radius, math.pi / 2, math.pi)
     cr.arc(x + radius, y + radius, radius, math.pi, 3 * math.pi / 2)
     cr.close_path()
-
-
-def _draw_centered_label(
-    *,
-    cr: cairo.Context,
-    text: str,
-    cx: float,
-    cy: float,
-    font_size: float,
-) -> None:
-    cr.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-    cr.set_font_size(font_size)
-    xb, _yb, width, _height, _xa, _ya = cr.text_extents(text)
-    ascent, descent, _height, _max_x_advance, _max_y_advance = cr.font_extents()
-    cr.set_source_rgb(1.0, 1.0, 1.0)
-    cr.move_to(cx - width / 2 - xb, cy + (ascent - descent) / 2)
-    cr.show_text(text)

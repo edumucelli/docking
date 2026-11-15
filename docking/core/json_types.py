@@ -14,3 +14,18 @@ def as_json_object(value: JsonValue) -> JsonObject | None:
     if not isinstance(value, dict) or not all(isinstance(key, str) for key in value):
         return None
     return value
+
+
+def coerce_bool(value: object, *, default: bool) -> bool:
+    """Decode a persisted boolean without treating arbitrary values as truthy."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return bool(value)
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "off"}:
+            return False
+    return default

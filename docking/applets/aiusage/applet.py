@@ -121,9 +121,6 @@ class AiUsageApplet(Applet):
             self._timer_id = 0
         super().stop()
 
-    def on_clicked(self) -> None:
-        pass
-
     def on_scroll(self, direction_up: bool) -> None:
         """Cycle through providers: Auto -> Claude -> Codex -> OpenCode."""
         choices: list[Provider | None] = [

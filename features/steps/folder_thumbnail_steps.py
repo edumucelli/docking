@@ -72,5 +72,5 @@ def full_menu(context):
 @then("all 30 menu icons are loaded only once")
 def warm_menu(context):
     assert len(context.thumbnail_rows) == 30
-    assert all(row["icon"] == row["target"] for row in context.thumbnail_rows)
+    assert all(row.icon == row.target for row in context.thumbnail_rows)
     assert context.thumbnail_loader.resolve_file_icon.call_count == 30

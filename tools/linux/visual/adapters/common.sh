@@ -79,6 +79,20 @@ print(f"{width}x{height}")
 PY
 }
 
+framebuffer_geometry() {
+    local probe="$XDG_RUNTIME_DIR/.geometry.png"
+    grim "$probe"
+    local dims width height
+    dims="$(png_dimensions "$probe")"
+    rm -f "$probe"
+    width="${dims%x*}"
+    height="${dims#*x}"
+
+    jq -n --argjson w "$width" --argjson h "$height" \
+        '{outputs: [{name: "headless-1", x: 0, y: 0, width: $w, height: $h, scale: 1}],
+          dock_rect: null}'
+}
+
 # SIGTERM, bounded grace, then SIGKILL. A bare `wait` on a process that ignores
 # SIGTERM blocks the whole run, so every teardown path goes through this.
 # $1 = pid, $2 = grace attempts (default 20 x 0.25s = 5s)
