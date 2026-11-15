@@ -8,6 +8,8 @@ from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+
 import docking.applets.bluetooth.applet as bluetooth_applet_mod
 import docking.applets.bluetooth.implementations.linux.backend as bluetooth_linux_mod
 import docking.applets.bluetooth.implementations.unix.desktop as bluetooth_desktop_mod
@@ -239,66 +241,96 @@ class TestBluetoothStateHelpers:
         ]
         assert bluetooth_desktop_mod.local_services_command() == ["blueman-services"]
 
-    def test_open_command_helpers(self, monkeypatch):
-        launched: list[list[str]] = []
+    def test_desktop_actions_launch_detached_in_preference_order(self, monkeypatch):
+        monkeypatch.setattr(
+            bluetooth_desktop_mod.shutil, "which", lambda cmd: f"/usr/bin/{cmd}"
+        )
+        launch = MagicMock()
+        monkeypatch.setattr(bluetooth_desktop_mod.subprocess, "Popen", launch)
 
-        monkeypatch.setattr(
-            bluetooth_desktop_mod,
-            "send_files_command",
-            lambda: ["bluetooth-sendto"],
+        actions = (
+            BluetoothAction.SEND_FILES,
+            BluetoothAction.DEVICES,
+            BluetoothAction.ADAPTERS,
+            BluetoothAction.LOCAL_SERVICES,
         )
-        monkeypatch.setattr(
-            bluetooth_desktop_mod,
-            "devices_command",
-            lambda: ["gnome-control-center", "bluetooth"],
-        )
-        monkeypatch.setattr(
-            bluetooth_desktop_mod,
-            "adapters_command",
-            lambda: ["blueman-adapters"],
-        )
-        monkeypatch.setattr(
-            bluetooth_desktop_mod,
-            "local_services_command",
-            lambda: ["blueman-services"],
-        )
-        monkeypatch.setattr(
-            bluetooth_desktop_mod.subprocess,
-            "Popen",
-            lambda cmd, **_kwargs: launched.append(list(cmd)),
-        )
+        assert bluetooth_desktop_mod.desktop_actions() == actions
+        for action, command in zip(
+            actions,
+            (
+                ["blueman-sendto"],
+                ["blueman-manager"],
+                ["blueman-adapters"],
+                ["blueman-services"],
+            ),
+            strict=True,
+        ):
+            assert bluetooth_desktop_mod.open_desktop_action(action) is True
+            launch.assert_called_with(command, start_new_session=True)
+        assert launch.call_count == 4
 
-        assert bluetooth_desktop_mod.open_send_files() is True
-        assert bluetooth_desktop_mod.open_devices() is True
-        assert bluetooth_desktop_mod.open_adapters() is True
-        assert bluetooth_desktop_mod.open_local_services() is True
-        assert launched == [
-            ["bluetooth-sendto"],
-            ["gnome-control-center", "bluetooth"],
-            ["blueman-adapters"],
-            ["blueman-services"],
-        ]
-
-    def test_failed_command_returns_false_and_logs_action(self, monkeypatch, caplog):
+    def test_desktop_actions_recheck_commands_before_launch(self, monkeypatch):
+        commands = {"blueman-manager": "/usr/bin/blueman-manager"}
         monkeypatch.setattr(
-            bluetooth_desktop_mod, "send_files_command", lambda: ["bluetooth-sendto"]
+            bluetooth_desktop_mod.shutil, "which", lambda cmd: commands.get(cmd)
+        )
+        launch = MagicMock()
+        monkeypatch.setattr(bluetooth_desktop_mod.subprocess, "Popen", launch)
+
+        assert bluetooth_desktop_mod.desktop_actions() == (BluetoothAction.DEVICES,)
+        commands.clear()
+        for action in BluetoothAction:
+            assert bluetooth_desktop_mod.open_desktop_action(action) is False
+        assert bluetooth_desktop_mod.open_desktop_action("unsupported") is False
+        assert bluetooth_desktop_mod.desktop_actions() == ()
+        launch.assert_not_called()
+
+    @pytest.mark.parametrize("error", [FileNotFoundError, PermissionError])
+    def test_failed_command_returns_false_and_logs_action(
+        self, monkeypatch, caplog, error
+    ):
+        monkeypatch.setattr(
+            bluetooth_desktop_mod.shutil,
+            "which",
+            lambda cmd: (
+                "/usr/bin/bluetooth-sendto" if cmd == "bluetooth-sendto" else None
+            ),
         )
 
         def fail_launch(*_args, **_kwargs):
-            raise FileNotFoundError("Bluetooth sender is unavailable")
+            raise error("Bluetooth sender is unavailable")
 
         monkeypatch.setattr(bluetooth_desktop_mod.subprocess, "Popen", fail_launch)
 
         with caplog.at_level(logging.WARNING, logger="docking.bluetooth.unix_desktop"):
-            assert bluetooth_desktop_mod.open_send_files() is False
+            assert (
+                bluetooth_desktop_mod.open_desktop_action(BluetoothAction.SEND_FILES)
+                is False
+            )
 
         assert len(caplog.records) == 1
         record = caplog.records[0]
-        assert record.__dict__["action"] == "open_send_files"
+        assert record.__dict__["action"] == "send_files"
         assert "Bluetooth sender is unavailable" in record.getMessage()
 
 
 class TestLinuxBluetoothBackend:
+    def test_desktop_actions_use_unix_dispatch(self, monkeypatch):
+        backend = object.__new__(LinuxBluetoothBackend)
+        monkeypatch.setattr(
+            bluetooth_desktop_mod.shutil,
+            "which",
+            lambda cmd: (
+                "/usr/bin/blueman-manager" if cmd == "blueman-manager" else None
+            ),
+        )
+        launch = MagicMock()
+        monkeypatch.setattr(bluetooth_desktop_mod.subprocess, "Popen", launch)
+
+        assert backend.desktop_actions() == (BluetoothAction.DEVICES,)
+        assert backend.open_desktop_action(BluetoothAction.DEVICES) is True
+        launch.assert_called_once_with(["blueman-manager"], start_new_session=True)
+
     def test_pair_device_uses_bluetoothctl_fallback_on_failure(self):
         backend = object.__new__(LinuxBluetoothBackend)
         backend._call_method = lambda **kwargs: False  # type: ignore[attr-defined]
@@ -1025,6 +1057,22 @@ class TestBluetoothApplet:
         assert "Paired Devices" not in labels
         assert "Discovered Devices" not in labels
 
+    def test_desktop_menu_callbacks_keep_their_actions(self, monkeypatch):
+        applet, backend = _make_applet(monkeypatch, _state())
+        opened = MagicMock(return_value=True)
+        monkeypatch.setattr(backend, "open_desktop_action", opened)
+        items = {item.get_label(): item for item in applet.get_menu_items()}
+
+        for label, action in (
+            ("Send Files to Device...", BluetoothAction.SEND_FILES),
+            ("Devices...", BluetoothAction.DEVICES),
+            ("Adapters...", BluetoothAction.ADAPTERS),
+            ("Local Services...", BluetoothAction.LOCAL_SERVICES),
+        ):
+            items[label].activate()
+            opened.assert_called_with(action)
+        assert opened.call_count == 4
+
     def test_recent_connections_submenu_prefers_recent_paired_devices(
         self, monkeypatch
     ):
@@ -1113,6 +1161,7 @@ class TestBluetoothApplet:
         applet, _backend = _make_applet(monkeypatch, unavailable_state())
         items = applet.get_menu_items()
         assert items[0].get_label() == "Bluetooth unavailable"
+        assert "Devices..." in [item.get_label() for item in items]
 
         state = _state(
             adapters=(_adapter(path="/org/bluez/hci0"),), active_adapter_path=""
@@ -1121,6 +1170,7 @@ class TestBluetoothApplet:
         applet2._active_adapter_path = "/missing"
         items = applet2.get_menu_items()
         assert items[0].get_label() == "No Bluetooth adapter"
+        assert "Devices..." in [item.get_label() for item in items]
 
     def test_make_header_creates_insensitive_item(self, monkeypatch):
         self._fake_gtk(monkeypatch)
@@ -1233,7 +1283,7 @@ class TestBluetoothApplet:
         assert applet._connect_device(_device(path="/d/ok", paired=True)) is True
         assert applet._connect_device(_device(path="/d/new", paired=False)) is False
 
-    def test_select_adapter_power_toggle_and_power_async(self, monkeypatch):
+    def test_select_adapter_and_power_menu(self, monkeypatch):
         applet, backend = _make_applet(monkeypatch, _state())
         refreshed: list[str] = []
         applet._refresh_now = lambda: refreshed.append("refresh")  # type: ignore[assignment]
@@ -1252,68 +1302,29 @@ class TestBluetoothApplet:
         assert refreshed == ["refresh"]
         assert saved
 
-        calls: list[bool] = []
-        applet._set_power_async = lambda *, target: calls.append(target)  # type: ignore[assignment]
-
-        class _Check:
-            def __init__(self, active: bool):
-                self._active = active
-                self.reverted = None
-
-            def get_active(self):
-                return self._active
-
-            def set_active(self, value: bool):
-                self.reverted = value
-
-        applet._power_transition_in_progress = True
-        widget = _Check(active=False)
-        applet._on_power_toggled(widget)
-        assert widget.reverted is True
-        applet._power_transition_in_progress = False
-
-        applet._state = _state(adapters=(_adapter(powered=True),))
-        applet._on_power_toggled(_Check(active=True))
-        assert calls == []
-        applet._on_power_toggled(_Check(active=False))
-        assert calls == [False]
-
-        applet._set_power_async = (
-            bluetooth_applet_mod.BluetoothApplet._set_power_async.__get__(  # type: ignore[method-assign]
-                applet,
-                bluetooth_applet_mod.BluetoothApplet,
-            )
+        power_item = next(
+            item
+            for item in applet.get_menu_items()
+            if item.get_label() == "Turn Bluetooth Off"
         )
-
         applet._power_transition_in_progress = True
-        applet._set_power_async(target=True)
+        power_item.activate()
+        assert backend.power_calls == []
         assert applet._power_transition_in_progress is True
 
         applet._power_transition_in_progress = False
         applet._state = _state(adapters=())
-        applet._set_power_async(target=True)
+        power_item.activate()
+        assert backend.power_calls == []
         assert applet._power_transition_in_progress is False
 
         applet._state = _state(adapters=(_adapter(powered=True),))
         applet._active_adapter_path = "/org/bluez/hci0"
         monkeypatch.setattr(bluetooth_applet_mod.time, "monotonic", lambda: 10.0)
-        monkeypatch.setattr(
-            bluetooth_applet_mod.GLib,
-            "idle_add",
-            lambda func, target, ok, state: func(target, ok, state),
-        )
-
-        class _Thread:
-            def __init__(self, target, daemon=True):
-                self._target = target
-
-            def start(self):
-                self._target()
-
         applet._stop_local_discovery = lambda quiet=True: True  # type: ignore[assignment]
         applet.present = lambda: None  # type: ignore[assignment]
-        applet._set_power_async(target=False)
-        assert backend.power_calls
+        power_item.activate()
+        assert backend.power_calls == [("/org/bluez/hci0", False)]
 
     def test_power_result_discovery_toggle_and_pref_bool(self, monkeypatch):
         applet, _backend = _make_applet(monkeypatch, _state())

@@ -4,6 +4,7 @@ import importlib.util
 import logging
 import subprocess
 import sys
+from itertools import permutations
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -201,6 +202,8 @@ import sys
 from docking.applets import get_applet_catalog
 
 get_applet_catalog()
+assert "gi" not in sys.modules
+assert "docking.applets.reader_tile" not in sys.modules
 loaded = sorted(
     name
     for name in sys.modules
@@ -260,3 +263,31 @@ class TestLoadThemeIcon:
         with patch("docking.applets.base._icon_theme_candidates", return_value=()):
             pixbuf = load_theme_icon(name="nonexistent-icon-xyz", size=48)
         assert pixbuf is None
+
+
+@pytest.mark.parametrize(
+    "module_order",
+    tuple(
+        permutations(
+            (
+                "docking.ui.overlays",
+                "docking.applets.news.render",
+                "docking.applets.reddit.render",
+            )
+        )
+    ),
+)
+def test_reader_render_import_order(module_order):
+    script = """
+import importlib
+import sys
+
+import docking.applets.draw
+assert "gi" not in sys.modules
+for name in sys.argv[1:]:
+    importlib.import_module(name)
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script, *module_order], capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

@@ -31,6 +31,7 @@ from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.base import draw_icon_label
 from docking.applets.caffeine.state import CaffeineState, format_remaining, has_timer
+from docking.applets.draw import rounded_rect
 
 # RGB palettes per active/inactive state. The off cup is greyed and dimmed (via
 # _ALPHA_OFF) with no steam, so the active/inactive difference reads clearly.
@@ -42,17 +43,6 @@ _OUTLINE_ON = (0.20, 0.20, 0.24)
 _OUTLINE_OFF = (0.36, 0.37, 0.40)
 
 _ALPHA_OFF = 0.6
-
-
-def _rounded_rect(
-    cr: cairo.Context, x: float, y: float, w: float, h: float, r: float
-) -> None:
-    cr.new_sub_path()
-    cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
-    cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
-    cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
-    cr.arc(x + r, y + r, r, math.pi, 3 * math.pi / 2)
-    cr.close_path()
 
 
 def _draw_steam(cr: cairo.Context, size: int, cx: float, top: float) -> None:
@@ -100,7 +90,7 @@ def _draw_mug(cr: cairo.Context, size: int, active: bool) -> None:
     cr.restore()
 
     # Body.
-    _rounded_rect(cr, body_x, body_y, body_w, body_h, radius)
+    rounded_rect(cr=cr, x=body_x, y=body_y, width=body_w, height=body_h, radius=radius)
     cr.set_source_rgba(*ceramic, alpha)
     cr.fill_preserve()
     cr.set_line_width(line_w)

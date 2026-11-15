@@ -52,29 +52,6 @@ def local_services_command() -> list[str] | None:
     return _first_available_command(_LOCAL_SERVICES_COMMANDS)
 
 
-def open_send_files() -> bool:
-    """Launch the desktop Bluetooth file sender when available."""
-    return _open_command(cmd=send_files_command(), action="open_send_files")
-
-
-def open_devices() -> bool:
-    """Launch the desktop Bluetooth devices/settings screen when available."""
-    return _open_command(cmd=devices_command(), action="open_devices")
-
-
-def open_adapters() -> bool:
-    """Launch the desktop Bluetooth adapters/settings screen when available."""
-    return _open_command(cmd=adapters_command(), action="open_adapters")
-
-
-def open_local_services() -> bool:
-    """Launch the desktop Bluetooth local-services screen when available."""
-    return _open_command(
-        cmd=local_services_command(),
-        action="open_local_services",
-    )
-
-
 def _first_available_command(
     candidates: tuple[tuple[str, ...], ...],
 ) -> list[str] | None:

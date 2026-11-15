@@ -157,19 +157,6 @@ class _ResultEntry:
     first_seen: int
 
 
-def preserve_selected_identity(
-    selected_identity: SearchIdentity | None,
-    results: Iterable[SearchResult],
-) -> SearchIdentity | None:
-    """Keep a selected identity when present, otherwise select the first result."""
-    result_tuple = tuple(results)
-    if selected_identity is not None and any(
-        result.identity == selected_identity for result in result_tuple
-    ):
-        return selected_identity
-    return result_tuple[0].identity if result_tuple else None
-
-
 class SearchCoordinator:
     """Merge provider streams while rejecting cancelled and stale work.
 

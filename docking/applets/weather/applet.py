@@ -129,16 +129,7 @@ class WeatherApplet(Applet):
             current=self._active_index,
             direction_up=direction_up,
         )
-        self._weather = None
-        self._air_quality = None
-        self._last_updated = None
-        self._loading = False
-        self._fetch_pending = False
-        self._fetch_failed = False
-        self._fetch_error = ""
-        self._save_prefs()
-        self._fetch_async()
-        self.present()
+        self._on_city_changed()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         status: list[Gtk.MenuItem] = []
@@ -276,35 +267,20 @@ class WeatherApplet(Applet):
         for i, c in enumerate(self._cities):
             if c.lat == lat and c.lng == lng:
                 self._active_index = i
-                self._weather = None
-                self._air_quality = None
-                self._last_updated = None
-                self._loading = False
-                self._fetch_pending = False
-                self._fetch_failed = False
-                self._fetch_error = ""
-                self._save_prefs()
-                self._fetch_async()
-                self.present()
+                self._on_city_changed()
                 return
         self._cities.append(CityPref(city_display=display, lat=lat, lng=lng))
         self._active_index = len(self._cities) - 1
-        self._weather = None
-        self._air_quality = None
-        self._last_updated = None
-        self._loading = False
-        self._fetch_pending = False
-        self._fetch_failed = False
-        self._fetch_error = ""
-        self._save_prefs()
-        self._fetch_async()
-        self.present()
+        self._on_city_changed()
 
     def _remove_active_city(self) -> None:
         if len(self._cities) <= 1:
             return
         del self._cities[self._active_index]
         self._active_index = min(self._active_index, len(self._cities) - 1)
+        self._on_city_changed()
+
+    def _on_city_changed(self) -> None:
         self._weather = None
         self._air_quality = None
         self._last_updated = None

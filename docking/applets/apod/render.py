@@ -24,35 +24,15 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib
 
+from docking.applets.draw import rounded_rect
 from docking.ui.overlays import draw_warning_badge
-
-
-def _rounded_rect_path(
-    cr: cairo.Context,
-    *,
-    x: float,
-    y: float,
-    w: float,
-    h: float,
-    r: float,
-) -> None:
-    cr.new_path()
-    cr.move_to(x + r, y)
-    cr.line_to(x + w - r, y)
-    cr.arc(x + w - r, y + r, r, -math.pi / 2, 0)
-    cr.line_to(x + w, y + h - r)
-    cr.arc(x + w - r, y + h - r, r, 0, math.pi / 2)
-    cr.line_to(x + r, y + h)
-    cr.arc(x + r, y + h - r, r, math.pi / 2, math.pi)
-    cr.line_to(x, y + r)
-    cr.arc(x + r, y + r, r, math.pi, -math.pi / 2)
-    cr.close_path()
 
 
 def _draw_fallback(cr: cairo.Context, size: int) -> None:
     """Draw a starry-night placeholder when no image is available."""
     cr.save()
-    _rounded_rect_path(cr, x=0, y=0, w=size, h=size, r=size * 0.12)
+    cr.new_path()
+    rounded_rect(cr=cr, x=0, y=0, width=size, height=size, radius=size * 0.12)
     cr.clip()
 
     # Deep night gradient.
@@ -80,7 +60,8 @@ def _draw_fallback(cr: cairo.Context, size: int) -> None:
     cr.restore()
 
     # Subtle border.
-    _rounded_rect_path(cr, x=0, y=0, w=size, h=size, r=size * 0.12)
+    cr.new_path()
+    rounded_rect(cr=cr, x=0, y=0, width=size, height=size, radius=size * 0.12)
     cr.set_source_rgba(1, 1, 1, 0.15)
     cr.set_line_width(max(1.0, size * 0.02))
     cr.stroke()
@@ -157,7 +138,8 @@ def render_icon(
 
     # Clip to a rounded square and paint the image edge-to-edge, no backdrop.
     cr.save()
-    _rounded_rect_path(cr, x=0, y=0, w=size, h=size, r=size * 0.12)
+    cr.new_path()
+    rounded_rect(cr=cr, x=0, y=0, width=size, height=size, radius=size * 0.12)
     cr.clip()
     _paint_cover(cr=cr, pixbuf=pixbuf, size=size)
     cr.restore()

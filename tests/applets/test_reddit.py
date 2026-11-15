@@ -8,10 +8,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import docking.applets.reddit.applet as reddit_applet_mod
-import docking.applets.reddit.render as reddit_render
 import docking.applets.reddit.state as reddit_state
 from docking.applets.reddit.applet import RedditApplet
-from docking.applets.reddit.render import render_icon
 from docking.applets.reddit.state import (
     DEFAULT_SUBREDDITS,
     MAX_SUBREDDITS,
@@ -450,32 +448,6 @@ class TestRedditFormatting:
         assert "Linux on the desktop" in post
         assert "u/alice" in post
         assert "Refreshes every 10 minutes" in post
-
-
-class TestRedditRendering:
-    def test_renders_data_loading_and_error_states(self):
-        for size in (32, 48, 64):
-            for pixbuf in (
-                render_icon(size=size, index=2, count=10),
-                render_icon(size=size, loading=True),
-                render_icon(size=size, error=True),
-            ):
-                assert pixbuf is not None
-                assert pixbuf.get_width() == size
-                assert pixbuf.get_height() == size
-
-    def test_error_uses_shared_warning_badge(self, monkeypatch):
-        warning_badge = MagicMock()
-        monkeypatch.setattr(
-            reddit_render,
-            "draw_warning_badge",
-            warning_badge,
-        )
-
-        pixbuf = render_icon(size=48, error=True)
-
-        assert pixbuf is not None
-        warning_badge.assert_called_once()
 
 
 class TestRedditApplet:

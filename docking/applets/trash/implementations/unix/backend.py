@@ -21,6 +21,7 @@ import os
 import shutil
 import stat
 import subprocess
+from abc import abstractmethod
 from collections.abc import Callable
 from contextlib import ExitStack
 from dataclasses import dataclass
@@ -398,6 +399,37 @@ class UnixTrashWatch:
 
         return stop
 
+    @abstractmethod
+    def count_items(self) -> int:
+        raise NotImplementedError
+
+    def _empty_result(
+        self,
+        *,
+        before_count: int,
+        stats: _DeleteStats | None = None,
+    ) -> TrashEmptyResult:
+        stats = stats or _DeleteStats()
+        return TrashEmptyResult(
+            attempted=True,
+            before_count=before_count,
+            remaining_count=self.count_items(),
+            failures=stats.failures,
+            permission_denied=stats.permission_denied,
+        )
+
+    def _delete_visible_trash_contents(self) -> _DeleteStats:
+        stats = _DeleteStats()
+        for directory in _visible_trash_files_directories():
+            stats.merge(self._delete_directory_contents(directory))
+        for directory in _visible_trash_info_directories():
+            stats.merge(
+                self._delete_directory_contents(
+                    directory, preserve_for=directory.parent / "files"
+                )
+            )
+        return stats
+
     def _delete_directory_contents(
         self, directory: Path, *, preserve_for: Path | None = None
     ) -> _DeleteStats:
@@ -519,21 +551,6 @@ class GioTrashBackend(UnixTrashWatch, TrashBackend):
         stats = _coerce_delete_stats(self._delete_contents())
         return self._empty_result(before_count=before_count, stats=stats)
 
-    def _empty_result(
-        self,
-        *,
-        before_count: int,
-        stats: _DeleteStats | None = None,
-    ) -> TrashEmptyResult:
-        stats = stats or _DeleteStats()
-        return TrashEmptyResult(
-            attempted=True,
-            before_count=before_count,
-            remaining_count=self.count_items(),
-            failures=stats.failures,
-            permission_denied=stats.permission_denied,
-        )
-
     def _confirmation_preference(self) -> bool | None:
         if self.confirmation_schema is None:
             return None
@@ -625,18 +642,6 @@ class GioTrashBackend(UnixTrashWatch, TrashBackend):
         enumerator.close(None)
         return stats
 
-    def _delete_visible_trash_contents(self) -> _DeleteStats:
-        stats = _DeleteStats()
-        for directory in _visible_trash_files_directories():
-            stats.merge(self._delete_directory_contents(directory))
-        for directory in _visible_trash_info_directories():
-            stats.merge(
-                self._delete_directory_contents(
-                    directory, preserve_for=directory.parent / "files"
-                )
-            )
-        return stats
-
 
 class GnomeTrashBackend(GioTrashBackend):
     """Trash backend for GNOME/Nautilus sessions."""
@@ -723,21 +728,6 @@ class KdeTrashBackend(UnixTrashWatch, TrashBackend):
             remaining_count=before_count,
         )
 
-    def _empty_result(
-        self,
-        *,
-        before_count: int,
-        stats: _DeleteStats | None = None,
-    ) -> TrashEmptyResult:
-        stats = stats or _DeleteStats()
-        return TrashEmptyResult(
-            attempted=True,
-            before_count=before_count,
-            remaining_count=self.count_items(),
-            failures=stats.failures,
-            permission_denied=stats.permission_denied,
-        )
-
     def _confirmation_preference(self) -> bool:
         parser = _CaseSensitiveConfigParser()
         try:
@@ -782,16 +772,7 @@ class KdeTrashBackend(UnixTrashWatch, TrashBackend):
         return None
 
     def _delete_contents(self) -> _DeleteStats:
-        stats = _DeleteStats()
-        for directory in _visible_trash_files_directories():
-            stats.merge(self._delete_directory_contents(directory))
-        for directory in _visible_trash_info_directories():
-            stats.merge(
-                self._delete_directory_contents(
-                    directory, preserve_for=directory.parent / "files"
-                )
-            )
-        return stats
+        return self._delete_visible_trash_contents()
 
 
 def select_trash_backend(*, desktop: Desktop | None = None) -> TrashBackend:

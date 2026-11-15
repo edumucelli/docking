@@ -11,7 +11,6 @@ from docking.search.coordinator import (
     SearchCoordinator,
     SearchRequest,
     SearchSnapshot,
-    preserve_selected_identity,
 )
 from docking.search.types import SearchBatch, SearchIdentity, SearchQuery, SearchResult
 
@@ -431,21 +430,11 @@ class TestStableOrderingAndSelection:
             "window",
         )
 
-    def test_pure_selection_helper_preserves_identity_or_uses_first(self):
-        first = _result("apps", "a", score=20)
-        second = _result("apps", "b", score=10)
-
-        assert preserve_selected_identity(second.identity, [first, second]) == (
-            second.identity
-        )
-        assert (
-            preserve_selected_identity(
-                SearchIdentity("apps", "missing"),
-                [first, second],
-            )
-            == first.identity
-        )
-        assert preserve_selected_identity(first.identity, []) is None
+        coordinator.apply_batch(SearchBatch.replace("apps", request.generation, []))
+        coordinator.apply_batch(SearchBatch.replace("windows", request.generation, []))
+        snapshot = coordinator.snapshot()
+        assert snapshot.results == ()
+        assert snapshot.selected_identity is None
 
 
 class TestProviderErrors:

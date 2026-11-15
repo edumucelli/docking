@@ -24,7 +24,7 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf
 
-from docking.applets.draw import draw_centered_label
+from docking.applets.draw import draw_centered_label, rounded_rect
 
 
 def create_devices_icon(*, size: int, device_count: int) -> GdkPixbuf.Pixbuf | None:
@@ -40,7 +40,7 @@ def create_devices_icon(*, size: int, device_count: int) -> GdkPixbuf.Pixbuf | N
     height = size * 0.58
     radius = size * 0.09
 
-    _rounded_rect(cr=cr, x=x, y=y, width=width, height=height, radius=radius)
+    rounded_rect(cr=cr, x=x, y=y, width=width, height=height, radius=radius)
     cr.set_source_rgb(*fill)
     cr.fill_preserve()
     cr.set_source_rgba(0.92, 0.96, 1.0, 0.9)
@@ -81,20 +81,3 @@ def create_devices_icon(*, size: int, device_count: int) -> GdkPixbuf.Pixbuf | N
         )
 
     return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
-
-
-def _rounded_rect(
-    *,
-    cr: cairo.Context,
-    x: float,
-    y: float,
-    width: float,
-    height: float,
-    radius: float,
-) -> None:
-    cr.new_sub_path()
-    cr.arc(x + width - radius, y + radius, radius, -math.pi / 2, 0)
-    cr.arc(x + width - radius, y + height - radius, radius, 0, math.pi / 2)
-    cr.arc(x + radius, y + height - radius, radius, math.pi / 2, math.pi)
-    cr.arc(x + radius, y + radius, radius, math.pi, 3 * math.pi / 2)
-    cr.close_path()

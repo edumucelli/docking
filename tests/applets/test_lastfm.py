@@ -488,11 +488,20 @@ class TestRenderHelpers:
     def test_pixbuf_from_bytes_returns_none_for_garbage(self):
         assert pixbuf_from_bytes(b"not an image", 32) is None
 
-    def test_round_pixbuf_corners_preserves_dimensions(self):
-        pixbuf = render_default_icon(size=64)
+    @pytest.mark.parametrize("size", [32, 64, 128, 512])
+    def test_round_pixbuf_corners_preserves_dimensions_and_clips(self, size):
+        pixbuf = lastfm_applet_mod.GdkPixbuf.Pixbuf.new(
+            lastfm_applet_mod.GdkPixbuf.Colorspace.RGB, True, 8, size, size // 2
+        )
+        pixbuf.fill(0x336699FF)
         rounded = round_pixbuf_corners(pixbuf)
         assert rounded.get_width() == pixbuf.get_width()
         assert rounded.get_height() == pixbuf.get_height()
+        assert rounded.get_pixels()[3] < 64
+        center = size // 4 * rounded.get_rowstride() + size // 2 * 4
+        assert rounded.get_pixels()[center : center + 4] == bytes(
+            (0x33, 0x66, 0x99, 255)
+        )
 
 
 # ---------- applet integration ----------

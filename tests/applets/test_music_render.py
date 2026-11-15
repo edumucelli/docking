@@ -205,9 +205,20 @@ class TestMusicRenderInternals:
         assert pixbuf is not None
         assert default_tile_sizes == [48]
 
-    def test_rounded_rect_path_executes(self):
+    def test_rounded_rect_clamps_radius_and_preserves_path_and_style(self):
         from docking.applets.draw import rounded_rect
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 20, 20)
         cr = cairo.Context(surface)
+        cr.rectangle(15, 15, 2, 2)
+        cr.set_source_rgba(0.2, 0.4, 0.6, 0.8)
+        cr.set_line_width(3)
         rounded_rect(cr=cr, x=0, y=0, width=10, height=10, radius=100)
+
+        assert cr.path_extents() == (0, 0, 17, 17)
+        assert cr.in_fill(5, 5)
+        assert not cr.in_fill(0.5, 0.5)
+        assert cr.in_fill(16, 16)
+        assert sum(kind == cairo.PATH_CLOSE_PATH for kind, _ in cr.copy_path()) == 2
+        assert cr.get_source().get_rgba() == (0.2, 0.4, 0.6, 0.8)
+        assert cr.get_line_width() == 3
