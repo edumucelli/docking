@@ -2,12 +2,32 @@
 
 import csv
 import gzip
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
 from docking.applets.cities import load_cities, search_cities
 
 _FIELDS = ["city_ascii", "lat", "lng", "country", "population"]
+
+
+def test_city_data_and_sunrise_state_import_without_gi():
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            """
+import sys
+sys.modules["gi"] = None
+from docking.applets.cities import CityPref, cached_cities, show_city_dialog
+from docking.applets.sunrise import state
+""",
+        ],
+        cwd=Path(__file__).resolve().parents[2],
+        check=True,
+    )
 
 
 @pytest.fixture

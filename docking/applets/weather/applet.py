@@ -27,7 +27,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.city_picker import show_city_dialog
+from docking.applets.cities import show_city_dialog
 from docking.applets.freshness import cadence_label, updated_label
 from docking.applets.live_state import (
     live_state_error,

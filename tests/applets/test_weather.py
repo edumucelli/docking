@@ -9,9 +9,9 @@ import gi
 import pytest
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import GLib, Gtk
 
-import docking.applets.city_picker as city_picker_mod
+import docking.applets.cities as cities_mod
 import docking.applets.weather.applet as weather_applet_mod
 from docking.applets.sunrise.applet import SunriseApplet
 from docking.applets.weather.api import (
@@ -1005,34 +1005,16 @@ class TestWeatherDialogAndWidget:
         created_completion = _FakeWeatherCompletion()
         created_dialog = _FakeWeatherDialog()
         city = SimpleNamespace(display="Berlin, Germany", lat=52.52, lng=13.41)
-        monkeypatch.setattr(city_picker_mod, "cached_cities", lambda: [city])
-        monkeypatch.setattr(city_picker_mod, "search_cities", lambda *_a, **_k: [city])
-        monkeypatch.setattr(
-            city_picker_mod,
-            "Gtk",
-            SimpleNamespace(
-                Dialog=lambda **_kwargs: created_dialog,
-                DialogFlags=SimpleNamespace(MODAL=1, DESTROY_WITH_PARENT=2),
-                ResponseType=SimpleNamespace(CANCEL=0),
-                WindowPosition=SimpleNamespace(MOUSE=1),
-                Entry=lambda: created_entry,
-                EntryCompletion=lambda: created_completion,
-                ListStore=lambda *_types: _FakeWeatherStore(),
-                CheckMenuItem=weather_applet_mod.Gtk.CheckMenuItem,
-                MenuItem=weather_applet_mod.Gtk.MenuItem,
-                Orientation=weather_applet_mod.Gtk.Orientation,
-                Box=weather_applet_mod.Gtk.Box,
-                Image=weather_applet_mod.Gtk.Image,
-                IconSize=weather_applet_mod.Gtk.IconSize,
-                Label=weather_applet_mod.Gtk.Label,
-            ),
-        )
+        monkeypatch.setattr(cities_mod, "cached_cities", lambda: [city])
+        monkeypatch.setattr(cities_mod, "search_cities", lambda *_a, **_k: [city])
+        monkeypatch.setattr(Gtk, "Dialog", lambda **_kwargs: created_dialog)
+        monkeypatch.setattr(Gtk, "Entry", lambda: created_entry)
+        monkeypatch.setattr(Gtk, "EntryCompletion", lambda: created_completion)
+        monkeypatch.setattr(Gtk, "ListStore", lambda *_types: _FakeWeatherStore())
         add_city = MagicMock()
         monkeypatch.setattr(applet, "_add_city", add_city)
         pending = []
-        monkeypatch.setattr(
-            city_picker_mod.GLib, "idle_add", lambda fn: pending.append(fn)
-        )
+        monkeypatch.setattr(GLib, "idle_add", lambda fn: pending.append(fn))
 
         # When
         applet._show_city_dialog()

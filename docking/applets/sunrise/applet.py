@@ -26,7 +26,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import Applet
-from docking.applets.city_picker import show_city_dialog
+from docking.applets.cities import show_city_dialog
 from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
 from docking.applets.sunrise import meta
 from docking.applets.sunrise.render import render_icon

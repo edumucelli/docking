@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-11-15 01:28+0100\n"
+"POT-Creation-Date: 2026-11-15 11:58+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -115,7 +115,7 @@ msgstr ""
 
 #: docking/applets/alarm/applet.py:165
 #: docking/applets/bluetooth/implementations/windows/pairing_ui.py:73
-#: docking/applets/city_picker.py:29 docking/applets/clock/applet.py:231
+#: docking/applets/cities.py:163 docking/applets/clock/applet.py:231
 #: docking/applets/kdeconnect/applet.py:241
 #: docking/applets/lastfm/applet.py:380 docking/applets/news/applet.py:509
 #: docking/applets/plantcare/applet.py:474
@@ -987,11 +987,11 @@ msgstr ""
 msgid "{host}: unavailable"
 msgstr ""
 
-#: docking/applets/city_picker.py:25
+#: docking/applets/cities.py:159
 msgid "Search for the city"
 msgstr ""
 
-#: docking/applets/city_picker.py:39
+#: docking/applets/cities.py:173
 msgid "Type city name..."
 msgstr ""
 
