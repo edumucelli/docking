@@ -3,6 +3,8 @@
 import datetime as dt
 import json
 import sqlite3
+import subprocess
+import sys
 from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -235,6 +237,82 @@ def test_codex_registration_ignores_brackets_and_quotes_in_array_comments(
     assert parsed == expected
     codex.register_hook()
     assert path.read_text() == first
+
+
+@pytest.mark.parametrize(
+    "marker",
+    [
+        "docking.applets.aiusage.hook",
+        "docking.applets.claude.hook",
+        "/docking/applets/aiusage/hook_runner.py",
+        "/docking-hook.exe",
+    ],
+)
+def test_codex_registration_does_not_take_ownership_from_comments(
+    tmp_path, monkeypatch, marker
+):
+    source = f'notify = [\n "notify-send", # ] {marker}\n "Finished"\n]\n'
+    path = tmp_path / "config.toml"
+    path.write_text(source)
+    monkeypatch.setattr(codex, "_CODEX_CONFIG", path)
+
+    codex.register_hook()
+
+    assert path.read_text() == source
+
+
+@pytest.mark.parametrize("ending", ["", "\n"])
+def test_codex_registration_preserves_incomplete_comment_heavy_array(tmp_path, ending):
+    path = tmp_path / "config.toml"
+    source = "notify = [" + "#" * 10_000 + ending
+    path.write_text(source)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; from pathlib import Path; "
+                "from docking.applets.aiusage.backends import codex; "
+                "codex._CODEX_CONFIG = Path(sys.argv[1]); codex.register_hook()"
+            ),
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert path.read_text() == source
+
+
+def test_codex_registration_keeps_hash_characters_in_owned_arguments(
+    tmp_path, monkeypatch
+):
+    source = 'notify = ["python", "/docking/applets/aiusage/hook_runner.py#old"]\n'
+    path = tmp_path / "config.toml"
+    path.write_text(source)
+    monkeypatch.setattr(codex, "_CODEX_CONFIG", path)
+
+    codex.register_hook()
+
+    assert path.read_text() != source
+    assert "hook_runner.py#old" not in path.read_text()
+
+
+def test_codex_registration_adds_root_hook_before_nested_notify(tmp_path, monkeypatch):
+    tomllib = pytest.importorskip("tomllib")
+    source = '[profiles.work]\nnotify = ["notify-send", "Finished"]\n'
+    path = tmp_path / "config.toml"
+    path.write_text(source)
+    monkeypatch.setattr(codex, "_CODEX_CONFIG", path)
+
+    codex.register_hook()
+
+    parsed = tomllib.loads(path.read_text())
+    assert parsed["notify"][-1] == "codex"
+    assert parsed["profiles"]["work"]["notify"] == ["notify-send", "Finished"]
 
 
 def test_codex_daily_deltas_keep_model_switches_and_midnight_separate(tmp_path):

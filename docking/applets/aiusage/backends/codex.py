@@ -72,7 +72,7 @@ def register_hook() -> None:
 
     notify_match = re.search(
         r"""^[ \t]*(?:notify|"notify"|'notify')\s*=\s*\["""
-        r"""(?:#[^\n]*|"(?:\\.|[^"\\])*"|'[^']*'|[^\]"'#])*\]""",
+        r"""(?:#[^\n]*(?=\n|\Z)|"(?:\\.|[^"\\])*"|'[^']*'|[^\]"'#])*\]""",
         content,
         re.MULTILINE,
     )
@@ -81,7 +81,11 @@ def register_hook() -> None:
     ):
         notify_match = None
     if notify_match:
-        existing = notify_match.group(0)
+        existing = re.sub(
+            r""""(?:\\.|[^"\\])*"|'[^']*'|#[^\n]*""",
+            lambda match: "" if match[0].startswith("#") else match[0],
+            notify_match.group(0),
+        )
         if (
             platform_provider()
             .usage_hooks()
@@ -107,6 +111,14 @@ def register_hook() -> None:
         )
     else:
         section_match = re.search(r"^[ \t]*\[", content, re.MULTILINE)
+        root_content = content[: section_match.start()] if section_match else content
+        if re.search(
+            r"""^[ \t]*(?:notify|"notify"|'notify')\s*=""",
+            root_content,
+            re.MULTILINE,
+        ):
+            # Preserve existing assignments whose value could not be parsed.
+            return
         if section_match:
             content = (
                 content[: section_match.start()]
