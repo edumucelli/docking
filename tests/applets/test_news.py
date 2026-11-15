@@ -12,7 +12,6 @@ import pytest
 import docking.applets.http as http_mod
 import docking.applets.news.applet as news_applet_mod
 import docking.applets.news.catalog as catalog_mod
-import docking.applets.news.render as news_render
 import docking.applets.news.state as news_state
 from docking.applets.news.applet import NewsApplet
 from docking.applets.news.catalog import (
@@ -28,7 +27,6 @@ from docking.applets.news.countries import (
     country_name,
     sorted_country_codes,
 )
-from docking.applets.news.render import render_icon
 from docking.applets.news.state import (
     MAX_SOURCES,
     NEWS_USER_AGENT,
@@ -503,24 +501,6 @@ class TestFormattingAndRendering:
         assert "News - Example News - Top Stories 2/3" in article
         assert "A useful headline" in article
         assert "By Alice" in article
-
-    def test_renders_data_loading_and_error_states(self):
-        for size in (32, 48, 64):
-            for pixbuf in (
-                render_icon(size=size, index=2, count=10),
-                render_icon(size=size, loading=True),
-                render_icon(size=size, error=True),
-            ):
-                assert pixbuf is not None
-                assert pixbuf.get_width() == size
-                assert pixbuf.get_height() == size
-
-    def test_error_uses_shared_warning_badge(self, monkeypatch):
-        warning_badge = MagicMock()
-        monkeypatch.setattr(news_render, "draw_warning_badge", warning_badge)
-
-        assert render_icon(size=48, error=True) is not None
-        warning_badge.assert_called_once()
 
 
 class TestHttpLimit:

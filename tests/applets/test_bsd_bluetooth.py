@@ -6,9 +6,11 @@ import sys
 import threading
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
+from docking.applets.bluetooth.backend import BluetoothAction
 from docking.applets.bluetooth.implementations.bsd import freebsd as bsd
 from docking.platform.composition.bsd import BsdAppletBackendFactories
 
@@ -62,6 +64,20 @@ def test_controller_discovery_and_open_acl_connections(backend, monkeypatch):
 def test_missing_controller_is_unavailable(backend, monkeypatch):
     monkeypatch.setattr(bsd, "_run", lambda argv, **kwargs: None)
     assert not backend.get_state().available
+
+
+def test_desktop_actions_use_unix_dispatch(backend, monkeypatch):
+    monkeypatch.setattr(
+        bsd.unix_desktop.shutil,
+        "which",
+        lambda cmd: "/usr/bin/blueman-manager" if cmd == "blueman-manager" else None,
+    )
+    launch = MagicMock()
+    monkeypatch.setattr(bsd.unix_desktop.subprocess, "Popen", launch)
+
+    assert backend.desktop_actions() == (BluetoothAction.DEVICES,)
+    assert backend.open_desktop_action(BluetoothAction.DEVICES) is True
+    launch.assert_called_once_with(["blueman-manager"], start_new_session=True)
 
 
 def test_factory_selects_bsd_without_importing_bluez(monkeypatch):

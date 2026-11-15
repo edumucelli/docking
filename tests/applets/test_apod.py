@@ -593,27 +593,55 @@ class TestRenderPixbuf:
         pb = render_icon(size=48, cached_path="")
         assert pb is not None
 
-    def test_renders_real_pixbuf_cover_path(self, monkeypatch):
+    @pytest.mark.parametrize("size", [32, 64, 128, 512])
+    @pytest.mark.parametrize("cached", [False, True])
+    @pytest.mark.parametrize("warning", [False, True])
+    def test_renders_rounded_fallback_and_cover(
+        self, monkeypatch, size, cached, warning
+    ):
         import docking.applets.apod.render as render_mod
 
         pixbuf = render_mod.GdkPixbuf.Pixbuf.new(
             render_mod.GdkPixbuf.Colorspace.RGB,
             True,
             8,
-            48,
-            48,
+            size,
+            size,
         )
         pixbuf.fill(0x336699FF)
         monkeypatch.setattr(render_mod, "_load_cover_pixbuf", lambda **_kwargs: pixbuf)
 
         pb = render_mod.render_icon(
-            size=48,
-            cached_path="/tmp/image.png",
-            warning=True,
+            size=size,
+            cached_path="/tmp/image.png" if cached else "",
+            warning=warning,
         )
 
         assert pb is not None
-        assert pb.get_width() == 48
+        assert pb.get_width() == size
+        assert pb.get_pixels()[3] < 16
+        center = size // 2 * pb.get_rowstride() + size // 2 * pb.get_n_channels()
+        assert pb.get_pixels()[center + 3] == 255
+
+    def test_fallback_discards_pending_clip_and_border_paths(self):
+        import cairo
+
+        from docking.applets.apod.render import _draw_fallback
+
+        class PendingPathContext(cairo.Context):
+            def clip(self):
+                super().clip()
+                assert self.clip_extents() == (0, 0, 32, 32)
+
+            def restore(self):
+                super().restore()
+                self.rectangle(40, 40, 4, 4)
+
+        surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 64, 64)
+        cr = PendingPathContext(surface)
+        cr.rectangle(40, 40, 4, 4)
+        _draw_fallback(cr=cr, size=32)
+        assert surface.get_data()[42 * surface.get_stride() + 40 * 4 + 3] == 0
 
     def test_load_cover_pixbuf_fallback_edges(self, monkeypatch, tmp_path):
         import docking.applets.apod.render as render_mod

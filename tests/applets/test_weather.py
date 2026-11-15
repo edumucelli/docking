@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
@@ -33,6 +34,7 @@ from docking.applets.weather.state import (
     prefs_payload,
 )
 from docking.core.config import Config
+from tests.applets.deferred_worker import DeferredWorker
 from tests.applets.inline_worker import ImmediateWorker
 
 _SAMPLE_WEATHER = WeatherData(
@@ -69,6 +71,15 @@ class _PendingWorker:
 def _make_applet(icon_size: int = 48, *, config: Config | None = None) -> WeatherApplet:
     with patch("docking.applets.weather.applet.BackgroundWorker", _ImmediateWorker):
         return WeatherApplet(icon_size, config=config or Config())
+
+
+@pytest.fixture
+def weather_providers(monkeypatch):
+    weather = MagicMock(return_value=_SAMPLE_WEATHER)
+    aqi = MagicMock(return_value=_SAMPLE_AQI)
+    monkeypatch.setattr(weather_applet_mod, "fetch_weather", weather)
+    monkeypatch.setattr(weather_applet_mod, "fetch_air_quality", aqi)
+    return weather, aqi
 
 
 # -- State-level tests -------------------------------------------------------
@@ -441,6 +452,7 @@ class TestWeatherPrefs:
         assert applet._active_index == 1
         assert applet._temperature_unit == TemperatureUnit.FAHRENHEIT
 
+    @pytest.mark.usefixtures("weather_providers")
     def test_saves_prefs_on_add_city(self, tmp_path):
         path = tmp_path / "dock.json"
         config = Config()
@@ -498,30 +510,6 @@ class TestWeatherAsyncFetch:
         # outlive the request that set it.
         assert applet._loading is False
         refresh.assert_called_once()
-
-    def test_replaced_fetch_settles_and_starts_the_queued_refresh(self):
-        """Switching city mid-fetch must not wedge the applet on "Loading...".
-
-        The new fetch is only queued, so the replaced reply is the one that has
-        to clear the flag; discarding it without settling left it set, and every
-        later attempt returned early on it.
-        """
-        applet = _make_applet()
-        worker = _PendingWorker()
-        applet._worker = worker
-        applet._cities = [_BERLIN]
-        applet._active_index = 0
-        applet._fetch_request_id = 2
-        applet._loading = True
-        applet._fetch_pending = True
-
-        result = applet._on_fetch_result(1, _SAMPLE_WEATHER, _SAMPLE_AQI)
-
-        assert result is False
-        assert applet._fetch_pending is False
-        assert applet._fetch_request_id == 3
-        assert worker.calls[0]["name"] == "weather-fetch"
-        assert applet._loading is True  # the queued fetch is now in flight
 
     def test_replaced_fetch_error_also_settles(self):
         applet = _make_applet()
@@ -777,7 +765,216 @@ class TestWeatherLifecycleAndInteractions:
         assert applet._startup_fetch_timer_id == 0
 
 
+_CITY_CHANGES = [
+    pytest.param(lambda a: a.on_scroll(False), _TOKYO, id="scroll-forward"),
+    pytest.param(lambda a: a.on_scroll(True), _LONDON, id="scroll-backward-wrap"),
+    pytest.param(
+        lambda a: a._add_city("Tokyo alias", _TOKYO.lat, _TOKYO.lng),
+        _TOKYO,
+        id="select-existing",
+    ),
+    pytest.param(
+        lambda a: a._add_city("Berlin alias", _BERLIN.lat, _BERLIN.lng),
+        _BERLIN,
+        id="select-active",
+    ),
+    pytest.param(
+        lambda a: a._add_city("Paris", 48.85, 2.35),
+        CityPref("Paris", 48.85, 2.35),
+        id="add-new",
+    ),
+    pytest.param(lambda a: a._remove_active_city(), _TOKYO, id="remove"),
+]
+
+
+@pytest.mark.usefixtures("weather_providers")
 class TestMultiCity:
+    @pytest.mark.parametrize(("change", "selected"), _CITY_CHANGES)
+    def test_city_change_resets_before_save_fetch_present(
+        self, monkeypatch, tmp_path, change, selected
+    ):
+        config = Config.load(tmp_path / "dock.json")
+        config.applet_prefs["weather"] = {"retained": "value"}
+        applet = _make_applet(config=config)
+        applet._cities = [_BERLIN, _TOKYO, _LONDON]
+        applet._show_temperature = False
+        applet._temperature_unit = TemperatureUnit.FAHRENHEIT
+        applet._weather = _SAMPLE_WEATHER
+        applet._air_quality = _SAMPLE_AQI
+        applet._last_updated = dt.datetime.now(dt.timezone.utc)
+        applet._loading = applet._fetch_pending = applet._fetch_failed = True
+        applet._fetch_error = "old error"
+        calls = []
+        save = applet._save_prefs
+
+        def check_and_save():
+            assert applet._active_city == selected
+            assert (
+                applet._weather is applet._air_quality is applet._last_updated is None
+            )
+            assert not applet._loading
+            assert not applet._fetch_pending
+            assert not applet._fetch_failed
+            assert applet._fetch_error == ""
+            calls.append("save")
+            save()
+
+        monkeypatch.setattr(applet, "_save_prefs", check_and_save)
+        monkeypatch.setattr(applet, "_fetch_async", lambda: calls.append("fetch"))
+        monkeypatch.setattr(applet, "present", lambda: calls.append("present"))
+
+        change(applet)
+
+        assert calls == ["save", "fetch", "present"]
+        saved = Config.load(config._path).applet_prefs["weather"]
+        assert saved["retained"] == "value"
+        prefs = prefs_from_mapping(saved)
+        assert prefs.cities[prefs.active_index] == selected
+        assert not prefs.show_temperature
+        assert prefs.temperature_unit == TemperatureUnit.FAHRENHEIT
+
+    @pytest.mark.parametrize("cities", [[], [_BERLIN]])
+    @pytest.mark.parametrize(
+        "change", [lambda a: a.on_scroll(False), lambda a: a._remove_active_city()]
+    )
+    def test_city_cardinality_noops_have_no_side_effects(
+        self, monkeypatch, cities, change
+    ):
+        applet = _make_applet()
+        applet._cities = cities.copy()
+        save, fetch, present = MagicMock(), MagicMock(), MagicMock()
+        monkeypatch.setattr(applet, "_save_prefs", save)
+        monkeypatch.setattr(applet, "_fetch_async", fetch)
+        monkeypatch.setattr(applet, "present", present)
+
+        change(applet)
+
+        assert applet._cities == cities
+        assert applet._active_index == 0
+        save.assert_not_called()
+        fetch.assert_not_called()
+        present.assert_not_called()
+
+    def test_duplicate_coordinates_select_first_saved_label(self):
+        applet = _make_applet()
+        cities = [_BERLIN, CityPref("Berlin alias", _BERLIN.lat, _BERLIN.lng), _TOKYO]
+        applet._cities = cities.copy()
+        applet._active_index = 2
+
+        applet._add_city("New spelling", _BERLIN.lat, _BERLIN.lng)
+
+        assert applet._cities == cities
+        assert applet._active_index == 0
+
+    @pytest.mark.parametrize(("change", "selected"), _CITY_CHANGES)
+    @pytest.mark.parametrize(
+        "obsolete", [_SAMPLE_WEATHER, None, OSError("old failure")]
+    )
+    def test_city_change_replaces_guarded_fetch(
+        self, weather_providers, change, selected, obsolete
+    ):
+        weather, _aqi = weather_providers
+        weather.side_effect = [obsolete, _SAMPLE_WEATHER]
+        applet = _make_applet()
+        applet._cities = [_BERLIN, _TOKYO, _LONDON]
+        queue = DeferredWorker()
+        applet._worker = queue.worker
+        applet._fetch_async()
+        initial_request = applet._fetch_request_id
+
+        change(applet)
+
+        assert applet._active_city == selected
+        assert applet._fetch_request_id > initial_request
+        replaced_request = applet._fetch_request_id
+        assert applet._loading and applet._fetch_pending
+        assert len(queue.tasks) == 1  # The production guard refused the replacement.
+        queue.read()
+        queue.publish()
+        assert applet._weather is applet._air_quality is applet._last_updated is None
+        assert not applet._fetch_failed and applet._fetch_error == ""
+        assert applet._fetch_request_id > replaced_request
+        assert len(queue.tasks) == 1
+        assert applet._loading and not applet._fetch_pending
+
+        queue.drain()
+
+        assert weather.call_args_list == [
+            call(lat=_BERLIN.lat, lng=_BERLIN.lng),
+            call(lat=selected.lat, lng=selected.lng),
+        ]
+        assert applet._weather == _SAMPLE_WEATHER
+        assert applet._air_quality == _SAMPLE_AQI
+        assert applet._last_updated is not None
+        assert not applet._loading and not applet._fetch_pending
+        assert not applet._fetch_failed and applet._fetch_error == ""
+
+    @pytest.mark.parametrize(("change", "selected"), _CITY_CHANGES)
+    def test_city_change_cancels_startup_fetch(self, monkeypatch, change, selected):
+        applet = _make_applet()
+        applet._cities = [_BERLIN, _TOKYO, _LONDON]
+        queue = DeferredWorker()
+        applet._worker = queue.worker
+        timers = iter([90, 91])
+        monkeypatch.setattr(
+            weather_applet_mod.GLib, "timeout_add_seconds", lambda *_args: next(timers)
+        )
+        remove = MagicMock()
+        monkeypatch.setattr(weather_applet_mod.GLib, "source_remove", remove)
+        applet.start(lambda: None)
+        try:
+            change(applet)
+
+            assert applet._active_city == selected
+            assert applet._startup_fetch_timer_id == 0
+            remove.assert_called_once_with(91)
+            assert len(queue.tasks) == 1
+        finally:
+            applet.stop()
+        assert remove.call_args_list == [call(91), call(90)]
+
+    @pytest.mark.parametrize("stop_before_publish", [False, True])
+    def test_rapid_city_changes_fetch_only_latest_and_respect_stop(
+        self, monkeypatch, weather_providers, stop_before_publish
+    ):
+        weather, _aqi = weather_providers
+        applet = _make_applet()
+        applet._cities = [_BERLIN, _TOKYO, _LONDON]
+        queue = DeferredWorker()
+        applet._worker = queue.worker
+        applet._fetch_async()
+        applet.on_scroll(False)
+        applet._remove_active_city()
+        applet._add_city("Berlin alias", _BERLIN.lat, _BERLIN.lng)
+        applet.on_scroll(False)
+        assert applet._active_city == _LONDON
+        assert len(queue.tasks) == 1
+        queue.read()
+        queue.publish()
+        assert len(queue.tasks) == 1
+        queue.read()
+        if stop_before_publish:
+            applet.stop()
+        present = MagicMock()
+        monkeypatch.setattr(applet, "present", present)
+
+        queue.publish()
+
+        assert weather.call_args_list == [
+            call(lat=_BERLIN.lat, lng=_BERLIN.lng),
+            call(lat=_LONDON.lat, lng=_LONDON.lng),
+        ]
+        assert not queue.tasks and not queue.idles
+        assert not applet._loading and not applet._fetch_pending
+        if stop_before_publish:
+            assert (
+                applet._weather is applet._air_quality is applet._last_updated is None
+            )
+            present.assert_not_called()
+        else:
+            assert applet._weather == _SAMPLE_WEATHER
+            present.assert_called_once()
+
     def test_add_city(self):
         applet = _make_applet()
         applet.present = MagicMock()

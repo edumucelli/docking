@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-11-15 12:40+0100\n"
+"POT-Creation-Date: 2026-11-15 19:15+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -330,7 +330,7 @@ msgstr ""
 #: docking/applets/lastfm/applet.py:173 docking/applets/news/applet.py:276
 #: docking/applets/reddit/applet.py:198 docking/applets/speedtest/applet.py:114
 #: docking/applets/thermals/applet.py:156 docking/applets/tooltip.py:46
-#: docking/applets/weather/applet.py:175 docking/applets/weather/applet.py:519
+#: docking/applets/weather/applet.py:166 docking/applets/weather/applet.py:495
 #, python-brace-format
 msgid "Error: {msg}"
 msgstr ""
@@ -357,7 +357,7 @@ msgstr ""
 #: docking/applets/systemtray/applet.py:218
 #: docking/applets/thermals/applet.py:166
 #: docking/applets/todayinhistory/applet.py:107
-#: docking/applets/trivia/applet.py:128 docking/applets/weather/applet.py:182
+#: docking/applets/trivia/applet.py:128 docking/applets/weather/applet.py:173
 msgid "Refresh Now"
 msgstr ""
 
@@ -3534,7 +3534,7 @@ msgstr ""
 msgid "Label Mode"
 msgstr ""
 
-#: docking/applets/sunrise/applet.py:137 docking/applets/weather/applet.py:209
+#: docking/applets/sunrise/applet.py:137 docking/applets/weather/applet.py:200
 #, python-brace-format
 msgid "Remove {city}"
 msgstr ""
@@ -3654,7 +3654,7 @@ msgid "Show Disk Usage"
 msgstr ""
 
 #: docking/applets/systemmonitor/applet.py:114
-#: docking/applets/thermals/applet.py:171 docking/applets/weather/applet.py:193
+#: docking/applets/thermals/applet.py:171 docking/applets/weather/applet.py:184
 msgid "Temperature Unit"
 msgstr ""
 
@@ -4155,30 +4155,30 @@ msgstr ""
 msgid "Weather"
 msgstr ""
 
-#: docking/applets/weather/applet.py:186
+#: docking/applets/weather/applet.py:177
 msgid "Show Temperature"
 msgstr ""
 
-#: docking/applets/weather/applet.py:391
+#: docking/applets/weather/applet.py:367
 msgid "No weather data"
 msgstr ""
 
-#: docking/applets/weather/applet.py:467 docking/applets/weather/state.py:207
+#: docking/applets/weather/applet.py:443 docking/applets/weather/state.py:207
 #, python-brace-format
 msgid "{temp}, {desc}"
 msgstr ""
 
-#: docking/applets/weather/applet.py:480 docking/applets/weather/state.py:193
+#: docking/applets/weather/applet.py:456 docking/applets/weather/state.py:193
 #, python-brace-format
 msgid "Air: {label}"
 msgstr ""
 
-#: docking/applets/weather/applet.py:486 docking/applets/weather/state.py:196
+#: docking/applets/weather/applet.py:462 docking/applets/weather/state.py:196
 #, python-brace-format
 msgid "UV Index: {value}"
 msgstr ""
 
-#: docking/applets/weather/applet.py:500
+#: docking/applets/weather/applet.py:476
 #, python-brace-format
 msgid "{date}: {temp_range}"
 msgstr ""

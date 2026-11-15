@@ -7,6 +7,21 @@ import pytest
 from docking.applets.trash.implementations.unix import backend
 
 
+def test_shared_trash_operations_require_a_counter():
+    class MissingCounter(backend.UnixTrashWatch, backend.TrashBackend):
+        name = "incomplete"
+        uri = "trash:///"
+
+        def open(self):
+            pass
+
+        def empty(self, confirm):
+            raise AssertionError("not called")
+
+    with pytest.raises(TypeError, match="count_items"):
+        MissingCounter()
+
+
 @pytest.mark.parametrize("factory", [backend.MateTrashBackend, backend.KdeTrashBackend])
 @pytest.mark.parametrize("swap", ["child", "root"])
 def test_directory_swap_during_deletion_never_follows_symlink(
@@ -48,6 +63,88 @@ def trash_environment(tmp_path, monkeypatch):
     mount.mkdir()
     monkeypatch.setattr(backend, "_mount_points", lambda: (mount,))
     return mount
+
+
+@pytest.mark.parametrize("factory", [backend.MateTrashBackend, backend.KdeTrashBackend])
+@pytest.mark.parametrize(
+    "host_succeeds,stats,failures,permission_denied",
+    [
+        (True, None, 0, False),
+        (False, None, 0, False),
+        (False, backend._DeleteStats(failures=2), 2, False),
+        (False, backend._DeleteStats(failures=3, permission_denied=True), 3, True),
+    ],
+)
+def test_empty_result_recounts_after_deletion(
+    tmp_path,
+    trash_environment,
+    monkeypatch,
+    factory,
+    host_succeeds,
+    stats,
+    failures,
+    permission_denied,
+):
+    files = tmp_path / "data" / "Trash" / "files"
+    files.mkdir(parents=True)
+    deleted = files / "deleted.txt"
+    deleted.touch()
+    (files / "remaining.txt").touch()
+    selected = factory()
+    monkeypatch.setattr(selected, "_confirmation_preference", lambda: False)
+
+    def empty_host():
+        if host_succeeds:
+            deleted.unlink()
+        return host_succeeds
+
+    def delete_contents():
+        deleted.unlink()
+        return stats
+
+    monkeypatch.setattr(backend, "_empty_host_trash", empty_host)
+    monkeypatch.setattr(selected, "_delete_contents", delete_contents)
+
+    result = selected.empty(lambda: pytest.fail("confirmation is disabled"))
+
+    assert result.before_count == 2
+    assert result.remaining_count == 1
+    assert result.attempted is True
+    assert result.delegated is False
+    assert result.failures == failures
+    assert result.permission_denied is permission_denied
+
+
+@pytest.mark.parametrize("factory", [backend.MateTrashBackend, backend.KdeTrashBackend])
+def test_empty_attempts_all_files_before_restore_metadata(
+    tmp_path, trash_environment, monkeypatch, factory
+):
+    home = tmp_path / "data" / "Trash"
+    volume = trash_environment / f".Trash-{os.getuid()}"
+    for root, name in ((home, "home.txt"), (volume, "volume.txt")):
+        (root / "files").mkdir(parents=True)
+        root.chmod(0o700)
+        (root / "info").mkdir()
+        (root / "files" / name).touch()
+        (root / "info" / f"{name}.trashinfo").write_text("[Trash Info]")
+    attempts = []
+    delete_entry = backend._delete_entry
+
+    def record_delete(parent_fd, name):
+        attempts.append(name)
+        return delete_entry(parent_fd, name)
+
+    monkeypatch.setattr(backend, "_delete_entry", record_delete)
+
+    result = factory()._delete_contents()
+
+    assert result.failures == 0
+    assert attempts == [
+        "home.txt",
+        "volume.txt",
+        "home.txt.trashinfo",
+        "volume.txt.trashinfo",
+    ]
 
 
 @pytest.mark.parametrize("factory", [backend.MateTrashBackend, backend.KdeTrashBackend])

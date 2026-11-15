@@ -15,14 +15,14 @@
 
 from __future__ import annotations
 
-import math
-
 import cairo
 import gi
 
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib
+
+from docking.applets.draw import rounded_rect
 
 # Last.fm's brand red is too saturated as a background; a deeper variant reads
 # better next to icon-themed art.
@@ -42,12 +42,12 @@ def render_default_icon(size: int) -> GdkPixbuf.Pixbuf | None:
     grad = cairo.LinearGradient(0, pad, 0, size - pad)
     grad.add_color_stop_rgb(0, *_LASTFM_RED)
     grad.add_color_stop_rgb(1, *_LASTFM_RED_DARK)
-    _rounded_rect(
+    rounded_rect(
         cr=cr,
         x=pad,
         y=pad,
-        w=size - 2 * pad,
-        h=size - 2 * pad,
+        width=size - 2 * pad,
+        height=size - 2 * pad,
         radius=radius,
     )
     cr.set_source(grad)
@@ -97,19 +97,8 @@ def round_pixbuf_corners(pixbuf: GdkPixbuf.Pixbuf) -> GdkPixbuf.Pixbuf:
 
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, width, height)
     cr = cairo.Context(surface)
-    _rounded_rect(cr=cr, x=0, y=0, w=width, h=height, radius=radius)
+    rounded_rect(cr=cr, x=0, y=0, width=width, height=height, radius=radius)
     cr.clip()
     Gdk.cairo_set_source_pixbuf(cr, pixbuf, 0, 0)
     cr.paint()
     return Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height) or pixbuf
-
-
-def _rounded_rect(
-    *, cr: cairo.Context, x: float, y: float, w: float, h: float, radius: float
-) -> None:
-    cr.new_sub_path()
-    cr.arc(x + w - radius, y + radius, radius, -math.pi / 2, 0)
-    cr.arc(x + w - radius, y + h - radius, radius, 0, math.pi / 2)
-    cr.arc(x + radius, y + h - radius, radius, math.pi / 2, math.pi)
-    cr.arc(x + radius, y + radius, radius, math.pi, 3 * math.pi / 2)
-    cr.close_path()

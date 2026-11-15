@@ -690,20 +690,6 @@ class BluetoothApplet(PlatformServicesApplet):
         else:
             self._refresh_now()
 
-    def _on_power_toggled(self, widget: Gtk.CheckMenuItem) -> None:
-        adapter = self._active_adapter()
-        if adapter is None:
-            return
-        if self._power_transition_in_progress:
-            # Revert the toggle while transition is in progress so the menu state
-            # remains aligned with the backend's current state.
-            widget.set_active(bool(adapter.powered))
-            return
-        target = widget.get_active()
-        if target == adapter.powered:
-            return
-        self._set_power_async(target=target)
-
     def _set_power_async(self, *, target: bool, adapter_path: str = "") -> None:
         if self._power_transition_in_progress or not self._backend.capabilities.power:
             return
