@@ -73,6 +73,33 @@ def _make_controller(window):
     )
 
 
+@pytest.mark.parametrize("position", list(Position))
+def test_quiet_placement_clears_reservations_and_barriers_and_restores_top(position):
+    geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+    monitor = _fake_monitor(geometry=geom, workarea=geom)
+    display = SimpleNamespace(
+        get_n_monitors=lambda: 1,
+        get_primary_monitor=lambda: monitor,
+        get_monitor=lambda _index: monitor,
+    )
+    window = _make_window(get_display=lambda: display)
+    window.config.pos = position
+    controller = _make_controller(window)
+    controller.set_struts()
+    window.config.hide_mode = "quiet"
+    controller.position_dock()
+    controller.update_struts()
+    request = window.surface_service.position_or_anchor.call_args.args[0]
+    assert not request.keep_above
+    window.surface_service.clear_reservation.assert_called_once_with()
+    assert not window.surface_service.update_pointer_barrier.call_args.kwargs["enabled"]
+    window.config.hide_mode = "none"
+    controller.position_dock()
+    controller.update_struts()
+    assert window.surface_service.position_or_anchor.call_args.args[0].keep_above
+    assert window.surface_service.set_reservation.call_count == 2
+
+
 def _fake_monitor(
     *,
     geometry,

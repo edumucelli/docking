@@ -291,7 +291,7 @@ class TestAutoHideTimersAndDelays:
         assert pending == {}
         assert ctrl.state == HideState.HIDDEN
 
-    @pytest.mark.parametrize("mode", ["none", "always-on-top"])
+    @pytest.mark.parametrize("mode", ["none", "always-on-top", "quiet"])
     def test_window_hide_request_cannot_hide_disabled_dock(self, monkeypatch, mode):
         ctrl = self._make_controller()
         ctrl._config.hide_mode = mode
@@ -302,6 +302,23 @@ class TestAutoHideTimersAndDelays:
 
         schedule.assert_not_called()
         assert ctrl.state == HideState.VISIBLE
+
+    def test_quiet_mode_ignores_hover_and_pending_hide_inputs(self, monkeypatch):
+        ctrl = self._make_controller(hide_delay=120, unhide_delay=120)
+        schedule = MagicMock()
+        monkeypatch.setattr(autohide_mod.GLib, "timeout_add", schedule)
+        ctrl._config.hide_mode = "quiet"
+        ctrl.reset()
+        ctrl.on_mouse_enter()
+        ctrl.on_mouse_leave()
+        ctrl.set_disabled(True)
+        ctrl.set_window_should_hide(True)
+        ctrl.reconcile()
+        ctrl.toggle_shortcut()
+        assert not ctrl.enabled
+        assert ctrl.state == HideState.VISIBLE
+        assert ctrl.hide_offset == 0
+        schedule.assert_not_called()
 
     def _make_controller(self, hide_delay=0, unhide_delay=0):
         window = MagicMock()

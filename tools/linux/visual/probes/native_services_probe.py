@@ -11,6 +11,16 @@ import traceback
 import types
 from pathlib import Path
 
+# Choose Cinnamon's dock transport before importing GTK, as the launcher does.
+if (
+    __name__ == "__main__"
+    and "--fixture" not in sys.argv
+    and "--capture-x11" not in sys.argv
+):
+    from docking.launcher import prepare_display
+
+    prepare_display()
+
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -145,6 +155,9 @@ class Probe:
 
     async def run(self):
         assert self.backend.name == os.environ["LAB_EXPECTED_BACKEND"]
+        if os.environ.get("LAB_SERVICE_MODE") == "quiet":
+            await self.check_quiet()
+            return
         if self.position == "idle":
             assert self.backend.capabilities.supports_idle_time
             assert self.backend.idle is not None
@@ -348,6 +361,71 @@ class Probe:
         )
         print(json.dumps(result), flush=True)
 
+    async def check_quiet(self):
+        if self.backend.name == "gnome-shell-bridge":
+            # GNOME starts in Overview. Activate an owned client to leave it.
+            self.child = subprocess.Popen([sys.executable, __file__, "--fixture"])
+            await self.wait(
+                lambda: any(
+                    row.title == "Native backend fixture"
+                    for row in self.backend.windows.list_all_windows()
+                ),
+                "Overview fixture did not map",
+            )
+            row = next(
+                row for row in self.backend.windows.list_all_windows()
+                if row.title == "Native backend fixture"
+            )
+            assert self.backend.windows.activate(row.id).succeeded
+            await self.settle(0.5)
+            self.child.terminate()
+            await self.wait(lambda: self.child.poll() is not None, "Fixture did not exit")
+        await self.settle(0.5)
+        initial = await self.capture("quiet-uncovered")
+        points = dock_marker_points(
+            initial, (0, 0, initial.get_width(), initial.get_height())
+        )
+        assert len(points) >= 32, "Quiet dock is not visible above the desktop"
+        self.child = subprocess.Popen([sys.executable, __file__, "--fixture"])
+        await self.settle(1)
+        bounds = next(
+            (row.geometry for row in self.backend.windows.list_all_windows()
+             if row.title == "Native backend fixture" and row.geometry is not None),
+            None,
+        )
+        if bounds is not None:
+            points = {
+                (x, y) for x, y in points
+                if bounds.x <= x < bounds.right and bounds.y <= y < bounds.bottom
+            }
+        assert len(points) >= 32, "Fixture does not cover the dock marker"
+        for mode, visible in (
+            ("quiet", False), ("always-on-top", True), ("quiet", False)
+        ):
+            self.window.config.hide_mode = mode
+            self.window.on_hide_mode_changed()
+            self.window.autohide.on_mouse_enter()
+            self.window.autohide.on_mouse_leave()
+            await self.settle(0.6)
+            image = await self.capture(f"stacking-{mode}")
+            expected = (0, 0, 255) if visible else (255, 0, 0)
+            count = sum(self.pixel(image, point) == expected for point in points)
+            assert count >= len(points) * 0.98, (mode, count, len(points))
+            assert self.window.autohide.hide_offset == 0
+        self.child.terminate()
+        await self.wait(lambda: self.child.poll() is not None, "Fixture did not exit")
+        await self.settle(0.5)
+        restored = await self.capture("quiet-restored")
+        count = sum(self.pixel(restored, point) == (0, 0, 255) for point in points)
+        assert count >= len(points) * 0.98, "Quiet dock stayed behind the desktop"
+        result = {
+            "backend": self.backend.name,
+            "position": self.position,
+            "quiet_pixels": True,
+        }
+        (self.evidence / f"{self.position}-result.json").write_text(json.dumps(result))
+        print(json.dumps(result), flush=True)
+
     async def check_workspace(self, fixture_window):
         workspaces = self.backend.workspaces
         assert workspaces is not None
@@ -421,9 +499,6 @@ def main():
             sys.argv[2], "png", [], []
         )
         return
-    from docking.launcher import prepare_display
-
-    prepare_display()
     from docking import app
     from docking.core.config import Config, PinnedEntry
 

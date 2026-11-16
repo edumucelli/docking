@@ -61,6 +61,13 @@ bash tools/linux/visual/matrix.sh --compositor wayfire --case dodge-active --geo
 
 # GNOME's expected unsupported placement still checks real app lifecycle.
 bash tools/linux/visual/matrix.sh --compositor gnome --case placement-bottom --geometry-only
+
+# Quiet-mode pixels must stay below a real client, return when it closes, and
+# switch back above it when Always on Top is selected, on all four edges.
+bash tools/linux/visual/native_services.sh sway quiet
+bash tools/linux/visual/native_services.sh gnome quiet
+bash tools/linux/visual/native_services.sh cinnamon quiet
+bash tools/linux/visual/native_services.sh cinnamon quiet-x11
 ```
 
 Layouts include a 360-pixel output, 32 launchers, scale 2, mixed output scales,

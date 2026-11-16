@@ -446,6 +446,7 @@ class SettingsWindowController:
         for mode_value, mode_label in [
             ("none", _("Don't Hide")),
             ("always-on-top", _("Always on Top")),
+            ("quiet", _("Quiet (Below Windows)")),
             ("autohide", _("Auto-hide")),
             ("shortcut-only", _("Show Only with Shortcut")),
             ("intelligent", _("Intelligent")),
@@ -1980,6 +1981,11 @@ class SettingsWindowController:
             "Always visible and floats above all windows"
             " without reserving screen space."
         ),
+        "quiet": _(
+            "Stays above the desktop and below application windows, without "
+            "reserving screen space. Uncover the dock to use it; hovering "
+            "does not bring it forward."
+        ),
         "autohide": _("Hides when the mouse cursor leaves the dock."),
         "shortcut-only": _(
             "Shows only with its shortcut, then hides after the pointer enters "
@@ -2042,6 +2048,7 @@ class SettingsWindowController:
         hide_controls_sensitive = self._config.hide_mode not in (
             "none",
             "always-on-top",
+            "quiet",
         )
         if self._hide_delay_spin is not None:
             self._hide_delay_spin.set_sensitive(hide_controls_sensitive)
@@ -2055,7 +2062,8 @@ class SettingsWindowController:
             )
         if self._pressure_reveal_switch is not None:
             self._pressure_reveal_switch.set_sensitive(
-                not (
+                self._config.hide_mode != "quiet"
+                and not (
                     self._config.hide_mode == "shortcut-only"
                     and self._actions.dock_shortcut_active()
                 )
@@ -2063,6 +2071,7 @@ class SettingsWindowController:
         if self._pressure_threshold_scale is not None:
             self._pressure_threshold_scale.set_sensitive(
                 bool(self._config.pressure_reveal_enabled)
+                and self._config.hide_mode != "quiet"
                 and not (
                     self._config.hide_mode == "shortcut-only"
                     and self._actions.dock_shortcut_active()

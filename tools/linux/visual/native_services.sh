@@ -75,10 +75,30 @@ if [ "$compositor" = niri ] && [ "$LAB_SERVICE_MODE" != picker ]; then
 fi
 adapter_start
 adapter_wait_ready
+if [ "$compositor" = cinnamon ]; then
+    export LAB_EXPECTED_BACKEND="$(adapter_capabilities | jq -r .expected_backend)"
+    export LAB_CAPTURE_MODE=x11
+fi
 export PYTHONPATH="$(docking_source_pythonpath)"
+if [ "$LAB_SERVICE_MODE" = quiet-x11 ]; then
+    # Native Wayland panels publish no X11 struts; isolate the X11 stacking check.
+    /usr/bin/python3 - <<'PY'
+from docking.platform.backends.cinnamon.shell import CinnamonShellClient
+client = CinnamonShellClient.connect()
+assert client is not None
+assert client.evaluate("(() => {const panels = imports.ui.main.panelManager.panels.filter(Boolean); "
+                       "for (const panel of panels) panel.actor.hide(); "
+                       "return panels.every(panel => !panel.actor.visible);})()") is True
+PY
+    export DOCKING_BACKEND=x11 GDK_BACKEND=x11 LAB_EXPECTED_BACKEND=x11
+    export LAB_SERVICE_MODE=quiet
+fi
 positions="bottom top left right"
 probe=native_services_probe.py
 limit=40
+if [ "$LAB_SERVICE_MODE" = quiet ]; then
+    export LAB_PROBE_HIDE_MODE=quiet
+fi
 [ "$LAB_SERVICE_MODE" = idle ] && positions=idle
 if [ "$LAB_SERVICE_MODE" = foreign ]; then
     positions=bottom

@@ -22,9 +22,10 @@ class ConfiguredLayerDock:
         self.items = [DockItem(desktop_id=f"item-{i}") for i in range(count)]
         self.layer_shell = SimpleNamespace(
             Edge=SimpleNamespace(TOP=0, BOTTOM=1, LEFT=2, RIGHT=3),
-            Layer=SimpleNamespace(TOP=2),
+            Layer=SimpleNamespace(TOP=2, BOTTOM=1),
             KeyboardMode=SimpleNamespace(NONE=0),
             init_for_window=MagicMock(),
+            set_layer=MagicMock(),
             set_anchor=MagicMock(),
             set_exclusive_zone=MagicMock(),
         )

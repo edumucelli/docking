@@ -451,7 +451,7 @@ class DockPlacementController:
                 y=win_y,
                 size=Size(width=win_w, height=win_h),
                 gap=gap,
-                keep_above=True,
+                keep_above=config.hide_mode != "quiet",
             )
         )
 
@@ -514,7 +514,7 @@ class DockPlacementController:
     def update_barrier(self) -> None:
         """Create or destroy the pointer barrier based on autohide state."""
         position = self._window.config.pos
-        if self._window.config.hide_mode in ("none", "always-on-top"):
+        if self._window.config.hide_mode in ("none", "always-on-top", "quiet"):
             self._surface.update_pointer_barrier(
                 monitor=None,
                 position=position,

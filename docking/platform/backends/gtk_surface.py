@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from gi.repository import Gtk
 
 
-def apply_dock_hints(window: object) -> None:
+def apply_dock_hints(window: object, *, keep_above: bool = True) -> None:
     """Apply the toolkit's common dock-window hints."""
     # Surface services keep toolkit handles opaque until the GTK boundary.
     window = cast("Gtk.Window", window)
@@ -19,7 +19,7 @@ def apply_dock_hints(window: object) -> None:
     window.set_accept_focus(False)
     window.set_focus_on_map(False)
     window.stick()
-    window.set_keep_above(True)
+    apply_dock_stacking(window, keep_above=keep_above)
     try:
         import gi
 
@@ -28,6 +28,17 @@ def apply_dock_hints(window: object) -> None:
     except (ImportError, ValueError):
         return
     window.set_type_hint(Gdk.WindowTypeHint.DOCK)
+
+
+def apply_dock_stacking(window: object, *, keep_above: bool) -> None:
+    """Clear the opposite stacking hint before applying the requested one."""
+    window = cast("Gtk.Window", window)
+    if keep_above:
+        window.set_keep_below(False)
+        window.set_keep_above(True)
+    else:
+        window.set_keep_above(False)
+        window.set_keep_below(True)
 
 
 def place_window(window: object, request: PlacementRequest) -> None:

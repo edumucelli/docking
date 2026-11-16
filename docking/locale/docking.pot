@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-11-15 19:15+0100\n"
+"POT-Creation-Date: 2026-11-16 12:01+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -133,7 +133,7 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-#: docking/applets/alarm/applet.py:209 docking/ui/settings.py:1065
+#: docking/applets/alarm/applet.py:209 docking/ui/settings.py:1066
 msgid "Enabled"
 msgstr ""
 
@@ -347,7 +347,7 @@ msgstr ""
 #: docking/applets/camshield/applet.py:155
 #: docking/applets/capslock/applet.py:108
 #: docking/applets/certwatch/applet.py:156 docking/applets/crypto/applet.py:156
-#: docking/applets/currencyfx/applet.py:211 docking/applets/docker/applet.py:95
+#: docking/applets/currencyfx/applet.py:211 docking/applets/docker/applet.py:96
 #: docking/applets/hackernews/applet.py:210
 #: docking/applets/kdeconnect/applet.py:274
 #: docking/applets/lastfm/applet.py:197 docking/applets/micshield/applet.py:164
@@ -396,7 +396,7 @@ msgid "Power Settings"
 msgstr ""
 
 #: docking/applets/battery/implementations/unix/upower.py:23
-#: docking/ui/settings.py:922
+#: docking/ui/settings.py:923
 msgid "Mouse"
 msgstr ""
 
@@ -1174,7 +1174,7 @@ msgid "Symbol"
 msgstr ""
 
 #: docking/applets/crypto/applet.py:431 docking/applets/plantcare/applet.py:493
-#: docking/ui/folder/_browser.py:38
+#: docking/ui/folder/browser.py:38
 msgid "Name"
 msgstr ""
 
@@ -1371,41 +1371,41 @@ msgstr ""
 msgid "Docker"
 msgstr ""
 
-#: docking/applets/docker/applet.py:109
+#: docking/applets/docker/applet.py:110
 #, python-brace-format
 msgid "Docker unavailable: {error}"
 msgstr ""
 
-#: docking/applets/docker/applet.py:110
+#: docking/applets/docker/applet.py:111
 msgid "unknown error"
 msgstr ""
 
-#: docking/applets/docker/applet.py:116
+#: docking/applets/docker/applet.py:117
 msgid "No running containers"
 msgstr ""
 
-#: docking/applets/docker/applet.py:119
+#: docking/applets/docker/applet.py:120
 #, python-brace-format
 msgid "{count} running containers"
 msgstr ""
 
-#: docking/applets/docker/applet.py:130
+#: docking/applets/docker/applet.py:131
 msgid "unknown image"
 msgstr ""
 
-#: docking/applets/docker/applet.py:131 docking/applets/docker/state.py:125
+#: docking/applets/docker/applet.py:132 docking/applets/docker/state.py:125
 msgid "running"
 msgstr ""
 
-#: docking/applets/docker/applet.py:136
+#: docking/applets/docker/applet.py:137
 msgid "Stop"
 msgstr ""
 
-#: docking/applets/docker/applet.py:146 docking/applets/session/state.py:39
+#: docking/applets/docker/applet.py:147 docking/applets/session/state.py:39
 msgid "Restart"
 msgstr ""
 
-#: docking/applets/docker/applet.py:204
+#: docking/applets/docker/applet.py:205
 #, python-brace-format
 msgid "{name} ({image})"
 msgstr ""
@@ -3270,7 +3270,7 @@ msgstr ""
 msgid "Hot"
 msgstr ""
 
-#: docking/applets/reddit/state.py:165 docking/ui/settings.py:1952
+#: docking/applets/reddit/state.py:165 docking/ui/settings.py:1953
 msgid "Top"
 msgstr ""
 
@@ -4755,7 +4755,7 @@ msgid "Assigned by desktop"
 msgstr ""
 
 #: docking/platform/shortcuts.py:133 docking/ui/menu.py:694
-#: docking/ui/settings.py:1802
+#: docking/ui/settings.py:1803
 msgid "Unavailable on this desktop"
 msgstr ""
 
@@ -4880,12 +4880,12 @@ msgid "Window"
 msgstr ""
 
 #: docking/search/providers/applications.py:264 docking/search/ui/window.py:269
-#: docking/ui/settings.py:1171
+#: docking/ui/settings.py:1172
 msgid "Actions"
 msgstr ""
 
 #: docking/search/providers/applications.py:267 docking/ui/menu.py:818
-#: docking/ui/settings.py:1043
+#: docking/ui/settings.py:1044
 msgid "Recent Documents"
 msgstr ""
 
@@ -4963,7 +4963,7 @@ msgid "Retry"
 msgstr ""
 
 #: docking/search/providers/dock.py:82 docking/search/providers/path.py:75
-#: docking/ui/folder/stack.py:394
+#: docking/ui/folder/stack.py:396
 msgid "Open Folder"
 msgstr ""
 
@@ -5311,41 +5311,41 @@ msgstr ""
 msgid "Mode not enabled: {reason}"
 msgstr ""
 
-#: docking/ui/folder/_browser.py:39
+#: docking/ui/folder/browser.py:39
 msgid "Kind"
 msgstr ""
 
-#: docking/ui/folder/_browser.py:40
+#: docking/ui/folder/browser.py:40
 msgid "Size"
 msgstr ""
 
-#: docking/ui/folder/_browser.py:41
+#: docking/ui/folder/browser.py:41
 msgid "Created"
 msgstr ""
 
-#: docking/ui/folder/_browser.py:42
+#: docking/ui/folder/browser.py:42
 msgid "Modified"
 msgstr ""
 
-#: docking/ui/folder/stack.py:324
+#: docking/ui/folder/stack.py:326
 msgid "Folder not found"
 msgstr ""
 
-#: docking/ui/folder/stack.py:349 docking/ui/folder/stack.py:375
+#: docking/ui/folder/stack.py:351 docking/ui/folder/stack.py:377
 msgid "Folder is empty"
-msgstr ""
-
-#: docking/ui/folder/stack.py:389
-#, python-format
-msgid "Open in %s"
 msgstr ""
 
 #: docking/ui/folder/stack.py:391
 #, python-format
+msgid "Open in %s"
+msgstr ""
+
+#: docking/ui/folder/stack.py:393
+#, python-format
 msgid "%d More in %s"
 msgstr ""
 
-#: docking/ui/folder/stack.py:396
+#: docking/ui/folder/stack.py:398
 #, python-format
 msgid "%d More in Folder"
 msgstr ""
@@ -5448,7 +5448,7 @@ msgstr ""
 msgid "Appearance"
 msgstr ""
 
-#: docking/ui/settings.py:422 docking/ui/settings.py:959
+#: docking/ui/settings.py:422 docking/ui/settings.py:960
 msgid "Behavior"
 msgstr ""
 
@@ -5465,581 +5465,591 @@ msgid "Always on Top"
 msgstr ""
 
 #: docking/ui/settings.py:449
-msgid "Auto-hide"
+msgid "Quiet (Below Windows)"
 msgstr ""
 
 #: docking/ui/settings.py:450
-msgid "Show Only with Shortcut"
+msgid "Auto-hide"
 msgstr ""
 
 #: docking/ui/settings.py:451
-msgid "Intelligent"
+msgid "Show Only with Shortcut"
 msgstr ""
 
 #: docking/ui/settings.py:452
-msgid "Dodge Active"
+msgid "Intelligent"
 msgstr ""
 
 #: docking/ui/settings.py:453
-msgid "Dodge Windows"
+msgid "Dodge Active"
 msgstr ""
 
 #: docking/ui/settings.py:454
+msgid "Dodge Windows"
+msgstr ""
+
+#: docking/ui/settings.py:455
 msgid "Dodge Maximized"
 msgstr ""
 
-#: docking/ui/settings.py:465
+#: docking/ui/settings.py:466
 msgid "Toggle Focus"
 msgstr ""
 
-#: docking/ui/settings.py:466
+#: docking/ui/settings.py:467
 msgid "Cycle Windows"
 msgstr ""
 
-#: docking/ui/settings.py:467
+#: docking/ui/settings.py:468
 msgid "Most Recent Window"
 msgstr ""
 
-#: docking/ui/settings.py:474
+#: docking/ui/settings.py:475
 msgid "New Window"
 msgstr ""
 
-#: docking/ui/settings.py:475
+#: docking/ui/settings.py:476
 msgid "Minimize Windows"
 msgstr ""
 
-#: docking/ui/settings.py:476
+#: docking/ui/settings.py:477
 msgid "Close Focused Window"
 msgstr ""
 
-#: docking/ui/settings.py:486
+#: docking/ui/settings.py:487
 msgid "Bounce"
 msgstr ""
 
-#: docking/ui/settings.py:487
+#: docking/ui/settings.py:488
 msgid "Pulse"
 msgstr ""
 
-#: docking/ui/settings.py:488
+#: docking/ui/settings.py:489
 msgid "Wobble"
 msgstr ""
 
-#: docking/ui/settings.py:495
+#: docking/ui/settings.py:496
 msgid "Click"
 msgstr ""
 
-#: docking/ui/settings.py:496
+#: docking/ui/settings.py:497
 msgid "Hover"
 msgstr ""
 
-#: docking/ui/settings.py:503
+#: docking/ui/settings.py:504
 msgid "Default"
 msgstr ""
 
-#: docking/ui/settings.py:504
+#: docking/ui/settings.py:505
 msgid "Alphabetical"
 msgstr ""
 
-#: docking/ui/settings.py:532
+#: docking/ui/settings.py:533
 msgid "Daily"
 msgstr ""
 
-#: docking/ui/settings.py:533
+#: docking/ui/settings.py:534
 msgid "Weekly"
 msgstr ""
 
-#: docking/ui/settings.py:564
+#: docking/ui/settings.py:565
 msgid ""
 "When Follow Cursor is enabled, the dock follows the pointer across monitors. "
 "The selected monitor is kept as the fallback."
 msgstr ""
 
-#: docking/ui/settings.py:610
+#: docking/ui/settings.py:611
 msgid "Added on top of the theme's own distance from the edge."
 msgstr ""
 
-#: docking/ui/settings.py:634
+#: docking/ui/settings.py:635
 msgid "Dock shortcut"
 msgstr ""
 
-#: docking/ui/settings.py:659
+#: docking/ui/settings.py:660
 msgid ""
 "Pixels of cursor pressure against the edge required to reveal a hidden dock. "
 "Higher values mean the dock will not reveal as easily."
 msgstr ""
 
-#: docking/ui/settings.py:729
+#: docking/ui/settings.py:730
 msgid "Look"
 msgstr ""
 
-#: docking/ui/settings.py:731
+#: docking/ui/settings.py:732
 msgid "Theme"
 msgstr ""
 
-#: docking/ui/settings.py:731
+#: docking/ui/settings.py:732
 msgid "Choose the dock color palette."
 msgstr ""
 
-#: docking/ui/settings.py:733
+#: docking/ui/settings.py:734
 msgid "Icon Size"
 msgstr ""
 
-#: docking/ui/settings.py:735
+#: docking/ui/settings.py:736
 msgid "Set the base size of dock icons before zoom is applied."
 msgstr ""
 
-#: docking/ui/settings.py:738
+#: docking/ui/settings.py:739
 msgid "Transparency"
 msgstr ""
 
-#: docking/ui/settings.py:740
+#: docking/ui/settings.py:741
 msgid "Adjust how transparent the dock background is."
 msgstr ""
 
-#: docking/ui/settings.py:743
+#: docking/ui/settings.py:744
 msgid "Zoom"
 msgstr ""
 
-#: docking/ui/settings.py:745
+#: docking/ui/settings.py:746
 msgid "Enlarge icons when the pointer hovers over the dock."
 msgstr ""
 
-#: docking/ui/settings.py:748
+#: docking/ui/settings.py:749
 msgid "Zoom Percent"
 msgstr ""
 
-#: docking/ui/settings.py:750
+#: docking/ui/settings.py:751
 msgid "Set how much hovered icons grow when zoom is enabled."
 msgstr ""
 
-#: docking/ui/settings.py:753
+#: docking/ui/settings.py:754
 msgid "Show Tooltips"
 msgstr ""
 
-#: docking/ui/settings.py:755
+#: docking/ui/settings.py:756
 msgid "Show item names and details when hovering over dock items."
 msgstr ""
 
-#: docking/ui/settings.py:758
+#: docking/ui/settings.py:759
 msgid "Show Window Counts"
 msgstr ""
 
-#: docking/ui/settings.py:761
+#: docking/ui/settings.py:762
 msgid "Show a number on running app indicators when multiple windows are open."
 msgstr ""
 
-#: docking/ui/settings.py:766
+#: docking/ui/settings.py:767
 msgid "Application Badges"
 msgstr ""
 
-#: docking/ui/settings.py:769
+#: docking/ui/settings.py:770
 msgid "Show numeric counts reported by applications on their dock icons."
 msgstr ""
 
-#: docking/ui/settings.py:774
+#: docking/ui/settings.py:775
 msgid "Application Progress"
 msgstr ""
 
-#: docking/ui/settings.py:777
+#: docking/ui/settings.py:778
 msgid "Show task progress reported by applications on their dock icons."
 msgstr ""
 
-#: docking/ui/settings.py:785
+#: docking/ui/settings.py:786
 msgid "Placement"
 msgstr ""
 
-#: docking/ui/settings.py:788
+#: docking/ui/settings.py:789
 msgid "Position"
 msgstr ""
 
-#: docking/ui/settings.py:790
+#: docking/ui/settings.py:791
 msgid "Choose which screen edge the dock uses."
 msgstr ""
 
-#: docking/ui/settings.py:793
+#: docking/ui/settings.py:794
 msgid "Alignment"
 msgstr ""
 
-#: docking/ui/settings.py:795
+#: docking/ui/settings.py:796
 msgid "Position the dock along the selected screen edge."
 msgstr ""
 
-#: docking/ui/settings.py:797
+#: docking/ui/settings.py:798
 msgid "Extra Distance from Edge"
 msgstr ""
 
-#: docking/ui/settings.py:799
+#: docking/ui/settings.py:800
 msgid "Current Workspace Only"
 msgstr ""
 
-#: docking/ui/settings.py:802
+#: docking/ui/settings.py:803
 msgid "Show running windows only from the active workspace when supported."
 msgstr ""
 
-#: docking/ui/settings.py:810
+#: docking/ui/settings.py:811
 msgid "Preview"
 msgstr ""
 
-#: docking/ui/settings.py:813
+#: docking/ui/settings.py:814
 msgid "Display Window Preview Thumbnails"
 msgstr ""
 
-#: docking/ui/settings.py:815
+#: docking/ui/settings.py:816
 msgid "Show window thumbnails when hovering over running apps."
 msgstr ""
 
-#: docking/ui/settings.py:818
+#: docking/ui/settings.py:819
 msgid "Outline Thumbnail on Hover"
 msgstr ""
 
-#: docking/ui/settings.py:820
+#: docking/ui/settings.py:821
 msgid "Highlight the thumbnail under the pointer in the preview."
 msgstr ""
 
-#: docking/ui/settings.py:823
+#: docking/ui/settings.py:824
 msgid "Outline Window on Preview Hover"
 msgstr ""
 
-#: docking/ui/settings.py:826
+#: docking/ui/settings.py:827
 msgid "Outline the real window on the desktop while hovering its thumbnail."
 msgstr ""
 
-#: docking/ui/settings.py:831
+#: docking/ui/settings.py:832
 msgid ""
 "Outline the real window on the desktop while hovering its thumbnail. Not "
 "available in this session; requires X11 or Sway."
 msgstr ""
 
-#: docking/ui/settings.py:837
+#: docking/ui/settings.py:838
 msgid "Thumbnail Width"
 msgstr ""
 
-#: docking/ui/settings.py:840
+#: docking/ui/settings.py:841
 msgid ""
 "Set the width in pixels of window thumbnails. Wider thumbnails also show "
 "more of the window title."
 msgstr ""
 
-#: docking/ui/settings.py:848 docking/ui/settings.py:858
+#: docking/ui/settings.py:849 docking/ui/settings.py:859
 msgid "Monitor"
 msgstr ""
 
-#: docking/ui/settings.py:851
+#: docking/ui/settings.py:852
 msgid "Follow Cursor"
 msgstr ""
 
-#: docking/ui/settings.py:854
+#: docking/ui/settings.py:855
 msgid "Move the dock to the monitor where the pointer is currently located."
 msgstr ""
 
-#: docking/ui/settings.py:863
+#: docking/ui/settings.py:864
 msgid "Layout"
 msgstr ""
 
-#: docking/ui/settings.py:866
+#: docking/ui/settings.py:867
 msgid "Pinned Only"
 msgstr ""
 
-#: docking/ui/settings.py:868
+#: docking/ui/settings.py:869
 msgid "Show only pinned applications, applets, files, and folders."
 msgstr ""
 
-#: docking/ui/settings.py:871
+#: docking/ui/settings.py:872
 msgid "Lock Positions"
 msgstr ""
 
-#: docking/ui/settings.py:874
+#: docking/ui/settings.py:875
 msgid "Prevent dock items from being reordered or removed by drag and drop."
 msgstr ""
 
-#: docking/ui/settings.py:879
+#: docking/ui/settings.py:880
 msgid "Anchor Applets to End"
 msgstr ""
 
-#: docking/ui/settings.py:881
+#: docking/ui/settings.py:882
 msgid "Keep applets grouped at the end of the dock."
 msgstr ""
 
-#: docking/ui/settings.py:884
+#: docking/ui/settings.py:885
 msgid "Anchor Files to End"
 msgstr ""
 
-#: docking/ui/settings.py:886
+#: docking/ui/settings.py:887
 msgid "Keep pinned files and folders grouped at the end of the dock."
 msgstr ""
 
-#: docking/ui/settings.py:925
+#: docking/ui/settings.py:926
 msgid "Left Click"
 msgstr ""
 
-#: docking/ui/settings.py:928
+#: docking/ui/settings.py:929
 msgid ""
 "Choose what happens when clicking a running app with the left mouse button."
 msgstr ""
 
-#: docking/ui/settings.py:933
+#: docking/ui/settings.py:934
 msgid "Middle Click"
 msgstr ""
 
-#: docking/ui/settings.py:936
+#: docking/ui/settings.py:937
 msgid "Choose what happens when clicking an app with the middle mouse button."
 msgstr ""
 
-#: docking/ui/settings.py:941
+#: docking/ui/settings.py:942
 msgid "Enable Effects When Clicking Dock Items"
 msgstr ""
 
-#: docking/ui/settings.py:943
+#: docking/ui/settings.py:944
 msgid "Play the selected effect when launching an app from the dock."
 msgstr ""
 
-#: docking/ui/settings.py:946
+#: docking/ui/settings.py:947
 msgid "Click Effect"
 msgstr ""
 
-#: docking/ui/settings.py:948
+#: docking/ui/settings.py:949
 msgid "Choose the effect played when launching an app."
 msgstr ""
 
-#: docking/ui/settings.py:951
+#: docking/ui/settings.py:952
 msgid "Window List Sort"
 msgstr ""
 
-#: docking/ui/settings.py:953
+#: docking/ui/settings.py:954
 msgid "Choose how open windows are ordered in app context menus."
 msgstr ""
 
-#: docking/ui/settings.py:961
+#: docking/ui/settings.py:962
 msgid "Hide Mode"
 msgstr ""
 
-#: docking/ui/settings.py:963
+#: docking/ui/settings.py:964
 msgid "Dock Shortcut"
 msgstr ""
 
-#: docking/ui/settings.py:966
+#: docking/ui/settings.py:967
 msgid ""
 "Assign a working shortcut to enable this mode. If registration fails, the "
 "dock temporarily uses Auto-hide."
 msgstr ""
 
-#: docking/ui/settings.py:972
+#: docking/ui/settings.py:973
 msgid "Hide Delay"
 msgstr ""
 
-#: docking/ui/settings.py:975
+#: docking/ui/settings.py:976
 msgid "Set how long the dock waits before hiding after the pointer leaves."
 msgstr ""
 
-#: docking/ui/settings.py:980
+#: docking/ui/settings.py:981
 msgid "Unhide Delay"
 msgstr ""
 
-#: docking/ui/settings.py:983
+#: docking/ui/settings.py:984
 msgid "Set how long the dock waits before showing after the pointer returns."
 msgstr ""
 
-#: docking/ui/settings.py:988
+#: docking/ui/settings.py:989
 msgid "Pressure Reveal"
 msgstr ""
 
-#: docking/ui/settings.py:991
+#: docking/ui/settings.py:992
 msgid ""
 "Require the pointer to push against the screen edge before revealing a "
 "hidden dock."
 msgstr ""
 
-#: docking/ui/settings.py:995
+#: docking/ui/settings.py:996
 msgid "Pressure Threshold"
 msgstr ""
 
-#: docking/ui/settings.py:997
+#: docking/ui/settings.py:998
 msgid "Show Startup Tips"
 msgstr ""
 
-#: docking/ui/settings.py:1000
+#: docking/ui/settings.py:1001
 msgid ""
 "Show one Docking usage tip after startup, unless a higher-priority startup "
 "notification is visible."
 msgstr ""
 
-#: docking/ui/settings.py:1008
+#: docking/ui/settings.py:1009
 msgid "Stacks"
 msgstr ""
 
-#: docking/ui/settings.py:1011
+#: docking/ui/settings.py:1012
 msgid "Open On"
 msgstr ""
 
-#: docking/ui/settings.py:1013
+#: docking/ui/settings.py:1014
 msgid "Choose whether stacks open on click or while hovering."
 msgstr ""
 
-#: docking/ui/settings.py:1019
+#: docking/ui/settings.py:1020
 msgid "Recent Apps"
 msgstr ""
 
-#: docking/ui/settings.py:1022
+#: docking/ui/settings.py:1023
 msgid "Show Recently Used Apps"
 msgstr ""
 
-#: docking/ui/settings.py:1025
+#: docking/ui/settings.py:1026
 msgid "Show recently closed apps between pinned launchers and running apps."
 msgstr ""
 
-#: docking/ui/settings.py:1030
+#: docking/ui/settings.py:1031
 msgid "Number of Recent Apps"
 msgstr ""
 
-#: docking/ui/settings.py:1032
+#: docking/ui/settings.py:1033
 msgid "Maximum recently used app icons to display."
 msgstr ""
 
-#: docking/ui/settings.py:1035
+#: docking/ui/settings.py:1036
 msgid "Keep Recent Apps For"
 msgstr ""
 
-#: docking/ui/settings.py:1037
+#: docking/ui/settings.py:1038
 msgid "Remove recent apps after this many days of inactivity."
 msgstr ""
 
-#: docking/ui/settings.py:1046
+#: docking/ui/settings.py:1047
 msgid "Show Recent Documents"
 msgstr ""
 
-#: docking/ui/settings.py:1049
+#: docking/ui/settings.py:1050
 msgid "Show a \"Recent Documents\" submenu when right-clicking an app icon."
 msgstr ""
 
-#: docking/ui/settings.py:1054
+#: docking/ui/settings.py:1055
 msgid "Max Documents Per App"
 msgstr ""
 
-#: docking/ui/settings.py:1056
+#: docking/ui/settings.py:1057
 msgid "Maximum recent document entries shown per app."
 msgstr ""
 
-#: docking/ui/settings.py:1062
+#: docking/ui/settings.py:1063
 msgid "Global Search"
 msgstr ""
 
-#: docking/ui/settings.py:1067
+#: docking/ui/settings.py:1068
 msgid "Enable Docking's process-wide search palette."
 msgstr ""
 
-#: docking/ui/settings.py:1070
+#: docking/ui/settings.py:1071
 msgid "Preferred Shortcut"
 msgstr ""
 
-#: docking/ui/settings.py:1073
+#: docking/ui/settings.py:1074
 msgid ""
 "Click the button, then press the desired key sequence. The desktop may "
 "reserve some shortcuts."
 msgstr ""
 
-#: docking/ui/settings.py:1078
+#: docking/ui/settings.py:1079
 msgid "Search Engine"
 msgstr ""
 
-#: docking/ui/settings.py:1080
+#: docking/ui/settings.py:1081
 msgid "Choose the engine used by web fallback."
 msgstr ""
 
-#: docking/ui/settings.py:1152
+#: docking/ui/settings.py:1153
 msgid "Check Now"
 msgstr ""
 
-#: docking/ui/settings.py:1154
+#: docking/ui/settings.py:1155
 msgid "View Releases"
 msgstr ""
 
-#: docking/ui/settings.py:1166
+#: docking/ui/settings.py:1167
 msgid "Update Checks"
 msgstr ""
 
-#: docking/ui/settings.py:1168
+#: docking/ui/settings.py:1169
 msgid "Check Automatically"
 msgstr ""
 
-#: docking/ui/settings.py:1169
+#: docking/ui/settings.py:1170
 msgid "Frequency"
 msgstr ""
 
-#: docking/ui/settings.py:1170
+#: docking/ui/settings.py:1171
 msgid "Status"
 msgstr ""
 
-#: docking/ui/settings.py:1697
+#: docking/ui/settings.py:1698
 msgid "Primary Display"
 msgstr ""
 
-#: docking/ui/settings.py:1732
+#: docking/ui/settings.py:1733
 #, python-brace-format
 msgid "Shortcut Status: {status}"
 msgstr ""
 
-#: docking/ui/settings.py:1880
+#: docking/ui/settings.py:1881
 #, python-brace-format
 msgid "Last seen version: {version}"
 msgstr ""
 
-#: docking/ui/settings.py:1884
+#: docking/ui/settings.py:1885
 msgid "No update found yet"
 msgstr ""
 
-#: docking/ui/settings.py:1886
+#: docking/ui/settings.py:1887
 msgid "Not checked yet"
 msgstr ""
 
-#: docking/ui/settings.py:1950
+#: docking/ui/settings.py:1951
 msgid "Left"
 msgstr ""
 
-#: docking/ui/settings.py:1950 docking/ui/settings.py:1952
+#: docking/ui/settings.py:1951 docking/ui/settings.py:1953
 msgid "Center"
 msgstr ""
 
-#: docking/ui/settings.py:1950
+#: docking/ui/settings.py:1951
 msgid "Right"
 msgstr ""
 
-#: docking/ui/settings.py:1952
+#: docking/ui/settings.py:1953
 msgid "Bottom"
 msgstr ""
 
-#: docking/ui/settings.py:1978
+#: docking/ui/settings.py:1979
 msgid "The dock is always visible and reserves screen space."
 msgstr ""
 
-#: docking/ui/settings.py:1980
+#: docking/ui/settings.py:1981
 msgid ""
 "Always visible and floats above all windows without reserving screen space."
 msgstr ""
 
-#: docking/ui/settings.py:1983
+#: docking/ui/settings.py:1985
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it forward."
+msgstr ""
+
+#: docking/ui/settings.py:1989
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr ""
 
-#: docking/ui/settings.py:1985
+#: docking/ui/settings.py:1991
 msgid ""
 "Shows only with its shortcut, then hides after the pointer enters and "
 "leaves. Press the shortcut again to hide it."
 msgstr ""
 
-#: docking/ui/settings.py:1989
+#: docking/ui/settings.py:1995
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 
-#: docking/ui/settings.py:1991
+#: docking/ui/settings.py:1997
 msgid "Hides when the focused window overlaps the dock area."
 msgstr ""
 
-#: docking/ui/settings.py:1993
+#: docking/ui/settings.py:1999
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr ""
 
-#: docking/ui/settings.py:1996
+#: docking/ui/settings.py:2002
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""

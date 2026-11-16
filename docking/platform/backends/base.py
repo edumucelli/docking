@@ -188,7 +188,7 @@ class PreviewImage:
 
 @dataclass(frozen=True)
 class PlacementRequest:
-    """Request to place or anchor the dock surface."""
+    """Place the dock above applications, or below them when keep_above is false."""
 
     monitor: MonitorSnapshot
     position: object
@@ -413,7 +413,9 @@ class SurfaceService(Service):
     # satisfy that narrower SurfaceWindow contract, while SurfaceService should
     # depend only on that contract instead of importing the UI-layer DockWindow.
     @abstractmethod
-    def configure_before_realize(self, window: object) -> None:
+    def configure_before_realize(
+        self, window: object, *, keep_above: bool = True
+    ) -> None:
         """Configure platform surface role before the GTK window is realized."""
 
     @abstractmethod

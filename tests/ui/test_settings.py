@@ -1856,14 +1856,15 @@ class TestSettingsWindowController:
         assert config.hide_mode == "none"
         runtime.on_hide_mode_changed.assert_called_once()
 
-    def test_binding_sync_updates_dependent_sensitivity(self, monkeypatch):
+    @pytest.mark.parametrize("mode", ["none", "quiet"])
+    def test_binding_sync_updates_dependent_sensitivity(self, monkeypatch, mode):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
         config = _config()
-        config.hide_mode = "none"
+        config.hide_mode = mode
         config.zoom_enabled = False
         controller = _settings_controller(
             parent=_parent_window(),
@@ -1877,6 +1878,10 @@ class TestSettingsWindowController:
         assert controller._hide_delay_spin.sensitive is False
         assert controller._unhide_delay_spin.sensitive is False
         assert controller._zoom_percent_spin.sensitive is False
+        if mode == "quiet":
+            assert controller._hide_mode_combo.get_active_id() == "quiet"
+            assert not controller._pressure_reveal_switch.sensitive
+            assert not controller._pressure_threshold_scale.sensitive
 
     @pytest.mark.parametrize(
         ("window_preview_thumbnails_enabled", "expected_sensitive"),

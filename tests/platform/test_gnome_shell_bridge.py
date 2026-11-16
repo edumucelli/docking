@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -297,13 +298,47 @@ def test_surface_reconnect_retries_latest_placement_after_initial_budget(monkeyp
         service._retry_latest_position()
     bridge.position_dock.reset_mock()
     bridge.subscribe_available.call_args.args[0]()
-    bridge.position_dock.assert_called_once_with(0, 0, 163, 720)
+    bridge.position_dock.assert_called_once_with(0, 0, 163, 720, keep_above=True)
     assert service._position_retry_attempts_remaining > 0
     service.stop()
     bridge.unsubscribe_available.assert_called_once_with(99)
     bridge.position_dock.reset_mock()
     bridge.subscribe_available.call_args.args[0]()
     bridge.position_dock.assert_not_called()
+
+
+def test_quiet_surface_retries_and_reconnects_with_latest_stacking(monkeypatch):
+    monkeypatch.setattr(bridge_mod.GLib, "timeout_add", lambda *_args: 77)
+    monkeypatch.setattr(bridge_mod.GLib, "source_remove", lambda _source: None)
+    bridge = _bridge()
+    bridge.subscribe_available = MagicMock(return_value=99)
+    bridge.unsubscribe_available = MagicMock()
+    service = GnomeShellBridgeSurfaceService(bridge=bridge)
+    window = MagicMock()
+    service.configure_before_realize(window, keep_above=False)
+    service.on_realize(window)
+    assert window.set_keep_above.call_args.args == (False,)
+    service.start()
+    service.position_or_anchor(replace(_placement(0, 990, 1920, 90), keep_above=False))
+    service._retry_latest_position()
+    bridge.subscribe_available.call_args.args[0]()
+    assert bridge.position_dock.call_count == 3
+    for request in bridge.position_dock.call_args_list:
+        assert request.kwargs == {"keep_above": False}
+    service.position_or_anchor(_placement(0, 990, 1920, 90))
+    assert bridge.position_dock.call_args.kwargs == {"keep_above": True}
+    service.stop()
+
+
+def test_bridge_preserves_legacy_position_method_and_uses_quiet_extension_method():
+    proxy = MagicMock()
+    proxy.call_sync.return_value.unpack.return_value = (True,)
+    client = bridge_mod.GnomeShellBridgeClient(proxy=proxy)
+    for keep_above, method in [(True, "PositionDock"), (False, "PositionQuietDock")]:
+        assert client.position_dock(0, 990, 1920, 90, keep_above=keep_above)
+        name, parameters, *_args = proxy.call_sync.call_args.args
+        assert name == method
+        assert parameters.unpack() == (0, 990, 1920, 90)
 
 
 def test_bridge_availability_notification_only_calls_on_return():

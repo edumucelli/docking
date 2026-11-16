@@ -51,7 +51,7 @@ from tests.platform.application_fakes import identity_services
 def _layer_shell() -> SimpleNamespace:
     return SimpleNamespace(
         Edge=SimpleNamespace(TOP="top", BOTTOM="bottom", LEFT="left", RIGHT="right"),
-        Layer=SimpleNamespace(TOP="top-layer"),
+        Layer=SimpleNamespace(TOP="top-layer", BOTTOM="bottom-layer"),
         KeyboardMode=SimpleNamespace(NONE="no-keyboard"),
         init_for_window=MagicMock(),
         set_namespace=MagicMock(),

@@ -57,6 +57,7 @@ class _LayerShell(Protocol):
     """Required entry point of the optional native layer-shell module."""
 
     def init_for_window(self, window: object) -> None: ...
+    def set_layer(self, window: object, layer: object) -> None: ...
 
 
 def load_gtk_layer_shell() -> object | None:
@@ -99,6 +100,7 @@ class WaylandLayerShellSurfaceService(SurfaceService):
     ) -> None:
         self._layer_shell = cast(_LayerShell, layer_shell)
         self._window: object | None = None
+        self._keep_above = True
         self._exclusive_zone: int = 0
         self._on_layer_surface_ready = on_layer_surface_ready
         self._surface_x: int | None = None
@@ -131,9 +133,12 @@ class WaylandLayerShellSurfaceService(SurfaceService):
             return self._surface_x, self._surface_y
         return None
 
-    def configure_before_realize(self, window: object) -> None:
+    def configure_before_realize(
+        self, window: object, *, keep_above: bool = True
+    ) -> None:
         """Assign the layer-shell role before the GTK window is mapped."""
         self._window = window
+        self._keep_above = keep_above
         call_if_available(window, "set_decorated", False)
         call_if_available(window, "set_app_paintable", True)
         call_if_available(window, "set_accept_focus", False)
@@ -149,7 +154,7 @@ class WaylandLayerShellSurfaceService(SurfaceService):
             layer_shell,
             "set_layer",
             window,
-            enum_member(layer_shell, "Layer", "TOP"),
+            enum_member(layer_shell, "Layer", "TOP" if keep_above else "BOTTOM"),
         )
         call_if_available(
             layer_shell,
@@ -188,6 +193,14 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         if position is None:
             return
 
+        layer_changed = self._keep_above != request.keep_above
+        self._keep_above = request.keep_above
+        self._layer_shell.set_layer(
+            window,
+            enum_member(
+                self._layer_shell, "Layer", "TOP" if request.keep_above else "BOTTOM"
+            ),
+        )
         self._surface_x = request.x
         self._surface_y = request.y
         self._monitor = request.monitor
@@ -205,6 +218,15 @@ class WaylandLayerShellSurfaceService(SurfaceService):
             request.size.height if horizontal else -1,
         )
         call_if_available(window, "resize", 1, 1)
+        if layer_changed:
+            # Occluded bottom surfaces receive no frame callbacks to commit a new layer.
+            commit = getattr(self._layer_shell, "try_force_commit", None)
+            if callable(commit):
+                commit(window)
+            else:
+                # GtkLayerShell before 0.9 needs a remap to commit while occluded.
+                call_if_available(window, "hide")
+                call_if_available(window, "show")
 
     def set_reservation(self, request: ReservationRequest) -> None:
         """Reserve edge space using layer-shell exclusive zones."""

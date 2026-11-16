@@ -33,3 +33,9 @@ module cached for an extension UUID after source edits, even if the extension is
 disabled and enabled again. After changing `extension.js`, log out and back in
 before trusting the live D-Bus result. `tools/linux/gnome_bridge.sh status` reports
 both GNOME's extension state and whether the bridge D-Bus API is available.
+
+Quiet mode uses the bridge's `PositionQuietDock` method to keep the dock actor
+above desktop actors and below applications, including after Shell restacks.
+The original `PositionDock` method retains its above-window behavior. Reinstall
+the bridge and restart the session when upgrading from a version without
+`PositionQuietDock`.

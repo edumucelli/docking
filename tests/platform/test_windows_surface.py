@@ -1,6 +1,7 @@
 """Windows owns its surface lifecycle while reusing common GTK operations."""
 
 import os
+from dataclasses import replace
 from unittest.mock import Mock, call
 
 import pytest
@@ -295,6 +296,49 @@ def test_unregistered_modes_do_not_inherit_appbar_fullscreen_stacking():
     )
     assert service._restore_placement() is False
     appbar.fullscreen_active.assert_not_called()
+
+
+def test_quiet_stacking_survives_fullscreen_remapping_and_releases_timer(monkeypatch):
+    from docking.platform.backends.windows import surface
+
+    added = Mock(return_value=72)
+    removed = Mock()
+    monkeypatch.setattr(surface.GLib, "timeout_add", added)
+    monkeypatch.setattr(surface.GLib, "source_remove", removed)
+    service = WindowsSurfaceService()
+    window = Mock()
+    service.configure_before_realize(window, keep_above=False)
+    service._appbar = appbar = Mock()
+    service._menus = Mock()
+    service.on_realize(window)
+    request = PlacementRequest(
+        monitor=MonitorSnapshot(0, Rect(0, 0, 1280, 800)),
+        position=Position.BOTTOM,
+        x=0,
+        y=700,
+        size=Size(1280, 100),
+        keep_above=False,
+    )
+    service.position_or_anchor(request)
+    service.position_or_anchor(request)
+    service._fullscreen_changed(True)
+    service._fullscreen_changed(False)
+    service._restore_placement()
+    assert service._poll_topmost() is False
+    assert service._poll_quiet() is True
+    added.assert_called_once_with(250, service._poll_quiet)
+    assert all(args == call(False) for args in window.set_keep_above.call_args_list)
+    appbar.ensure_keep_below.assert_called_with(window.get_window.return_value)
+    appbar.ensure_keep_above.assert_not_called()
+    service.position_or_anchor(replace(request, keep_above=True))
+    removed.assert_called_once_with(72)
+    assert service._quiet_source == 0
+    assert service._poll_quiet() is False
+    window.set_keep_above.assert_called_with(True)
+    service.position_or_anchor(request)
+    service.stop()
+    assert service._quiet_source == 0
+    assert removed.call_count == 2
 
 
 @pytest.fixture

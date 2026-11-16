@@ -18,6 +18,92 @@ from docking.platform.desktop.implementations.windows.geometry import (
 )
 
 
+@pytest.fixture
+def quiet_stack(monkeypatch):
+    monkeypatch.setattr(
+        appbar.windows_ctypes, "WINFUNCTYPE", ctypes.CFUNCTYPE, raising=False
+    )
+    monkeypatch.setattr(appbar, "window_handle", lambda _window: 100)
+    state = {"handles": [10, 100, 20, 30], "topmost": set(), "hidden": set()}
+
+    def enumerate_windows(callback, data):
+        for handle in state["handles"]:
+            assert callback(handle, data)
+        return True
+
+    def name(handle, buffer, _length):
+        buffer.value = "WorkerW" if handle == 30 else "Application"
+        return len(buffer.value)
+
+    bar = appbar.WindowsAppBar.__new__(appbar.WindowsAppBar)
+    bar._closed = False
+    bar._set_position = Mock(return_value=True)
+    bar._user = SimpleNamespace(
+        EnumWindows=Mock(side_effect=enumerate_windows),
+        GetClassNameW=Mock(side_effect=name),
+        IsWindowVisible=Mock(side_effect=lambda handle: handle not in state["hidden"]),
+        IsIconic=Mock(return_value=False),
+        GetWindowLongPtrW=Mock(
+            side_effect=lambda handle, _index: 8 if handle in state["topmost"] else 0
+        ),
+    )
+    return bar, state
+
+
+@pytest.mark.parametrize(
+    "handles,sibling",
+    [
+        ([10, 100, 20, 30], 20),
+        ([10, 20, 100, 30], None),
+        ([10, 20, 30, 100], 20),
+        ([30, 100], 0),
+        ([100, 30], None),
+    ],
+)
+def test_quiet_dock_stays_below_applications_and_above_desktop(
+    quiet_stack, handles, sibling
+):
+    bar, state = quiet_stack
+    state["handles"] = handles
+    assert bar.ensure_keep_below(Mock())
+    if sibling is None:
+        bar._set_position.assert_not_called()
+    else:
+        bar._set_position.assert_called_once_with(100, sibling, 0, 0, 0, 0, 0x13)
+
+
+def test_quiet_stacking_never_inherits_topmost_from_an_application(quiet_stack):
+    bar, state = quiet_stack
+    state["topmost"] = {20, 100}
+    assert bar.ensure_keep_below(Mock())
+    assert bar._set_position.call_args_list == [
+        call(100, -2, 0, 0, 0, 0, 0x13),
+        call(100, 10, 0, 0, 0, 0, 0x13),
+    ]
+
+
+def test_quiet_stacking_ignores_hidden_applications(quiet_stack):
+    bar, state = quiet_stack
+    state["hidden"] = {20}
+    assert bar.ensure_keep_below(Mock())
+    bar._set_position.assert_not_called()
+
+
+@pytest.mark.parametrize("failure", ["closed", "enumeration", "class-name"])
+def test_quiet_stacking_leaves_unknown_native_state_unchanged(quiet_stack, failure):
+    bar, _state = quiet_stack
+    if failure == "closed":
+        bar._closed = True
+    elif failure == "enumeration":
+        bar._user.EnumWindows.side_effect = None
+        bar._user.EnumWindows.return_value = False
+    else:
+        bar._user.GetClassNameW.side_effect = None
+        bar._user.GetClassNameW.return_value = 0
+    assert not bar.ensure_keep_below(Mock())
+    bar._set_position.assert_not_called()
+
+
 def test_monitor_removed_before_native_mapping_is_reported_as_unavailable():
     geometry = WindowsMonitorGeometry.__new__(WindowsMonitorGeometry)
     geometry._monitor_from_point = Mock()
