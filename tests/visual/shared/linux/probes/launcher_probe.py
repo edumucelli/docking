@@ -75,7 +75,9 @@ class LauncherProbe(native.Probe):
 
 if __name__ == "__main__":
     if "--launched" in sys.argv:
-        (Path(os.environ["LAB_DIR"]) / "launched.json").write_text(
+        launched = Path(os.environ["LAB_DIR"]) / "launched.json"
+        pending = launched.with_suffix(".pending")
+        pending.write_text(
             json.dumps(
                 {
                     "pid": os.getpid(),
@@ -83,6 +85,7 @@ if __name__ == "__main__":
                 }
             )
         )
+        pending.replace(launched)
         native.fixture()
     else:
         native.Probe = LauncherProbe

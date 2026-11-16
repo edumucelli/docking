@@ -1,11 +1,42 @@
 """A blank capture, undelivered click or unrelated process must fail minimum coverage."""
 
 import json
+import os
+import runpy
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from tests.visual.shared.linux.probes import launcher_probe as launcher
+
+
+def test_launch_record_is_invisible_until_the_complete_nonce_is_written(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("LAB_DIR", str(tmp_path))
+    monkeypatch.setenv("LAB_LAUNCH_NONCE", "owned-fixture")
+    monkeypatch.setattr(launcher.sys, "argv", ["launcher_probe.py", "--launched"])
+    launched = tmp_path / "launched.json"
+
+    def interrupted_write(path, text):
+        with path.open("w") as stream:
+            stream.write(text[:1])
+            stream.flush()
+            assert not launched.exists()
+            stream.write(text[1:])
+
+    observed = []
+    monkeypatch.setattr(Path, "write_text", interrupted_write)
+    monkeypatch.setattr(
+        launcher.native,
+        "fixture",
+        lambda: observed.append(json.loads(launched.read_text())),
+    )
+
+    runpy.run_path(launcher.__file__, run_name="__main__")
+
+    assert observed == [{"pid": os.getpid(), "nonce": "owned-fixture"}]
 
 
 @pytest.mark.parametrize(
