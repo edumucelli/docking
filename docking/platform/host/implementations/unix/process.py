@@ -1,5 +1,6 @@
 """Existing Unix hook invocation format."""
 
+import shlex
 from pathlib import Path
 
 
@@ -15,7 +16,10 @@ def hook_argv(root: Path, executable: str, provider: str) -> list[str]:
 
 
 def hook_command(root: Path, executable: str) -> str:
-    return f"PYTHONPATH={root} {executable} -m docking.applets.aiusage.hook"
+    return (
+        f"PYTHONPATH={shlex.quote(str(root))} {shlex.quote(executable)}"
+        " -m docking.applets.aiusage.hook"
+    )
 
 
 def prepare_process() -> None:
