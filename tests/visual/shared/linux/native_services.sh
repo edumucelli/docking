@@ -118,6 +118,7 @@ PY
     export DOCKING_BACKEND=x11 GDK_BACKEND=x11 LAB_EXPECTED_BACKEND=x11
     export LAB_SERVICE_MODE=quiet
 fi
+limit=40
 positions="bottom top left right"
 probe=native_services_probe.py
 if [ "$LAB_SERVICE_MODE" = overlay ]; then
@@ -125,7 +126,7 @@ if [ "$LAB_SERVICE_MODE" = overlay ]; then
     export LAB_PROBE_HIDE_MODE=none
     positions=bottom
     probe=../../../backends/layer_shell/gamescope/probe.py
-    limit=60
+    limit=180
 fi
 if [ "$LAB_SERVICE_MODE" = launcher ]; then
     source "$LAB_SCRIPTS/input.sh"
@@ -137,7 +138,6 @@ if [ "$LAB_SERVICE_MODE" = launcher ]; then
     positions=bottom
     probe=launcher_probe.py
 fi
-limit=40
 if [ "$LAB_SERVICE_MODE" = quiet ]; then
     export LAB_PROBE_HIDE_MODE=quiet
 fi
@@ -145,7 +145,7 @@ fi
 if [ "$LAB_SERVICE_MODE" = treeland ]; then
     positions=bottom
     probe=../../../backends/treeland/probe.py
-    export LAB_PROBE_HIDE_MODE=dodge-any
+    export LAB_PROBE_HIDE_MODE=window-dodge
 fi
 if [ "$LAB_SERVICE_MODE" = foreign ]; then
     positions=bottom

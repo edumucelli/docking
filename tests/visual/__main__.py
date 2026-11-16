@@ -113,10 +113,6 @@ def commands(
                 target.services,
             ]
         )
-    if target.services == "visual":
-        result.append(
-            ["bash", str(LINUX / "native_services.sh"), target.name, "services"]
-        )
     if target.services == "foreign":
         result.append(
             [

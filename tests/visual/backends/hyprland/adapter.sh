@@ -10,8 +10,27 @@ adapter_prepare() {
     prepare_sway_parent
     mkdir -p "$XDG_CONFIG_HOME/hypr"
     # Exercise the supported Hyprlang dispatch API rather than generated Lua defaults.
-    printf 'monitor = , %sx%s@60, auto, 1\ngeneral {\n border_size = 0\n gaps_in = 0\n gaps_out = 0\n}\nanimations {\n enabled = false\n}\n' "${LAB_WIDTH:-1280}" "${LAB_HEIGHT:-720}" \
-        >"$XDG_CONFIG_HOME/hypr/hyprland.conf"
+    cat >"$XDG_CONFIG_HOME/hypr/hyprland.conf" <<EOF
+monitor = , ${LAB_WIDTH:-1280}x${LAB_HEIGHT:-720}@60, auto, 1
+workspace = 1, default:true, persistent:true
+workspace = 2, persistent:true
+general {
+    border_size = 0
+    gaps_in = 0
+    gaps_out = 0
+}
+animations {
+    enabled = false
+}
+misc {
+    disable_hyprland_logo = true
+    disable_splash_rendering = true
+}
+debug {
+    disable_logs = false
+    enable_stdout_logs = true
+}
+EOF
     mkdir -p "$XDG_CONFIG_HOME/niri"
     printf 'animations { off; }\nhotkey-overlay { skip-at-startup; }\nlayout { gaps 0; border { off; }; focus-ring { off; }; }\nwindow-rule { open-fullscreen true; }\n' \
         >"$XDG_CONFIG_HOME/niri/config.kdl"
@@ -60,6 +79,17 @@ adapter_start() {
     done
     return 1
 }
-adapter_wait_ready() { hyprctl -j monitors >"$LAB_DIR/monitors.json"; }
+adapter_wait_ready() {
+    hyprctl -j monitors >"$LAB_DIR/monitors.json"
+    # Startup notices animate across the capture while the first dock maps.
+    hyprctl dismissnotify -1
+}
+adapter_capabilities() {
+    session_probe_json | jq '{compositor:"hyprland", expected_backend:"hyprland",
+        placement:.layer_shell_supported, native_geometry:false, pointer:false,
+        gtk_display_is_wayland, layer_shell_supported, screenshot_method:"parent-grim"}'
+}
+adapter_geometry() { /usr/bin/python3 "$LAB_SCRIPTS/probes/session_probe.py" geometry; }
 adapter_screenshot() { capture_parent "$1"; }
+adapter_pointer() { lab_pointer "$@"; }
 adapter_stop() { adapter_cleanup; }

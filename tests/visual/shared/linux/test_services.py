@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -11,6 +12,15 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+
+
+def test_native_profiles_use_valid_hide_modes():
+    from docking.core.config import HideMode
+
+    source = Path(__file__).with_name("native_services.sh").read_text()
+    modes = re.findall(r"export LAB_PROBE_HIDE_MODE=([a-z-]+)", source)
+    assert modes
+    assert all(HideMode(mode) for mode in modes)
 
 
 @pytest.mark.parametrize("present", [False, True])

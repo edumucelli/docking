@@ -163,7 +163,7 @@ class Probe:
                     str(target),
                 ],
                 check=True,
-                timeout=8,
+                timeout=40 if mode == "gamescope" else 8,
             )
         else:
             env = dict(os.environ)

@@ -27,7 +27,8 @@ def capture(target: Path) -> None:
         check=True,
         timeout=5,
     )
-    deadline = time.monotonic() + 8
+    # Lavapipe's first composed frame also compiles shaders in the CPU guest.
+    deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
         try:
             GdkPixbuf.Pixbuf.new_from_file(str(SCREENSHOT))

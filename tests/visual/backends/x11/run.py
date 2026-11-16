@@ -508,13 +508,29 @@ def run_checks(observer: Observer, env: dict[str, str], record):
             idle = observer.settled("interaction-idle")
             bounds = placement(idle, "bottom")
             observer.hover()
-            time.sleep(1)
+            wait_for(
+                lambda: (
+                    idle.changed_above(
+                        observer.capture("interaction-tooltip"), bounds["top"] - 8
+                    )
+                    > 80
+                ),
+                "Tooltip pixels absent",
+            )
             tooltip = observer.settled("interaction-tooltip")
             assert idle.changed_above(tooltip, bounds["top"] - 8) > 80, (
                 "Tooltip pixels absent"
             )
             observer.pointer.click(3)
-            time.sleep(0.4)
+            wait_for(
+                lambda: (
+                    idle.changed_above(
+                        observer.capture("interaction-menu"), bounds["top"] - 8
+                    )
+                    > 500
+                ),
+                "Menu pixels absent",
+            )
             menu = observer.settled("interaction-menu")
             assert idle.changed_above(menu, bounds["top"] - 8) > 500, (
                 "Menu pixels absent"

@@ -154,9 +154,26 @@ RUN pacman -Syu --noconfirm --needed wayfire && pacman -Scc --noconfirm
 RUN command -v wayfire && wayfire --version
 
 # Hyprland's nested Aquamarine backend needs a render node and dmabuf feedback.
-FROM base AS hyprland
+FROM base AS hyprland-runtime
 RUN pacman -Syu --noconfirm --needed hyprland niri && pacman -Scc --noconfirm
 RUN command -v Hyprland && command -v hyprctl
+
+# shortcut: Arch's Aquamarine 0.15.1 loses nested output configures; remove this
+# backport when the pinned snapshot includes upstream fix #415 (7bb8bdf4).
+FROM hyprland-runtime AS aquamarine-builder
+RUN pacman -Syu --noconfirm --needed base-devel cmake hyprwayland-scanner && pacman -Scc --noconfirm
+RUN curl --fail --location https://codeload.github.com/hyprwm/aquamarine/tar.gz/f31c47a1b9d300847d8fc3108ad959448103dfc1 -o /tmp/aquamarine.tar.gz \
+    && echo '975a3479b458722ec2e34e5fed9cdd46f77fa70485431f70093693532f685ff3  /tmp/aquamarine.tar.gz' | sha256sum -c - \
+    && curl --fail --location https://github.com/hyprwm/aquamarine/commit/7bb8bdf4e8fedaf4dfae58512bc4c728671727df.patch -o /tmp/configure.patch \
+    && echo '542a3075643971d69862e7481446b9ec8f368338d1dcbc13ce26438a0e7e23cf  /tmp/configure.patch' | sha256sum -c - \
+    && mkdir /tmp/aquamarine \
+    && tar -xzf /tmp/aquamarine.tar.gz -C /tmp/aquamarine --strip-components=1 \
+    && cd /tmp/aquamarine && patch -p1 < /tmp/configure.patch \
+    && cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+    && cmake --build build --parallel 2 \
+    && DESTDIR=/tmp/installed cmake --install build
+FROM hyprland-runtime AS hyprland
+COPY --from=aquamarine-builder /tmp/installed/usr/lib/libaquamarine.so* /usr/lib/
 
 FROM base AS treeland
 RUN pacman -Syu --noconfirm --needed treeland accountsservice && pacman -Scc --noconfirm

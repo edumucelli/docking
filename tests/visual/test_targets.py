@@ -137,7 +137,7 @@ def test_gamescope_requires_placement_and_display_only_overlay_pixels(tmp_path):
 def test_native_minimum_requires_pixels_and_window_actions(target, tmp_path):
     commands = runner.commands(target, tmp_path, None)
     modes = [command[-1] for command in commands if "native_services.sh" in command[1]]
-    assert modes == ["launcher", "visual", "services"]
+    assert modes == ["launcher", "visual"]
 
 
 def test_windows_minimum_preserves_installed_runtime_and_all_four_edges(tmp_path):

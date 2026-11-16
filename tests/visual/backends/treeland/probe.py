@@ -11,6 +11,10 @@ class TreelandProbe(native.Probe):
     async def run(self):
         assert self.backend.name == "treeland"
         assert self.backend.capabilities.supports_overlap_any
+        self.window.autohide.set_disabled(True, reason="native visual probe")
+        await self.wait(
+            lambda: self.window.autohide.hide_offset < 0.05, "Dock not shown"
+        )
         before = await self.capture("visible")
         points = native.dock_marker_points(
             before, (0, 0, before.get_width(), before.get_height())
@@ -37,14 +41,14 @@ class TreelandProbe(native.Probe):
             ),
             "Activation not delivered",
         )
+        self.window.autohide.set_disabled(False, reason="native visual probe")
         await self.wait(
             lambda: self.window.autohide.hide_offset > 0.95, "Overlap did not hide dock"
         )
-        hidden = await self.capture("hidden")
-        assert (
-            sum(self.pixel(hidden, point) == (0, 0, 255) for point in points)
-            < len(points) * 0.05
+        changed, painted = await self.wait_for_marker_pixels(
+            points, phase="hidden", present=False
         )
+        assert changed >= painted * 0.98, "Treeland dock pixels did not disappear"
         if row.can_minimize:
             assert self.backend.windows.minimize_all("lab-native.desktop").succeeded
             await self.wait(
@@ -76,11 +80,10 @@ class TreelandProbe(native.Probe):
             lambda: self.window.autohide.hide_offset < 0.05,
             "Dock did not return after close",
         )
-        restored = await self.capture("restored")
-        assert (
-            sum(self.pixel(restored, point) == (0, 0, 255) for point in points)
-            >= len(points) * 0.98
+        changed, painted = await self.wait_for_marker_pixels(
+            points, phase="restored", present=True
         )
+        assert changed >= painted * 0.98, "Treeland dock pixels did not return"
         (self.evidence / "treeland-result.json").write_text(
             json.dumps(
                 {
