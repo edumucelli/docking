@@ -37,6 +37,7 @@ from docking.platform.backends.base import (
 )
 from docking.platform.backends.gtk_surface import apply_dock_stacking
 from docking.platform.backends.reduced.services import ReducedSurfaceService
+from docking.platform.backends.x11.services.surface import X11SurfaceService
 
 log = get_logger(name="backend.cinnamon.shell")
 
@@ -657,6 +658,33 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
         self._attempts_left = 0
         self._request = None
         self._position = None
+        super().stop()
+
+
+class CinnamonX11SurfaceService(X11SurfaceService):
+    """Retain X11 integration while reserving Muffin's native panel space."""
+
+    def __init__(self, *, client: CinnamonShellClient) -> None:
+        super().__init__()
+        self._chrome = CinnamonShellSurfaceService(client=client)
+
+    def configure_before_realize(
+        self, window: object, *, keep_above: bool = True
+    ) -> None:
+        super().configure_before_realize(window, keep_above=keep_above)
+        self._chrome.configure_before_realize(window, keep_above=keep_above)
+
+    def external_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
+        return self._chrome.external_workarea(monitor)
+
+    def set_reservation(self, request: ReservationRequest) -> None:
+        self._chrome.set_reservation(request)
+
+    def clear_reservation(self) -> None:
+        self._chrome.clear_reservation()
+
+    def stop(self) -> None:
+        self._chrome.stop()
         super().stop()
 
 

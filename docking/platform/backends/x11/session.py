@@ -22,6 +22,7 @@ from docking.platform.backends.base import (
     DisplayServer,
     PlatformCapabilities,
     SessionBackend,
+    SurfaceService,
 )
 from docking.platform.backends.x11.services.actions import WnckDesktopActionService
 from docking.platform.backends.x11.services.capture import X11ScreenCaptureService
@@ -32,6 +33,7 @@ from docking.platform.backends.x11.services.surface import X11SurfaceService
 from docking.platform.backends.x11.services.visibility import X11VisibilityService
 from docking.platform.backends.x11.services.windows import X11WindowService
 from docking.platform.backends.x11.services.workspaces import WnckWorkspaceService
+from docking.platform.environment import Desktop, detect_desktop
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -46,7 +48,7 @@ class X11RuntimeServices:
 
     windows: X11WindowService
     previews: X11PreviewService
-    surface: X11SurfaceService
+    surface: SurfaceService
     visibility: X11VisibilityService
     workspaces: WnckWorkspaceService
     window_picker: WnckWindowPickService
@@ -71,6 +73,17 @@ class X11SessionBackend(SessionBackend):
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
     ) -> None:
+        surface: SurfaceService = X11SurfaceService()
+        if detect_desktop() & Desktop.CINNAMON:
+            from docking.platform.backends.cinnamon.shell import (
+                CinnamonShellClient,
+                CinnamonX11SurfaceService,
+            )
+
+            # Muffin panels reserve native chrome space without X11 strut windows.
+            client = CinnamonShellClient.connect()
+            if client is not None:
+                surface = CinnamonX11SurfaceService(client=client)
         windows = X11WindowService(
             model=model,
             config=config,
@@ -80,7 +93,7 @@ class X11SessionBackend(SessionBackend):
         self._services = X11RuntimeServices(
             windows=windows,
             previews=X11PreviewService(window_tracker=windows),
-            surface=X11SurfaceService(),
+            surface=surface,
             visibility=X11VisibilityService(config=config),
             workspaces=WnckWorkspaceService(),
             window_picker=WnckWindowPickService(),
@@ -137,7 +150,7 @@ class X11SessionBackend(SessionBackend):
         return self._services.windows
 
     @property
-    def surface(self) -> X11SurfaceService:
+    def surface(self) -> SurfaceService:
         return self._services.surface
 
     @property
