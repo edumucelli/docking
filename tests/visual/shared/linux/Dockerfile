@@ -290,7 +290,7 @@ FROM x11-base AS x11-mate
 RUN apt-get update && apt-get install -y --no-install-recommends mate-session-manager marco mate-panel caja mate-settings-daemon-common \
     && rm -rf /var/lib/apt/lists/*
 FROM x11-base AS x11-lxde
-RUN apt-get update && apt-get install -y --no-install-recommends lxde-core \
+RUN apt-get update && apt-get install -y --no-install-recommends lxde-core x11-utils \
     && rm -rf /var/lib/apt/lists/*
 FROM x11-base AS x11-lxqt
 RUN apt-get update && apt-get install -y --no-install-recommends lxqt-session lxqt-panel pcmanfm-qt openbox \

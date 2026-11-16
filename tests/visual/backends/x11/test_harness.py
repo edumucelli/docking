@@ -1,5 +1,6 @@
 """Reject blank, misplaced and incomplete screenshots in the BSD visual lab."""
 
+import json
 import signal
 import subprocess
 from contextlib import contextmanager
@@ -148,12 +149,37 @@ def test_service_environment_does_not_reuse_host_displays_or_settings(
     monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
     monkeypatch.setenv("XDG_SESSION_DESKTOP", "host-desktop")
     monkeypatch.setenv("XDG_CONFIG_HOME", "/host/config")
+    monkeypatch.setenv("HOME", "/host/home")
     env = private_environment(tmp_path)
     assert "DISPLAY" not in env
     assert "WAYLAND_DISPLAY" not in env
     assert "XDG_SESSION_DESKTOP" not in env
     assert env["XDG_CONFIG_HOME"] == str(tmp_path / "config")
     assert (tmp_path / "config").stat().st_mode & 0o777 == 0o700
+    assert env["HOME"] == str(tmp_path / "home")
+    assert (tmp_path / "home").stat().st_mode & 0o777 == 0o700
+
+
+@pytest.mark.parametrize("capture_fails", [False, True])
+def test_setup_failure_keeps_original_error_and_attempts_native_capture(
+    monkeypatch, tmp_path, capture_fails
+):
+    observer = MagicMock(versions={})
+    observer.window_manager.side_effect = RuntimeError("window manager failed")
+    if capture_fails:
+        observer.capture.side_effect = RuntimeError("capture unavailable")
+    monkeypatch.setattr(run, "Observer", lambda *args: observer)
+    monkeypatch.setattr(run, "environment_metadata", lambda args: {})
+    args = SimpleNamespace(output=tmp_path, dock_command=None, case=[])
+
+    assert run.observe(args) == 1
+
+    observer.capture.assert_called_once_with("observer-setup-failure")
+    observer.close.assert_called_once()
+    results = json.loads((tmp_path / "results.json").read_text())["results"]
+    assert len(results) == 1
+    assert "window manager failed" in results[0]["detail"]
+    assert ("capture_error" in results[0]) is capture_fails
 
 
 def test_gap_scenario_can_run_without_other_placement_cases(monkeypatch):

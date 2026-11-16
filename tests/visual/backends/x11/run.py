@@ -68,6 +68,9 @@ def private_environment(directory: Path, desktop: str = "xfce") -> dict[str, str
         "SESSION_MANAGER",
     ):
         env.pop(key, None)
+    home = directory / "home"
+    home.mkdir(mode=0o700)
+    env["HOME"] = str(home)
     for kind in ("CONFIG", "CACHE", "DATA", "STATE", "RUNTIME"):
         path = directory / kind.lower()
         path.mkdir(mode=0o700)
@@ -870,13 +873,17 @@ def observe(args):
             record("unit-tests", unit_tests)
         run_checks(observer, dict(os.environ), record)
     except Exception:
-        results.append(
-            {
-                "case": "observer-setup",
-                "status": "fail",
-                "detail": traceback.format_exc(),
-            }
-        )
+        failure = {
+            "case": "observer-setup",
+            "status": "fail",
+            "detail": traceback.format_exc(),
+        }
+        if observer is not None:
+            try:
+                observer.capture("observer-setup-failure")
+            except Exception:
+                failure["capture_error"] = traceback.format_exc()
+        results.append(failure)
     finally:
         if observer is not None:
             observer.close()
