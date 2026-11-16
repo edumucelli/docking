@@ -68,6 +68,10 @@ physical GPU or self-hosted runner is required. The image is checked against its
 pinned SHA512 before boot. Guest failures remain failures, with the boot log and
 available native evidence retained. The download cache is `artifacts/visual-vm-cache/`.
 
+Hyprland uses a private Hyprlang configuration for the backend's dispatcher API
+and a pinned upstream Aquamarine nested-output fix. Niri supplies the required
+parent protocols inside VirGL-backed Sway; capture and input use outer Sway.
+
 Desktop names recognized only by detection code, including River, Louvre,
 Pantheon and Unity, are outside this visual target list. Distribution aliases do
 not create additional desktop targets. Windows 11 hosted coverage uses AMD64
