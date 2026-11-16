@@ -108,7 +108,7 @@ class DBusMenuClient:
             raw_root: object = result.get_child_value(1)
         else:
             # Plain Python replies: kept for tests and defensive callers.
-            revision_text, raw_root = _unpack_variant(result)
+            revision_text, raw_root = unpack_variant(result)
             revision = int(revision_text)
         root = parse_menu_node(raw_root)
         if root is None:
@@ -130,7 +130,7 @@ class DBusMenuClient:
             )
         except GLib.Error:
             return False
-        unpacked = _unpack_variant(result)
+        unpacked = unpack_variant(result)
         return bool(unpacked[0]) if isinstance(unpacked, (tuple, list)) else False
 
     def event(self, item_id: int, event_id: str = "clicked") -> bool:
@@ -161,11 +161,11 @@ def parse_menu_node(raw: object) -> DBusMenuItem | None:
     Real tray apps vary in how strictly they follow DBusMenu, so callers get a
     usable partial menu instead of losing the whole tree.
     """
-    node = _unbox_variant(raw)
+    node = unbox_variant(raw)
     if node is not None:
         return _parse_variant_node(node)
 
-    raw = _unpack_variant(raw)
+    raw = unpack_variant(raw)
     if not isinstance(raw, (tuple, list)) or len(raw) != 3:
         return None
     item_id, properties, children = raw
@@ -213,13 +213,13 @@ def _variant_properties(properties: GLib.Variant) -> dict[str, Any]:
         name = entry.get_child_value(0).get_string()
         if name not in _MENU_PROPERTY_NAMES:
             continue
-        value = _unbox_variant(entry.get_child_value(1))
+        value = unbox_variant(entry.get_child_value(1))
         if value is None:
             continue
         found[name] = (
             _variant_icon_data(value)
             if name == _ICON_DATA_PROPERTY
-            else _unpack_variant(value)
+            else unpack_variant(value)
         )
     return found
 
@@ -228,7 +228,7 @@ def _variant_icon_data(value: GLib.Variant) -> bytes:
     """Read ``icon-data`` in one C call, whatever shape the item published."""
     if value.get_type_string() == "ay":
         return value.get_data_as_bytes().get_data() or b""
-    return _icon_data(_unpack_variant(value))
+    return _icon_data(unpack_variant(value))
 
 
 def _build_menu_item(
@@ -252,7 +252,7 @@ def _build_menu_item(
     )
 
 
-def _unbox_variant(value: object) -> GLib.Variant | None:
+def unbox_variant(value: object) -> GLib.Variant | None:
     """Return the concrete variant behind an optional ``v`` wrapper."""
     if not isinstance(value, GLib.Variant):
         return None
@@ -267,7 +267,7 @@ def _clean_label(label: str) -> str:
 
 
 def _icon_data(value: object) -> bytes:
-    value = _unpack_variant(value)
+    value = unpack_variant(value)
     if isinstance(value, bytes):
         return value
     if isinstance(value, list):
@@ -275,13 +275,13 @@ def _icon_data(value: object) -> bytes:
     return b""
 
 
-def _unpack_variant(value: object) -> Any:
+def unpack_variant(value: object) -> Any:
     if isinstance(value, GLib.Variant):
-        return _unpack_variant(value.unpack())
+        return unpack_variant(value.unpack())
     if isinstance(value, dict):
-        return {key: _unpack_variant(val) for key, val in value.items()}
+        return {key: unpack_variant(val) for key, val in value.items()}
     if isinstance(value, tuple):
-        return tuple(_unpack_variant(item) for item in value)
+        return tuple(unpack_variant(item) for item in value)
     if isinstance(value, list):
-        return [_unpack_variant(item) for item in value]
+        return [unpack_variant(item) for item in value]
     return value

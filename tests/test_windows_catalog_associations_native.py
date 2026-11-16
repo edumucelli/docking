@@ -365,9 +365,9 @@ def _worker_check(configuration, report):
                 )
                 listing = resolution.listing
                 retained = (
-                    registry._gio_handle_for(listing.desktop_id)
+                    registry.gio_handle_for(listing.desktop_id)
                     if isinstance(listing, ApplicationInfo)
-                    else registry._gio_handle_for_unidentified(listing.listing_key)
+                    else registry.gio_handle_for_unidentified(listing.listing_key)
                 )
                 assert any(
                     retained is handle for handle, _identifier, _types in native_handles

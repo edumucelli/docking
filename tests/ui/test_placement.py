@@ -50,7 +50,7 @@ def _make_window(**overrides):
         resize=MagicMock(),
         move=MagicMock(),
         drawing_area=SimpleNamespace(queue_draw=MagicMock()),
-        _invalidate_current_geometry_frame=MagicMock(),
+        invalidate_current_geometry_frame=MagicMock(),
         update_input_region=MagicMock(),
         surface_service=surface_service,
     )
@@ -1380,7 +1380,7 @@ class TestPlacementControllerStruts:
 
         controller.reposition()
 
-        window._invalidate_current_geometry_frame.assert_called_once()
+        window.invalidate_current_geometry_frame.assert_called_once()
         controller.position_dock.assert_called_once()
         controller.set_struts.assert_called_once()
         window.update_input_region.assert_called_once()

@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 from docking.platform.backends.base import IdleService
-from docking.platform.backends.x11.impl.idle_time import _get_idle_ms
+from docking.platform.backends.x11.impl.idle_time import get_idle_ms
 
 
 class X11IdleService(IdleService):
@@ -29,7 +29,7 @@ class X11IdleService(IdleService):
         """No persistent resources are held."""
 
     def idle_seconds(self) -> float | None:
-        idle_ms = _get_idle_ms()
+        idle_ms = get_idle_ms()
         if idle_ms is None:
             return None
         return idle_ms / 1000.0

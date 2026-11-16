@@ -46,7 +46,7 @@ class ComObject:
         function = windows_ctypes.WINFUNCTYPE
         self._functions: list[Any] = [
             function(HRESULT, _POINTER, ctypes.POINTER(GUID), ctypes.POINTER(_POINTER))(
-                self._query
+                self.query_interface
             ),
             function(ctypes.c_uint32, _POINTER)(self._addref),
             function(ctypes.c_uint32, _POINTER)(self._release),
@@ -66,7 +66,7 @@ class ComObject:
         with self._lock:
             self._live[self._address] = self
 
-    def _query(self, _this, iid, output):
+    def query_interface(self, _this, iid, output):
         if not output or not iid:
             return -2147467261  # E_POINTER
         output[0] = None

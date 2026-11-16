@@ -115,13 +115,13 @@ def _format_duration(seconds: int | None) -> str | None:
     return _("{minutes}m").format(minutes=minutes)
 
 
-def _seconds_from_rate(*, remaining: int | None, rate: int | None) -> int | None:
+def seconds_from_rate(*, remaining: int | None, rate: int | None) -> int | None:
     if remaining is None or rate is None or remaining <= 0 or rate <= 0:
         return None
     return max(1, int((remaining / rate) * 3600))
 
 
-def _positive_delta(full: int | None, now: int | None) -> int | None:
+def positive_delta(full: int | None, now: int | None) -> int | None:
     if full is None or now is None:
         return None
     delta = full - now

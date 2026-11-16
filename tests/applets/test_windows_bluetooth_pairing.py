@@ -183,7 +183,7 @@ def test_authentication_uses_the_selected_handle_and_preserves_native_results(
 
     def read(handle, info):
         assert handle.value == 42 and info._obj.address == 0xAABBCCDDEEFF
-        assert info._obj.size == ctypes.sizeof(windows_radio._DeviceInfo)
+        assert info._obj.size == ctypes.sizeof(windows_radio.DeviceInfo)
         if mode == "denied":
             return 5
         if mode == "stale":

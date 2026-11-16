@@ -188,7 +188,7 @@ from docking.platform import icon_overrides
 from docking.platform.applications.recent_documents import recent_documents_for
 from docking.ui.about import AboutDialogController
 from docking.ui.diagnostics import DiagnosticsDialogController
-from docking.ui.folder._browser import FolderRow
+from docking.ui.folder.browser import FolderRow
 from docking.ui.folder.stack import FolderStackController
 from docking.ui.geometry import DockGeometryFrame
 from docking.ui.runtime import DockRuntime

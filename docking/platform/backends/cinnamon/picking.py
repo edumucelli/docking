@@ -71,7 +71,7 @@ class CinnamonWindowPickService(WindowPickService):
     def pick_window_at(self, *, x: int, y: int) -> WindowSnapshot | None:
         self._windows.refresh()
         return self._snapshot(
-            self._windows.shell._eval(
+            self._windows.shell.evaluate(
                 "(() => {" + self._pick_script(str(int(x)), str(int(y))) + "})()"
             )
         )
@@ -107,4 +107,4 @@ class CinnamonWindowPickService(WindowPickService):
                 if self._windows.shell.last_request_failed
                 else ActionResult.NOT_FOUND
             )
-        return self._windows.shell._action_result(result)
+        return self._windows.shell.action_result(result)

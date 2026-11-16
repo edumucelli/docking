@@ -41,7 +41,7 @@ def _creation(kernel, process: int) -> int:
     return times[0].low | times[0].high << 32
 
 
-def _window_facts(user, hwnd: int) -> dict:
+def window_facts(user, hwnd: int) -> dict:
     """Bounded physical-target facts, excluding arbitrary window titles."""
     row = {"hwnd": int(hwnd or 0)}
     if not hwnd:
@@ -81,7 +81,7 @@ def _window_facts(user, hwnd: int) -> dict:
     return row
 
 
-def _point_facts(native: WindowsDesktop, x: int, y: int) -> dict:
+def point_facts(native: WindowsDesktop, x: int, y: int) -> dict:
     raw = bind(native.user, "WindowFromPoint", ctypes.c_void_p, wintypes.POINT)(
         wintypes.POINT(x, y)
     )
@@ -98,12 +98,12 @@ def _point_facts(native: WindowsDesktop, x: int, y: int) -> dict:
     )
     return {
         "point": [x, y],
-        "hit": _window_facts(native.user, int(raw or 0)),
-        "root": _window_facts(native.user, int(root or 0)),
+        "hit": window_facts(native.user, int(raw or 0)),
+        "root": window_facts(native.user, int(root or 0)),
     }
 
 
-def _topmost(user, hwnd: int) -> bool:
+def is_topmost(user, hwnd: int) -> bool:
     ctypes.set_last_error(0)
     value = bind(user, "GetWindowLongW", ctypes.c_int32, ctypes.c_void_p, ctypes.c_int)(
         hwnd, -20
@@ -195,7 +195,7 @@ def _choose_placement(
         for px, py in _editor_points(bounds):
             if any(a <= px < c and b <= py < d for a, b, c, d in blockers):
                 continue
-            facts = _point_facts(native, px, py)
+            facts = point_facts(native, px, py)
             row["observations"].append(facts)
             root = facts["root"]
             if root["hwnd"] in below and identities[root["hwnd"]] == root.get("pid"):
@@ -239,7 +239,7 @@ def focus_editor(
 
     def exposed(phase):
         for x, y in points:
-            facts = _point_facts(native, x, y)
+            facts = point_facts(native, x, y)
             row["points"].append({"phase": phase, **facts})
             if (
                 facts["root"]["hwnd"] == hwnd
@@ -293,7 +293,7 @@ def focus_editor(
                 raise AssertionError("Owned input editor identity changed before click")
             if owned is not None:
                 row["identity_before_press"] = owned.verify_identity(editor)
-            facts = row["before_press"] = _point_facts(native, x, y)
+            facts = row["before_press"] = point_facts(native, x, y)
             if (
                 facts["root"]["hwnd"] != hwnd
                 or facts["root"].get("pid") != pid
@@ -379,7 +379,7 @@ def focus_gtk_entry(
     x, y = before["point"]
 
     def hit(phase):
-        facts = journal[phase] = _point_facts(native, x, y)
+        facts = journal[phase] = point_facts(native, x, y)
         root = facts["root"]
         assert (
             root["hwnd"] == context.root
@@ -747,7 +747,7 @@ class OwnedInputEditor:
             hashlib.sha256(self._executable.read_bytes()).hexdigest()
             == self._image_hash
         ), "Owned editor executable changed"
-        facts = _window_facts(self.native.user, window["hwnd"])
+        facts = window_facts(self.native.user, window["hwnd"])
         assert facts["pid"] == pid and facts["thread"], (
             "Owned editor window identity changed"
         )
@@ -814,8 +814,8 @@ class OwnedInputEditor:
         row = journal["owned_activation"] = {
             "identity_before": self.verify_identity(window),
             "foreground_before": int(user.GetForegroundWindow() or 0),
-            "bounds_before": _window_facts(user, hwnd)["bounds"],
-            "topmost_before": _topmost(user, hwnd),
+            "bounds_before": window_facts(user, hwnd)["bounds"],
+            "topmost_before": is_topmost(user, hwnd),
         }
         api = Win32WindowAPI()
         snapshot = api.capture_snapshot(hwnd, expected_pid=window["pid"])
@@ -874,8 +874,8 @@ class OwnedInputEditor:
             foreground, "Owned editor normal activation did not receive foreground"
         )
         row["identity_after"] = self.verify_identity(window)
-        row["bounds_after"] = _window_facts(user, hwnd)["bounds"]
-        row["topmost_after"] = _topmost(user, hwnd)
+        row["bounds_after"] = window_facts(user, hwnd)["bounds"]
+        row["topmost_after"] = is_topmost(user, hwnd)
         assert row["bounds_after"] == row["bounds_before"], (
             "Owned editor normal activation changed geometry"
         )
@@ -888,13 +888,13 @@ class OwnedInputEditor:
         """Move one owned window into observed free space without changing Z order."""
         hwnd, user = window["hwnd"], self.native.user
         journal["identity_before_placement"] = self.verify_identity(window)
-        before = _window_facts(user, hwnd)["bounds"]
+        before = window_facts(user, hwnd)["bounds"]
         workarea = self.native.workarea()
         chosen = _choose_placement(
             self.native, window, before, workarea, journal, phase="after_activation"
         )
         assert chosen is not None, "No observed exposed placement for owned editor"
-        topmost = _topmost(user, hwnd)
+        topmost = is_topmost(user, hwnd)
         foreground = int(user.GetForegroundWindow() or 0)
         position = bind(
             user,
@@ -920,7 +920,7 @@ class OwnedInputEditor:
         failure = None
         try:
             self.verify_identity(window)
-            assert _window_facts(user, hwnd)["bounds"] == before, (
+            assert window_facts(user, hwnd)["bounds"] == before, (
                 "Owned editor moved before placement"
             )
             assert position(hwnd, 0, chosen[0], chosen[1], 0, 0, flags), (
@@ -928,9 +928,11 @@ class OwnedInputEditor:
             )
             journal["placement"]["accepted"] = True
             self.verify_identity(window)
-            after = journal["placement"]["after"] = _window_facts(user, hwnd)["bounds"]
+            after = journal["placement"]["after"] = window_facts(user, hwnd)["bounds"]
             assert after == chosen, "Owned editor placement readback differs"
-            assert _topmost(user, hwnd) == topmost, "Owned editor topmost state changed"
+            assert is_topmost(user, hwnd) == topmost, (
+                "Owned editor topmost state changed"
+            )
             journal["placement"]["foreground_after"] = int(
                 user.GetForegroundWindow() or 0
             )
@@ -948,10 +950,10 @@ class OwnedInputEditor:
                     assert position(hwnd, 0, before[0], before[1], 0, 0, flags), (
                         "Owned editor geometry did not restore"
                     )
-                    assert _window_facts(user, hwnd)["bounds"] == before, (
+                    assert window_facts(user, hwnd)["bounds"] == before, (
                         "Owned editor restored geometry differs"
                     )
-                    assert _topmost(user, hwnd) == topmost, (
+                    assert is_topmost(user, hwnd) == topmost, (
                         "Owned editor topmost state did not restore"
                     )
                     journal["placement"]["geometry_restored"] = True

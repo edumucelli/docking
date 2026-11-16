@@ -34,7 +34,7 @@ from docking.i18n import _
 from docking.log import get_logger, with_context
 from docking.platform.backends.base import WorkspaceService, WorkspaceSnapshot
 
-from .render import _render_grid
+from .render import render_grid
 from .state import (
     next_workspace_index,
     workspace_count,
@@ -88,7 +88,7 @@ class WorkspacesApplet(Applet):
 
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
-        _render_grid(cr=cr, size=size, count=count, active_num=active_index)
+        render_grid(cr=cr, size=size, count=count, active_num=active_index)
 
         return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
 

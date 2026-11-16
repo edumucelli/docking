@@ -48,13 +48,13 @@ class _FakeXss:
 
 
 def test_idle_seconds_converts_xss_milliseconds(monkeypatch):
-    monkeypatch.setattr(idle_service, "_get_idle_ms", lambda: 2500)
+    monkeypatch.setattr(idle_service, "get_idle_ms", lambda: 2500)
 
     assert X11IdleService().idle_seconds() == 2.5
 
 
 def test_idle_seconds_returns_none_when_probe_unavailable(monkeypatch):
-    monkeypatch.setattr(idle_service, "_get_idle_ms", lambda: None)
+    monkeypatch.setattr(idle_service, "get_idle_ms", lambda: None)
 
     assert X11IdleService().idle_seconds() is None
 
@@ -135,25 +135,25 @@ class TestIdleProbe:
         )
         monkeypatch.setattr(idle_time, "_xdisplay_handle", lambda: ctypes.c_void_p(1))
 
-        assert idle_time._get_idle_ms() == 4242
+        assert idle_time.get_idle_ms() == 4242
         assert xlib.freed == [xss.info_ptr]
 
         _reset_idle_module()
         monkeypatch.setattr(idle_time, "_load_libraries", lambda: False)
-        assert idle_time._get_idle_ms() is None
+        assert idle_time.get_idle_ms() is None
 
         monkeypatch.setattr(idle_time, "_load_libraries", lambda: True)
         idle_time._xlib = xlib
         idle_time._xss = xss
         monkeypatch.setattr(idle_time, "_xdisplay_handle", lambda: None)
-        assert idle_time._get_idle_ms() is None
+        assert idle_time.get_idle_ms() is None
 
         monkeypatch.setattr(idle_time, "_xdisplay_handle", lambda: ctypes.c_void_p(1))
         null_ptr = ctypes.POINTER(idle_time._XScreenSaverInfo)()
         xss.XScreenSaverAllocInfo = _FakeCFunc(lambda: null_ptr)
-        assert idle_time._get_idle_ms() is None
+        assert idle_time.get_idle_ms() is None
 
         xss = _FakeXss(query_ok=False)
         idle_time._xss = xss
-        assert idle_time._get_idle_ms() is None
+        assert idle_time.get_idle_ms() is None
         assert xlib.freed[-1] == xss.info_ptr

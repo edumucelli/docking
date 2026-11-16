@@ -29,7 +29,7 @@ def test_enter_alone_sets_hover_and_tooltip_without_a_following_motion(position)
         config=SimpleNamespace(pos=position),
         autohide=SimpleNamespace(enabled=False),
         interaction=MagicMock(),
-        _build_and_store_geometry_frame=MagicMock(return_value=frame),
+        build_and_store_geometry_frame=MagicMock(return_value=frame),
     )
     window.interaction.on_effective_enter.side_effect = lambda: setattr(
         window, "dock_hovered", True
@@ -56,9 +56,9 @@ def test_motion_outside_dock_keeps_stack_open_for_pointer_transit():
         item_at_point=MagicMock(return_value=None),
     )
     window = SimpleNamespace(
-        _build_and_store_geometry_frame=MagicMock(return_value=frame),
+        build_and_store_geometry_frame=MagicMock(return_value=frame),
         update_input_region=MagicMock(),
-        _schedule_redraw=MagicMock(),
+        schedule_redraw=MagicMock(),
         dock_hovered=False,
     )
     interactions = MagicMock()
@@ -215,9 +215,9 @@ def test_model_change_closes_stack_for_removed_applet():
         ),
         config=SimpleNamespace(pos="bottom"),
         placement=SimpleNamespace(set_struts=MagicMock()),
-        _invalidate_current_geometry_frame=MagicMock(),
+        invalidate_current_geometry_frame=MagicMock(),
         update_input_region=MagicMock(),
-        _schedule_redraw=MagicMock(),
+        schedule_redraw=MagicMock(),
     )
     interactions = MagicMock()
     interactions.open_stack_owner_id.return_value = "applet://devices"
@@ -247,9 +247,9 @@ def test_model_change_does_not_refresh_existing_applet_stack():
         ),
         config=SimpleNamespace(pos="bottom"),
         placement=SimpleNamespace(set_struts=MagicMock()),
-        _invalidate_current_geometry_frame=MagicMock(),
+        invalidate_current_geometry_frame=MagicMock(),
         update_input_region=MagicMock(),
-        _schedule_redraw=MagicMock(),
+        schedule_redraw=MagicMock(),
     )
     interactions = MagicMock()
     interactions.open_stack_owner_id.return_value = "applet://devices"
@@ -276,7 +276,7 @@ def test_right_click_prepares_applet_anchor_before_building_its_menu(background)
     window = SimpleNamespace(
         config=SimpleNamespace(pos=Position.BOTTOM),
         model=SimpleNamespace(get_applet=MagicMock(return_value=applet)),
-        _build_and_store_geometry_frame=MagicMock(return_value=frame),
+        build_and_store_geometry_frame=MagicMock(return_value=frame),
         popup_anchor_for_item=MagicMock(return_value=anchor),
     )
     interactions = MagicMock()

@@ -140,7 +140,7 @@ class DockInputController:
 
     def _on_draw(self, widget: Gtk.DrawingArea, cr: cairo.Context) -> bool:
         window = self._window
-        window._clear_scheduled_redraw()
+        window.clear_scheduled_redraw()
         hide_offset = window.autohide.hide_offset
         autohide_zoom = (
             window.autohide.zoom_progress if window.autohide.enabled else 1.0
@@ -171,13 +171,13 @@ class DockInputController:
             )
         animation_tick = window.model.tick_animations()
         if animation_tick.changed:
-            window._invalidate_current_geometry_frame()
+            window.invalidate_current_geometry_frame()
             if not animation_tick.active:
                 window.placement.set_struts()
         if animation_tick.active:
-            window._schedule_redraw()
+            window.schedule_redraw()
 
-        frame = window._current_or_build_geometry_frame(drop_insert_index=drop_insert)
+        frame = window.current_or_build_geometry_frame(drop_insert_index=drop_insert)
         if current_autohide_state is not None and log.isEnabledFor(logging.DEBUG):
             item_positions = [
                 (
@@ -188,7 +188,7 @@ class DockInputController:
                 for geometry in frame.item_geometries
             ]
             log.debug("draw items: %s", " | ".join(item_positions) or "<none>")
-        window._sync_background_blur_hint(frame=frame)
+        window.sync_background_blur_hint(frame=frame)
         cursor_main_axis = (
             window.cursor_x if is_horizontal(pos=window.config.pos) else window.cursor_y
         )
@@ -218,7 +218,7 @@ class DockInputController:
             window.dock_hovered = False
             window.tooltip.hide()
         elif (
-            window._last_autohide_state == HideState.SHOWING
+            window.last_autohide_state == HideState.SHOWING
             and current_autohide_state == HideState.VISIBLE
             and window.dock_hovered
             and window.hover.hovered_item is not None
@@ -246,18 +246,18 @@ class DockInputController:
             autohide_state=current_autohide_state,
             now_us=GLib.get_monotonic_time(),
         ):
-            window._schedule_redraw()
+            window.schedule_redraw()
 
-        window._last_autohide_state = current_autohide_state
+        window.last_autohide_state = current_autohide_state
         return True
 
     def _on_motion(self, widget: Gtk.DrawingArea, event: Gdk.EventMotion) -> bool:
         window = self._window
         window.cursor_x = event.x
         window.cursor_y = event.y
-        frame = window._build_and_store_geometry_frame()
+        frame = window.build_and_store_geometry_frame()
         window.update_input_region(frame=frame)
-        window._schedule_redraw()
+        window.schedule_redraw()
         hovered_item = frame.item_at_point(event.x, event.y)
         if frame.cursor_rect.contains(event.x, event.y):
             self._interactions.close_stack_unless_target(hovered_item)
@@ -404,7 +404,7 @@ class DockInputController:
         if event.button == MOUSE_RIGHT:
             cursor_main = event.x if is_horizontal(pos=window.config.pos) else event.y
             force_background = bool(event.state & Gdk.ModifierType.CONTROL_MASK)
-            frame = window._build_and_store_geometry_frame(
+            frame = window.build_and_store_geometry_frame(
                 cursor_x=event.x,
                 cursor_y=event.y,
             )
@@ -422,7 +422,7 @@ class DockInputController:
             return True
 
         if event.button in (MOUSE_LEFT, MOUSE_MIDDLE):
-            frame = window._build_and_store_geometry_frame(
+            frame = window.build_and_store_geometry_frame(
                 cursor_x=event.x,
                 cursor_y=event.y,
             )
@@ -519,7 +519,7 @@ class DockInputController:
 
     def _on_scroll(self, _widget: Gtk.DrawingArea, event: Gdk.EventScroll) -> bool:
         window = self._window
-        frame = window._build_and_store_geometry_frame(
+        frame = window.build_and_store_geometry_frame(
             cursor_x=event.x,
             cursor_y=event.y,
         )
@@ -568,7 +568,7 @@ class DockInputController:
         window = self._window
         window.cursor_x = event.x
         window.cursor_y = event.y
-        frame = window._build_and_store_geometry_frame(
+        frame = window.build_and_store_geometry_frame(
             cursor_x=event.x,
             cursor_y=event.y,
         )
@@ -582,7 +582,7 @@ class DockInputController:
 
     def _on_model_changed(self) -> None:
         window = self._window
-        window._invalidate_current_geometry_frame()
+        window.invalidate_current_geometry_frame()
         window.placement.set_struts()
         window.update_input_region()
         window.hover.on_model_changed()
@@ -600,7 +600,7 @@ class DockInputController:
                 else window.cursor_y
             )
             window.hover.update(cursor_main)
-        window._schedule_redraw()
+        window.schedule_redraw()
 
     def _on_applet_changed(self, desktop_id: str) -> None:
         """Refresh an open stack only when its owning applet changed."""

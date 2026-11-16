@@ -15,13 +15,13 @@ from docking.applets.battery.implementations.unix.upower import (
 from docking.applets.battery.peripherals import PeripheralBattery
 from docking.applets.battery.state import (
     BatteryState,
-    _positive_delta,
-    _seconds_from_rate,
+    positive_delta,
     resolve_battery_icon,
+    seconds_from_rate,
 )
 from docking.log import get_logger
 
-from ..unix.upower import _upower_seconds_remaining
+from ..unix.upower import upower_seconds_remaining
 
 log = get_logger("battery.linux")
 BAT_BASE = Path("/sys/class/power_supply")
@@ -36,7 +36,7 @@ def read_battery(bat_name: str = "BAT0", base: Path = BAT_BASE) -> BatteryState 
         capacity = int((bat_dir / "capacity").read_text().strip())
         capacity_level = (bat_dir / "capacity_level").read_text().strip()
         status = (bat_dir / "status").read_text().strip()
-        seconds_remaining = _upower_seconds_remaining(bat_name=bat_name, status=status)
+        seconds_remaining = upower_seconds_remaining(bat_name=bat_name, status=status)
         if seconds_remaining is None:
             seconds_remaining = _estimate_seconds_remaining(
                 bat_dir=bat_dir,
@@ -104,9 +104,9 @@ def _estimate_seconds_remaining(*, bat_dir: Path, status: str) -> int | None:
         remaining = (
             energy_now
             if normalized == "discharging"
-            else _positive_delta(energy_full, energy_now)
+            else positive_delta(energy_full, energy_now)
         )
-        return _seconds_from_rate(remaining=remaining, rate=power_now)
+        return seconds_from_rate(remaining=remaining, rate=power_now)
 
     charge_now = _read_int(path=bat_dir / "charge_now")
     charge_full = _read_int(path=bat_dir / "charge_full")
@@ -115,9 +115,9 @@ def _estimate_seconds_remaining(*, bat_dir: Path, status: str) -> int | None:
         remaining = (
             charge_now
             if normalized == "discharging"
-            else _positive_delta(charge_full, charge_now)
+            else positive_delta(charge_full, charge_now)
         )
-        return _seconds_from_rate(remaining=remaining, rate=current_now)
+        return seconds_from_rate(remaining=remaining, rate=current_now)
 
     return None
 

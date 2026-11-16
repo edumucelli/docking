@@ -38,11 +38,11 @@ from docking.platform.backends.wayland.niri_ipc import (
     NiriDesktopActionService,
     NiriScreenCaptureService,
     NiriWindowService,
-    _niri_socket_path,
     load_niri_desktop_action_service,
     load_niri_preview_service,
     load_niri_window_service,
     load_niri_workspace_service,
+    niri_socket_path,
 )
 from docking.platform.backends.wayland.niri_picking import (
     NiriWindowPickService,
@@ -135,7 +135,7 @@ class NiriSessionBackend(SessionBackend):
 
         # Prefer Niri's native PickColor IPC over the XDG desktop portal.
         if screen_capture is None:
-            socket_path = _niri_socket_path()
+            socket_path = niri_socket_path()
             if socket_path is not None and socket_path.exists():
                 screen_capture = NiriScreenCaptureService(socket_path=str(socket_path))
             else:

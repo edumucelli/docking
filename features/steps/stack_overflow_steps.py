@@ -17,9 +17,9 @@ def transit_outside_dock(context):
         cursor_rect=Rect(0, 0, 100, 54), item_at_point=lambda *_: None
     )
     window = SimpleNamespace(
-        _build_and_store_geometry_frame=lambda: frame,
+        build_and_store_geometry_frame=lambda: frame,
         update_input_region=lambda **_: None,
-        _schedule_redraw=lambda: None,
+        schedule_redraw=lambda: None,
         dock_hovered=False,
     )
     interactions = SimpleNamespace(

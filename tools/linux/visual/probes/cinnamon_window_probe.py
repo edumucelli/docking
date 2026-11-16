@@ -15,7 +15,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from cinnamon_probe import _eval, _proxy, screenshot
+from cinnamon_probe import create_proxy, evaluate, screenshot
 from gi.repository import Gdk, Gio, GLib, Gtk
 
 STATE_SCRIPT = """
@@ -48,7 +48,7 @@ class WindowProbe:
     def __init__(self, evidence: Path, name: str) -> None:
         self.evidence = evidence
         self.name = name
-        self.shell = _proxy()
+        self.shell = create_proxy()
         self.dock = Gio.DBusProxy.new_for_bus_sync(
             Gio.BusType.SESSION,
             Gio.DBusProxyFlags.DO_NOT_AUTO_START,
@@ -61,7 +61,7 @@ class WindowProbe:
         self.phases = {}
 
     def state(self):
-        return _eval(self.shell, STATE_SCRIPT)
+        return evaluate(self.shell, STATE_SCRIPT)
 
     def wait(self, predicate):
         deadline = time.monotonic() + 8
@@ -86,8 +86,8 @@ class WindowProbe:
             None,
         ).unpack()
         assert found, app
-        width = _eval(self.shell, "global.display.get_monitor_geometry(0).width")
-        height = _eval(self.shell, "global.display.get_monitor_geometry(0).height")
+        width = evaluate(self.shell, "global.display.get_monitor_geometry(0).width")
+        height = evaluate(self.shell, "global.display.get_monitor_geometry(0).height")
         input_path = Path(os.environ["XDG_RUNTIME_DIR"]) / "lab-input.sock"
         for pressed in (0, button):
             with socket.socket(socket.AF_UNIX) as connection:
@@ -110,7 +110,7 @@ class WindowProbe:
     def act(self, sequence, code):
         assert type(sequence) is int
         assert (
-            _eval(
+            evaluate(
                 self.shell,
                 "(() => {const w = global.get_window_actors().map(a => a.meta_window)"
                 f".find(w => w.get_stable_sequence() === {sequence});"
@@ -217,7 +217,7 @@ class WindowProbe:
             )
         )
         self.close_clients()
-        _eval(
+        evaluate(
             self.shell,
             "global.workspace_manager.get_workspace_by_index(0)"
             ".activate(global.get_current_time()); true",

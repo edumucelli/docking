@@ -29,7 +29,7 @@ from docking.core.position import Position
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.targets import TargetService
-from docking.ui.folder._browser import (
+from docking.ui.folder.browser import (
     FOLDER_SMALL_ICON_PX,
     FOLDER_SORT_OPTIONS,
     FolderBrowser,
@@ -52,7 +52,7 @@ from docking.ui.stack import (
     StackLayout,
     StackLayoutCache,
     StackPopupController,
-    _measure_stack_text_px,
+    measure_stack_text_px,
 )
 
 if TYPE_CHECKING:
@@ -85,7 +85,7 @@ __all__ = [
     "Gtk",
     "Pango",
     "PangoCairo",
-    "_measure_stack_text_px",
+    "measure_stack_text_px",
 ]
 
 

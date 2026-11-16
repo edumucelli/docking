@@ -37,8 +37,8 @@ def test_menu_listings_keep_retained_gio_artwork_and_idless_launch_contexts():
     model.find_by_desktop_id.return_value = None
     gicon = Gio.ThemedIcon.new("test-gio-icon")
     handle = SimpleNamespace(get_icon=lambda: gicon)
-    registry._gio_handle_for.return_value = handle
-    registry._gio_handle_for_unidentified.return_value = handle
+    registry.gio_handle_for.return_value = handle
+    registry.gio_handle_for_unidentified.return_value = handle
     source = ApplicationIcons(model=model, registry=registry, loader=loader)
     canonical = application("app")
     source.load_listing(canonical, 16)
@@ -49,5 +49,5 @@ def test_menu_listings_keep_retained_gio_artwork_and_idless_launch_contexts():
         listing_key="opaque:1", name="File handler", declared_icon="", desktop_file=None
     )
     source.load_listing(listing, 16)
-    registry._gio_handle_for_unidentified.assert_called_once_with("opaque:1")
+    registry.gio_handle_for_unidentified.assert_called_once_with("opaque:1")
     loader.load_gicon.assert_called_once_with(gicon=gicon, size=16)

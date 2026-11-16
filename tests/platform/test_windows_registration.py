@@ -107,7 +107,7 @@ def test_imported_shortcut_overrides_launch_options_without_losing_catalog_metad
     assert len(registry.snapshot()) == 1
     assert imported.name == "Selected"
     assert imported.origin is before.origin is ApplicationOrigin.INSTALLED
-    assert imported.has_gio_source and registry._gio_handle_for("Native.App") is handle
+    assert imported.has_gio_source and registry.gio_handle_for("Native.App") is handle
     assert imported.categories == before.categories
     assert imported.working_directory == str(tmp_path / "profile")
     assert Path(imported.launch_target).read_bytes() == source.read_bytes()

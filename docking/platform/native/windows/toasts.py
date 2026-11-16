@@ -152,7 +152,7 @@ class ToastPublisher:
                 agile=True,
             )
             try:
-                return activation._query(None, iid, output)
+                return activation.query_interface(None, iid, output)
             finally:
                 activation.close()
 

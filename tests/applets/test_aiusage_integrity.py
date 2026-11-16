@@ -302,13 +302,13 @@ def test_polled_history_survives_midnight_and_an_applet_restart(monkeypatch):
     monkeypatch.setattr(applet, "SerialWorker", lambda **_kwargs: worker.worker)
     first = applet.AiUsageApplet(48, Config())
     first.present = MagicMock()
-    monkeypatch.setattr(applet, "_today_iso", lambda: "2026-04-28")
+    monkeypatch.setattr(applet, "today_iso", lambda: "2026-04-28")
     first._tick()
     worker.drain()
     assert state.week_tokens(first._state) == 30
 
     provider.poll_today = dict
-    monkeypatch.setattr(applet, "_today_iso", lambda: "2026-04-29")
+    monkeypatch.setattr(applet, "today_iso", lambda: "2026-04-29")
     second = applet.AiUsageApplet(48, Config())
     second._tick()
     worker.drain()
@@ -321,7 +321,7 @@ def test_polled_history_survives_midnight_and_an_applet_restart(monkeypatch):
 def test_poll_preserves_concurrent_hook_updates_and_other_polled_sessions(
     monkeypatch, initial_tokens
 ):
-    day = state._today_iso()
+    day = state.today_iso()
     if initial_tokens:
         store.replace_session(
             session_id="session", model_usage=_usage(initial_tokens), date=day

@@ -53,7 +53,7 @@ def _draw_soft_shadow(
         cr.restore()
 
 
-def _draw_screenshot_icon(*, cr: cairo.Context, size: int) -> None:
+def draw_screenshot_icon(*, cr: cairo.Context, size: int) -> None:
     tile_margin = 0.06 * size
     tile_size = size - (2 * tile_margin)
     tile_x = (size - tile_size) / 2.0

@@ -106,7 +106,7 @@ from docking.applets.quote.render import draw_bulb_icon
 from docking.applets.recentfiles.render import render_icon as render_recentfiles
 from docking.applets.reddit.render import render_icon as render_reddit
 from docking.applets.runcommand.render import create_icon as render_runcommand
-from docking.applets.screenshot.applet import _draw_screenshot_icon
+from docking.applets.screenshot.applet import draw_screenshot_icon
 from docking.applets.search.render import render_icon as render_search
 from docking.applets.session.render import create_session_icon
 from docking.applets.speedtest.render import render_icon as render_speedtest
@@ -131,7 +131,7 @@ from docking.applets.weather.render import create_icon as render_weather
 from docking.applets.whatsapp.render import render_icon as render_whatsapp
 from docking.applets.whatsapp.state import BrowserPhase as WhatsAppBrowserPhase
 from docking.applets.windowkiller.render import create_icon as render_windowkiller
-from docking.applets.workspaces.render import _render_grid
+from docking.applets.workspaces.render import render_grid
 
 ICON_SIZE = 64
 OUT_DIR = (
@@ -188,7 +188,7 @@ def _quote_pixbuf(*, size: int) -> GdkPixbuf.Pixbuf | None:
 def _screenshot_pixbuf(*, size: int) -> GdkPixbuf.Pixbuf | None:
     return _surface_to_pixbuf(
         size=size,
-        draw_fn=lambda cr, s: _draw_screenshot_icon(cr=cr, size=s),
+        draw_fn=lambda cr, s: draw_screenshot_icon(cr=cr, size=s),
     )
 
 
@@ -202,7 +202,7 @@ def _trivia_pixbuf(*, size: int) -> GdkPixbuf.Pixbuf | None:
 def _workspaces_pixbuf(*, size: int) -> GdkPixbuf.Pixbuf | None:
     return _surface_to_pixbuf(
         size=size,
-        draw_fn=lambda cr, s: _render_grid(cr=cr, size=s, count=4, active_num=0),
+        draw_fn=lambda cr, s: render_grid(cr=cr, size=s, count=4, active_num=0),
     )
 
 

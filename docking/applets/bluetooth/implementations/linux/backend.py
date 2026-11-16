@@ -19,8 +19,8 @@ from docking.applets.bluetooth.state import (
     BluetoothAdapterState,
     BluetoothDeviceState,
     BluetoothState,
-    _device_sort_key,
     adapter_from_state,
+    device_sort_key,
     unavailable_state,
 )
 from docking.log import get_logger, with_context
@@ -529,7 +529,7 @@ def _parse_objects(
             devices.append(device)
 
     adapters.sort(key=lambda adapter: adapter.path)
-    devices.sort(key=_device_sort_key)
+    devices.sort(key=device_sort_key)
     return adapters, devices
 
 

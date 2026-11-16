@@ -7,7 +7,7 @@ import pytest
 
 import docking.ui.menu as menu_mod
 from docking.core.position import Position
-from docking.core.theme import _BUILTIN_THEMES_DIR
+from docking.core.theme.theme import _BUILTIN_THEMES_DIR
 from docking.ui.menu import _build_radio_submenu
 from tests.ui.menu_support import FakePixbuf as _FakePixbuf
 

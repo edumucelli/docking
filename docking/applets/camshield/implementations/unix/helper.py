@@ -74,7 +74,7 @@ def lock_devices(
     state_dir: Path = STATE_DIR,
 ) -> int:
     """Lock current camera devices by removing all mode permissions."""
-    _require_root()
+    require_root()
     devices = discover_video_devices(dev_root=dev_root)
     if not devices:
         print("No camera devices found.", file=sys.stderr)
@@ -103,7 +103,7 @@ def lock_devices(
 
 def unlock_devices(*, backend: UnixCameraControl, state_dir: Path = STATE_DIR) -> int:
     """Restore camera devices recorded by the last lock operation."""
-    _require_root()
+    require_root()
     state = _read_state(state_dir=state_dir)
     if not state:
         print("No locked camera devices recorded.", file=sys.stderr)
@@ -160,7 +160,7 @@ def status_devices(
     return 0
 
 
-def _require_root() -> None:
+def require_root() -> None:
     if os.geteuid() != 0:
         raise PermissionError("Camera lock/unlock must be run as root.")
 
@@ -278,10 +278,10 @@ def _write_state(*, state: dict[str, DeviceSnapshot], state_dir: Path) -> None:
             for device_path, snapshot in sorted(state.items())
         },
     }
-    _atomic_write_json(state_dir / STATE_FILE.name, payload)
+    atomic_write_json(state_dir / STATE_FILE.name, payload)
 
 
-def _atomic_write_json(path: Path, payload: dict[str, object]) -> None:
+def atomic_write_json(path: Path, payload: dict[str, object]) -> None:
     temporary: Path | None = None
     try:
         with tempfile.NamedTemporaryFile(

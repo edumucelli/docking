@@ -13,8 +13,8 @@ from gi.repository import GLib
 
 from docking.applets.network.backend import VpnConnection
 from docking.applets.network.implementations.windows.ras import (
+    Ras,
     VpnProfile,
-    _Ras,
     launch_dialer,
     ras_api,
 )
@@ -27,7 +27,7 @@ class WindowsVpn:
     def __init__(
         self,
         *,
-        api: _Ras | None = None,
+        api: Ras | None = None,
         dial: Callable[[VpnProfile], None] = launch_dialer,
         idle_add=GLib.idle_add,
     ):
@@ -40,7 +40,7 @@ class WindowsVpn:
         self._stopped = False
         self.changed: Callable[[], None] = lambda: None
 
-    def _native(self) -> _Ras:
+    def _native(self) -> Ras:
         return self._api if self._api is not None else ras_api()
 
     def connections(self) -> list[VpnConnection]:

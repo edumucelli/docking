@@ -31,7 +31,7 @@ from docking.core.icons import IconSource
 from docking.i18n import _
 
 from .render import create_session_icon
-from .state import _ACTIONS
+from .state import ACTIONS
 
 if TYPE_CHECKING:
     from docking.core.config import Config
@@ -72,7 +72,7 @@ class SessionApplet(PlatformServicesApplet):
         primary: list[Gtk.MenuItem] = []
         destructive: list[Gtk.MenuItem] = []
         available = self._backend.available_actions()
-        for label, action in _ACTIONS:
+        for label, action in ACTIONS:
             mi = Gtk.MenuItem(label=label)
             mi.set_sensitive(action in available)
             mi.connect("activate", lambda _w, a=action: self._backend.perform(a))

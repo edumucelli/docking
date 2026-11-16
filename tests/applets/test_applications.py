@@ -70,7 +70,7 @@ class _Registry:
     ) -> tuple[TransientApplicationInfo, ...]:
         return self.unidentified
 
-    def _gio_handle_for(self, desktop_id: str) -> object | None:
+    def gio_handle_for(self, desktop_id: str) -> object | None:
         return self.handles.get(desktop_id)
 
 

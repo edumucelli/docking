@@ -55,7 +55,7 @@ def native(monkeypatch):
     )
     dll = SimpleNamespace(**{n: Mock(return_value=0) for n in names})
     monkeypatch.setattr(ras.ctypes, "WinDLL", lambda *_a, **_kw: dll, raising=False)
-    return ras._Ras(), dll
+    return ras.Ras(), dll
 
 
 def test_ras_abi_has_sdk_pack_four_even_with_64bit_handles():

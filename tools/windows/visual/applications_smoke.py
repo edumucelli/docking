@@ -370,7 +370,7 @@ def main():
         assert call(lambda: registry.get(widget_id).visible) is False
         for app_id in (main_id, widget_id):
             assert (
-                call(lambda app_id=app_id: registry._gio_handle_for(app_id).get_id())
+                call(lambda app_id=app_id: registry.gio_handle_for(app_id).get_id())
                 == app_id
             )
         report["visibility_search"] = {"before": before, "after": after}

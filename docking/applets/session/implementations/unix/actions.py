@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from docking.log import get_logger, with_context
 from docking.platform.environment import flatpak
 
-from ...state import _LOCK_SCREEN_DBUS_CANDIDATES
+from ...state import LOCK_SCREEN_DBUS_CANDIDATES
 
 log = with_context(get_logger("session"))
 
@@ -70,7 +70,7 @@ def _lock_screen_commands(
     commands: list[list[str]] = []
     gdbus = shutil.which("gdbus")
     if gdbus is not None:
-        for destination, object_path, method in _LOCK_SCREEN_DBUS_CANDIDATES:
+        for destination, object_path, method in LOCK_SCREEN_DBUS_CANDIDATES:
             commands.append(
                 [
                     gdbus,

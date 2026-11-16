@@ -18,7 +18,7 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for non-GI environmen
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
-import docking.ui.folder._browser as folder_browser_mod
+import docking.ui.folder.browser as folder_browser_mod
 import docking.ui.folder.stack as folder_stack_mod
 import docking.ui.menu as menu_mod
 import docking.ui.stack as stack_mod
@@ -33,7 +33,7 @@ from docking.platform.backends.base import (
     WindowSnapshot,
 )
 from docking.platform.model import DockItem
-from docking.ui.folder._browser import FolderRow
+from docking.ui.folder.browser import FolderRow
 from tests.ui.menu_support import FakePixbuf
 
 
@@ -1946,7 +1946,7 @@ class TestMenuCallbacks:
 
         assert cards[0].label == "5 More in Caja"
         expected_width = (
-            folder_stack_mod._measure_stack_text_px("5 More in Caja")
+            folder_stack_mod.measure_stack_text_px("5 More in Caja")
             + 2 * folder_stack_mod.FOLDER_STACK_LABEL_TEXT_MARGIN_PX
             + folder_stack_mod.FOLDER_STACK_ACTION_ARROW_GAP_PX
             + folder_stack_mod.FOLDER_STACK_ACTION_ARROW_SIZE_PX

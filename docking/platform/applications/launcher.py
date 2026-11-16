@@ -38,7 +38,7 @@ class ApplicationLauncher:
             self._record(
                 application,
                 self._backend.launch(
-                    application, lambda: self._registry._gio_handle_for(desktop_id)
+                    application, lambda: self._registry.gio_handle_for(desktop_id)
                 ),
             )
             if application is not None
@@ -54,7 +54,7 @@ class ApplicationLauncher:
             self._backend.launch_action(
                 application,
                 action_id,
-                lambda: self._registry._gio_handle_for(desktop_id),
+                lambda: self._registry.gio_handle_for(desktop_id),
             ),
         )
 
@@ -65,13 +65,13 @@ class ApplicationLauncher:
         return self._record(
             application,
             self._backend.launch_app_uris(
-                application, uris, lambda: self._registry._gio_handle_for(desktop_id)
+                application, uris, lambda: self._registry.gio_handle_for(desktop_id)
             ),
         )
 
     def launch_listing(self, listing_key: str) -> bool:
         return self._backend.launch_listing(
-            listing_key, self._registry._gio_handle_for_unidentified(listing_key)
+            listing_key, self._registry.gio_handle_for_unidentified(listing_key)
         ).accepted
 
     def quicklist_actions(

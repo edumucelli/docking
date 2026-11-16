@@ -103,7 +103,7 @@ class UnixApplicationAssociationBackend(ApplicationAssociationBackend):
         registered = self.registered(registry, app_info)
         if registered is not None:
             return registered if registered.visible else None
-        return registry._retain_content_listing(app_info)
+        return registry.retain_content_listing(app_info)
 
     def transient(self, app_info: object, listing_key: str) -> TransientApplicationInfo:
         listing = discovery.transient_from_gio(

@@ -33,16 +33,16 @@ from docking.applets.aiusage.state import (
     AiUsageState,
     DisplayMode,
     Provider,
-    _format_cost,
-    _format_tokens,
-    _short_model,
-    _today_entry,
-    _today_iso,
     cost_for_usage,
+    format_cost,
+    format_tokens,
     provider_cost,
     provider_for_model,
     provider_tokens,
+    short_model,
     state_from_prefs,
+    today_entry,
+    today_iso,
     tooltip_text,
     total_tokens,
     week_cost,
@@ -207,7 +207,7 @@ class AiUsageApplet(Applet):
                 )
 
     def _poll(self) -> AiUsageState | None:
-        day = _today_iso()
+        day = today_iso()
         previous = state_from_prefs(store.read_prefs_from_disk())
         combined: ProviderSessions = {}
 
@@ -226,7 +226,7 @@ class AiUsageApplet(Applet):
                         error,
                     )
 
-        if day != _today_iso():
+        if day != today_iso():
             return None
         return replace_sessions(combined, date=day, expected=previous)
 
@@ -256,7 +256,7 @@ class AiUsageApplet(Applet):
     def _build_tooltip_widget(self) -> Gtk.Box:
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         sel = self._selected_provider
-        entry = _today_entry(state=self._state)
+        entry = today_entry(state=self._state)
 
         if not entry or not entry.by_model:
             name = sel.value.capitalize() if sel else "AI Usage"
@@ -285,9 +285,9 @@ class AiUsageApplet(Applet):
 
         if show_tokens:
             tokens = sum(total_tokens(u) for _, u in models)
-            header_value = _format_tokens(tokens=tokens)
+            header_value = format_tokens(tokens=tokens)
         else:
-            header_value = _format_cost(
+            header_value = format_cost(
                 cost=sum(cost_for_usage(model=m, usage=u) for m, u in models)
             )
         header = Gtk.Label()
@@ -304,7 +304,7 @@ class AiUsageApplet(Applet):
         # Per-model breakdown (aggregate by display name).
         display_raw: dict[str, float | int] = {}
         for model, usage in models:
-            key = _short_model(model=model)
+            key = short_model(model=model)
             if show_tokens:
                 display_raw[key] = int(display_raw.get(key, 0)) + total_tokens(usage)
             else:
@@ -313,9 +313,9 @@ class AiUsageApplet(Applet):
                 )
         for display_name, raw in display_raw.items():
             if show_tokens:
-                formatted = _format_tokens(tokens=int(raw))
+                formatted = format_tokens(tokens=int(raw))
             else:
-                formatted = _format_cost(cost=float(raw))
+                formatted = format_cost(cost=float(raw))
             row = Gtk.Label(label=f"  {display_name}: {formatted}")
             row.set_xalign(0.5)
             row.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.7))
@@ -329,13 +329,13 @@ class AiUsageApplet(Applet):
                     wk = sum(provider_tokens(entry=d, provider=sel) for d in days)
                 else:
                     wk = week_tokens(state=self._state)
-                wk_val = _format_tokens(tokens=wk)
+                wk_val = format_tokens(tokens=wk)
             else:
                 if sel:
                     wk = sum(provider_cost(entry=d, provider=sel) for d in days)
                 else:
                     wk = week_cost(state=self._state)
-                wk_val = _format_cost(cost=wk)
+                wk_val = format_cost(cost=wk)
             week_lbl = Gtk.Label(label=_("This week: {value}").format(value=wk_val))
             week_lbl.set_xalign(0.5)
             week_lbl.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 0.9))

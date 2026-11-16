@@ -19,13 +19,13 @@ from docking.platform.backends.wayland.niri_ipc import (
     NiriPreviewService,
     NiriWindowService,
     NiriWorkspaceService,
-    _niri_socket_path,
     _parse_event_line,
-    _parse_response,
     _wait_for_nonempty_file,
     load_niri_desktop_action_service,
     load_niri_preview_service,
     load_niri_workspace_service,
+    niri_socket_path,
+    parse_response,
 )
 from tests.platform.application_fakes import identity_services
 from tests.platform.application_fakes import window_model as _model
@@ -36,17 +36,17 @@ from tests.platform.application_fakes import window_model as _model
 
 
 def test_niri_socket_path_from_environment():
-    path = _niri_socket_path({"NIRI_SOCKET": "/run/user/1000/niri.sock"})
+    path = niri_socket_path({"NIRI_SOCKET": "/run/user/1000/niri.sock"})
     assert path is not None
     assert str(path) == "/run/user/1000/niri.sock"
 
 
 def test_niri_socket_path_missing_environment():
-    assert _niri_socket_path({}) is None
+    assert niri_socket_path({}) is None
 
 
 def test_niri_socket_path_empty_value():
-    assert _niri_socket_path({"NIRI_SOCKET": ""}) is None
+    assert niri_socket_path({"NIRI_SOCKET": ""}) is None
 
 
 # ---------------------------------------------------------------------------
@@ -55,7 +55,7 @@ def test_niri_socket_path_empty_value():
 
 
 def test_parse_ok_response():
-    result = _parse_response(
+    result = parse_response(
         b'{"Ok":{"Windows":[{"id":1,"title":"Terminal","app_id":"Alacritty",'
         b'"is_focused":true,"is_urgent":false}]}}'
     )
@@ -66,19 +66,19 @@ def test_parse_ok_response():
 
 
 def test_parse_error_response():
-    result = _parse_response(b'{"Err":"something went wrong"}')
+    result = parse_response(b'{"Err":"something went wrong"}')
     assert "Err" in result
     assert result["Err"] == "something went wrong"
 
 
 def test_parse_empty_response():
-    assert _parse_response(b"") == {}
-    assert _parse_response(b"   ") == {}
+    assert parse_response(b"") == {}
+    assert parse_response(b"   ") == {}
 
 
 def test_parse_response_ignores_non_object_json():
-    assert _parse_response(b"[]") == {}
-    assert _parse_response(b'"unexpected"') == {}
+    assert parse_response(b"[]") == {}
+    assert parse_response(b'"unexpected"') == {}
 
 
 # ---------------------------------------------------------------------------

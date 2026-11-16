@@ -10,7 +10,7 @@ from ctypes import wintypes
 
 def focus_caption(native, current, journal):
     """Expose only the owned caption, click once, and restore any temporary move."""
-    from .input_editor import _point_facts, _topmost, _window_facts
+    from .input_editor import is_topmost, point_facts, window_facts
     from .input_environment import bind
 
     window = current()
@@ -60,7 +60,7 @@ def focus_caption(native, current, journal):
         if packed & 0x80000000:
             packed -= 1 << 32
         row = {
-            **_point_facts(native, x, y),
+            **point_facts(native, x, y),
             "attempt": attempt,
             "elapsed_ms": round((time.monotonic() - started) * 1000),
         }
@@ -74,7 +74,7 @@ def focus_caption(native, current, journal):
 
         def query(target):
             current()
-            facts = _window_facts(user, target)
+            facts = window_facts(user, target)
             assert facts.get("pid") == pid, "Caption query recipient changed ownership"
             if target != hwnd:
                 assert (
@@ -166,7 +166,7 @@ def focus_caption(native, current, journal):
         row["hit_test"] = effective["hit_test"]
         row["queried_hit_test"] = effective["hit_test"]
         row["caption_recipient"] = effective["hwnd"]
-        after = row["physical_after"] = _point_facts(native, x, y)
+        after = row["physical_after"] = point_facts(native, x, y)
         row.update(after)
         if after != row["physical_before"]:
             row.update(raced_physical=True, hit_test=None)
@@ -305,7 +305,7 @@ def focus_caption(native, current, journal):
             point = x + caption_offset[0], y + caption_offset[1]
             if not inside(point):
                 continue
-            facts = _point_facts(native, *point)
+            facts = point_facts(native, *point)
             candidates.append(facts)
             root = facts["root"]
             desktop = (
@@ -326,7 +326,7 @@ def focus_caption(native, current, journal):
     assert chosen is not None, "No observed exposed place for the owned window caption"
     requested, point = chosen
     assert current()["rect"] == bounds, "Owned window moved before caption placement"
-    topmost, foreground_before = _topmost(user, hwnd), user.GetForegroundWindow()
+    topmost, foreground_before = is_topmost(user, hwnd), user.GetForegroundWindow()
     neighbor = bind(
         user, "GetWindow", ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint32
     )
@@ -361,7 +361,7 @@ def focus_caption(native, current, journal):
             "Owned caption placement readback differs"
         )
         assert (
-            _topmost(user, hwnd) == topmost
+            is_topmost(user, hwnd) == topmost
             and user.GetForegroundWindow() == foreground_before
         ), "Nonactivating caption placement changed foreground or topmost state"
         assert [int(neighbor(hwnd, index) or 0) for index in (3, 2)] == order_before, (
@@ -383,7 +383,7 @@ def focus_caption(native, current, journal):
             )
             assert current()["rect"] == bounds, "Owned caption restored bounds differ"
             assert (
-                _topmost(user, hwnd) == topmost
+                is_topmost(user, hwnd) == topmost
                 and user.GetForegroundWindow() == restore_foreground
             ), "Caption geometry restoration changed foreground or topmost state"
             assert [

@@ -262,7 +262,7 @@ def test_explicit_association_uses_enumerated_exact_client_and_retained_handle(
         refresh=Mock(),
         initial_discovery_pending=False,
         get=lambda selected_id: selected if selected_id == identifier else None,
-        _gio_handle_for=lambda selected_id: (
+        gio_handle_for=lambda selected_id: (
             handle if selected_id == identifier else None
         ),
     )
@@ -871,7 +871,7 @@ def test_association_focus_targets_only_live_owned_window(monkeypatch, tmp_path,
         matches=Mock(return_value=mode != "stale"),
     )
     monkeypatch.setattr(windows, "Win32WindowAPI", lambda: api)
-    monkeypatch.setattr(input_editor, "_topmost", lambda *_args: state["topmost"])
+    monkeypatch.setattr(input_editor, "is_topmost", lambda *_args: state["topmost"])
     monkeypatch.setattr(
         smoke,
         "_foreground_snapshot",
@@ -1068,7 +1068,7 @@ def test_association_focus_snapshot_is_passive_and_keeps_native_error(
         calls.append(window)
         return {"hwnd": window, "thread": 88, "pid": 123} if window else {"hwnd": 0}
 
-    monkeypatch.setattr(input_editor, "_window_facts", facts)
+    monkeypatch.setattr(input_editor, "window_facts", facts)
 
     def bind(library, name, result, *arguments):
         assert library is user and name == "GetGUIThreadInfo"

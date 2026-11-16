@@ -317,7 +317,7 @@ def _stack_rotation(progress: float, position: Any, span: float) -> float:
     return math.radians(degrees * direction)
 
 
-def _measure_stack_text_px(text: str) -> int:
+def measure_stack_text_px(text: str) -> int:
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 1, 1)
     cr = cairo.Context(surface)
     layout = PangoCairo.create_layout(cr)
@@ -1388,7 +1388,7 @@ class StackPopupController:
     def _stack_action_width(self, *, label: str) -> int:
         return min(
             FOLDER_STACK_ACTION_MAX_WIDTH_PX,
-            _measure_stack_text_px(label)
+            measure_stack_text_px(label)
             + 2 * FOLDER_STACK_LABEL_TEXT_MARGIN_PX
             + FOLDER_STACK_ACTION_ARROW_GAP_PX
             + FOLDER_STACK_ACTION_ARROW_SIZE_PX
@@ -1402,7 +1402,7 @@ class StackPopupController:
             max_width,
             max(
                 24,
-                _measure_stack_text_px(label)
+                measure_stack_text_px(label)
                 + 2 * FOLDER_STACK_LABEL_TEXT_MARGIN_PX
                 + 10,
             ),

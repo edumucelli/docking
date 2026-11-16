@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
-from docking.applets.cities import CityPref, _city_from_pref
+from docking.applets.cities import CityPref, city_from_pref
 from docking.applets.cities import cached_cities as cached_cities
 from docking.core.math import clamp_index
 from docking.i18n import _
@@ -107,10 +107,10 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> SunrisePrefs:
         cities = tuple(
             city
             for candidate in raw_cities
-            if (city := _city_from_pref(candidate)) is not None
+            if (city := city_from_pref(candidate)) is not None
         )
     else:
-        city = _city_from_pref(prefs)
+        city = city_from_pref(prefs)
         if city is not None:
             cities = (city,)
 
@@ -119,7 +119,7 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> SunrisePrefs:
     except (TypeError, ValueError, OverflowError):
         active_index = 0
     if isinstance(raw_cities, list | tuple) and 0 <= active_index < len(raw_cities):
-        selected = _city_from_pref(raw_cities[active_index])
+        selected = city_from_pref(raw_cities[active_index])
         if selected is not None:
             active_index = cities.index(selected)
     active_index = clamp_index(active_index, len(cities))

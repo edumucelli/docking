@@ -19,9 +19,9 @@ from docking.platform.tray.implementations.unix.status_notifier import (
     _best_icon_pixmap,
     _bytes_from_dbus_array,
     _tooltip_parts,
-    _unpack_variant,
     parse_registered_item,
     tray_item_from_properties,
+    unpack_variant,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -490,27 +490,27 @@ class TestReadItemKeepsIconBytesAsVariants:
 class TestUnpackVariant:
     def test_unpacks_glib_variant(self):
         variant = GLib.Variant("s", "hello")
-        assert _unpack_variant(variant) == "hello"
+        assert unpack_variant(variant) == "hello"
 
     def test_recursively_unpacks_dict(self):
         variant = GLib.Variant("a{sv}", {"key": GLib.Variant("s", "value")})
-        result = _unpack_variant({"outer": variant})
+        result = unpack_variant({"outer": variant})
         assert result == {"outer": {"key": "value"}}
 
     def test_recursively_unpacks_tuple(self):
         variant = GLib.Variant("(si)", ("hello", 42))
-        result = _unpack_variant((variant,))
+        result = unpack_variant((variant,))
         assert result == (("hello", 42),)
 
     def test_recursively_unpacks_list(self):
         variant = GLib.Variant("i", 99)
-        result = _unpack_variant([variant])
+        result = unpack_variant([variant])
         assert result == [99]
 
     def test_plain_values_pass_through(self):
-        assert _unpack_variant("plain") == "plain"
-        assert _unpack_variant(42) == 42
-        assert _unpack_variant(None) is None
+        assert unpack_variant("plain") == "plain"
+        assert unpack_variant(42) == 42
+        assert unpack_variant(None) is None
 
 
 class TestTrayItemDisplayTitle:

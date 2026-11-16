@@ -353,7 +353,7 @@ class DockWindow(Gtk.Window):
         self._cache = _DockWindowCache()
         self._redraw_source_id: int | None = None
         self.dock_hovered: bool = False
-        self._last_autohide_state: HideState | None = None
+        self.last_autohide_state: HideState | None = None
         self.dodge_monitor: VisibilityMonitor | None = None
 
         self._setup_window()
@@ -427,7 +427,7 @@ class DockWindow(Gtk.Window):
         self.theme = theme
         self.tooltip.set_theme(theme)
         self.hover.set_theme(theme)
-        self._invalidate_current_geometry_frame()
+        self.invalidate_current_geometry_frame()
 
     def _build_components(self) -> None:
         """Build long-lived UI collaborators that depend on the live window."""
@@ -463,10 +463,10 @@ class DockWindow(Gtk.Window):
             entry.frame if entry is not None else None
         ) or self._cache.applied_input_frame
 
-    def _invalidate_current_geometry_frame(self) -> None:
+    def invalidate_current_geometry_frame(self) -> None:
         self._cache.invalidate_geometry_frame()
 
-    def _clear_scheduled_redraw(self) -> None:
+    def clear_scheduled_redraw(self) -> None:
         self._redraw_source_id = None
 
     def _flush_scheduled_redraw(self) -> bool:
@@ -474,7 +474,7 @@ class DockWindow(Gtk.Window):
         self.drawing_area.queue_draw()
         return False
 
-    def _schedule_redraw(self) -> None:
+    def schedule_redraw(self) -> None:
         if self._redraw_source_id is not None:
             return
         self._redraw_source_id = GLib.timeout_add(
@@ -510,7 +510,7 @@ class DockWindow(Gtk.Window):
             hide_offset,
         )
 
-    def _build_and_store_geometry_frame(
+    def build_and_store_geometry_frame(
         self,
         *,
         drop_insert_index: int = -1,
@@ -531,7 +531,7 @@ class DockWindow(Gtk.Window):
             ),
         )
 
-    def _current_or_build_geometry_frame(
+    def current_or_build_geometry_frame(
         self,
         *,
         drop_insert_index: int = -1,
@@ -544,7 +544,7 @@ class DockWindow(Gtk.Window):
         )
         if current_frame is not None:
             return current_frame
-        return self._build_and_store_geometry_frame(
+        return self.build_and_store_geometry_frame(
             drop_insert_index=drop_insert_index,
         )
 
@@ -646,7 +646,7 @@ class DockWindow(Gtk.Window):
         containment on the same geometry source instead of rebuilding window
         interaction bounds separately inside DockWindow.
         """
-        frame = frame or self._current_or_build_geometry_frame()
+        frame = frame or self.current_or_build_geometry_frame()
         current_entry = self._cache.geometry_frame
         current_frame = current_entry.frame if current_entry is not None else None
         if frame is not current_frame:
@@ -667,7 +667,7 @@ class DockWindow(Gtk.Window):
             )
             self._cache.applied_input_frame = frame
 
-    def _sync_background_blur_hint(self, *, frame: DockGeometryFrame) -> None:
+    def sync_background_blur_hint(self, *, frame: DockGeometryFrame) -> None:
         if self.autohide.enabled and self.autohide.state == HideState.HIDDEN:
             if self._cache.last_blur_region is not None:
                 self.surface_service.set_blur_region(None)
@@ -699,5 +699,5 @@ class DockWindow(Gtk.Window):
 
     def queue_redraw(self) -> None:
         """Convenience for external controllers to trigger redraw."""
-        self._invalidate_current_geometry_frame()
-        self._schedule_redraw()
+        self.invalidate_current_geometry_frame()
+        self.schedule_redraw()

@@ -103,7 +103,7 @@ def write_shared_json(path: Path, value: dict) -> None:
             time.sleep(0.01)
 
 
-class _Mouse(ctypes.Structure):
+class Mouse(ctypes.Structure):
     _fields_ = [
         ("x", wintypes.LONG),
         ("y", wintypes.LONG),
@@ -124,15 +124,15 @@ class _Keyboard(ctypes.Structure):
     ]
 
 
-class _Data(ctypes.Union):
+class Data(ctypes.Union):
     _fields_: ClassVar[list[tuple[str, type[ctypes.Structure]]]] = [
-        ("mouse", _Mouse),
+        ("mouse", Mouse),
         ("keyboard", _Keyboard),
     ]
 
 
-class _Input(ctypes.Structure):
-    _fields_ = [("type", wintypes.DWORD), ("data", _Data)]
+class Input(ctypes.Structure):
+    _fields_ = [("type", wintypes.DWORD), ("data", Data)]
 
 
 class WindowsDesktop:
@@ -178,7 +178,7 @@ class WindowsDesktop:
         )
         self.user.SendInput.argtypes = (
             wintypes.UINT,
-            ctypes.POINTER(_Input),
+            ctypes.POINTER(Input),
             ctypes.c_int,
         )
         self.user.SendInput.restype = wintypes.UINT
@@ -328,7 +328,7 @@ class WindowsDesktop:
 
     def _send(self, values):
         assert self.user.SendInput(
-            len(values), (_Input * len(values))(*values), ctypes.sizeof(_Input)
+            len(values), (Input * len(values))(*values), ctypes.sizeof(Input)
         ) == len(values)
 
     def key(self, key, *, control=False, alt=False, shift=False, windows=False):
@@ -350,7 +350,7 @@ class WindowsDesktop:
         )
         self._send(
             [
-                _Input(type=1, data=_Data(keyboard=_Keyboard(key=code, flags=flags)))
+                Input(type=1, data=Data(keyboard=_Keyboard(key=code, flags=flags)))
                 for code, flags in events
             ]
         )
@@ -363,14 +363,14 @@ class WindowsDesktop:
         time.sleep(0.3)
         values = []
         if control:
-            values.append(_Input(type=1, data=_Data(keyboard=_Keyboard(key=0x11))))
+            values.append(Input(type=1, data=Data(keyboard=_Keyboard(key=0x11))))
         values += [
-            _Input(type=0, data=_Data(mouse=_Mouse(flags=flag)))
+            Input(type=0, data=Data(mouse=Mouse(flags=flag)))
             for flag in ((8, 16) if right else (2, 4))
         ]
         if control:
             values.append(
-                _Input(type=1, data=_Data(keyboard=_Keyboard(key=0x11, flags=2)))
+                Input(type=1, data=Data(keyboard=_Keyboard(key=0x11, flags=2)))
             )
         if before_press is not None:
             before_press()
@@ -381,12 +381,10 @@ class WindowsDesktop:
             # only the button/modifier this approved click could have injected.
             cleanup: dict[str, object] = {"attempted": True, "completed": False}
             error.__dict__["desktop_input_cleanup"] = cleanup
-            release = [
-                _Input(type=0, data=_Data(mouse=_Mouse(flags=16 if right else 4)))
-            ]
+            release = [Input(type=0, data=Data(mouse=Mouse(flags=16 if right else 4)))]
             if control:
                 release.append(
-                    _Input(type=1, data=_Data(keyboard=_Keyboard(key=0x11, flags=2)))
+                    Input(type=1, data=Data(keyboard=_Keyboard(key=0x11, flags=2)))
                 )
             try:
                 self._send(release)
@@ -410,9 +408,9 @@ class WindowsDesktop:
         ]
         self._send(
             [
-                _Input(
+                Input(
                     type=1,
-                    data=_Data(keyboard=_Keyboard(scan=unit, flags=flag)),
+                    data=Data(keyboard=_Keyboard(scan=unit, flags=flag)),
                 )
                 for unit in units
                 for flag in (4, 6)
@@ -423,10 +421,7 @@ class WindowsDesktop:
         self.user.SetCursorPos(int(x), int(y))
         time.sleep(0.3)
         self._send(
-            [
-                _Input(type=0, data=_Data(mouse=_Mouse(flags=flag)))
-                for flag in (2, 4, 2, 4)
-            ]
+            [Input(type=0, data=Data(mouse=Mouse(flags=flag))) for flag in (2, 4, 2, 4)]
         )
         time.sleep(0.3)
 
@@ -434,7 +429,7 @@ class WindowsDesktop:
         """Drag with actual pointer input, including protected native captions."""
         self.user.SetCursorPos(int(start[0]), int(start[1]))
         time.sleep(0.2)
-        self._send([_Input(type=0, data=_Data(mouse=_Mouse(flags=2)))])
+        self._send([Input(type=0, data=Data(mouse=Mouse(flags=2)))])
         try:
             for step in range(1, 13):
                 self.user.SetCursorPos(
@@ -445,7 +440,7 @@ class WindowsDesktop:
             if before_release is not None:
                 before_release()
         finally:
-            self._send([_Input(type=0, data=_Data(mouse=_Mouse(flags=4)))])
+            self._send([Input(type=0, data=Data(mouse=Mouse(flags=4)))])
         time.sleep(0.3)
 
     def workarea(self):
@@ -464,7 +459,7 @@ class WindowsDesktop:
         return self.user.GetAncestor(handle, 2) if handle else None
 
     def scroll(self, amount=120):
-        self._send([_Input(type=0, data=_Data(mouse=_Mouse(data=amount, flags=0x800)))])
+        self._send([Input(type=0, data=Data(mouse=Mouse(data=amount, flags=0x800)))])
         time.sleep(0.2)
 
     def scan(self, code, *, extended=False, altgr=False, mapped_vk=False, layout=None):
@@ -490,22 +485,22 @@ class WindowsDesktop:
         flags = (0 if mapped_vk else 8) | int(extended)
         virtual = key(code, extended)
         events = [
-            _Input(
+            Input(
                 type=1,
-                data=_Data(keyboard=_Keyboard(key=virtual, scan=code, flags=flags)),
+                data=Data(keyboard=_Keyboard(key=virtual, scan=code, flags=flags)),
             ),
-            _Input(
+            Input(
                 type=1,
-                data=_Data(keyboard=_Keyboard(key=virtual, scan=code, flags=flags | 2)),
+                data=Data(keyboard=_Keyboard(key=virtual, scan=code, flags=flags | 2)),
             ),
         ]
         if altgr:
             modifier, modifier_flags = key(0x38, True), (0 if mapped_vk else 8) | 1
             events.insert(
                 0,
-                _Input(
+                Input(
                     type=1,
-                    data=_Data(
+                    data=Data(
                         keyboard=_Keyboard(
                             key=modifier, scan=0x38, flags=modifier_flags
                         )
@@ -513,9 +508,9 @@ class WindowsDesktop:
                 ),
             )
             events.append(
-                _Input(
+                Input(
                     type=1,
-                    data=_Data(
+                    data=Data(
                         keyboard=_Keyboard(
                             key=modifier, scan=0x38, flags=modifier_flags | 2
                         )

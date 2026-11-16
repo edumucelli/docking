@@ -25,8 +25,8 @@ from docking.applets.bluetooth.state import (
     BluetoothAdapterState,
     BluetoothDeviceState,
     BluetoothState,
-    _device_sort_key,
     adapter_from_state,
+    device_sort_key,
     unavailable_state,
 )
 from docking.i18n import _
@@ -200,7 +200,7 @@ class WindowsBluetoothBackend(BluetoothBackend):
                         for r in radios
                         for d in r.devices
                     ),
-                    key=_device_sort_key,
+                    key=device_sort_key,
                 )
             )
             state = BluetoothState(bool(adapters), adapters, devices, "")

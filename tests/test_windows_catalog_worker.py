@@ -240,11 +240,11 @@ def test_blocked_gio_read_keeps_real_glib_heartbeat_and_refresh_responsive(worke
         owned.registry.refresh()
     assert owned.registry.initial_discovery_pending
     assert owned.registry.get(_ID) is None
-    assert owned.registry._gio_handle_for(_ID) is None
+    assert owned.registry.gio_handle_for(_ID) is None
     owned.release["first"].set()
     owned.ready("first")
     assert not owned.registry.initial_discovery_pending
-    assert owned.registry._gio_handle_for(_ID) is owned.handles["first"]
+    assert owned.registry.gio_handle_for(_ID) is owned.handles["first"]
 
 
 def test_superseded_worker_generation_cannot_mix_new_handles_and_old_catalog(worker):
@@ -254,7 +254,7 @@ def test_superseded_worker_generation_cannot_mix_new_handles_and_old_catalog(wor
     def published():
         app = owned.registry.get(_ID)
         if app is not None:
-            observed.append((app.name, owned.registry._gio_handle_for(_ID)))
+            observed.append((app.name, owned.registry.gio_handle_for(_ID)))
 
     owned.registry.subscribe(published)
     owned.registry.start()
@@ -267,7 +267,7 @@ def test_superseded_worker_generation_cannot_mix_new_handles_and_old_catalog(wor
     owned.loop.until(owned.entered["current"].is_set)
     owned.loop.pump()
     assert owned.registry.get(_ID).name == "Shell first"
-    assert owned.registry._gio_handle_for(_ID) is owned.handles["first"]
+    assert owned.registry.gio_handle_for(_ID) is owned.handles["first"]
     owned.release["current"].set()
     owned.ready("current")
     assert observed[-1] == ("Shell current", owned.handles["current"])
@@ -366,7 +366,7 @@ def test_shell_replacement_without_broadcast_discards_held_read_and_publishes_fr
         assert cancelled_reads == [True]
         assert "Shell obsolete" not in observed
         assert observed[-1] == "Shell current"
-        assert owned.registry._gio_handle_for(_ID) is owned.handles["current"]
+        assert owned.registry.gio_handle_for(_ID) is owned.handles["current"]
     finally:
         release.set()
         owned.close()
@@ -453,7 +453,7 @@ def test_native_event_retries_completed_stale_or_failed_read_without_another_not
     monitor._check_shell()
     owned.ready("current")
     assert reads == [1, 2]
-    assert owned.registry._gio_handle_for(_ID) is owned.handles["first"]
+    assert owned.registry.gio_handle_for(_ID) is owned.handles["first"]
 
 
 def test_reconciliation_waits_for_slow_full_resolver_without_cancelling_its_generation(
@@ -604,7 +604,7 @@ def test_stop_during_gio_read_cancels_native_work_and_late_handle_delivery(
         owned.ready("first")
         owned.changed("current")
     owned.loop.until(owned.entered[version].is_set)
-    before = owned.registry.snapshot(), owned.registry._gio_handle_for(_ID)
+    before = owned.registry.snapshot(), owned.registry.gio_handle_for(_ID)
     native_before = list(owned.native_versions)
     owned.registry.stop()
     owned.release[version].set()
@@ -612,7 +612,7 @@ def test_stop_during_gio_read_cancels_native_work_and_late_handle_delivery(
     assert not owned.thread.is_alive()
     owned.loop.pump()
     assert owned.native_versions == native_before
-    assert (owned.registry.snapshot(), owned.registry._gio_handle_for(_ID)) == before
+    assert (owned.registry.snapshot(), owned.registry.gio_handle_for(_ID)) == before
     assert not owned.backend.lookup._sources
 
 
@@ -622,7 +622,7 @@ def test_unavailable_gio_retains_accepted_handle_while_native_catalog_continues(
     owned.ready("first")
     owned.changed("gio-unavailable")
     owned.ready("gio-unavailable")
-    assert owned.registry._gio_handle_for(_ID) is owned.handles["first"]
+    assert owned.registry.gio_handle_for(_ID) is owned.handles["first"]
 
 
 def test_successful_empty_worker_catalog_completes_initial_discovery(worker):
@@ -632,7 +632,7 @@ def test_successful_empty_worker_catalog_completes_initial_discovery(worker):
     owned.registry.start()
     owned.loop.until(lambda: not owned.registry.initial_discovery_pending)
     assert owned.registry.snapshot() == ()
-    assert owned.registry._gio_handle_for(_ID) is None
+    assert owned.registry.gio_handle_for(_ID) is None
     assert owned.reader_threads and owned.ui_thread not in owned.reader_threads
 
 
@@ -642,7 +642,7 @@ def test_explicit_source_preserves_its_handle_and_never_enumerates_default_gio(w
     owned.registry.start()
     owned.ready("first")
     assert not owned.reader_threads
-    assert owned.registry._gio_handle_for(_ID) is custom
+    assert owned.registry.gio_handle_for(_ID) is custom
 
 
 def test_main_context_monitor_initializes_before_gio_worker_on_start_and_restart(
@@ -727,13 +727,13 @@ def test_association_getters_use_existing_worker_keep_gtk_alive_and_publish_reta
         listing = publications[0][1]
         assert listing.name == "Owned Handler" and listing.desktop_id is None
         assert (
-            worker.registry._gio_handle_for_unidentified(listing.listing_key) is handler
+            worker.registry.gio_handle_for_unidentified(listing.listing_key) is handler
         )
         default_result = worker.registry.default_for_content_type(".owned")
         assert default_result.status is AssociationStatus.READY
         assert default_result.listing.desktop_id is None
         assert (
-            worker.registry._gio_handle_for_unidentified(
+            worker.registry.gio_handle_for_unidentified(
                 default_result.listing.listing_key
             )
             is handler
@@ -741,7 +741,7 @@ def test_association_getters_use_existing_worker_keep_gtk_alive_and_publish_reta
         unsubscribe()
         worker.backend.lookup.invalidate()
         worker.registry.refresh()
-        assert worker.registry._gio_handle_for_unidentified(listing.listing_key) is None
+        assert worker.registry.gio_handle_for_unidentified(listing.listing_key) is None
         assert (
             worker.registry.preferred_listing_for_content_types((".owned",)).status
             is AssociationStatus.PENDING

@@ -51,9 +51,9 @@ class OpenBsdCameraControl(BsdCameraControl):
         )
 
     def _lock_devices(self) -> int:
-        from docking.applets.camshield.implementations.unix.helper import _require_root
+        from docking.applets.camshield.implementations.unix.helper import require_root
 
-        _require_root()
+        require_root()
         previous = read_command(["/sbin/sysctl", "-n", _RECORDING])
         if previous not in {"0", "1"}:
             raise OSError("Cannot read the kernel video recording policy")
@@ -64,17 +64,17 @@ class OpenBsdCameraControl(BsdCameraControl):
         else:
             # Save before changing policy; repeated locks preserve the original.
             from docking.applets.camshield.implementations.unix.helper import (
-                _atomic_write_json,
+                atomic_write_json,
             )
 
-            _atomic_write_json(state, {"previous": int(previous)})
+            atomic_write_json(state, {"previous": int(previous)})
         _set_recording(0)
         return 0
 
     def _unlock_devices(self) -> int:
-        from docking.applets.camshield.implementations.unix.helper import _require_root
+        from docking.applets.camshield.implementations.unix.helper import require_root
 
-        _require_root()
+        require_root()
         state = self.state_dir / "recording.json"
         previous = _saved_recording(state)
         _set_recording(previous)

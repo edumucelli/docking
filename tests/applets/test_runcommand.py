@@ -155,10 +155,10 @@ class _Registry:
     ) -> tuple[TransientApplicationInfo, ...]:
         return self.unidentified
 
-    def _gio_handle_for(self, _desktop_id: str) -> None:
+    def gio_handle_for(self, _desktop_id: str) -> None:
         return None
 
-    def _gio_handle_for_unidentified(self, _listing_key: str) -> None:
+    def gio_handle_for_unidentified(self, _listing_key: str) -> None:
         return None
 
 

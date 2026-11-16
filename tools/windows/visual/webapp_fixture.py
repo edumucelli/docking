@@ -21,7 +21,7 @@ from docking.platform.native.windows.com import (
 from docking.platform.native.windows.ffi import bind
 from docking.platform.native.windows.winrt import check
 
-_HTML = r"""<!doctype html><html><head><meta charset="utf-8">
+HTML = r"""<!doctype html><html><head><meta charset="utf-8">
 <title>(3) WhatsApp</title><style>
 body{margin:0;font:17px system-ui;background:#eef2f4;color:#243c3b}
 header{background:#075e54;color:white;padding:24px;font-size:24px}
@@ -111,7 +111,7 @@ navigator.serviceWorker.addEventListener('message',event=>{
 addEventListener('DOMContentLoaded',()=>navigator.setAppBadge(7));
 </script></body></html>"""
 
-_WORKER = r"""
+WORKER = r"""
 const events=[];
 self.addEventListener('install',event=>event.waitUntil(self.skipWaiting()));
 self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()));
@@ -183,7 +183,7 @@ class WebAppPageFixture:
             uri = engine.text(request, 3)
             if uri.endswith("/fixture-worker.js"):
                 self.worker_requests += 1
-                content = _WORKER.encode()
+                content = WORKER.encode()
                 headers = (
                     "Content-Type: application/javascript; charset=utf-8\r\n"
                     "Service-Worker-Allowed: /\r\nCache-Control: no-store\r\n"
@@ -211,7 +211,7 @@ class WebAppPageFixture:
                         else '<div id="auth-pages">Generated login placeholder</div>'
                     )
                 content = (
-                    _HTML.replace("LANDMARK", landmark)
+                    HTML.replace("LANDMARK", landmark)
                     .replace("WhatsApp", self.profile.name)
                     .replace("https://web.whatsapp.com/", self.profile.origin)
                     .encode()

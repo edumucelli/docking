@@ -40,7 +40,7 @@ from docking.log import get_logger, with_context
 from docking.platform.backends.base import Rect
 
 from .preview import ScreenshotPreview
-from .render import _draw_screenshot_icon
+from .render import draw_screenshot_icon
 from .selection import RegionSelection
 from .state import Mode, ScreenshotResult, SelectedRegion
 
@@ -142,7 +142,7 @@ class ScreenshotApplet(PlatformServicesApplet):
     def create_docking_icon(self, size: int) -> GdkPixbuf.Pixbuf | None:
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
-        _draw_screenshot_icon(cr=cr, size=size)
+        draw_screenshot_icon(cr=cr, size=size)
         return Gdk.pixbuf_get_from_surface(surface, 0, 0, size, size)
 
     def on_clicked(self) -> None:

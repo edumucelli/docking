@@ -7,21 +7,21 @@ from pathlib import Path
 
 from ...backend import TemperatureSource
 from ...temperature import (
-    _CHIP_HINT_SCORES,
-    _COMMAND_BACKENDS,
-    _HWMON_ROOT,
-    _LABEL_HINT_SCORES,
-    _THERMAL_ROOT,
-    _THERMAL_TYPE_SCORES,
+    CHIP_HINT_SCORES,
+    COMMAND_BACKENDS,
     CPU_TEMP_COMMAND_TIMEOUT_S,
+    HWMON_ROOT,
+    LABEL_HINT_SCORES,
+    THERMAL_ROOT,
+    THERMAL_TYPE_SCORES,
     CommandBackend,
-    _pick_best,
-    _score_text,
     log,
     parse_acpi_output,
     parse_sensors_output,
     parse_sysfs_temperature,
     parse_vcgencmd_output,
+    pick_best,
+    score_text,
 )
 
 
@@ -36,21 +36,21 @@ def discover_sysfs_temperature_path(
     for zone in sorted(thermal_root.glob("thermal_zone*")):
         temp_path = zone / "temp"
         zone_type = _safe_read_text(zone / "type") or ""
-        score = _score_text(zone_type, _THERMAL_TYPE_SCORES)
+        score = score_text(zone_type, THERMAL_TYPE_SCORES)
         if score <= 0:
             continue
         temperature = read_temperature_file(temp_path)
         if temperature is None:
             continue
-        best = _pick_best(best, score=score, temperature=temperature, path=temp_path)
+        best = pick_best(best, score=score, temperature=temperature, path=temp_path)
 
     for hwmon in sorted(hwmon_root.glob("hwmon*")):
         chip_name = (_safe_read_text(hwmon / "name") or "").strip()
-        chip_score = _score_text(chip_name, _CHIP_HINT_SCORES)
+        chip_score = score_text(chip_name, CHIP_HINT_SCORES)
         for temp_path in sorted(hwmon.glob("temp*_input")):
             stem = temp_path.name.removesuffix("_input")
             label = (_safe_read_text(hwmon / f"{stem}_label") or "").strip()
-            score = max(chip_score, _score_text(label, _LABEL_HINT_SCORES))
+            score = max(chip_score, score_text(label, LABEL_HINT_SCORES))
             if chip_score > 0 and temp_path.name == "temp1_input":
                 score = max(score, chip_score)
             if score <= 0:
@@ -58,7 +58,7 @@ def discover_sysfs_temperature_path(
             temperature = read_temperature_file(temp_path)
             if temperature is None:
                 continue
-            best = _pick_best(
+            best = pick_best(
                 best,
                 score=score,
                 temperature=temperature,
@@ -75,7 +75,7 @@ def discover_available_commands(
 ) -> tuple[CommandBackend, ...]:
     """Return installed command backends in preference order."""
     available: list[CommandBackend] = []
-    for backend in _COMMAND_BACKENDS:
+    for backend in COMMAND_BACKENDS:
         if which(backend.command):
             available.append(backend)
     return tuple(available)
@@ -138,8 +138,8 @@ class LinuxTemperatureReader(TemperatureSource):
     def __init__(
         self,
         *,
-        thermal_root: Path = _THERMAL_ROOT,
-        hwmon_root: Path = _HWMON_ROOT,
+        thermal_root: Path = THERMAL_ROOT,
+        hwmon_root: Path = HWMON_ROOT,
         which: Callable[[str], str | None] = shutil.which,
         run_command: Callable[[list[str], float], str | None] | None = None,
     ) -> None:

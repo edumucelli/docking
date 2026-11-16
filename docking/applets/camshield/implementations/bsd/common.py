@@ -19,9 +19,9 @@ _HOLDER = re.compile(r"^\s*\S+\s+(.+?)\s+(\d+)\s+(\d+)\*?\s+.*?\s+(/\S+)\s*$")
 
 @contextmanager
 def _action_lock(state_dir: Path) -> Generator[None, None, None]:
-    from docking.applets.camshield.implementations.unix.helper import _require_root
+    from docking.applets.camshield.implementations.unix.helper import require_root
 
-    _require_root()
+    require_root()
     state_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     with (state_dir / "action.lock").open("a") as stream:
         fcntl.flock(stream.fileno(), fcntl.LOCK_EX)

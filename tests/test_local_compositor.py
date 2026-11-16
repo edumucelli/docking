@@ -227,8 +227,8 @@ def test_cinnamon_capture_waits_for_a_complete_png(monkeypatch, tmp_path):
     data = encoded.getvalue()
     path = tmp_path / "capture.png"
     proxy = SimpleNamespace(call_sync=lambda *_args: path.write_bytes(data[:20]))
-    monkeypatch.setattr(module, "_proxy", lambda: proxy)
-    monkeypatch.setattr(module, "_eval", lambda *_args: None)
+    monkeypatch.setattr(module, "create_proxy", lambda: proxy)
+    monkeypatch.setattr(module, "evaluate", lambda *_args: None)
     monkeypatch.setattr(module.time, "sleep", lambda _delay: path.write_bytes(data))
 
     assert module.screenshot(str(path)) == 0

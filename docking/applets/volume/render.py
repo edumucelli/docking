@@ -26,7 +26,7 @@ from gi.repository import Gdk, GdkPixbuf
 
 from docking.applets.base import draw_icon_label
 
-from .state import _volume_icon_name
+from .state import volume_icon_name
 
 
 def _draw_speaker(
@@ -117,7 +117,7 @@ def create_volume_icon(
     show_level: bool = False,
 ) -> GdkPixbuf.Pixbuf | None:
     """Render speaker icon with waves/mute marker for volume state."""
-    icon = _volume_icon_name(volume=volume, muted=muted)
+    icon = volume_icon_name(volume=volume, muted=muted)
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
     cr = cairo.Context(surface)
     cr.set_source_rgba(0, 0, 0, 0)

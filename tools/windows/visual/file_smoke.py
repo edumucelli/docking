@@ -43,7 +43,7 @@ def main() -> None:
     from docking.search.preview import preview_local_target
     from docking.search.providers.path import PathSearchProvider
     from docking.search.types import SearchQuery
-    from docking.ui.folder._browser import FolderBrowser, FolderPrefs
+    from docking.ui.folder.browser import FolderBrowser, FolderPrefs
     from tools.windows.visual.application_graph import ready_application_registry
     from tools.windows.visual.desktop_driver import read_shared_json
 

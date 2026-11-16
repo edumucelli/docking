@@ -158,7 +158,7 @@ class WindowsApplicationAssociationBackend(ApplicationAssociationBackend):
                 return registered
             if not self.association_only(registered):
                 return None
-        return registry._retain_content_listing(handle)
+        return registry.retain_content_listing(handle)
 
     def transient(self, app_info: object, listing_key: str) -> TransientApplicationInfo:
         listing = handles.transient_from_gio(

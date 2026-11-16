@@ -184,7 +184,7 @@ class VpnSession:
         )
 
 
-class _Ras:
+class Ras:
     def __init__(self):
         dll = windows_ctypes.WinDLL("rasapi32", use_last_error=True)
         self._entries = bind(
@@ -358,5 +358,5 @@ def launch_dialer(profile: VpnProfile) -> None:
 
 
 @lru_cache(maxsize=1)
-def ras_api() -> _Ras:
-    return _Ras()
+def ras_api() -> Ras:
+    return Ras()

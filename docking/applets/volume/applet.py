@@ -37,7 +37,7 @@ from .render import create_volume_icon
 from .state import (
     STEP,
     VolumeState,
-    _volume_icon_name,
+    volume_icon_name,
 )
 
 if TYPE_CHECKING:
@@ -87,7 +87,7 @@ class VolumeApplet(PlatformServicesApplet):
         self.item.name = (
             _("Muted") if self._muted else _("Volume: {pct}%").format(pct=self._volume)
         )
-        self.item.icon_name = _volume_icon_name(volume=self._volume, muted=self._muted)
+        self.item.icon_name = volume_icon_name(volume=self._volume, muted=self._muted)
 
     def refresh_tooltip(self) -> None:
         self._update_tooltip()

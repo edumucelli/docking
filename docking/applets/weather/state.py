@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from docking.applets import temperature as temperature_display
-from docking.applets.cities import CityPref, _city_from_pref
+from docking.applets.cities import CityPref, city_from_pref
 from docking.applets.cities import cached_cities as cached_cities
 from docking.applets.live_state import (
     live_freshness_lines,
@@ -72,14 +72,14 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> WeatherPrefs:
         cities = tuple(
             city
             for candidate in candidates
-            if (city := _city_from_pref(candidate)) is not None
+            if (city := city_from_pref(candidate)) is not None
         )
         try:
             idx = int(prefs.get("active_index", 0))
         except (TypeError, ValueError, OverflowError):
             idx = 0
         if 0 <= idx < len(candidates):
-            selected = _city_from_pref(candidates[idx])
+            selected = city_from_pref(candidates[idx])
             if selected is not None:
                 idx = cities.index(selected)
         idx = clamp_index(idx, len(cities))
@@ -91,7 +91,7 @@ def prefs_from_mapping(prefs: Mapping[str, Any] | None) -> WeatherPrefs:
         )
 
     # Old scalar format migration
-    city = _city_from_pref(prefs)
+    city = city_from_pref(prefs)
     if city is not None:
         return WeatherPrefs(
             cities=(city,),

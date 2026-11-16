@@ -20,8 +20,6 @@ from docking.core.theme.migration import (
     migrate_theme_dict,
 )
 from docking.core.theme.theme import (
-    _BUILTIN_THEMES_DIR,
-    _USER_THEME_TEMPLATE_NAME,
     RGB,
     RGBA,
     ActiveShape,
@@ -29,7 +27,6 @@ from docking.core.theme.theme import (
     IndicatorFill,
     IndicatorStyle,
     Theme,
-    _rgba,
     ensure_user_theme_template,
     list_theme_names,
     user_themes_dir,
@@ -39,8 +36,6 @@ __all__ = [
     "DEPRECATED_THEME_KEYS",
     "RGB",
     "RGBA",
-    "_BUILTIN_THEMES_DIR",
-    "_USER_THEME_TEMPLATE_NAME",
     "ActiveShape",
     "ActiveTint",
     "IndicatorFill",
@@ -48,7 +43,6 @@ __all__ = [
     "Theme",
     "ThemeMigrationChange",
     "ThemeMigrationResult",
-    "_rgba",
     "ensure_user_theme_template",
     "list_theme_names",
     "migrate_theme_dict",

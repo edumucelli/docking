@@ -589,7 +589,7 @@ class DockPlacementController:
 
     def reposition(self) -> None:
         """Re-layout after position change -- reposition window, struts, input."""
-        self._window._invalidate_current_geometry_frame()
+        self._window.invalidate_current_geometry_frame()
         self.position_dock()
         self.set_struts()
         self._window.update_input_region()

@@ -18,8 +18,8 @@ from docking.applets.bluetooth.state import (
     BluetoothAdapterState,
     BluetoothDeviceState,
     BluetoothState,
-    _device_sort_key,
     adapter_from_state,
+    device_sort_key,
     unavailable_state,
 )
 from docking.log import get_logger
@@ -187,7 +187,7 @@ class FreeBsdBluetoothBackend(BluetoothBackend):
         state = BluetoothState(
             bool(adapters),
             tuple(adapters),
-            tuple(sorted(devices, key=_device_sort_key)),
+            tuple(sorted(devices, key=device_sort_key)),
             "",
         )
         selected = adapter_from_state(state, active_adapter_path) or ""

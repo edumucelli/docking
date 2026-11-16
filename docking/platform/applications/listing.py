@@ -88,8 +88,8 @@ def _gio_handle(
     listing: ApplicationListing,
 ) -> object | None:
     if isinstance(listing, ApplicationInfo):
-        return registry._gio_handle_for(listing.desktop_id)
-    return registry._gio_handle_for_unidentified(listing.listing_key)
+        return registry.gio_handle_for(listing.desktop_id)
+    return registry.gio_handle_for_unidentified(listing.listing_key)
 
 
 __all__ = [

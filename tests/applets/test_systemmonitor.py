@@ -359,20 +359,20 @@ class TestTemperatureDiscovery:
         assert native_systemmonitor_temperature._run_command(["sensors"], 0.1) is None
 
     def test_score_and_pick_best_helpers(self, tmp_path):
-        assert temperature_mod._score_text("CPU package", (("cpu", 10),)) == 10
-        low = temperature_mod._pick_best(
+        assert temperature_mod.score_text("CPU package", (("cpu", 10),)) == 10
+        low = temperature_mod.pick_best(
             None,
             score=10,
             temperature=40.0,
             path=tmp_path / "low",
         )
-        high_score = temperature_mod._pick_best(
+        high_score = temperature_mod.pick_best(
             low,
             score=20,
             temperature=35.0,
             path=tmp_path / "score",
         )
-        high_temp = temperature_mod._pick_best(
+        high_temp = temperature_mod.pick_best(
             low,
             score=10,
             temperature=45.0,
@@ -381,7 +381,7 @@ class TestTemperatureDiscovery:
         assert high_score[2] == tmp_path / "score"
         assert high_temp[2] == tmp_path / "temp"
         assert (
-            temperature_mod._pick_best(
+            temperature_mod.pick_best(
                 high_score,
                 score=10,
                 temperature=99.0,

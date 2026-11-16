@@ -67,7 +67,7 @@ class _PreviewCacheEntry:
     captured_at: float
 
 
-class _CaptureResource(Protocol):
+class CaptureResource(Protocol):
     def destroy(self) -> None: ...
 
 
@@ -77,37 +77,37 @@ class _EventDispatcher(Protocol):
     def __setitem__(self, event: str, callback: Callable[..., None], /) -> None: ...
 
 
-class _EventResource(_CaptureResource, Protocol):
+class _EventResource(CaptureResource, Protocol):
     @property
     def dispatcher(self) -> _EventDispatcher: ...
 
 
 class _ImageCopyFrame(_EventResource, Protocol):
-    def attach_buffer(self, buffer: _CaptureResource) -> None: ...
+    def attach_buffer(self, buffer: CaptureResource) -> None: ...
     def damage_buffer(self, x: int, y: int, width: int, height: int) -> None: ...
     def capture(self) -> None: ...
 
 
-class _CaptureSession(_EventResource, Protocol):
+class CaptureSession(_EventResource, Protocol):
     def create_frame(self) -> _ImageCopyFrame: ...
 
 
-class _HyprlandFrame(_EventResource, Protocol):
-    def copy(self, buffer: _CaptureResource, ignore_damage: int) -> None: ...
+class HyprlandFrame(_EventResource, Protocol):
+    def copy(self, buffer: CaptureResource, ignore_damage: int) -> None: ...
 
 
-class _PhocFrame(_EventResource, Protocol):
-    def copy(self, buffer: _CaptureResource) -> None: ...
+class PhocFrame(_EventResource, Protocol):
+    def copy(self, buffer: CaptureResource) -> None: ...
 
 
-class _ShmPool(_CaptureResource, Protocol):
+class ShmPool(CaptureResource, Protocol):
     def create_buffer(
         self, offset: int, width: int, height: int, stride: int, format_: int
-    ) -> _CaptureResource: ...
+    ) -> CaptureResource: ...
 
 
 class _ShmProtocol(Protocol):
-    def create_shm_pool(self, fd: int, size: int) -> _ShmPool: ...
+    def create_shm_pool(self, fd: int, size: int) -> ShmPool: ...
 
 
 @dataclass
@@ -133,15 +133,15 @@ class _CaptureRequest:
     window_id: WindowId
     requested_width: int
     requested_height: int
-    source: _CaptureResource | None
-    session: _CaptureSession | None
+    source: CaptureResource | None
+    session: CaptureSession | None
     width: int = 0
     height: int = 0
     shm_formats: set[int] = field(default_factory=set)
     frame: _ImageCopyFrame | None = None
     fd: int | None = None
     mmap_obj: mmap.mmap | None = None
-    buffer: _CaptureResource | None = None
+    buffer: CaptureResource | None = None
     stride: int = 0
     format: int = SHM_ARGB8888
     y_inverted: bool = False
@@ -152,12 +152,12 @@ class _HyprlandCaptureRequest:
     window_id: WindowId
     requested_width: int
     requested_height: int
-    frame: _HyprlandFrame | None
+    frame: HyprlandFrame | None
     width: int = 0
     height: int = 0
     fd: int | None = None
     mmap_obj: mmap.mmap | None = None
-    buffer: _CaptureResource | None = None
+    buffer: CaptureResource | None = None
     stride: int = 0
     format: int = SHM_ARGB8888
     y_inverted: bool = False
@@ -168,12 +168,12 @@ class _PhocCaptureRequest:
     window_id: WindowId
     requested_width: int
     requested_height: int
-    frame: _PhocFrame | None
+    frame: PhocFrame | None
     width: int = 0
     height: int = 0
     fd: int | None = None
     mmap_obj: mmap.mmap | None = None
-    buffer: _CaptureResource | None = None
+    buffer: CaptureResource | None = None
     stride: int = 0
     format: int = SHM_ARGB8888
     y_inverted: bool = False
@@ -817,7 +817,7 @@ def _allocate_shm_buffer(
     height: int,
     stride: int,
     format_: int,
-) -> _CaptureResource:
+) -> CaptureResource:
     """Allocate capture storage while recording each resource immediately."""
     size = stride * height
     request.fd = _create_shm_fd(label)

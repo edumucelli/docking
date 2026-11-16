@@ -18,7 +18,7 @@ from ...state import (
     FanReading,
     ThermalReading,
     ThermalSnapshot,
-    _clean_label,
+    clean_label,
     log,
     parse_sensors_output,
 )
@@ -123,7 +123,7 @@ class SysfsThermalsBackend(ThermalsBackend):
                 readings.append(
                     ThermalReading(
                         chip=chip,
-                        label=_clean_label(label),
+                        label=clean_label(label),
                         celsius=celsius,
                     )
                 )
@@ -139,7 +139,7 @@ class SysfsThermalsBackend(ThermalsBackend):
             readings.append(
                 ThermalReading(
                     chip=zone_dir.name,
-                    label=_clean_label(label),
+                    label=clean_label(label),
                     celsius=celsius,
                 )
             )
@@ -161,7 +161,7 @@ class SysfsThermalsBackend(ThermalsBackend):
                 readings.append(
                     FanReading(
                         chip=chip,
-                        label=_clean_label(label),
+                        label=clean_label(label),
                         rpm=rpm,
                     )
                 )

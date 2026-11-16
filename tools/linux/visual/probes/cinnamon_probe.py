@@ -38,7 +38,7 @@ INTERFACE = "org.Cinnamon"
 DOCK_TITLE_PREFIX = "Docking"
 
 
-def _proxy() -> Gio.DBusProxy:
+def create_proxy() -> Gio.DBusProxy:
     return Gio.DBusProxy.new_for_bus_sync(
         Gio.BusType.SESSION,
         Gio.DBusProxyFlags.DO_NOT_AUTO_START,
@@ -50,7 +50,7 @@ def _proxy() -> Gio.DBusProxy:
     )
 
 
-def _eval(proxy: Gio.DBusProxy, script: str) -> object:
+def evaluate(proxy: Gio.DBusProxy, script: str) -> object:
     success, value = proxy.call_sync(
         "Eval",
         GLib.Variant("(s)", (script,)),
@@ -107,9 +107,9 @@ def _find_dock(windows: list[dict]) -> dict | None:
 
 
 def geometry() -> int:
-    proxy = _proxy()
-    monitors = _eval(proxy, MONITORS_SCRIPT)
-    windows = _eval(proxy, WINDOWS_SCRIPT)
+    proxy = create_proxy()
+    monitors = evaluate(proxy, MONITORS_SCRIPT)
+    windows = evaluate(proxy, WINDOWS_SCRIPT)
     dock = _find_dock(windows)
     json.dump(
         {
@@ -238,14 +238,14 @@ def maximized_window() -> int:
 
 def reservation() -> int:
     """Read an actual maximized window frame and workarea from Muffin."""
-    proxy = _proxy()
+    proxy = create_proxy()
     previous = None
     for _ in range(60):
-        windows = _eval(proxy, WINDOWS_SCRIPT)
+        windows = evaluate(proxy, WINDOWS_SCRIPT)
         window = next(
             (w for w in windows if w["title"] == "Lab maximized window"), None
         )
-        outputs = _eval(proxy, MONITORS_SCRIPT)
+        outputs = evaluate(proxy, MONITORS_SCRIPT)
         state = {"window": window, "outputs": outputs}
         if window and window["maximized"] and state == previous:
             json.dump(state, sys.stdout, indent=2)
@@ -267,8 +267,8 @@ def screenshot(dest: str) -> int:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.unlink(missing_ok=True)
 
-    proxy = _proxy()
-    _eval(proxy, "global.stage.hide_cursor(); true")
+    proxy = create_proxy()
+    evaluate(proxy, "global.stage.hide_cursor(); true")
     proxy.call_sync(
         "Screenshot",
         GLib.Variant("(bbs)", (False, False, str(path))),
@@ -292,12 +292,12 @@ def main() -> int:
         return 2
     mode = sys.argv[1]
     if mode == "quiet-startup":
-        _eval(_proxy(), "imports.ui.main.warningNotify = () => {}; true")
+        evaluate(create_proxy(), "imports.ui.main.warningNotify = () => {}; true")
         return 0
     if mode == "xwayland-environment":
         json.dump(
-            _eval(
-                _proxy(),
+            evaluate(
+                create_proxy(),
                 "({DISPLAY:imports.gi.GLib.getenv('DISPLAY'),"
                 "XAUTHORITY:imports.gi.GLib.getenv('XAUTHORITY')})",
             ),

@@ -29,8 +29,8 @@ from gi.repository import Gio, GLib
 from docking.i18n import _
 from docking.log import get_logger, with_context
 from docking.platform.tray.implementations.unix.dbusmenu import (
-    _unbox_variant,
-    _unpack_variant,
+    unbox_variant,
+    unpack_variant,
 )
 
 if TYPE_CHECKING:
@@ -322,9 +322,9 @@ class StatusNotifierBackend:
             METHOD_TIMEOUT_MS,
             None,
         )
-        values = _unpack_variant(result)[0]
+        values = unpack_variant(result)[0]
         if isinstance(values, GLib.Variant):
-            values = _unpack_variant(values)
+            values = unpack_variant(values)
         addresses = [
             parsed
             for value in values
@@ -477,7 +477,7 @@ class _StatusNotifierWatcherHost:
             )
             return
 
-        service = str(_unpack_variant(parameters)[0])
+        service = str(unpack_variant(parameters)[0])
         address = parse_registered_item(service, default_service=sender)
         if address is None:
             invocation.return_dbus_error(
@@ -508,7 +508,7 @@ class _StatusNotifierWatcherHost:
         parameters: GLib.Variant,
         _user_data: object = None,
     ) -> None:
-        name, _old_owner, new_owner = _unpack_variant(parameters)
+        name, _old_owner, new_owner = unpack_variant(parameters)
         if new_owner:
             return
         name = str(name)
@@ -554,7 +554,7 @@ def _name_has_owner(*, bus: Gio.DBusConnection, name: str) -> bool:
         METHOD_TIMEOUT_MS,
         None,
     )
-    return bool(_unpack_variant(result)[0])
+    return bool(unpack_variant(result)[0])
 
 
 def _read_item(
@@ -609,17 +609,17 @@ def _item_properties(reply: object) -> dict[str, Any] | None:
             if name in _ICON_PIXMAP_PROPERTIES or name == _TOOLTIP_PROPERTY:
                 properties[name] = value
             else:
-                properties[name] = _unpack_variant(value)
+                properties[name] = unpack_variant(value)
         return properties
 
     # Plain Python replies: kept for tests and defensive callers.
-    unpacked = _unpack_variant(reply)
+    unpacked = unpack_variant(reply)
     if not isinstance(unpacked, (tuple, list)) or len(unpacked) != 1:
         return None
     properties = unpacked[0]
     if not isinstance(properties, dict):
         return None
-    return {str(key): _unpack_variant(value) for key, value in properties.items()}
+    return {str(key): unpack_variant(value) for key, value in properties.items()}
 
 
 def _is_sequence_variant(variant: GLib.Variant) -> bool:
@@ -642,11 +642,11 @@ def _variant_text(value: GLib.Variant) -> str:
         return value.get_string()
     if value.is_container():
         return ""
-    return str(_unpack_variant(value) or "")
+    return str(unpack_variant(value) or "")
 
 
 def _tooltip_parts(value: object) -> tuple[str, str]:
-    variant = _unbox_variant(value)
+    variant = unbox_variant(value)
     if variant is not None:
         if not _is_sequence_variant(variant) or variant.n_children() < 4:
             return "", ""
@@ -660,7 +660,7 @@ def _tooltip_parts(value: object) -> tuple[str, str]:
 
 
 def _best_icon_pixmap(value: object) -> TrayIconPixmap | None:
-    variant = _unbox_variant(value)
+    variant = unbox_variant(value)
     if variant is not None:
         return _best_icon_pixmap_from_variant(variant)
     if not isinstance(value, (tuple, list)):
@@ -668,7 +668,7 @@ def _best_icon_pixmap(value: object) -> TrayIconPixmap | None:
 
     best: tuple[int, int, bytes] | None = None
     for raw_pixmap in value:
-        raw_pixmap = _unpack_variant(raw_pixmap)
+        raw_pixmap = unpack_variant(raw_pixmap)
         if not isinstance(raw_pixmap, (tuple, list)) or len(raw_pixmap) != 3:
             continue
         width, height, payload = raw_pixmap
@@ -725,7 +725,7 @@ def _best_icon_pixmap_from_variant(variant: GLib.Variant) -> TrayIconPixmap | No
 
 
 def _bytes_from_dbus_array(value: object) -> bytes:
-    value = _unpack_variant(value)
+    value = unpack_variant(value)
     if isinstance(value, bytes):
         return value
     if isinstance(value, (tuple, list)):

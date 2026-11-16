@@ -160,7 +160,7 @@ class CinnamonShellClient:
                 None,
             )
             client = cls(proxy=proxy)
-            features = client._eval(FEATURES_SCRIPT)
+            features = client.evaluate(FEATURES_SCRIPT)
             if isinstance(features, dict) and features.get("windows") is True:
                 client.features = frozenset(
                     name for name in NATIVE_FEATURES if features.get(name) is True
@@ -174,7 +174,7 @@ class CinnamonShellClient:
     def bus_name(self) -> str | None:
         return self._proxy.get_connection().get_unique_name()
 
-    def _eval(self, script: str) -> JsonValue:
+    def evaluate(self, script: str) -> JsonValue:
         try:
             success, value = self._proxy.call_sync(
                 "Eval",
@@ -192,7 +192,7 @@ class CinnamonShellClient:
 
     def list_windows(self) -> Sequence[Mapping[str, Any]]:
         windows = WINDOWS_SCRIPT.replace("__DOCKING_PID__", str(os.getpid()))
-        result = self._eval(
+        result = self.evaluate(
             "(() => {const windows = " + windows + ";"
             "const wm = global.workspace_manager;"
             "return {windows, workspaces: wm ? Array.from({length:wm.n_workspaces},"
@@ -237,17 +237,17 @@ class CinnamonShellClient:
     def activate_workspace(self, workspace_id: str) -> ActionResult:
         if not workspace_id.isascii() or not workspace_id.isdigit():
             return ActionResult.NOT_FOUND
-        result = self._eval(
+        result = self.evaluate(
             "(() => {const wm = global.workspace_manager;"
             f"const w = wm.get_workspace_by_index({int(workspace_id)});"
             "if (!w) return 'not_found';"
             "w.activate(global.get_current_time()); return 'ok';})()"
         )
-        return self._action_result(result)
+        return self.action_result(result)
 
     def pointer_position(self) -> tuple[int, int] | None:
         """Query the compositor pointer, including positions outside XWayland."""
-        result = self._eval("global.get_pointer().slice(0, 2)")
+        result = self.evaluate("global.get_pointer().slice(0, 2)")
         coordinates = _integer_values(result, length=2)
         if coordinates is not None:
             return coordinates[0], coordinates[1]
@@ -262,12 +262,12 @@ class CinnamonShellClient:
             else "unshow_desktop"
         )
         timestamp = "global.get_current_time()" if show is not False else ""
-        return self._action_result(
-            self._eval(f"global.workspace_manager.{operation}({timestamp}); 'ok'")
+        return self.action_result(
+            self.evaluate(f"global.workspace_manager.{operation}({timestamp}); 'ok'")
         )
 
     @staticmethod
-    def _action_result(result: object) -> ActionResult:
+    def action_result(result: object) -> ActionResult:
         return next(
             (value for value in ActionResult if value.value == result),
             ActionResult.FAILED,
@@ -287,7 +287,7 @@ class CinnamonShellClient:
             or int(parts[2]) <= 0
         ):
             return None
-        return self._eval(
+        return self.evaluate(
             "(() => {"
             f"if (global._dockingWindowGeneration !== {json.dumps(parts[1])})"
             " return null;"
@@ -330,7 +330,7 @@ class CinnamonShellClient:
         sequence = int(parts[2])
         if sequence <= 0:
             return ActionResult.NOT_FOUND
-        result = self._eval(
+        result = self.evaluate(
             "(() => {"
             f"if (global._dockingWindowGeneration !== {json.dumps(parts[1])})"
             " return 'not_found';"
@@ -354,7 +354,7 @@ class CinnamonShellClient:
         geometry = monitor.geometry
         wanted = json.dumps([geometry.x, geometry.y, geometry.width, geometry.height])
         # GDK's Wayland output order need not match Muffin's monitor indexes.
-        result = self._eval(
+        result = self.evaluate(
             f"(() => {{ const wanted = {wanted}; let index = -1;"
             "for (let i = 0; i < global.display.get_n_monitors(); i++) {"
             "const g = global.display.get_monitor_geometry(i);"
@@ -405,7 +405,7 @@ class CinnamonShellClient:
         else:
             return False
         return (
-            self._eval(
+            self.evaluate(
                 "(() => { const key = " + json.dumps(title) + ";"
                 "const w = global.get_window_actors().map(a => a.meta_window)"
                 ".find(w => w.get_title() === key); if (!w) return false;"
@@ -428,7 +428,7 @@ class CinnamonShellClient:
         )
 
     def clear_reservation(self, *, title: str) -> None:
-        self._eval(
+        self.evaluate(
             "(() => { const key = " + json.dumps(title) + ";"
             "const owned = global._dockingReservations?.[key];"
             "if (owned) { owned.window.disconnect(owned.signal);"
@@ -444,7 +444,7 @@ class CinnamonShellClient:
         current_workspace_only: bool,
     ) -> tuple[int, int] | None:
         # JSON encoding keeps window identifiers separate from JavaScript code.
-        result = self._eval(
+        result = self.evaluate(
             "(() => { const w = global.get_window_actors()"
             ".map(a => a.meta_window)"
             ".filter(w => w && w.get_workspace())"
@@ -495,7 +495,7 @@ class CinnamonShellClient:
         return None
 
     def clear_dock_visibility(self, *, title: str) -> None:
-        self._eval(
+        self.evaluate(
             "(() => {const guards = global._dockingDockActors;"
             f"const key = {json.dumps(title)}, owned = guards?.[key];"
             "if (owned) {owned.actor.disconnect(owned.visible);"

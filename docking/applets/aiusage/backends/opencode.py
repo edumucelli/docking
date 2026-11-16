@@ -24,8 +24,8 @@ from docking.applets.aiusage.state import (
     OPENCODE_PREFIX,
     ModelUsage,
     Provider,
-    _nonnegative_cost,
-    _nonnegative_count,
+    nonnegative_cost,
+    nonnegative_count,
 )
 from docking.log import get_logger
 
@@ -86,9 +86,9 @@ def query_today() -> ProviderSessions:
                 or not isinstance(tokens, dict)
             ):
                 continue
-            cost = _nonnegative_cost(data.get("cost"))
-            inp = _nonnegative_count(tokens.get("input"))
-            out = _nonnegative_count(tokens.get("output"))
+            cost = nonnegative_cost(data.get("cost"))
+            inp = nonnegative_count(tokens.get("input"))
+            out = nonnegative_count(tokens.get("output"))
             if not (inp or out or cost):
                 continue
             by_model = result.setdefault(f"oc:{sid}", {})

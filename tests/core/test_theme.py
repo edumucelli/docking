@@ -9,18 +9,20 @@ import pytest
 
 import docking.core.theme.migration as theme_migration_mod
 from docking.core.theme import (
-    _BUILTIN_THEMES_DIR,
-    _USER_THEME_TEMPLATE_NAME,
     DEPRECATED_THEME_KEYS,
     ActiveShape,
     ActiveTint,
     IndicatorFill,
     Theme,
-    _rgba,
     ensure_user_theme_template,
     list_theme_names,
     migrate_theme_dict,
     user_themes_dir,
+)
+from docking.core.theme.theme import (
+    _BUILTIN_THEMES_DIR,
+    _USER_THEME_TEMPLATE_NAME,
+    _rgba,
 )
 
 

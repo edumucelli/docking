@@ -28,12 +28,12 @@ from docking.applets.aiusage.state import (
     AiUsageState,
     DisplayMode,
     Provider,
-    _format_tokens,
-    _today_entry,
     dominant_provider,
+    format_tokens,
     provider_cost,
     provider_tokens,
     today_cost,
+    today_entry,
     today_tokens,
 )
 from docking.applets.base import draw_icon_label
@@ -145,14 +145,14 @@ def render_icon(
     else:
         _draw_claude_logo(cr=cr, size=size)
 
-    entry = _today_entry(state=state)
+    entry = today_entry(state=state)
     if display_mode == DisplayMode.TOKENS:
         if selected_provider and entry:
             tokens = provider_tokens(entry=entry, provider=selected_provider)
         else:
             tokens = today_tokens(state=state)
         if tokens > 0:
-            draw_icon_label(cr=cr, text=_format_tokens(tokens=tokens), size=size)
+            draw_icon_label(cr=cr, text=format_tokens(tokens=tokens), size=size)
     else:
         if selected_provider and entry:
             cost = provider_cost(entry=entry, provider=selected_provider)

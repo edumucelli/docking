@@ -186,7 +186,7 @@ class ApplicationRegistryStub:
     def get(self, desktop_id: str) -> ApplicationInfo | None:
         return self._applications.get(desktop_id)
 
-    def _gio_handle_for(self, desktop_id: str) -> None:
+    def gio_handle_for(self, desktop_id: str) -> None:
         # This registry contains metadata only; host URI launches use its file.
         return None
 
