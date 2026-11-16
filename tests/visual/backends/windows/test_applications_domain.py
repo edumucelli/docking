@@ -26,6 +26,33 @@ from tests.visual.backends.windows.runtime_pin_smoke import (
 )
 
 
+@pytest.mark.parametrize("reused", [False, True])
+def test_classic_cleanup_does_not_close_a_process_that_reused_a_fixture_pid(
+    tmp_path, monkeypatch, reused
+):
+    import psutil
+
+    from tests.visual.backends.windows.classic_fixture import ClassicApplications
+
+    fixture = ClassicApplications.__new__(ClassicApplications)
+    fixture.root = tmp_path / "owned"
+    fixture.root.mkdir()
+    fixture.output = tmp_path / "evidence"
+    fixture.output.mkdir()
+    (fixture.output / "facts-old.json").write_text('{"pid": 123}')
+    fixture._owns_links = False
+    fixture.links = tmp_path / "links"
+    executable = tmp_path / "unrelated.exe" if reused else fixture.root / "fixture.exe"
+    process = SimpleNamespace(
+        pid=123, exe=lambda: str(executable), wait=Mock(return_value=0)
+    )
+    monkeypatch.setattr(psutil, "Process", lambda _pid: process)
+    fixture.native = SimpleNamespace(windows=Mock(return_value=[]))
+    fixture.close()
+    assert fixture.native.windows.call_count == (0 if reused else 1)
+    assert process.wait.call_count == (0 if reused else 1)
+
+
 def test_document_fixture_waits_for_completed_catalog_before_requiring_exact_pin():
     selected = SimpleNamespace(document_target=r"C:\cache\original-options.lnk")
     observations = iter(((True, None), (True, selected), (False, selected)))

@@ -12,6 +12,10 @@ if [ "${1:-}" != --session ]; then
     lab_uid="$(id -u)"
     lab_gid="$(id -g)"
     device_args=()
+    if [ "$compositor" = jay ]; then
+        # Docker's default profile blocks Jay's required io_uring syscalls.
+        device_args+=(--security-opt seccomp=unconfined)
+    fi
     if [ -n "${DOCKING_LAB_RENDER_NODE:-}" ]; then
         [ -c "$DOCKING_LAB_RENDER_NODE" ] || { echo "Render node must be a character device" >&2; exit 1; }
         device_args=(--device "$DOCKING_LAB_RENDER_NODE" --group-add "$(stat -c %g "$DOCKING_LAB_RENDER_NODE")"
@@ -82,8 +86,8 @@ if [ "$compositor" = gnome-fallback ] || [ "$compositor" = weston ]; then
     export LAB_EXPECTED_BACKEND=reduced LAB_CAPTURE_MODE=x11
 fi
 if [ "$compositor" = cage ]; then export LAB_EXPECTED_BACKEND=reduced; fi
-if [ "$compositor" = jay ] || [ "$compositor" = miriway ] || [ "$compositor" = gamescope ]; then export LAB_CAPTURE_MODE=x11; fi
-if [ "$compositor" = treeland ]; then
+if [ "$compositor" = jay ] || [ "$compositor" = miriway ]; then export LAB_CAPTURE_MODE=x11; fi
+if [ "$compositor" = treeland ] || [ "$compositor" = gamescope ]; then
     export LAB_CAPTURE_MODE=parent
 fi
 if [ "$compositor" = cinnamon ]; then

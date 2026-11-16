@@ -9,6 +9,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+if __name__ == "__main__" and "--launched" not in sys.argv:
+    from docking.launcher import prepare_display
+
+    prepare_display()
+
 from tests.visual.shared.linux.probes import (
     input_probe,
 )

@@ -154,7 +154,7 @@ class Probe:
             subprocess.run(
                 [
                     sys.executable,
-                    str(Path(__file__).with_name("gnome_capture.py")),
+                    str(Path(__file__).parents[3] / "backends/gnome/capture.py"),
                     str(target),
                 ],
                 check=True,

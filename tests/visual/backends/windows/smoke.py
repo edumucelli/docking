@@ -304,7 +304,11 @@ def main() -> None:
         desktop_before.work.right,
         desktop_before.work.bottom,
     ]
-    executable = Path(sys.executable).with_name("pythonw.exe")
+    executable = (
+        Path(sys.executable)
+        if args.placement_only
+        else Path(sys.executable).with_name("pythonw.exe")
+    )
     env = {
         **os.environ,
         "XDG_CONFIG_HOME": str(config_home),
@@ -315,6 +319,26 @@ def main() -> None:
     env.pop("PYGI_DLL_PATH", None)
     command = [str(executable), str(repo / "run.py")]
     working_directory = repo
+    backend_file = output / "backend.txt"
+    startup_probe = (
+        "from pathlib import Path\n"
+        "from docking.launcher import prepare_display\n"
+        "prepare_display()\n"
+        "from docking import app\n"
+        "original_start = app._start_runtime\n"
+        "def start(items, model, backend):\n"
+        f"    Path({str(backend_file)!r}).write_text(backend.name)\n"
+        "    return original_start(items, model, backend)\n"
+        "app._start_runtime = start\n"
+        if args.placement_only
+        else ""
+    )
+    if args.placement_only:
+        command = [
+            str(executable),
+            "-c",
+            startup_probe + "from docking.launcher import main; main()",
+        ]
     if args.installed_root is not None:
         installed = args.installed_root.resolve()
         assert (installed / "docking/__init__.py").is_file()
@@ -326,7 +350,8 @@ def main() -> None:
                 "import sys; from pathlib import Path; import docking; "
                 "origin=Path(docking.__file__).resolve(); "
                 "assert origin.is_relative_to(Path(sys.argv[1]).resolve()), origin; "
-                "from docking.launcher import main; main()"
+                + startup_probe
+                + "from docking.launcher import main; main()"
             ),
             str(installed),
         ]
@@ -425,9 +450,7 @@ def main() -> None:
                 report["window_dpi"],
                 (user32.GetSystemMetrics(76), user32.GetSystemMetrics(77)),
             )
-            assert "Selected session backend: windows (" in (
-                output / "docking.log"
-            ).read_text(errors="replace")
+            assert backend_file.read_text() == "windows", "Unexpected session backend"
             user32.PostMessageW(dock["hwnd"], 0x0010, 0, 0)
             child.wait(timeout=10)
             assert child.returncode == 0, "Dock failed normal shutdown"

@@ -105,6 +105,7 @@ adapter_start() {
 
     WLR_BACKENDS=headless \
     WLR_RENDERER="${LAB_PARENT_RENDERER:-pixman}" \
+    WLR_RENDERER_ALLOW_SOFTWARE=1 \
     WLR_LIBINPUT_NO_DEVICES=1 \
     WLR_HEADLESS_OUTPUTS="$outputs" \
         sway -c "$XDG_CONFIG_HOME/sway/config" >"$COSMIC_PARENT_LOG" 2>&1 &

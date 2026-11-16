@@ -106,7 +106,7 @@ def commands(
                 "--compositor",
                 target.name,
                 "--case",
-                "autohide-bottom",
+                "autohide-left" if target.name == "phosh" else "autohide-bottom",
                 "--geometry-only",
                 "--require-supported",
             ]

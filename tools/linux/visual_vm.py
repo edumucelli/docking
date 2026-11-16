@@ -257,7 +257,7 @@ def main() -> int:
                     assert saved.wait() == 0, "Failed to export compositor image"
                 # The emulated GPU supplies DRM buffers for guest CPU rendering.
                 command = (
-                    "set -eu; render=$(find /dev/dri -name 'renderD*' | head -1); "
+                    "set -eu; render=$(find /dev/dri -name 'card*' | head -1); "
                     'test -c "$render"; '
                     "cd src; env DOCKING_VISUAL_GUEST=1 "
                     'DOCKING_LAB_RENDER_NODE="$render" LAB_RENDER_DEVICE="$render" '

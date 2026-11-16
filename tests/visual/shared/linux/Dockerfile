@@ -98,6 +98,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         gir1.2-pango-1.0 \
         libwayland-client0 \
         libgl1-mesa-dri \
+        libxtst6 \
         mesa-utils \
         adwaita-icon-theme \
         hicolor-icon-theme \
@@ -280,13 +281,13 @@ FROM x11-base AS x11-gnome
 RUN apt-get update && apt-get install -y --no-install-recommends gnome-session gnome-shell \
     && rm -rf /var/lib/apt/lists/*
 FROM x11-base AS x11-plasma
-RUN apt-get update && apt-get install -y --no-install-recommends plasma-workspace kwin-x11 \
+RUN apt-get update && apt-get install -y --no-install-recommends plasma-workspace plasma-desktop kwin-x11 \
     && rm -rf /var/lib/apt/lists/*
 FROM x11-base AS x11-cinnamon
 RUN apt-get update && apt-get install -y --no-install-recommends cinnamon-session cinnamon \
     && rm -rf /var/lib/apt/lists/*
 FROM x11-base AS x11-mate
-RUN apt-get update && apt-get install -y --no-install-recommends mate-session-manager marco mate-panel caja \
+RUN apt-get update && apt-get install -y --no-install-recommends mate-session-manager marco mate-panel caja mate-settings-daemon-common \
     && rm -rf /var/lib/apt/lists/*
 FROM x11-base AS x11-lxde
 RUN apt-get update && apt-get install -y --no-install-recommends lxde-core \
@@ -297,7 +298,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends lxqt-session lx
 
 FROM base AS miriway
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        cmake g++ pkg-config curl libmiral-dev libxkbcommon-dev \
+        cmake make g++ pkg-config curl libmiral-dev libxkbcommon-dev \
         mir-graphics-drivers-desktop xvfb xauth xdotool \
     && rm -rf /var/lib/apt/lists/*
 RUN curl -fsSL https://codeload.github.com/Miriway/Miriway/tar.gz/refs/tags/v24.10 -o /tmp/miriway.tar.gz \

@@ -155,9 +155,13 @@ printf 'lab:x:%s:\n' "$LAB_GID" >>"$RUN_DIR/.group"
 
 set +e
 device_args=()
+if [ "$COMPOSITOR" = jay ]; then
+    # Docker's default profile blocks Jay's required io_uring syscalls.
+    device_args+=(--security-opt seccomp=unconfined)
+fi
 if [ -n "${LAB_RENDER_DEVICE:-}" ]; then
-    if [[ ! "$LAB_RENDER_DEVICE" =~ ^/dev/dri/renderD[0-9]+$ ]] || [ ! -c "$LAB_RENDER_DEVICE" ]; then
-        echo "LAB_RENDER_DEVICE must name an existing DRM render node" >&2
+    if [[ ! "$LAB_RENDER_DEVICE" =~ ^/dev/dri/(renderD|card)[0-9]+$ ]] || [ ! -c "$LAB_RENDER_DEVICE" ]; then
+        echo "LAB_RENDER_DEVICE must name an existing DRM device" >&2
         exit 2
     fi
     device_args+=(--device "$LAB_RENDER_DEVICE" --group-add "$(stat -c '%g' "$LAB_RENDER_DEVICE")")

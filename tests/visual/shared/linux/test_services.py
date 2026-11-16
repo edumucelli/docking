@@ -87,6 +87,26 @@ def test_native_panel_scene_is_not_shadowed_by_scene_client(tmp_path, monkeypatc
     assert result.value.value == 0
 
 
+def test_panel_fixture_launches_the_shared_panel_instead_of_its_own_probe(
+    monkeypatch, tmp_path
+):
+    from tests.visual.backends.layer_shell.phoc.panel_probe import PanelProbe
+    from tests.visual.shared.linux.probes import native_services_probe as native
+
+    monkeypatch.setenv("LAB_DIR", str(tmp_path))
+    calls = []
+    monkeypatch.setattr(subprocess, "Popen", lambda args, **_: calls.append(args))
+    PanelProbe(None, None, "left").start_panel()
+    assert calls == [
+        [
+            sys.executable,
+            str(Path(native.__file__).with_name("panel_probe.py")),
+            "40",
+            "left",
+        ]
+    ]
+
+
 @pytest.mark.parametrize("compositor", ["phoc", "phosh", "weston"])
 @pytest.mark.parametrize("layer_shell", [False, True])
 def test_additional_adapter_capabilities(compositor, layer_shell):

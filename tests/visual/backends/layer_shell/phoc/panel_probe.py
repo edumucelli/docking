@@ -66,7 +66,7 @@ class PanelProbe(native.Probe):
         self.panel = subprocess.Popen(
             [
                 sys.executable,
-                str(Path(__file__).with_name("panel_probe.py")),
+                str(Path(native.__file__).with_name("panel_probe.py")),
                 "40",
                 self.position,
             ],

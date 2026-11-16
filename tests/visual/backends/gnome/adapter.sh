@@ -1,5 +1,5 @@
 #!/bin/bash
-# Real GNOME/Mutter without the Docking bridge: a negative compatibility lane.
+# Real GNOME/Mutter, with an optional bridge for the positive integration lane.
 adapter_prepare() {
     COMPOSITOR_LOG="$LAB_DIR/gnome.log"
     export XDG_CURRENT_DESKTOP=GNOME XDG_SESSION_TYPE=wayland GDK_BACKEND=wayland
@@ -7,6 +7,12 @@ adapter_prepare() {
     export DBUS_SYSTEM_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS"
     export MUTTER_DEBUG_DUMMY_MODE_SPECS="${LAB_WIDTH:-1280}x${LAB_HEIGHT:-720}"
     export MUTTER_DEBUG_NUM_DUMMY_MONITORS=1
+    export GSETTINGS_BACKEND=keyfile
+    # A uniform private wallpaper keeps desktop artwork out of the pixel oracle.
+    gsettings set org.gnome.desktop.background picture-uri "''"
+    gsettings set org.gnome.desktop.background picture-uri-dark "''"
+    gsettings set org.gnome.desktop.background primary-color "'#000000'"
+    gsettings set org.gnome.desktop.background color-shading-type "'solid'"
     if gnome-shell --help | grep -q -- '--nested'; then
         GNOME_LAB_MODE=nested
     else
@@ -14,7 +20,6 @@ adapter_prepare() {
         export LAB_CAPTURE_MODE=gnome
     fi
     if [ "${LAB_GNOME_BRIDGE:-0}" = 1 ]; then
-        export GSETTINGS_BACKEND=keyfile
         extension="$XDG_DATA_HOME/gnome-shell/extensions/docking-bridge@docking.org"
         mkdir -p "$extension"
         cp "$DOCKING_SOURCE"/docking/platform/backends/gnome/extension/* "$extension/"
@@ -56,7 +61,7 @@ adapter_capabilities() {
     [ "${GNOME_LAB_MODE:-nested}" = headless ] && method=org.gnome.Shell.Screenshot
     session_probe_json | jq --arg method "$method" --argjson bridge "${LAB_GNOME_BRIDGE:-0}" '{compositor:"gnome", expected_backend:(if $bridge == 1 then "gnome-shell-bridge" else "reduced" end),
         placement:($bridge == 1), native_geometry:false, pointer:false,
-        unsupported_reasons:{placement:"GNOME requires the Docking Shell bridge, which this negative compatibility lane deliberately omits"},
+        unsupported_reasons:(if $bridge == 1 then {} else {placement:"GNOME requires the Docking Shell bridge"} end),
         gtk_display_is_wayland, screenshot_method:$method}'
 }
 adapter_screenshot() {

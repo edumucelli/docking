@@ -301,7 +301,9 @@ class ClassicApplications:
                 process = psutil.Process(facts["pid"])
             except psutil.NoSuchProcess:
                 continue
-            assert Path(process.exe()).is_relative_to(self.root)
+            # A closed fixture's PID may now belong to an unrelated process.
+            if not Path(process.exe()).resolve().is_relative_to(self.root):
+                continue
             for window in self.native.windows(process.pid):
                 assert any(
                     window["title"] in (label, label + " Second")

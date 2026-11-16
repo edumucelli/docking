@@ -13,10 +13,11 @@ from pathlib import Path
 
 
 def connect_pointer():
-    from generated.wlr_virtual_pointer_unstable_v1 import (
+    from pywayland.client import Display
+
+    from tests.visual.shared.linux.probes.generated.wlr_virtual_pointer_unstable_v1 import (
         ZwlrVirtualPointerManagerV1,
     )
-    from pywayland.client import Display
 
     display = Display()
     display.connect()

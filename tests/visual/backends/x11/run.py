@@ -34,7 +34,11 @@ WIDTH, HEIGHT = 1280, 800
 
 DESKTOPS = {
     "xfce": ("xfce4-session", "XFCE", "Xfwm4"),
-    "gnome": ("gnome-session --session=gnome --builtin", "GNOME", "GNOME Shell"),
+    "gnome": (
+        "gnome-session --session=gnome --disable-acceleration-check",
+        "GNOME",
+        "GNOME Shell",
+    ),
     "plasma": ("startplasma-x11", "KDE", "KWin"),
     "cinnamon": ("cinnamon-session", "X-Cinnamon", "Muffin"),
     "mate": ("mate-session", "MATE", "Marco"),
@@ -616,7 +620,8 @@ def run_checks(observer: Observer, env: dict[str, str], record):
             assert observer.settled("autohide-hidden").marker() is None, (
                 "Dock did not hide"
             )
-            observer.pointer.move(WIDTH // 2, HEIGHT - 1)
+            x, y, width, height = observer.workarea
+            observer.pointer.move(x + width // 2, y + height - 1)
             time.sleep(0.7)
             revealed = observer.settled("autohide-revealed").marker()
             assert revealed and revealed["count"] > 900, (
@@ -763,6 +768,22 @@ def observe(args):
             observer.Gdk.Screen.get_default().is_composited,
             "Window manager compositing unavailable",
         )
+        if args.minimum:
+
+            def panel_ready():
+                observer.windows()
+                monitor = observer.Gdk.Display.get_default().get_monitor(0)
+                area, geometry = monitor.get_workarea(), monitor.get_geometry()
+                return (area.x, area.y, area.width, area.height) != (
+                    geometry.x,
+                    geometry.y,
+                    geometry.width,
+                    geometry.height,
+                )
+
+            wait_for(
+                panel_ready, "Desktop panel workarea never became ready", timeout=30
+            )
         if args.pytest:
 
             def unit_tests():
@@ -824,6 +845,9 @@ def session(args):
             env = private_environment(Path(temporary), args.desktop)
             if args.minimum:
                 env["GSETTINGS_BACKEND"] = "keyfile"
+                if args.desktop == "plasma":
+                    env["KWIN_COMPOSE"] = "O2"
+                    env["QSG_RHI_BACKEND"] = "software"
                 if args.desktop == "mate":
                     subprocess.run(
                         [
@@ -877,15 +901,19 @@ def session(args):
                         if args.desktop in {"lxde", "lxqt"}
                         else nullcontext()
                     ),
-                    process(
-                        [
-                            sys.executable,
-                            "-m",
-                            "tests.visual.backends.x11.run",
-                            "--background",
-                        ],
-                        output / "desktop.log",
-                        env,
+                    (
+                        process(
+                            [
+                                sys.executable,
+                                "-m",
+                                "tests.visual.backends.x11.run",
+                                "--background",
+                            ],
+                            output / "desktop.log",
+                            env,
+                        )
+                        if not args.minimum
+                        else nullcontext()
                     ) as background,
                 ):
 
@@ -896,7 +924,10 @@ def session(args):
                             )
                         return (Path(env["XDG_RUNTIME_DIR"]) / "desktop-ready").exists()
 
-                    wait_for(desktop_ready, "Desktop fixture never mapped", timeout=30)
+                    if not args.minimum:
+                        wait_for(
+                            desktop_ready, "Desktop fixture never mapped", timeout=30
+                        )
                     with process(
                         [
                             sys.executable,
