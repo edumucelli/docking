@@ -144,7 +144,7 @@ def document_target_snapshot(native, ui, identifier, expected_item, dock_window)
     window, dnd = ui.window, ui.input_controller.dnd
     insert = dnd.drop_insert_index
     frame = window.geometry.build_frame(main_cursor=-1.0, drop_insert_index=insert)
-    rendered = window._current_or_build_geometry_frame(drop_insert_index=insert)
+    rendered = window.current_or_build_geometry_frame(drop_insert_index=insert)
 
     horizontal = is_horizontal(window.config.pos)
     gap = window.config.icon_size + window.theme.item_padding
@@ -230,10 +230,10 @@ def _phase(output: Path, phase: str, runtime) -> None:
     from docking.platform.applications.types import ApplicationOrigin
     from docking.platform.native.windows.ffi import bind
     from tools.windows.visual.desktop_driver import (
+        Data,
+        Input,
+        Mouse,
         WindowsDesktop,
-        _Data,
-        _Input,
-        _Mouse,
         physical_dock_click,
         read_shared_json,
     )
@@ -415,7 +415,7 @@ def _phase(output: Path, phase: str, runtime) -> None:
 
             def point():
                 window = shared["ui"].window
-                frame = window._current_or_build_geometry_frame()
+                frame = window.current_or_build_geometry_frame()
                 rect = next(
                     g.draw_rect
                     for g in frame.item_geometries
@@ -457,7 +457,7 @@ def _phase(output: Path, phase: str, runtime) -> None:
                     move=native.user.SetCursorPos,
                     press=lambda: native._send(
                         [
-                            _Input(type=0, data=_Data(mouse=_Mouse(flags=flag)))
+                            Input(type=0, data=Data(mouse=Mouse(flags=flag)))
                             for flag in ((8, 16) if right else (2, 4))
                         ]
                     ),

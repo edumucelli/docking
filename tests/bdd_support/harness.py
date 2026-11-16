@@ -147,23 +147,21 @@ def _bind_dock_window_helpers(stub) -> SimpleNamespace:
     stub._geometry_signature = MethodType(
         dock_window_mod.DockWindow._geometry_signature, stub
     )
-    stub._build_and_store_geometry_frame = MethodType(
-        dock_window_mod.DockWindow._build_and_store_geometry_frame, stub
+    stub.build_and_store_geometry_frame = MethodType(
+        dock_window_mod.DockWindow.build_and_store_geometry_frame, stub
     )
-    stub._current_or_build_geometry_frame = MethodType(
-        dock_window_mod.DockWindow._current_or_build_geometry_frame, stub
+    stub.current_or_build_geometry_frame = MethodType(
+        dock_window_mod.DockWindow.current_or_build_geometry_frame, stub
     )
-    stub._clear_scheduled_redraw = MethodType(
-        dock_window_mod.DockWindow._clear_scheduled_redraw, stub
+    stub.clear_scheduled_redraw = MethodType(
+        dock_window_mod.DockWindow.clear_scheduled_redraw, stub
     )
     stub._flush_scheduled_redraw = MethodType(
         dock_window_mod.DockWindow._flush_scheduled_redraw, stub
     )
-    stub._schedule_redraw = MethodType(
-        dock_window_mod.DockWindow._schedule_redraw, stub
-    )
-    stub._invalidate_current_geometry_frame = MethodType(
-        dock_window_mod.DockWindow._invalidate_current_geometry_frame, stub
+    stub.schedule_redraw = MethodType(dock_window_mod.DockWindow.schedule_redraw, stub)
+    stub.invalidate_current_geometry_frame = MethodType(
+        dock_window_mod.DockWindow.invalidate_current_geometry_frame, stub
     )
     return stub
 
@@ -423,7 +421,7 @@ class DockHarness:
             get_realized=lambda: True,
             drawing_area=SimpleNamespace(queue_draw=MagicMock()),
             update_input_region=MagicMock(),
-            _invalidate_current_geometry_frame=MagicMock(),
+            invalidate_current_geometry_frame=MagicMock(),
         )
         controller = placement_mod.DockPlacementController(
             window,

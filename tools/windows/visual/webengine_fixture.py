@@ -30,7 +30,7 @@ class TLSFixture:
         self._thread = None
 
     def start(self) -> None:
-        from tools.windows.visual.webapp_fixture import _HTML, _WORKER
+        from tools.windows.visual.webapp_fixture import HTML, WORKER
 
         certificate, key = (
             self.directory / "fixture-cert.pem",
@@ -123,7 +123,7 @@ class TLSFixture:
                         '<div id="column-left"><div class="chatlist">'
                         "Generated connected state</div></div>"
                     )
-                html = _HTML.replace("LANDMARK", landmark).replace(
+                html = HTML.replace("LANDMARK", landmark).replace(
                     "Native WebView2", "Native Qt WebEngine"
                 )
                 if service == "telegram":
@@ -131,7 +131,7 @@ class TLSFixture:
                         "web.whatsapp.com", "web.telegram.org"
                     )
                 worker = self.path == "/fixture-worker.js"
-                body = (_WORKER if worker else html).encode()
+                body = (WORKER if worker else html).encode()
                 self.send_response(200)
                 self.send_header(
                     "Content-Type",

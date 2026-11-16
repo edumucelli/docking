@@ -10,9 +10,9 @@ from ...gpu import (
     AMD_VENDOR_NAME,
     DRM_DIR,
     GpuStats,
-    _bytes_to_mib,
-    _int_or_none,
-    _percent_to_fraction,
+    bytes_to_mib,
+    int_or_none,
+    percent_to_fraction,
 )
 from ..shared.gpu import VendorGpuReader
 
@@ -45,14 +45,14 @@ class GpuReader(VendorGpuReader):
                 continue
             if _read_text(device_dir / "vendor") != AMD_VENDOR_ID:
                 continue
-            utilization = _percent_to_fraction(
+            utilization = percent_to_fraction(
                 _read_text(device_dir / "gpu_busy_percent") or ""
             )
-            memory_used = _bytes_to_mib(
-                _int_or_none(_read_text(device_dir / "mem_info_vram_used") or "")
+            memory_used = bytes_to_mib(
+                int_or_none(_read_text(device_dir / "mem_info_vram_used") or "")
             )
-            memory_total = _bytes_to_mib(
-                _int_or_none(_read_text(device_dir / "mem_info_vram_total") or "")
+            memory_total = bytes_to_mib(
+                int_or_none(_read_text(device_dir / "mem_info_vram_total") or "")
             )
             if utilization is None and memory_used is None and memory_total is None:
                 continue

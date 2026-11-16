@@ -900,7 +900,7 @@ def test_document_snapshot_uses_live_gap_and_physical_scale(replaced):
     )
     window = SimpleNamespace(
         geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
-        _current_or_build_geometry_frame=lambda **_kwargs: frame,
+        current_or_build_geometry_frame=lambda **_kwargs: frame,
         config=SimpleNamespace(pos=Position.BOTTOM, icon_size=64),
         theme=SimpleNamespace(item_padding=8),
         get_scale_factor=lambda: 2,

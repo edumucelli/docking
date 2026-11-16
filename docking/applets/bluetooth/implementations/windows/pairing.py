@@ -399,7 +399,7 @@ class PairingWindow:
 def authenticate(owner: int, radio_address: int, device_address: int) -> int:
     from docking.applets.bluetooth.implementations.windows.radio import (
         ClassicInventory,
-        _DeviceInfo,
+        DeviceInfo,
     )
 
     if (
@@ -420,7 +420,7 @@ def authenticate(owner: int, radio_address: int, device_address: int) -> int:
             "BluetoothGetDeviceInfo",
             ctypes.c_uint32,
             ctypes.c_void_p,
-            ctypes.POINTER(_DeviceInfo),
+            ctypes.POINTER(DeviceInfo),
         )
         pair = bind(
             library,
@@ -428,11 +428,11 @@ def authenticate(owner: int, radio_address: int, device_address: int) -> int:
             ctypes.c_uint32,
             ctypes.c_void_p,
             ctypes.c_void_p,
-            ctypes.POINTER(_DeviceInfo),
+            ctypes.POINTER(DeviceInfo),
             ctypes.c_void_p,
             ctypes.c_int32,
         )
-        info = _DeviceInfo()
+        info = DeviceInfo()
         info.size, info.address = ctypes.sizeof(info), device_address
         status = int(read(radio, ctypes.byref(info)))
         if status:

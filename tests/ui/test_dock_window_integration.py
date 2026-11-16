@@ -67,23 +67,21 @@ def _bind_geometry_signature(stub):
     stub._geometry_signature = MethodType(
         dock_window_mod.DockWindow._geometry_signature, stub
     )
-    stub._build_and_store_geometry_frame = MethodType(
-        dock_window_mod.DockWindow._build_and_store_geometry_frame, stub
+    stub.build_and_store_geometry_frame = MethodType(
+        dock_window_mod.DockWindow.build_and_store_geometry_frame, stub
     )
-    stub._current_or_build_geometry_frame = MethodType(
-        dock_window_mod.DockWindow._current_or_build_geometry_frame, stub
+    stub.current_or_build_geometry_frame = MethodType(
+        dock_window_mod.DockWindow.current_or_build_geometry_frame, stub
     )
-    stub._clear_scheduled_redraw = MethodType(
-        dock_window_mod.DockWindow._clear_scheduled_redraw, stub
+    stub.clear_scheduled_redraw = MethodType(
+        dock_window_mod.DockWindow.clear_scheduled_redraw, stub
     )
     stub._flush_scheduled_redraw = MethodType(
         dock_window_mod.DockWindow._flush_scheduled_redraw, stub
     )
-    stub._schedule_redraw = MethodType(
-        dock_window_mod.DockWindow._schedule_redraw, stub
-    )
-    stub._invalidate_current_geometry_frame = MethodType(
-        dock_window_mod.DockWindow._invalidate_current_geometry_frame, stub
+    stub.schedule_redraw = MethodType(dock_window_mod.DockWindow.schedule_redraw, stub)
+    stub.invalidate_current_geometry_frame = MethodType(
+        dock_window_mod.DockWindow.invalidate_current_geometry_frame, stub
     )
     stub.popup_anchor_for_item = MethodType(
         dock_window_mod.DockWindow.popup_anchor_for_item, stub
@@ -1339,8 +1337,8 @@ class TestDockWindowSetupAndGeometry:
                 current_geometry_frame_signature=(),
             ),
         )
-        stub._invalidate_current_geometry_frame = MethodType(
-            dock_window_mod.DockWindow._invalidate_current_geometry_frame,
+        stub.invalidate_current_geometry_frame = MethodType(
+            dock_window_mod.DockWindow.invalidate_current_geometry_frame,
             stub,
         )
 
@@ -1357,13 +1355,13 @@ class TestDockWindowStrutsAndRegion:
         stub, _ = _make_stub()
         frame = stub._test_geometry_frame
         stub.geometry.build_frame = MagicMock(return_value=frame)
-        stub._current_or_build_geometry_frame()
-        stub._current_or_build_geometry_frame()
+        stub.current_or_build_geometry_frame()
+        stub.current_or_build_geometry_frame()
         assert stub.geometry.build_frame.call_count == 1
         stub.config.dock_alignment = 0.0
-        stub._current_or_build_geometry_frame()
+        stub.current_or_build_geometry_frame()
         stub.config.dock_alignment = 0.75
-        stub._current_or_build_geometry_frame()
+        stub.current_or_build_geometry_frame()
         assert stub.geometry.build_frame.call_count == 3
 
     def testupdate_input_region_applies_shape_and_caches_rect(self, monkeypatch):
@@ -1508,7 +1506,7 @@ class TestDockWindowDrawAndHelpers:
         stub = _bind_geometry_signature(
             SimpleNamespace(
                 autohide=_autohide(enabled=False),
-                _last_autohide_state=None,
+                last_autohide_state=None,
                 dock_hovered=False,
                 dnd=SimpleNamespace(
                     drag_index=-1, drop_insert_index=-1, drop_target_id=""
@@ -1524,7 +1522,7 @@ class TestDockWindowDrawAndHelpers:
                 cursor_x=1.0,
                 cursor_y=2.0,
                 get_size=MagicMock(return_value=(1920, 122)),
-                _sync_background_blur_hint=MagicMock(),
+                sync_background_blur_hint=MagicMock(),
                 zoom_animator=SimpleNamespace(progress=1.0),
                 geometry=geometry,
                 placement=SimpleNamespace(set_struts=MagicMock()),
@@ -1557,7 +1555,7 @@ class TestDockWindowDrawAndHelpers:
         assert result is True
         stub.renderer.draw.assert_called_once()
         stub.update_input_region.assert_called_once()
-        stub._sync_background_blur_hint.assert_called_once_with(
+        stub.sync_background_blur_hint.assert_called_once_with(
             frame=stub._cache.geometry_frame.frame
         )
         geometry.build_frame.assert_not_called()
@@ -1579,7 +1577,7 @@ class TestDockWindowDrawAndHelpers:
         stub = _bind_geometry_signature(
             SimpleNamespace(
                 autohide=_autohide(enabled=False),
-                _last_autohide_state=None,
+                last_autohide_state=None,
                 dock_hovered=False,
                 dnd=SimpleNamespace(
                     drag_index=-1,
@@ -1596,7 +1594,7 @@ class TestDockWindowDrawAndHelpers:
                 cursor_x=1.0,
                 cursor_y=2.0,
                 get_size=MagicMock(return_value=(1920, 122)),
-                _sync_background_blur_hint=MagicMock(),
+                sync_background_blur_hint=MagicMock(),
                 zoom_animator=SimpleNamespace(progress=1.0),
                 geometry=geometry,
                 placement=SimpleNamespace(set_struts=MagicMock()),
@@ -1616,7 +1614,7 @@ class TestDockWindowDrawAndHelpers:
                 ),
             )
         )
-        stub._schedule_redraw = MagicMock()
+        stub.schedule_redraw = MagicMock()
 
         input_controller_mod.DockInputController._on_draw(
             _controller(stub), MagicMock(), MagicMock()
@@ -1625,7 +1623,7 @@ class TestDockWindowDrawAndHelpers:
         assert stub._cache.geometry_frame.frame is current_frame
         geometry.build_frame.assert_called_once()
         renderer.draw.assert_called_once()
-        stub._schedule_redraw.assert_not_called()
+        stub.schedule_redraw.assert_not_called()
 
     def test_on_draw_rebuilds_geometry_when_signature_changes(self):
         renderer = renderer_mod.DockRenderer()
@@ -1635,7 +1633,7 @@ class TestDockWindowDrawAndHelpers:
         stub = _bind_geometry_signature(
             SimpleNamespace(
                 autohide=_autohide(enabled=False),
-                _last_autohide_state=None,
+                last_autohide_state=None,
                 dock_hovered=False,
                 dnd=SimpleNamespace(
                     drag_index=-1, drop_insert_index=3, drop_target_id=""
@@ -1650,7 +1648,7 @@ class TestDockWindowDrawAndHelpers:
                 cursor_x=1.0,
                 cursor_y=2.0,
                 get_size=MagicMock(return_value=(1920, 122)),
-                _sync_background_blur_hint=MagicMock(),
+                sync_background_blur_hint=MagicMock(),
                 zoom_animator=SimpleNamespace(progress=1.0),
                 geometry=geometry,
                 _cache=_window_cache(
@@ -1709,7 +1707,7 @@ class TestDockWindowDrawAndHelpers:
             )
         )
 
-        result = dock_window_mod.DockWindow._current_or_build_geometry_frame(stub)
+        result = dock_window_mod.DockWindow.current_or_build_geometry_frame(stub)
 
         assert result is frame
 
@@ -1728,7 +1726,7 @@ class TestDockWindowDrawAndHelpers:
             )
         )
 
-        result = dock_window_mod.DockWindow._current_or_build_geometry_frame(stub)
+        result = dock_window_mod.DockWindow.current_or_build_geometry_frame(stub)
 
         assert result is frame
         geometry.build_frame.assert_called_once()
@@ -1739,7 +1737,7 @@ class TestDockWindowDrawAndHelpers:
         stub = _bind_geometry_signature(
             SimpleNamespace(
                 autohide=_autohide(enabled=True, state=HideState.HIDDEN),
-                _last_autohide_state=HideState.HIDDEN,
+                last_autohide_state=HideState.HIDDEN,
                 dock_hovered=False,
                 dnd=SimpleNamespace(
                     drag_index=-1, drop_insert_index=-1, drop_target_id=""
@@ -1758,7 +1756,7 @@ class TestDockWindowDrawAndHelpers:
                 cursor_x=-1.0,
                 cursor_y=-1.0,
                 get_size=MagicMock(return_value=(1920, 122)),
-                _sync_background_blur_hint=MagicMock(),
+                sync_background_blur_hint=MagicMock(),
                 zoom_animator=SimpleNamespace(progress=0.0),
                 geometry=SimpleNamespace(
                     build_frame=lambda **_kwargs: stub._test_geometry_frame
@@ -1802,7 +1800,7 @@ class TestDockWindowDrawAndHelpers:
                 cursor_x=25.0,
                 cursor_y=33.0,
                 get_size=MagicMock(return_value=(1920, 122)),
-                _sync_background_blur_hint=MagicMock(),
+                sync_background_blur_hint=MagicMock(),
                 zoom_animator=SimpleNamespace(progress=0.0),
                 geometry=SimpleNamespace(
                     build_frame=lambda **_kwargs: stub._test_geometry_frame
@@ -1828,7 +1826,7 @@ class TestDockWindowDrawAndHelpers:
         stub = _bind_geometry_signature(
             SimpleNamespace(
                 autohide=_autohide(enabled=True, state=HideState.VISIBLE),
-                _last_autohide_state=HideState.SHOWING,
+                last_autohide_state=HideState.SHOWING,
                 dock_hovered=True,
                 dnd=SimpleNamespace(
                     drag_index=-1, drop_insert_index=-1, drop_target_id=""
@@ -1847,7 +1845,7 @@ class TestDockWindowDrawAndHelpers:
                 cursor_x=25.0,
                 cursor_y=33.0,
                 get_size=MagicMock(return_value=(1920, 122)),
-                _sync_background_blur_hint=MagicMock(),
+                sync_background_blur_hint=MagicMock(),
                 zoom_animator=SimpleNamespace(progress=1.0),
                 geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
                 _cache=_window_cache(),
@@ -1859,7 +1857,7 @@ class TestDockWindowDrawAndHelpers:
         )
 
         stub.hover.update.assert_called_once_with(25.0, frame=frame)
-        assert stub._last_autohide_state == HideState.VISIBLE
+        assert stub.last_autohide_state == HideState.VISIBLE
 
     def test_on_draw_opens_deferred_hover_folder_stack_when_showing_finishes(self):
         hovered = DockItem(
@@ -1879,7 +1877,7 @@ class TestDockWindowDrawAndHelpers:
         stub = _bind_geometry_signature(
             SimpleNamespace(
                 autohide=_autohide(enabled=True, state=HideState.VISIBLE),
-                _last_autohide_state=HideState.SHOWING,
+                last_autohide_state=HideState.SHOWING,
                 dock_hovered=True,
                 dnd=SimpleNamespace(
                     drag_index=-1, drop_insert_index=-1, drop_target_id=""
@@ -1904,7 +1902,7 @@ class TestDockWindowDrawAndHelpers:
                 cursor_y=33.0,
                 get_position=MagicMock(return_value=(100, 200)),
                 get_size=MagicMock(return_value=(1920, 122)),
-                _sync_background_blur_hint=MagicMock(),
+                sync_background_blur_hint=MagicMock(),
                 zoom_animator=SimpleNamespace(progress=1.0),
                 geometry=SimpleNamespace(build_frame=lambda **_kwargs: frame),
                 _cache=_window_cache(),
@@ -2054,8 +2052,8 @@ class TestDockWindowDrawAndHelpers:
         stub = _bind_geometry_signature(SimpleNamespace(_redraw_source_id=None))
         monkeypatch.setattr(input_controller_mod.GLib, "timeout_add", timeout_add)
 
-        dock_window_mod.DockWindow._schedule_redraw(stub)
-        dock_window_mod.DockWindow._schedule_redraw(stub)
+        dock_window_mod.DockWindow.schedule_redraw(stub)
+        dock_window_mod.DockWindow.schedule_redraw(stub)
 
         assert stub._redraw_source_id == 77
         timeout_add.assert_called_once()
@@ -2074,8 +2072,8 @@ class TestBlurHintSync:
             surface_service=surface_service,
         )
 
-        dock_window_mod.DockWindow._sync_background_blur_hint(stub, frame=frame)
-        dock_window_mod.DockWindow._sync_background_blur_hint(stub, frame=frame)
+        dock_window_mod.DockWindow.sync_background_blur_hint(stub, frame=frame)
+        dock_window_mod.DockWindow.sync_background_blur_hint(stub, frame=frame)
 
         surface_service.set_blur_region.assert_called_once_with(
             dock_window_mod.Rect(x=10, y=20, width=100, height=30)
@@ -2101,7 +2099,7 @@ class TestBlurHintSync:
             surface_service=surface_service,
         )
 
-        dock_window_mod.DockWindow._sync_background_blur_hint(
+        dock_window_mod.DockWindow.sync_background_blur_hint(
             stub,
             frame=SimpleNamespace(background_rect=Rect(10, 20, 100, 30)),
         )

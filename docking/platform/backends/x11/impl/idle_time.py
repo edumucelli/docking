@@ -84,7 +84,7 @@ def _xdisplay_handle() -> ctypes.c_void_p | None:
     return ctypes.c_void_p(hash(display.get_xdisplay()))
 
 
-def _get_idle_ms() -> int | None:
+def get_idle_ms() -> int | None:
     """Return idle time in milliseconds, or None if unavailable."""
     if not _load_libraries():
         return None

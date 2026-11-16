@@ -131,7 +131,7 @@ def test_selected_windows_pin_overrides_gio_and_records_only_owned_provenance(
     )
     registry = ApplicationRegistryStub((selected,))
     handle = Mock()
-    registry._gio_handle_for = Mock(return_value=handle)
+    registry.gio_handle_for = Mock(return_value=handle)
     process = SimpleNamespace(pid=42, poll=lambda: None) if success else None
     invoke = Mock(return_value=LaunchOutcome(success, process))
     monkeypatch.setattr(documents, "launch_application_uris", invoke)
@@ -144,7 +144,7 @@ def test_selected_windows_pin_overrides_gio_and_records_only_owned_provenance(
     assert launcher.launch_app_uris(selected.desktop_id, uris) is success
 
     invoke.assert_called_once_with(selected.launch_target, uris)
-    registry._gio_handle_for.assert_not_called()
+    registry.gio_handle_for.assert_not_called()
     handle.launch_uris.assert_not_called()
     provenance = store.provenance_for_pid(42)
     assert (provenance.desktop_id if provenance is not None else None) == (

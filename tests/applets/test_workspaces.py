@@ -9,7 +9,7 @@ import pytest
 from docking.applets.services import AppletServices
 from docking.applets.workspaces import applet as applet_module
 from docking.applets.workspaces.applet import WorkspacesApplet
-from docking.applets.workspaces.render import _render_grid
+from docking.applets.workspaces.render import render_grid
 from docking.core.config import Config
 from docking.platform.backends.base import ActionResult, WorkspaceSnapshot
 from docking.platform.backends.wayland.sway_ipc import SwayWorkspaceService
@@ -31,14 +31,14 @@ def _workspace(
 
 
 class TestRenderGrid:
-    """_render_grid should draw workspace cells with the active one highlighted."""
+    """render_grid should draw workspace cells with the active one highlighted."""
 
     @pytest.mark.parametrize("count", [1, 2, 4, 6, 9])
     def test_renders_various_counts(self, count):
         size = 48
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
-        _render_grid(cr, size, count, active_num=0)
+        render_grid(cr, size, count, active_num=0)
         data = surface.get_data()
         assert any(b != 0 for b in data)
 
@@ -46,7 +46,7 @@ class TestRenderGrid:
         size = 48
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
-        _render_grid(cr, size, 0, active_num=-1)
+        render_grid(cr, size, 0, active_num=-1)
         data = surface.get_data()
         assert all(b == 0 for b in data)
 
@@ -54,7 +54,7 @@ class TestRenderGrid:
     def test_renders_at_various_sizes(self, size):
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
-        _render_grid(cr, size, 4, active_num=1)
+        render_grid(cr, size, 4, active_num=1)
         data = surface.get_data()
         assert any(b != 0 for b in data)
 
@@ -64,7 +64,7 @@ class TestRenderGrid:
         surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, size, size)
         cr = cairo.Context(surface)
         # When rendered with active=2
-        _render_grid(cr, size, 4, active_num=2)
+        render_grid(cr, size, 4, active_num=2)
         # Then surface has content (no crash, correct layout)
         data = surface.get_data()
         assert any(b != 0 for b in data)
@@ -353,7 +353,7 @@ class TestWorkspaceNumbering:
         highlighted: list[int] = []
         monkeypatch.setattr(
             applet_module,
-            "_render_grid",
+            "render_grid",
             lambda *, cr, size, count, active_num: highlighted.append(active_num),
         )
         applet, _service = self._applet(snapshots)

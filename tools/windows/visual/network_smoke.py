@@ -38,8 +38,8 @@ def exercise_wifi_fixtures(network, call, native, choose, hover, capture, report
         ConnectionProfile,
     )
     from docking.applets.network.implementations.windows.wifi import (
-        _Candidate,
-        _RadioState,
+        Candidate,
+        RadioState,
     )
 
     identifier = "{14d539ed-5de1-4da7-aed5-410f5d3ddfd9}"
@@ -51,10 +51,10 @@ def exercise_wifi_fixtures(network, call, native, choose, hover, capture, report
         "denied": False,
     }
     connections, radio_writes = [], []
-    current = _Candidate(
+    current = Candidate(
         identifier, values["ssid"].encode(), "Fixture saved", 1, 80, True, True
     )
-    guest = _Candidate(
+    guest = Candidate(
         identifier, b"Fixture Guest", "Fixture guest profile", 1, 60, False, True
     )
 
@@ -74,7 +74,7 @@ def exercise_wifi_fixtures(network, call, native, choose, hover, capture, report
     wifi_api = SimpleNamespace(
         radios=lambda: (
             [identifier],
-            [_RadioState(identifier, 0, values["software"], values["hardware"])],
+            [RadioState(identifier, 0, values["software"], values["hardware"])],
         ),
         available=available,
         connect=connect,

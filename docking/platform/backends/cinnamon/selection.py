@@ -20,7 +20,7 @@ class CinnamonSelection:
 
     def stop(self) -> None:
         if self._token is not None:
-            self._client._eval(
+            self._client.evaluate(
                 f"global._dockingPicks?.[{json.dumps(self._token)}]?.finish(null); true"
             )
         if self._loop is not None:
@@ -35,7 +35,7 @@ class CinnamonSelection:
         token = uuid4().hex
         self._token = token
         key = json.dumps(token)
-        started = self._client._eval(
+        started = self._client.evaluate(
             """
             (() => {
                 const Main = imports.ui.main, Clutter = imports.gi.Clutter;
@@ -108,7 +108,7 @@ class CinnamonSelection:
         result: list[object] = []
 
         def poll() -> bool:
-            state = self._client._eval(
+            state = self._client.evaluate(
                 f"(() => {{const s = global._dockingPicks?.[{key}];"
                 "return s ? {done:s.done, value:s.value} : null;})()"
             )
@@ -122,7 +122,7 @@ class CinnamonSelection:
             loop.run()
         finally:
             GLib.source_remove(source)
-            self._client._eval(
+            self._client.evaluate(
                 f"(() => {{const s = global._dockingPicks?.[{key}];"
                 "if (s) s.dispose();"
                 "return true;})()"

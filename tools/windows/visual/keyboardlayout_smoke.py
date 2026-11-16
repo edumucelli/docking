@@ -38,12 +38,12 @@ def _applet_target_snapshot(native, ui, identifier, expected_item, dock_window):
     """Observe the same live and rendered geometry used by ordinary item input."""
     from ctypes import wintypes
 
-    from tools.windows.visual.input_editor import _point_facts
+    from tools.windows.visual.input_editor import point_facts
     from tools.windows.visual.input_environment import bind
 
     window = ui.window
     frame = window.geometry.build_frame()
-    painted = window._current_or_build_geometry_frame()
+    painted = window.current_or_build_geometry_frame()
     current = frame.geometry_for_item(expected_item)
     visible = painted.geometry_for_item(expected_item)
     assert current is not None and visible is not None, "Keyboard applet disappeared"
@@ -81,7 +81,7 @@ def _applet_target_snapshot(native, ui, identifier, expected_item, dock_window):
         "painted_target": rendered.desktop_id if rendered else None,
         "hovered_item": hovered.desktop_id if hovered else None,
         "hovered_current": hovered is expected_item,
-        "native": _point_facts(native, cursor.x, cursor.y),
+        "native": point_facts(native, cursor.x, cursor.y),
     }
 
 

@@ -134,28 +134,28 @@ class WaylandLayerShellSurfaceService(SurfaceService):
     def configure_before_realize(self, window: object) -> None:
         """Assign the layer-shell role before the GTK window is mapped."""
         self._window = window
-        _call_if_available(window, "set_decorated", False)
-        _call_if_available(window, "set_app_paintable", True)
-        _call_if_available(window, "set_accept_focus", False)
-        _call_if_available(window, "set_focus_on_map", False)
+        call_if_available(window, "set_decorated", False)
+        call_if_available(window, "set_app_paintable", True)
+        call_if_available(window, "set_accept_focus", False)
+        call_if_available(window, "set_focus_on_map", False)
         # GtkLayerShell applies compositor configure sizes via geometry hints;
         # a non-resizable GtkWindow overrides those with its natural size.
-        _call_if_available(window, "set_resizable", True)
+        call_if_available(window, "set_resizable", True)
 
         layer_shell = self._layer_shell
         layer_shell.init_for_window(window)
-        _call_if_available(layer_shell, "set_namespace", window, "docking")
-        _call_if_available(
+        call_if_available(layer_shell, "set_namespace", window, "docking")
+        call_if_available(
             layer_shell,
             "set_layer",
             window,
-            _enum_member(layer_shell, "Layer", "TOP"),
+            enum_member(layer_shell, "Layer", "TOP"),
         )
-        _call_if_available(
+        call_if_available(
             layer_shell,
             "set_keyboard_mode",
             window,
-            _enum_member(layer_shell, "KeyboardMode", "NONE"),
+            enum_member(layer_shell, "KeyboardMode", "NONE"),
         )
         # Anchors are set by position_or_anchor, not here, and the ordering is
         # load-bearing. gtk-layer-shell decides which axis of the committed size
@@ -198,13 +198,13 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         # space. A monitor-sized GTK minimum overrides panel-reduced configure
         # sizes. Keep only the cross-axis minimum for zoom/bounce headroom.
         horizontal = is_horizontal(position)
-        _call_if_available(
+        call_if_available(
             window,
             "set_size_request",
             -1 if horizontal else request.size.width,
             request.size.height if horizontal else -1,
         )
-        _call_if_available(window, "resize", 1, 1)
+        call_if_available(window, "resize", 1, 1)
 
     def set_reservation(self, request: ReservationRequest) -> None:
         """Reserve edge space using layer-shell exclusive zones."""
@@ -239,8 +239,8 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         if callable(input_shape):
             input_shape(region)
             return
-        gdk_window = _call_if_available(window, "get_window")
-        _call_if_available(gdk_window, "input_shape_combine_region", region, 0, 0)
+        gdk_window = call_if_available(window, "get_window")
+        call_if_available(gdk_window, "input_shape_combine_region", region, 0, 0)
 
     def set_blur_region(self, rect: Rect | None) -> None:
         """Blur hints are not part of the generic layer-shell path."""
@@ -253,40 +253,40 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         """Turn a toplevel into an input-less, unmanaged layer-shell overlay."""
         layer_shell = self._layer_shell
         layer_shell.init_for_window(window)
-        _call_if_available(layer_shell, "set_namespace", window, "docking-outline")
-        _call_if_available(
+        call_if_available(layer_shell, "set_namespace", window, "docking-outline")
+        call_if_available(
             layer_shell,
             "set_layer",
             window,
-            _enum_member(layer_shell, "Layer", OVERLAY_LAYER),
+            enum_member(layer_shell, "Layer", OVERLAY_LAYER),
         )
-        _call_if_available(
+        call_if_available(
             layer_shell,
             "set_keyboard_mode",
             window,
-            _enum_member(layer_shell, "KeyboardMode", "NONE"),
+            enum_member(layer_shell, "KeyboardMode", "NONE"),
         )
         # Anchored to one corner, margins measure from that corner, so a margin
         # pair is an absolute offset within the monitor. A negative exclusive
         # zone keeps panels and the dock from displacing the overlay.
-        edges = _edges(layer_shell)
+        edges = layer_shell_edges(layer_shell)
         for edge_name in ("TOP", "LEFT", "BOTTOM", "RIGHT"):
-            _call_if_available(
+            call_if_available(
                 layer_shell,
                 "set_anchor",
                 window,
                 getattr(edges, edge_name),
                 edge_name in ("TOP", "LEFT"),
             )
-        _call_if_available(layer_shell, "set_exclusive_zone", window, -1)
+        call_if_available(layer_shell, "set_exclusive_zone", window, -1)
 
     def place_overlay(self, window: object, rect: Rect) -> None:
         """Offset the overlay from its monitor's origin; the centre picks the monitor.
 
         A window spanning two monitors is clipped to the one holding its centre.
         """
-        display = _call_if_available(window, "get_display")
-        gdk_monitor = _call_if_available(
+        display = call_if_available(window, "get_display")
+        gdk_monitor = call_if_available(
             display,
             "get_monitor_at_point",
             rect.x + rect.width // 2,
@@ -295,23 +295,23 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         if gdk_monitor is None:
             return
         if self._overlay_monitors.get(window) is not gdk_monitor:
-            _call_if_available(self._layer_shell, "set_monitor", window, gdk_monitor)
+            call_if_available(self._layer_shell, "set_monitor", window, gdk_monitor)
             self._overlay_monitors[window] = gdk_monitor
         bounds = cast("Gdk.Monitor", gdk_monitor).get_geometry()
-        edges = _edges(self._layer_shell)
+        edges = layer_shell_edges(self._layer_shell)
         for edge_name, margin in (
             ("LEFT", rect.x - bounds.x),
             ("TOP", rect.y - bounds.y),
         ):
-            _call_if_available(
+            call_if_available(
                 self._layer_shell,
                 "set_margin",
                 window,
                 getattr(edges, edge_name),
                 margin,
             )
-        _call_if_available(window, "set_size_request", rect.width, rect.height)
-        _call_if_available(window, "resize", rect.width, rect.height)
+        call_if_available(window, "set_size_request", rect.width, rect.height)
+        call_if_available(window, "resize", rect.width, rect.height)
 
     def _set_monitor(self, monitor: MonitorSnapshot) -> None:
         window = self._window
@@ -320,19 +320,19 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         self._set_monitor_for_window(window, monitor)
 
     def _set_monitor_for_window(self, window: object, monitor: MonitorSnapshot) -> None:
-        display = _call_if_available(window, "get_display")
+        display = call_if_available(window, "get_display")
         if display is None:
             return
-        gdk_monitor = _call_if_available(display, "get_monitor", monitor.index)
+        gdk_monitor = call_if_available(display, "get_monitor", monitor.index)
         if gdk_monitor is None:
             return
-        _call_if_available(self._layer_shell, "set_monitor", window, gdk_monitor)
+        call_if_available(self._layer_shell, "set_monitor", window, gdk_monitor)
 
     def _set_anchors(self, position: Position) -> None:
         window = self._window
         if window is None:
             return
-        edges = _edges(self._layer_shell)
+        edges = layer_shell_edges(self._layer_shell)
         anchors = {
             "TOP": position in (Position.TOP, Position.LEFT, Position.RIGHT),
             "BOTTOM": position in (Position.BOTTOM, Position.LEFT, Position.RIGHT),
@@ -340,7 +340,7 @@ class WaylandLayerShellSurfaceService(SurfaceService):
             "RIGHT": position in (Position.RIGHT, Position.TOP, Position.BOTTOM),
         }
         for edge_name, enabled in anchors.items():
-            _call_if_available(
+            call_if_available(
                 self._layer_shell,
                 "set_anchor",
                 window,
@@ -352,7 +352,7 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         window = self._window
         if window is None:
             return
-        edges = _edges(self._layer_shell)
+        edges = layer_shell_edges(self._layer_shell)
         margins = {
             "TOP": gap if position is Position.TOP else 0,
             "BOTTOM": gap if position is Position.BOTTOM else 0,
@@ -360,7 +360,7 @@ class WaylandLayerShellSurfaceService(SurfaceService):
             "RIGHT": gap if position is Position.RIGHT else 0,
         }
         for edge_name, margin in margins.items():
-            _call_if_available(
+            call_if_available(
                 self._layer_shell,
                 "set_margin",
                 window,
@@ -372,7 +372,7 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         window = self._window
         if window is None:
             return
-        _call_if_available(
+        call_if_available(
             self._layer_shell,
             "set_exclusive_zone",
             window,
@@ -380,23 +380,21 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         )
 
 
-def _edges(layer_shell: object) -> object:
+def layer_shell_edges(layer_shell: object) -> object:
     edge = getattr(layer_shell, "Edge", None)
     if edge is not None:
         return edge
     return SimpleNamespace(TOP=1, BOTTOM=2, LEFT=4, RIGHT=8)
 
 
-def _enum_member(
-    layer_shell: object, enum_name: str, member_name: str
-) -> object | None:
+def enum_member(layer_shell: object, enum_name: str, member_name: str) -> object | None:
     enum_type = getattr(layer_shell, enum_name, None)
     if enum_type is None:
         return None
     return getattr(enum_type, member_name, None)
 
 
-def _call_if_available(
+def call_if_available(
     target: object | None, method_name: str, *args: object
 ) -> object | None:
     if target is None:

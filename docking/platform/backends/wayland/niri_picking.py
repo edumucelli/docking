@@ -16,9 +16,9 @@ from docking.platform.backends.base import (
     WindowSnapshot,
 )
 from docking.platform.backends.wayland.niri_ipc import (
-    _niri_socket_path,
-    _niri_window_id,
-    _parse_response,
+    niri_socket_path,
+    niri_window_id,
+    parse_response,
 )
 
 if TYPE_CHECKING:
@@ -107,7 +107,7 @@ class NiriWindowPickService(WindowPickService):
         if not replies:
             return None
         try:
-            reply = _parse_response(replies[0])
+            reply = parse_response(replies[0])
         except json.JSONDecodeError:
             return None
         ok = reply.get("Ok")
@@ -129,7 +129,7 @@ class NiriWindowPickService(WindowPickService):
         return None
 
     def pid_for(self, window_id: WindowId) -> int | None:
-        if _niri_window_id(window_id) is None:
+        if niri_window_id(window_id) is None:
             return None
         row = self._windows.live_window(window_id)
         pid = row.pid if row is not None else None
@@ -148,7 +148,7 @@ class NiriWindowPickService(WindowPickService):
 def load_niri_window_pick_service(
     *, windows: NiriWindowService
 ) -> NiriWindowPickService | None:
-    path = _niri_socket_path()
+    path = niri_socket_path()
     if path is None or not path.exists():
         return None
     return NiriWindowPickService(windows=windows, socket_path=str(path))

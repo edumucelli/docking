@@ -123,7 +123,7 @@ class CityPref(NamedTuple):
     lng: float
 
 
-def _city_from_pref(raw: object) -> CityPref | None:
+def city_from_pref(raw: object) -> CityPref | None:
     if not isinstance(raw, Mapping):
         return None
     display = raw.get("city_display")

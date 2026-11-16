@@ -103,7 +103,7 @@ class TestReadBattery:
         }.items():
             (bat / name).write_text(value)
         monkeypatch.setattr(
-            battery_linux_mod, "_upower_seconds_remaining", lambda **_kw: None
+            battery_linux_mod, "upower_seconds_remaining", lambda **_kw: None
         )
         backend = battery_linux_mod.LinuxBatteryBackend("BAT1", tmp_path)
         assert backend.read_battery().capacity == 85
@@ -120,7 +120,7 @@ class TestReadBattery:
 
         monkeypatch.setattr(
             battery_linux_mod,
-            "_upower_seconds_remaining",
+            "upower_seconds_remaining",
             lambda **_kwargs: None,
         )
         state = read_battery("BAT0", base=tmp_path)
@@ -156,7 +156,7 @@ class TestReadBattery:
         (bat / "power_now").write_text("1000000\n")
         monkeypatch.setattr(
             battery_linux_mod,
-            "_upower_seconds_remaining",
+            "upower_seconds_remaining",
             lambda **_kwargs: None,
         )
 
@@ -180,7 +180,7 @@ class TestReadBattery:
         (bat / "power_now").write_text("1000000\n")
         monkeypatch.setattr(
             battery_linux_mod,
-            "_upower_seconds_remaining",
+            "upower_seconds_remaining",
             lambda **_kwargs: None,
         )
 
@@ -199,7 +199,7 @@ class TestReadBattery:
         (bat / "current_now").write_text("450000\n")
         monkeypatch.setattr(
             battery_linux_mod,
-            "_upower_seconds_remaining",
+            "upower_seconds_remaining",
             lambda **_kwargs: 5400,
         )
 
@@ -221,7 +221,7 @@ class TestReadBattery:
 
         monkeypatch.setattr(
             battery_linux_mod,
-            "_upower_seconds_remaining",
+            "upower_seconds_remaining",
             lambda **_kwargs: None,
         )
 
@@ -244,7 +244,7 @@ class TestReadBattery:
 
         monkeypatch.setattr(
             battery_linux_mod,
-            "_upower_seconds_remaining",
+            "upower_seconds_remaining",
             lambda **_kwargs: None,
         )
 
@@ -287,7 +287,7 @@ class TestUpowerParsing:
     def test_upower_seconds_remaining_edges(self, monkeypatch):
         monkeypatch.setattr(upower_mod.shutil, "which", lambda _cmd: None)
         assert (
-            upower_mod._upower_seconds_remaining(
+            upower_mod.upower_seconds_remaining(
                 bat_name="BAT0",
                 status="Discharging",
             )
@@ -296,7 +296,7 @@ class TestUpowerParsing:
 
         monkeypatch.setattr(upower_mod.shutil, "which", lambda _cmd: "/bin/upower")
         assert (
-            upower_mod._upower_seconds_remaining(bat_name="BAT0", status="Full") is None
+            upower_mod.upower_seconds_remaining(bat_name="BAT0", status="Full") is None
         )
 
         monkeypatch.setattr(
@@ -309,7 +309,7 @@ class TestUpowerParsing:
             ),
         )
         assert (
-            upower_mod._upower_seconds_remaining(
+            upower_mod.upower_seconds_remaining(
                 bat_name="BAT0",
                 status="Charging",
             )
@@ -324,7 +324,7 @@ class TestUpowerParsing:
             ),
         )
         assert (
-            upower_mod._upower_seconds_remaining(
+            upower_mod.upower_seconds_remaining(
                 bat_name="BAT0",
                 status="Charging",
             )
@@ -339,7 +339,7 @@ class TestUpowerParsing:
             ),
         )
         assert (
-            upower_mod._upower_seconds_remaining(
+            upower_mod.upower_seconds_remaining(
                 bat_name="BAT0",
                 status="Charging",
             )
@@ -359,9 +359,9 @@ class TestUpowerParsing:
         assert battery_state_mod._format_duration(0) is None
         assert battery_upower_mod._parse_duration_seconds(raw="10 seconds") == 10
         assert battery_upower_mod._parse_duration_seconds(raw="bad") is None
-        assert battery_linux_mod._seconds_from_rate(remaining=0, rate=1) is None
-        assert battery_linux_mod._positive_delta(full=None, now=1) is None
-        assert battery_linux_mod._positive_delta(full=1, now=1) is None
+        assert battery_linux_mod.seconds_from_rate(remaining=0, rate=1) is None
+        assert battery_linux_mod.positive_delta(full=None, now=1) is None
+        assert battery_linux_mod.positive_delta(full=1, now=1) is None
 
 
 class TestTooltipText:
@@ -747,7 +747,7 @@ class TestBatteryAppletRendering:
         (bat / "status").write_text("Discharging\n")
         monkeypatch.setattr(
             battery_linux_mod,
-            "_upower_seconds_remaining",
+            "upower_seconds_remaining",
             lambda **_kwargs: None,
         )
         battery_backend.read_battery.return_value = read_battery("BAT0", base=tmp_path)

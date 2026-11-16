@@ -43,7 +43,7 @@ class _RadioInfo(ctypes.Structure):
     ]
 
 
-class _DeviceInfo(ctypes.Structure):
+class DeviceInfo(ctypes.Structure):
     _fields_ = [
         ("size", _DWORD),
         ("address", ctypes.c_uint64),
@@ -120,14 +120,14 @@ class ClassicInventory:
             "BluetoothFindFirstDevice",
             _HANDLE,
             ctypes.POINTER(_Search),
-            ctypes.POINTER(_DeviceInfo),
+            ctypes.POINTER(DeviceInfo),
         )
         self._next_device = bind(
             dll,
             "BluetoothFindNextDevice",
             _BOOL,
             _HANDLE,
-            ctypes.POINTER(_DeviceInfo),
+            ctypes.POINTER(DeviceInfo),
         )
         self._close_devices = bind(dll, "BluetoothFindDeviceClose", _BOOL, _HANDLE)
         self._remove = bind(
@@ -214,7 +214,7 @@ class ClassicInventory:
         # The SDK expresses inquiry timeouts in 1.28-second units.
         search.timeout = 1 if inquiry else 0
         search.radio = radio.value
-        info = _DeviceInfo()
+        info = DeviceInfo()
         info.size = ctypes.sizeof(info)
         cursor = self._first_device(ctypes.byref(search), ctypes.byref(info))
         try:
@@ -235,7 +235,7 @@ class ClassicInventory:
                         bool(info.authenticated),
                         bool(info.connected),
                     )
-                info = _DeviceInfo()
+                info = DeviceInfo()
                 info.size = ctypes.sizeof(info)
                 if not self._next_device(cursor, ctypes.byref(info)):
                     self._end()

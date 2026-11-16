@@ -28,8 +28,8 @@ from docking.applets.aiusage.backends.base import (
 from docking.applets.aiusage.state import (
     ModelUsage,
     Provider,
-    _has_usage,
-    _nonnegative_count,
+    has_usage,
+    nonnegative_count,
 )
 from docking.applets.aiusage.store import replace_session
 from docking.core.paths import ensure_parent_dir
@@ -135,18 +135,18 @@ def parse_transcript(path: Path, *, date: str | None = None) -> dict[str, ModelU
             prev = result.get(model, ModelUsage())
             result[model] = ModelUsage(
                 input_tokens=prev.input_tokens
-                + _nonnegative_count(usage.get("input_tokens")),
+                + nonnegative_count(usage.get("input_tokens")),
                 output_tokens=prev.output_tokens
-                + _nonnegative_count(usage.get("output_tokens")),
+                + nonnegative_count(usage.get("output_tokens")),
                 cache_write_tokens=prev.cache_write_tokens
-                + _nonnegative_count(usage.get("cache_creation_input_tokens")),
+                + nonnegative_count(usage.get("cache_creation_input_tokens")),
                 cache_read_tokens=prev.cache_read_tokens
-                + _nonnegative_count(usage.get("cache_read_input_tokens")),
+                + nonnegative_count(usage.get("cache_read_input_tokens")),
             )
     except (OSError, UnicodeError) as exc:
         log.debug("Failed to read Claude transcript %s: %s", path, exc)
         return {}
-    return {m: u for m, u in result.items() if _has_usage(u)}
+    return {m: u for m, u in result.items() if has_usage(u)}
 
 
 def _today_iso() -> str:

@@ -12,7 +12,7 @@ from ...steam import (
     STEAM_FLATPAK_ID,
     SteamDiscoveryResult,
     SteamGame,
-    _read_vdf,
+    read_vdf,
     valid_steam_app_id,
 )
 from ...types import ApplicationInfo, ApplicationLocation, ApplicationOrigin
@@ -116,7 +116,7 @@ class SteamDiscovery:
                     if not config.is_file():
                         continue
                     try:
-                        folders = _read_vdf(config).get("libraryfolders", {})
+                        folders = read_vdf(config).get("libraryfolders", {})
                         if not isinstance(folders, dict):
                             raise ValueError("Invalid library folders")
                         for key, value in folders.items():
@@ -153,7 +153,7 @@ class SteamDiscovery:
 
     @staticmethod
     def _game(manifest: Path, root: Path, flatpak: bool) -> SteamGame | None:
-        state = _read_vdf(manifest).get("appstate")
+        state = read_vdf(manifest).get("appstate")
         if not isinstance(state, dict):
             raise ValueError("Missing AppState")
         app_id = valid_steam_app_id(str(state.get("appid", "")))

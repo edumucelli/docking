@@ -114,10 +114,10 @@ def main():
     from docking.platform.native.windows.ffi import bind, window_handle
     from docking.platform.tray.implementations.windows.backend import WindowsTrayBackend
     from tools.windows.visual.desktop_driver import (
+        Data,
+        Input,
+        Mouse,
         WindowsDesktop,
-        _Data,
-        _Input,
-        _Mouse,
         physical_dock_click,
         write_shared_json,
     )
@@ -447,7 +447,7 @@ def main():
 
             def dock_target():
                 window = shared["ui"].window
-                frame = window._current_or_build_geometry_frame()
+                frame = window.current_or_build_geometry_frame()
                 rect = next(
                     g.draw_rect
                     for g in frame.item_geometries
@@ -487,7 +487,7 @@ def main():
                     move=native.user.SetCursorPos,
                     press=lambda: native._send(
                         [
-                            _Input(type=0, data=_Data(mouse=_Mouse(flags=flag)))
+                            Input(type=0, data=Data(mouse=Mouse(flags=flag)))
                             for flag in (2, 4)
                         ]
                     ),

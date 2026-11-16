@@ -297,7 +297,7 @@ def main():
                 scale = window.get_scale_factor()
                 x, y = (cursor.x - bounds.left) / scale, (cursor.y - bounds.top) / scale
                 live = window.geometry.build_frame().item_at_point(x, y)
-                painted = window._current_or_build_geometry_frame().item_at_point(x, y)
+                painted = window.current_or_build_geometry_frame().item_at_point(x, y)
                 hovered = window.hover.hovered_item
                 return {
                     "point": [cursor.x, cursor.y],

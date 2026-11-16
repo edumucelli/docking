@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from docking.platform.applications.identity import ProcessIdentityService
     from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.backends.base import WindowSnapshot
-    from docking.platform.backends.cinnamon.muffin import _MuffinWindow
+    from docking.platform.backends.cinnamon.muffin import MuffinWindow
     from docking.platform.backends.cinnamon.shell import CinnamonShellClient
     from docking.platform.model import DockModel
 
@@ -70,7 +70,7 @@ class CinnamonWindowService(MuffinWindowService):
         self._listeners.clear()
         self._sticky.clear()
 
-    def _on_current_workspace(self, window: _MuffinWindow) -> bool:
+    def _on_current_workspace(self, window: MuffinWindow) -> bool:
         if self._config is None or not self._config.current_workspace_only:
             return True
         active = next((w.id for w in self._shell.workspace_snapshots if w.active), None)
@@ -80,7 +80,7 @@ class CinnamonWindowService(MuffinWindowService):
             or window.muffin_id in self._sticky
         )
 
-    def _running_windows(self) -> Sequence[_MuffinWindow]:
+    def _running_windows(self) -> Sequence[MuffinWindow]:
         self._sticky = {
             row["id"]
             for row in getattr(self._shell, "rows", ())
@@ -116,9 +116,9 @@ class CinnamonWindowService(MuffinWindowService):
             return WindowReason.DESKTOP_OR_DOCK
         return super()._excluded_reason(row)
 
-    def _snapshot(self, window: _MuffinWindow) -> WindowSnapshot:
+    def _snapshot(self, window: MuffinWindow) -> WindowSnapshot:
         return replace(
-            MuffinWindowService._snapshot(window),
+            super()._snapshot(window),
             can_preview="previews" in getattr(self._shell, "features", ()),
             can_activate=True,
             can_minimize=window.can_minimize,
@@ -170,7 +170,7 @@ class CinnamonWindowService(MuffinWindowService):
             "close",
         )
 
-    def _for_desktop(self, desktop_id: str) -> list[_MuffinWindow]:
+    def _for_desktop(self, desktop_id: str) -> list[MuffinWindow]:
         self.refresh()
         return [
             w

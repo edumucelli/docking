@@ -14,7 +14,7 @@ import uuid
 import zlib
 from ctypes import wintypes
 
-from tools.windows.visual.desktop_driver import _Data, _Input, _Mouse
+from tools.windows.visual.desktop_driver import Data, Input, Mouse
 from tools.windows.visual.tray_provider import (
     NativeProvider,
     ProviderCase,
@@ -46,10 +46,10 @@ def hover_motion_inputs(point, size, desktop):
         dx = ((2 * (px - left) + 1) * 65536) // (2 * screen_width)
         dy = ((2 * (py - top) + 1) * 65536) // (2 * screen_height)
         values.append(
-            _Input(
+            Input(
                 type=0,
-                data=_Data(
-                    mouse=_Mouse(
+                data=Data(
+                    mouse=Mouse(
                         x=dx,
                         y=dy,
                         # MOVE | MOVE_NOCOALESCE | VIRTUALDESK | ABSOLUTE.

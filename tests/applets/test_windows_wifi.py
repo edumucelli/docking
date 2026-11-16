@@ -23,7 +23,7 @@ OTHER = "{7f85160a-5500-4188-aa78-751926ed48fe}"
 
 
 def _candidate(**values):
-    return wifi._Candidate(
+    return wifi.Candidate(
         **{
             "identifier": ID,
             "ssid": b"Cafe",
@@ -74,7 +74,7 @@ def native(monkeypatch):
 
     dll.WlanOpenHandle.side_effect = open_handle
     dll.WlanEnumInterfaces.side_effect = interfaces
-    return wifi._Wlan(), dll, output
+    return wifi.Wlan(), dll, output
 
 
 def test_wlan_abi_uses_windows_widths_on_any_host():
@@ -114,8 +114,8 @@ def test_radio_snapshot_frees_each_allocation_and_closes_client(native):
     identifiers, radios = api.radios()
     assert identifiers == [ID]
     assert radios == [
-        wifi._RadioState(ID, 0, True, True),
-        wifi._RadioState(ID, 3, False, True),
+        wifi.RadioState(ID, 0, True, True),
+        wifi.RadioState(ID, 3, False, True),
     ]
     assert dll.WlanFreeMemory.call_count == 2
     dll.WlanCloseHandle.assert_called_once()
@@ -240,7 +240,7 @@ def test_connect_uses_exact_profile_raw_ssid_and_no_plaintext_credentials(native
 def test_radio_write_uses_fresh_phy_indices_and_software_state(native, monkeypatch):
     api, dll, _output = native
     monkeypatch.setattr(
-        api, "radios", lambda: ([ID], [wifi._RadioState(ID, 3, False, False)])
+        api, "radios", lambda: ([ID], [wifi.RadioState(ID, 3, False, False)])
     )
 
     def write(_h, _g, opcode, size, pointer, reserved):
@@ -262,7 +262,7 @@ def test_radio_write_uses_fresh_phy_indices_and_software_state(native, monkeypat
 
 def _manager(values=()):
     api = SimpleNamespace(
-        radios=Mock(return_value=([ID], [wifi._RadioState(ID, 0, True, True)])),
+        radios=Mock(return_value=([ID], [wifi.RadioState(ID, 0, True, True)])),
         available=Mock(return_value=list(values)),
         connect=Mock(),
         set_radio=Mock(),
@@ -279,7 +279,7 @@ def test_manager_uses_capabilities_and_actual_hardware_state():
     manager, api = _manager()
     assert manager.has_wifi_device() and manager.wireless_enabled
     assert manager.capabilities == NetworkCapabilities(False, True)
-    api.radios.return_value = ([ID], [wifi._RadioState(ID, 0, True, False)])
+    api.radios.return_value = ([ID], [wifi.RadioState(ID, 0, True, False)])
     manager.refresh()
     assert manager.wireless_enabled and not manager.wireless_hardware_enabled
     api.radios.side_effect = OSError(1062, "service stopped")

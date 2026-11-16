@@ -142,7 +142,7 @@ def device_menu_label(device: BluetoothDeviceState) -> str:
     return f"{base} ({', '.join(tags)})"
 
 
-def _device_sort_key(device: BluetoothDeviceState) -> tuple[int, int, str]:
+def device_sort_key(device: BluetoothDeviceState) -> tuple[int, int, str]:
     return (
         0 if device.connected else 1,
         0 if device.paired else 1,

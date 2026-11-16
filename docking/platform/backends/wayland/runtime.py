@@ -35,12 +35,12 @@ if TYPE_CHECKING:
     )
     from docking.platform.backends.wayland.idle import WaylandIdleService
     from docking.platform.backends.wayland.previews import (
+        CaptureResource,
+        CaptureSession,
+        HyprlandFrame,
+        PhocFrame,
+        ShmPool,
         WaylandPreviewHandleTracker,
-        _CaptureResource,
-        _CaptureSession,
-        _HyprlandFrame,
-        _PhocFrame,
-        _ShmPool,
     )
     from docking.platform.backends.wayland.toplevels import (
         WaylandForeignToplevelWindowService,
@@ -573,20 +573,20 @@ class PreviewProtocolAdapter:
         self._shm_formats.clear()
         self.available = False
 
-    def create_source(self, handle: object) -> _CaptureResource:
+    def create_source(self, handle: object) -> CaptureResource:
         if not self.capture_available or self._source_manager is None:
             raise RuntimeError("Wayland preview capture is unavailable")
-        return cast("_CaptureResource", self._source_manager.create_source(handle))
+        return cast("CaptureResource", self._source_manager.create_source(handle))
 
-    def create_session(self, source: object) -> _CaptureSession:
+    def create_session(self, source: object) -> CaptureSession:
         if not self.capture_available or self._capture_manager is None:
             raise RuntimeError("Wayland preview capture is unavailable")
-        return cast("_CaptureSession", self._capture_manager.create_session(source, 0))
+        return cast("CaptureSession", self._capture_manager.create_session(source, 0))
 
-    def create_shm_pool(self, fd: int, size: int) -> _ShmPool:
+    def create_shm_pool(self, fd: int, size: int) -> ShmPool:
         if not self.capture_available or self._shm is None:
             raise RuntimeError("Wayland preview shm is unavailable")
-        return cast("_ShmPool", self._shm.create_pool(fd, size))
+        return cast("ShmPool", self._shm.create_pool(fd, size))
 
     def flush(self) -> None:
         if self._flush is not None:
@@ -682,18 +682,18 @@ class HyprlandPreviewProtocolAdapter:
         self._flush = None
         self.available = False
 
-    def create_frame(self, handle: object) -> _HyprlandFrame:
+    def create_frame(self, handle: object) -> HyprlandFrame:
         if not self.capture_available or self._manager is None:
             raise RuntimeError("Hyprland preview capture is unavailable")
         return cast(
-            "_HyprlandFrame",
+            "HyprlandFrame",
             self._manager.capture_toplevel_with_wlr_toplevel_handle(0, handle),
         )
 
-    def create_shm_pool(self, fd: int, size: int) -> _ShmPool:
+    def create_shm_pool(self, fd: int, size: int) -> ShmPool:
         if not self.capture_available or self._shm is None:
             raise RuntimeError("Hyprland preview shm is unavailable")
-        return cast("_ShmPool", self._shm.create_pool(fd, size))
+        return cast("ShmPool", self._shm.create_pool(fd, size))
 
     def flush(self) -> None:
         if self._flush is not None:
@@ -730,15 +730,15 @@ class PhocPreviewProtocolAdapter:
 
         self._shm = registry.bind(name, WlShm, min(version, WlShm.version))
 
-    def create_frame(self, handle: object, width: int, height: int) -> _PhocFrame:
+    def create_frame(self, handle: object, width: int, height: int) -> PhocFrame:
         if not self.capture_available or self._manager is None:
             raise RuntimeError("Phoc preview capture is unavailable")
-        return cast("_PhocFrame", self._manager.get_thumbnail(handle, width, height))
+        return cast("PhocFrame", self._manager.get_thumbnail(handle, width, height))
 
-    def create_shm_pool(self, fd: int, size: int) -> _ShmPool:
+    def create_shm_pool(self, fd: int, size: int) -> ShmPool:
         if not self.capture_available or self._shm is None:
             raise RuntimeError("Phoc preview shm is unavailable")
-        return cast("_ShmPool", self._shm.create_pool(fd, size))
+        return cast("ShmPool", self._shm.create_pool(fd, size))
 
     def flush(self) -> None:
         if self._flush is not None:

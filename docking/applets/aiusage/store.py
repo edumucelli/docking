@@ -121,7 +121,7 @@ def replace_sessions(
     expected: aiusage_state.AiUsageState | None = None,
 ) -> aiusage_state.AiUsageState:
     """Replace snapshots, preserving sessions changed since a poll began."""
-    date = date or aiusage_state._today_iso()
+    date = date or aiusage_state.today_iso()
     before = (
         dict(next((d.by_session for d in expected.days if d.date == date), ()))
         if expected is not None

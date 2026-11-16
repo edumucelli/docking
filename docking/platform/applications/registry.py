@@ -375,7 +375,7 @@ class ApplicationRegistry:
             seen_unregistered.add(identity)
             if retained_count >= retained_limit:
                 continue
-            result.append(self._retain_content_listing(app_info))
+            result.append(self.retain_content_listing(app_info))
             retained_count += 1
         return tuple(result)
 
@@ -387,11 +387,11 @@ class ApplicationRegistry:
     def registrations(self) -> ExecutableRegistrationBackend:
         return self._registrations
 
-    def _gio_handle_for(self, desktop_id: str) -> Any | None:
+    def gio_handle_for(self, desktop_id: str) -> Any | None:
         """Return a generation-owned Gio handle for future main-thread services."""
         return self._state.gio_handles.get(desktop_id)
 
-    def _gio_handle_for_unidentified(self, listing_key: str) -> Any | None:
+    def gio_handle_for_unidentified(self, listing_key: str) -> Any | None:
         """Return the private Gio handle for an opaque launchable listing."""
         handle = self._state.unidentified_gio_handles.get(listing_key)
         if handle is not None:
@@ -492,7 +492,7 @@ class ApplicationRegistry:
     ) -> ApplicationInfo | TransientApplicationInfo | None:
         return self._associations.listing(self, app_info)
 
-    def _retain_content_listing(self, app_info: object) -> TransientApplicationInfo:
+    def retain_content_listing(self, app_info: object) -> TransientApplicationInfo:
         self._content_token_serial += 1
         listing_key = (
             f"gio-content:{self._state.handle_epoch}:{self._content_token_serial}"

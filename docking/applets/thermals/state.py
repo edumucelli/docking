@@ -133,7 +133,7 @@ def parse_sensors_output(text: str) -> ThermalSnapshot:
         if temp_match:
             reading = ThermalReading(
                 chip=current_chip,
-                label=_clean_label(temp_match.group(1)),
+                label=clean_label(temp_match.group(1)),
                 celsius=float(temp_match.group(2)),
             )
             if hottest is None or reading.celsius > hottest.celsius:
@@ -144,7 +144,7 @@ def parse_sensors_output(text: str) -> ThermalSnapshot:
         if fan_match:
             reading = FanReading(
                 chip=current_chip,
-                label=_clean_label(fan_match.group(1)),
+                label=clean_label(fan_match.group(1)),
                 rpm=round(float(fan_match.group(2))),
             )
             if fastest_fan is None or reading.rpm > fastest_fan.rpm:
@@ -299,5 +299,5 @@ def thermal_color(celsius: float | None) -> tuple[float, float, float]:
     return (0.90 + 0.04 * ratio, 0.55 - 0.34 * ratio, 0.16 - 0.06 * ratio)
 
 
-def _clean_label(value: str) -> str:
+def clean_label(value: str) -> str:
     return " ".join(value.strip().split())

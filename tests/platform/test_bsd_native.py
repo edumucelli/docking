@@ -34,9 +34,9 @@ def test_actual_network_counters_are_available():
 
 
 def test_actual_x11_idle_time_is_available():
-    from docking.platform.backends.x11.impl.idle_time import _get_idle_ms
+    from docking.platform.backends.x11.impl.idle_time import get_idle_ms
 
-    idle = _get_idle_ms()
+    idle = get_idle_ms()
     assert idle is not None and idle >= 0
 
 

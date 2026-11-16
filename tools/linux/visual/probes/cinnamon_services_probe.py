@@ -24,7 +24,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GdkPixbuf", "2.0")
-from cinnamon_probe import _eval, _proxy, screenshot
+from cinnamon_probe import create_proxy, evaluate, screenshot
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 from input_probe import X11Pointer
 
@@ -51,7 +51,7 @@ class Probe:
     def __init__(self, items, model, backend):
         self.window = items._window
         self.model, self.backend = model, backend
-        self.shell = _proxy()
+        self.shell = create_proxy()
         self.evidence = Path(os.environ["LAB_DIR"])
         self.pointer = X11Pointer(
             (self.evidence / "outer-display").read_text().strip(),
@@ -76,7 +76,7 @@ class Probe:
         raise AssertionError(f"Condition did not converge; state: {self.state()}")
 
     def state(self):
-        return _eval(
+        return evaluate(
             self.shell,
             """
             global.get_window_actors().map(a=>a.meta_window)
@@ -97,7 +97,7 @@ class Probe:
 
     def act(self, name, code):
         assert (
-            _eval(
+            evaluate(
                 self.shell,
                 "(() => {const w=global.get_window_actors().map(a=>a.meta_window)"
                 ".find(w=>w && w.get_workspace() && w.get_title()==="
@@ -151,7 +151,7 @@ class Probe:
         deadline = time.monotonic() + 6
 
         def run():
-            ready = _eval(
+            ready = evaluate(
                 self.shell,
                 "Object.values(global._dockingPicks || {}).some(s=>!s.done)",
             )
@@ -183,10 +183,10 @@ class Probe:
         environment["GDK_BACKEND"] = "wayland"
         if xwayland:
             environment["GDK_BACKEND"] = "x11"
-            environment["DISPLAY"] = _eval(
+            environment["DISPLAY"] = evaluate(
                 self.shell, "imports.gi.GLib.getenv('DISPLAY')"
             )
-            environment["XAUTHORITY"] = _eval(
+            environment["XAUTHORITY"] = evaluate(
                 self.shell, "imports.gi.GLib.getenv('XAUTHORITY')"
             )
         process = subprocess.Popen(
@@ -230,7 +230,7 @@ class Probe:
 
     def dock_role(self):
         """Check the compositor and real Cinnamon UI models, not GTK hints."""
-        state = _eval(
+        state = evaluate(
             self.shell,
             """
             (() => {
@@ -272,7 +272,7 @@ class Probe:
         self.click_item("applet://workspaces")
         self.wait(
             lambda: (
-                _eval(
+                evaluate(
                     self.shell, "global.workspace_manager.get_active_workspace_index()"
                 )
                 == 1
@@ -305,7 +305,7 @@ class Probe:
         ]:
             if code:
                 self.act("alpha", code)
-            before = _eval(
+            before = evaluate(
                 self.shell, "global.display.focus_window?.get_stable_sequence()"
             )
             image = self.backend.previews.capture(target.id, width=200, height=150)
@@ -315,7 +315,9 @@ class Probe:
             offset = 75 * pixbuf.get_rowstride() + 100 * pixbuf.get_n_channels()
             assert tuple(data[offset : offset + 3]) == (255, 0, 0), name
             assert (
-                _eval(self.shell, "global.display.focus_window?.get_stable_sequence()")
+                evaluate(
+                    self.shell, "global.display.focus_window?.get_stable_sequence()"
+                )
                 == before
             )
             pixbuf.savev(str(self.evidence / f"preview-{name}.png"), "png", [], [])
@@ -387,8 +389,12 @@ class Probe:
         self.later(self.backend.screen_capture.stop)
         self.click_item("applet://colorpicker")
         assert applet._hex == previous
-        assert _eval(self.shell, "Object.keys(global._dockingPicks || {}).length") == 0
-        assert _eval(self.shell, "Object.keys(global._dockingColors || {}).length") == 0
+        assert (
+            evaluate(self.shell, "Object.keys(global._dockingPicks || {}).length") == 0
+        )
+        assert (
+            evaluate(self.shell, "Object.keys(global._dockingColors || {}).length") == 0
+        )
         self.observations["color"] = applet._hex
 
     def dodge(self):
@@ -480,20 +486,22 @@ class Probe:
         self.children.append(process)
         self.wait(
             lambda: (
-                _eval(self.shell, "Object.keys(global._dockingPicks || {}).length") == 1
+                evaluate(self.shell, "Object.keys(global._dockingPicks || {}).length")
+                == 1
             )
         )
         process.kill()
         process.wait(timeout=5)
         self.wait(
             lambda: (
-                _eval(self.shell, "Object.keys(global._dockingPicks || {}).length") == 0
+                evaluate(self.shell, "Object.keys(global._dockingPicks || {}).length")
+                == 0
             )
         )
         self.click_item("applet://workspaces")
         self.wait(
             lambda: (
-                _eval(
+                evaluate(
                     self.shell, "global.workspace_manager.get_active_workspace_index()"
                 )
                 == 1

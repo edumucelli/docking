@@ -36,12 +36,12 @@ def event_iid(sender: str, sender_iid: str, argument: str, argument_iid: str) ->
 
 
 class _Inspectable(ComObject):
-    def _query(self, _this, iid, output):
+    def query_interface(self, _this, iid, output):
         if iid and output and bytes(iid.contents) == bytes(_INSPECTABLE):
             output[0] = self.pointer
             self._addref(_this)
             return 0
-        return super()._query(_this, iid, output)
+        return super().query_interface(_this, iid, output)
 
     @staticmethod
     def _base():

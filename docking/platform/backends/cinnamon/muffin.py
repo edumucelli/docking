@@ -99,7 +99,7 @@ class MuffinDebugClient:
 
 
 @dataclass(frozen=True)
-class _MuffinWindow:
+class MuffinWindow:
     muffin_id: int
     window_id: WindowId
     title: str
@@ -150,7 +150,7 @@ class MuffinWindowService(WindowService):
             process_identity_service=process_identity_service,
         )
         self._client = client
-        self._windows: dict[int, _MuffinWindow] = {}
+        self._windows: dict[int, MuffinWindow] = {}
         self._poll_source_id = 0
 
     def start(self) -> None:
@@ -172,7 +172,7 @@ class MuffinWindowService(WindowService):
     def refresh(self) -> None:
         self._matcher.sync_visible_items(self._model.tracked_items())
         discovery = self._application_registry.diagnostic_snapshot()
-        windows: dict[int, _MuffinWindow] = {}
+        windows: dict[int, MuffinWindow] = {}
         records: list[WindowDiagnostic] = []
         for row in self._client.list_windows():
             window = self._window_from_row(row)
@@ -248,7 +248,7 @@ class MuffinWindowService(WindowService):
         self.refresh()
         return True
 
-    def _window_from_row(self, row: Mapping[str, Any]) -> _MuffinWindow | None:
+    def _window_from_row(self, row: Mapping[str, Any]) -> MuffinWindow | None:
         muffin_id = _int(row, "id")
         window_id = self._window_id(row, muffin_id) if muffin_id is not None else None
         if muffin_id is None or window_id is None:
@@ -313,7 +313,7 @@ class MuffinWindowService(WindowService):
             ),
             match,
         )
-        return _MuffinWindow(
+        return MuffinWindow(
             muffin_id=muffin_id,
             window_id=window_id,
             title=_text(row, "title") or "Window",
@@ -341,7 +341,7 @@ class MuffinWindowService(WindowService):
     def _excluded_reason(self, row: Mapping[str, Any]) -> WindowReason | None:
         return WindowReason.SKIP_TASKBAR if _bool(row, "skip-taskbar") else None
 
-    def _running_windows(self) -> Sequence[_MuffinWindow]:
+    def _running_windows(self) -> Sequence[MuffinWindow]:
         return tuple(self._windows.values())
 
     def _publish_running(self) -> None:
@@ -372,7 +372,7 @@ class MuffinWindowService(WindowService):
         )
 
     @staticmethod
-    def _snapshot(window: _MuffinWindow) -> WindowSnapshot:
+    def _snapshot(window: MuffinWindow) -> WindowSnapshot:
         return WindowSnapshot(
             id=window.window_id,
             desktop_id=window.desktop_id or "",

@@ -18,7 +18,7 @@ from __future__ import annotations
 import cairo
 
 
-def _render_grid(cr: cairo.Context, size: int, count: int, active_num: int) -> None:
+def render_grid(cr: cairo.Context, size: int, count: int, active_num: int) -> None:
     """Draw a grid of workspace rectangles with the active one highlighted.
 
     ``active_num`` is a position in the caller's list, not a backend number, so

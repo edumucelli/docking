@@ -170,7 +170,7 @@ def provider_for_model(model: str) -> Provider:
 
 def dominant_provider(state: AiUsageState) -> Provider | None:
     """Return the provider with higher cost today, or None if no usage."""
-    entry = _today_entry(state=state)
+    entry = today_entry(state=state)
     if not entry or not entry.by_model:
         return None
     costs: dict[Provider, float] = {}
@@ -249,7 +249,7 @@ def provider_cost(entry: DayEntry, provider: Provider) -> float:
 
 
 def today_cost(state: AiUsageState) -> float:
-    entry = _today_entry(state=state)
+    entry = today_entry(state=state)
     return day_cost(entry=entry) if entry else 0.0
 
 
@@ -258,7 +258,7 @@ def week_cost(state: AiUsageState) -> float:
 
 
 def today_sessions(state: AiUsageState) -> int:
-    entry = _today_entry(state=state)
+    entry = today_entry(state=state)
     return entry.sessions if entry else 0
 
 
@@ -286,7 +286,7 @@ def provider_tokens(entry: DayEntry, provider: Provider) -> int:
 
 
 def today_tokens(state: AiUsageState) -> int:
-    entry = _today_entry(state=state)
+    entry = today_entry(state=state)
     return day_tokens(entry=entry) if entry else 0
 
 
@@ -299,12 +299,12 @@ def week_tokens(state: AiUsageState) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _today_iso() -> str:
+def today_iso() -> str:
     return datetime.date.today().isoformat()
 
 
-def _today_entry(state: AiUsageState) -> DayEntry | None:
-    today = _today_iso()
+def today_entry(state: AiUsageState) -> DayEntry | None:
+    today = today_iso()
     for d in state.days:
         if d.date == today:
             return d
@@ -328,7 +328,7 @@ def set_session(
     date: str | None = None,
 ) -> AiUsageState:
     """Replace a session's usage in today's entry (idempotent)."""
-    today = date or _today_iso()
+    today = date or today_iso()
 
     existing: DayEntry | None = None
     others: list[DayEntry] = []
@@ -366,7 +366,7 @@ def set_session(
 
 
 def reset_today(state: AiUsageState) -> AiUsageState:
-    today = _today_iso()
+    today = today_iso()
     return AiUsageState(days=tuple(d for d in state.days if d.date != today))
 
 
@@ -375,7 +375,7 @@ def reset_today(state: AiUsageState) -> AiUsageState:
 # ---------------------------------------------------------------------------
 
 
-def _nonnegative_count(value: object) -> int:
+def nonnegative_count(value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, str | int | float):
         return 0
     try:
@@ -384,7 +384,7 @@ def _nonnegative_count(value: object) -> int:
         return 0
 
 
-def _nonnegative_cost(value: object) -> float:
+def nonnegative_cost(value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, str | int | float):
         return 0.0
     try:
@@ -405,11 +405,11 @@ def _parse_model_counts(raw: object) -> list[tuple[str, ModelUsage]]:
             (
                 model,
                 ModelUsage(
-                    input_tokens=_nonnegative_count(counts.get("in", 0)),
-                    output_tokens=_nonnegative_count(counts.get("out", 0)),
-                    cache_write_tokens=_nonnegative_count(counts.get("cw", 0)),
-                    cache_read_tokens=_nonnegative_count(counts.get("cr", 0)),
-                    precalculated_cost=_nonnegative_cost(counts.get("pc", 0)),
+                    input_tokens=nonnegative_count(counts.get("in", 0)),
+                    output_tokens=nonnegative_count(counts.get("out", 0)),
+                    cache_write_tokens=nonnegative_count(counts.get("cw", 0)),
+                    cache_read_tokens=nonnegative_count(counts.get("cr", 0)),
+                    precalculated_cost=nonnegative_cost(counts.get("pc", 0)),
                 ),
             )
         )
@@ -449,7 +449,7 @@ def state_from_prefs(prefs: Mapping[str, Any] | None) -> AiUsageState:
         else:
             # Legacy format: only by_model, no by_session.
             by_model = _parse_model_counts(rd.get("by_model", {}))
-            session_count = _nonnegative_count(rd.get("sessions", 0))
+            session_count = nonnegative_count(rd.get("sessions", 0))
 
         days.append(
             DayEntry(
@@ -501,7 +501,7 @@ def prefs_from_state(state: AiUsageState) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def _format_cost(cost: float) -> str:
+def format_cost(cost: float) -> str:
     if cost >= 1.0:
         return f"${cost:.2f}"
     if cost > 0:
@@ -509,7 +509,7 @@ def _format_cost(cost: float) -> str:
     return "$0"
 
 
-def _format_tokens(tokens: int) -> str:
+def format_tokens(tokens: int) -> str:
     if tokens >= 1_000_000:
         return f"{tokens / 1_000_000:.1f}M"
     if tokens >= 1_000:
@@ -517,7 +517,7 @@ def _format_tokens(tokens: int) -> str:
     return str(tokens)
 
 
-def _short_model(model: str) -> str:
+def short_model(model: str) -> str:
     """Extract a short display name from a full model ID."""
     raw = model.removeprefix(OPENCODE_PREFIX)
     tier = match_model_tier(model=raw)
@@ -526,7 +526,7 @@ def _short_model(model: str) -> str:
 
 def tooltip_text(state: AiUsageState, provider: Provider | None = None) -> str:
     """Simple single-line fallback tooltip."""
-    entry = _today_entry(state=state)
+    entry = today_entry(state=state)
     if provider and entry:
         cost = provider_cost(entry=entry, provider=provider)
         name = provider.value.capitalize()
@@ -541,7 +541,7 @@ def tooltip_text(state: AiUsageState, provider: Provider | None = None) -> str:
         )
     return structured_tooltip(
         title=name,
-        primary=_("Today: {cost}").format(cost=_format_cost(cost=cost)),
+        primary=_("Today: {cost}").format(cost=format_cost(cost=cost)),
     )
 
 
@@ -550,7 +550,7 @@ def tooltip_text(state: AiUsageState, provider: Provider | None = None) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _has_usage(u: ModelUsage) -> bool:
+def has_usage(u: ModelUsage) -> bool:
     return bool(
         u.input_tokens
         or u.output_tokens

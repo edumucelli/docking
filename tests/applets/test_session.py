@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import docking.applets.session.implementations.unix.actions as session_unix_mod
 from docking.applets.session.applet import SessionApplet
 from docking.applets.session.implementations.linux.backend import LinuxSessionBackend
-from docking.applets.session.state import _ACTIONS
+from docking.applets.session.state import ACTIONS
 from docking.core.config import Config
 from tests.platform_factories import (
     TestAppletBackendFactories,
@@ -46,7 +46,7 @@ class TestSessionApplet:
         ]
 
     def test_actions_list_has_expected_entries(self):
-        labels = [label for label, _cmd in _ACTIONS]
+        labels = [label for label, _cmd in ACTIONS]
         assert "Lock Screen" in labels
         assert "Shut Down" in labels
         assert "Suspend" in labels

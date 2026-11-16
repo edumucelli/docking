@@ -88,7 +88,7 @@ class CinnamonColorPickerService(ScreenCaptureService):
     def stop(self) -> None:
         self._selection.stop()
         if self._sample_key is not None:
-            self._client._eval(
+            self._client.evaluate(
                 f"global._dockingColors?.[{self._sample_key}]?.restore(); true"
             )
         if self._loop is not None:
@@ -123,7 +123,7 @@ class CinnamonColorPickerService(ScreenCaptureService):
     def _sample(self, x: int, y: int) -> tuple[int, int, int] | None:
         key = json.dumps(uuid4().hex)
         self._sample_key = key
-        started = self._client._eval(
+        started = self._client.evaluate(
             """
             (() => {
                 const Meta = imports.gi.Meta, GLib = imports.gi.GLib;
@@ -167,7 +167,7 @@ class CinnamonColorPickerService(ScreenCaptureService):
         picked: list[tuple[int, int, int]] = []
 
         def poll() -> bool:
-            state = self._client._eval(
+            state = self._client.evaluate(
                 f"(() => {{const s=global._dockingColors?.[{key}];"
                 "return s ? {done:s.done,value:s.value} : null;})()"
             )
@@ -197,7 +197,7 @@ class CinnamonColorPickerService(ScreenCaptureService):
         return picked[0] if picked else None
 
     def _cleanup_sample(self, key: str) -> None:
-        self._client._eval(
+        self._client.evaluate(
             f"(() => {{const s=global._dockingColors?.[{key}];"
             f"if(s) {{s.done=true; s.restore(); const GLib=imports.gi.GLib;"
             f"GLib.source_remove(s.timer); delete global._dockingColors[{key}];}}"

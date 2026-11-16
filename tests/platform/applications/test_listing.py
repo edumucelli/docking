@@ -117,10 +117,10 @@ def test_listing_gicon_prefers_private_registry_handles_for_both_forms() -> None
     idless_handle = MagicMock()
     idless_handle.get_icon.return_value = idless_icon
     registry = SimpleNamespace(
-        _gio_handle_for=lambda desktop_id: (
+        gio_handle_for=lambda desktop_id: (
             canonical_handle if desktop_id == "org.example.Host.desktop" else None
         ),
-        _gio_handle_for_unidentified=lambda key: (
+        gio_handle_for_unidentified=lambda key: (
             idless_handle if key == "gio-idless:17" else None
         ),
     )

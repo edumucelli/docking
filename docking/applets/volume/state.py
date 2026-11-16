@@ -27,7 +27,7 @@ class VolumeState(NamedTuple):
     muted: bool
 
 
-def _volume_icon_name(volume: int, muted: bool) -> str:
+def volume_icon_name(volume: int, muted: bool) -> str:
     """Map volume level + mute state to a FreeDesktop icon name."""
     if muted or volume == 0:
         return "audio-volume-muted"

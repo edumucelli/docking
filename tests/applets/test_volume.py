@@ -22,7 +22,7 @@ from docking.applets.volume.implementations.unix.pulseaudio import (
 )
 from docking.applets.volume.state import (
     VolumeState,
-    _volume_icon_name,
+    volume_icon_name,
 )
 from docking.core.config import Config
 from docking.platform import environment
@@ -99,31 +99,31 @@ class TestParseAmixer:
 
 class TestVolumeIconName:
     def test_muted(self):
-        assert _volume_icon_name(volume=75, muted=True) == "audio-volume-muted"
+        assert volume_icon_name(volume=75, muted=True) == "audio-volume-muted"
 
     def test_zero(self):
-        assert _volume_icon_name(volume=0, muted=False) == "audio-volume-muted"
+        assert volume_icon_name(volume=0, muted=False) == "audio-volume-muted"
 
     def test_low(self):
-        assert _volume_icon_name(volume=20, muted=False) == "audio-volume-low"
+        assert volume_icon_name(volume=20, muted=False) == "audio-volume-low"
 
     def test_medium(self):
-        assert _volume_icon_name(volume=50, muted=False) == "audio-volume-medium"
+        assert volume_icon_name(volume=50, muted=False) == "audio-volume-medium"
 
     def test_high(self):
-        assert _volume_icon_name(volume=80, muted=False) == "audio-volume-high"
+        assert volume_icon_name(volume=80, muted=False) == "audio-volume-high"
 
     def test_boundary_33(self):
-        assert _volume_icon_name(volume=33, muted=False) == "audio-volume-low"
+        assert volume_icon_name(volume=33, muted=False) == "audio-volume-low"
 
     def test_boundary_34(self):
-        assert _volume_icon_name(volume=34, muted=False) == "audio-volume-medium"
+        assert volume_icon_name(volume=34, muted=False) == "audio-volume-medium"
 
     def test_boundary_66(self):
-        assert _volume_icon_name(volume=66, muted=False) == "audio-volume-medium"
+        assert volume_icon_name(volume=66, muted=False) == "audio-volume-medium"
 
     def test_boundary_67(self):
-        assert _volume_icon_name(volume=67, muted=False) == "audio-volume-high"
+        assert volume_icon_name(volume=67, muted=False) == "audio-volume-high"
 
 
 # -- Backend detection --------------------------------------------------------

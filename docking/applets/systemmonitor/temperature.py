@@ -22,8 +22,8 @@ from pathlib import Path
 from docking.log import get_logger
 
 CPU_TEMP_COMMAND_TIMEOUT_S = 0.25
-_THERMAL_ROOT = Path("/sys/class/thermal")
-_HWMON_ROOT = Path("/sys/class/hwmon")
+THERMAL_ROOT = Path("/sys/class/thermal")
+HWMON_ROOT = Path("/sys/class/hwmon")
 log = get_logger("systemmonitor.temperature")
 
 
@@ -35,13 +35,13 @@ class CommandBackend:
     argv: tuple[str, ...]
 
 
-_COMMAND_BACKENDS = (
+COMMAND_BACKENDS = (
     CommandBackend(command="sensors", argv=("sensors",)),
     CommandBackend(command="vcgencmd", argv=("vcgencmd", "measure_temp")),
     CommandBackend(command="acpi", argv=("acpi", "-t")),
 )
 
-_CHIP_HINT_SCORES = (
+CHIP_HINT_SCORES = (
     ("coretemp", 90),
     ("k10temp", 90),
     ("zenpower", 90),
@@ -51,7 +51,7 @@ _CHIP_HINT_SCORES = (
     ("soc_thermal", 40),
     ("acpitz", 20),
 )
-_LABEL_HINT_SCORES = (
+LABEL_HINT_SCORES = (
     ("package id", 100),
     ("package", 95),
     ("tctl", 95),
@@ -60,7 +60,7 @@ _LABEL_HINT_SCORES = (
     ("core", 60),
     ("temp1", 20),
 )
-_THERMAL_TYPE_SCORES = (
+THERMAL_TYPE_SCORES = (
     ("x86_pkg_temp", 100),
     ("package", 95),
     ("cpu", 90),
@@ -118,8 +118,8 @@ def parse_sensors_output(text: str) -> float | None:
         if temperature is None:
             continue
         score = max(
-            _score_text(current_chip, _CHIP_HINT_SCORES),
-            _score_text(label, _LABEL_HINT_SCORES),
+            score_text(current_chip, CHIP_HINT_SCORES),
+            score_text(label, LABEL_HINT_SCORES),
         )
         if (
             best is None
@@ -155,7 +155,7 @@ def parse_acpi_output(text: str) -> float | None:
     return max(temperatures)
 
 
-def _score_text(text: str, hints: tuple[tuple[str, int], ...]) -> int:
+def score_text(text: str, hints: tuple[tuple[str, int], ...]) -> int:
     lowered = text.lower()
     best = 0
     for hint, score in hints:
@@ -164,7 +164,7 @@ def _score_text(text: str, hints: tuple[tuple[str, int], ...]) -> int:
     return best
 
 
-def _pick_best(
+def pick_best(
     current: tuple[int, float, Path] | None,
     *,
     score: int,

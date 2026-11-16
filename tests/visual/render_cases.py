@@ -31,7 +31,7 @@ from docking.search.types import (
 )
 from docking.search.ui.window import SearchWindow
 from docking.ui.autohide import HideState
-from docking.ui.folder._browser import FolderRow
+from docking.ui.folder.browser import FolderRow
 from docking.ui.folder.stack import FolderStackController
 from docking.ui.geometry import build_geometry_frame, compute_dock_cross_metrics
 from docking.ui.menu import MenuHandler

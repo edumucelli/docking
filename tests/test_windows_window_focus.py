@@ -225,17 +225,19 @@ def caption(monkeypatch):
             wait_for=wait,
         )
         monkeypatch.setattr(input_environment, "bind", bind)
-        monkeypatch.setattr(input_editor, "_point_facts", facts)
+        monkeypatch.setattr(input_editor, "point_facts", facts)
         monkeypatch.setattr(
             input_editor,
-            "_window_facts",
+            "window_facts",
             lambda _user, hwnd: {
                 "hwnd": hwnd,
                 "pid": 43 if mode == "subtree-foreign" and hwnd != 91 else 42,
             },
         )
         monkeypatch.setattr(
-            input_editor, "_topmost", lambda _user, hwnd: False if hwnd == 91 else None
+            input_editor,
+            "is_topmost",
+            lambda _user, hwnd: False if hwnd == 91 else None,
         )
         return native, current, state
 

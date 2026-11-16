@@ -33,10 +33,10 @@ class _Registry:
     def get(self, desktop_id: str) -> ApplicationInfo | None:
         return self.applications.get(desktop_id)
 
-    def _gio_handle_for(self, desktop_id: str) -> object | None:
+    def gio_handle_for(self, desktop_id: str) -> object | None:
         return self.handles.get(desktop_id)
 
-    def _gio_handle_for_unidentified(self, listing_key: str) -> object | None:
+    def gio_handle_for_unidentified(self, listing_key: str) -> object | None:
         return self.listing_handles.get(listing_key)
 
 

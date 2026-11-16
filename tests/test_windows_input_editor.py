@@ -1031,7 +1031,7 @@ def test_point_probe_preserves_desktop_shared_dword_pointer_contract(focus_deskt
     from ctypes import wintypes
 
     native, _editor, _foreground = focus_desktop
-    facts = mod._point_facts(native, 100, 200)
+    facts = mod.point_facts(native, 100, 200)
     assert facts["root"]["pid"] == 202
     assert native.user.GetWindowThreadProcessId.argtypes == (
         ctypes.c_void_p,
@@ -1806,7 +1806,7 @@ def test_keyboard_menu_before_press_requires_live_painted_and_native_target(
     )
     window = SimpleNamespace(
         geometry=SimpleNamespace(build_frame=lambda: frame),
-        _current_or_build_geometry_frame=lambda: painted,
+        current_or_build_geometry_frame=lambda: painted,
         model=SimpleNamespace(
             find_by_desktop_id=lambda identifier: other if mismatch == "model" else item
         ),

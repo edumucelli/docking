@@ -66,7 +66,7 @@ _STATE_BY_VALUE = {
 
 
 @dataclass
-class _ToplevelState:
+class ToplevelState:
     internal_id: int
     handle: object
     title: str = "Window"
@@ -118,8 +118,8 @@ class WaylandForeignToplevelWindowService(WindowService):
         self._preview_handles = preview_handles
         self._can_preview = can_preview
         self._next_id = 1
-        self._state_by_handle: dict[object, _ToplevelState] = {}
-        self._state_by_id: dict[int, _ToplevelState] = {}
+        self._state_by_handle: dict[object, ToplevelState] = {}
+        self._state_by_id: dict[int, ToplevelState] = {}
         self._last_running: dict[str, RunningAppInfo] = {}
         self._changes = WindowChanges()
 
@@ -249,7 +249,7 @@ class WaylandForeignToplevelWindowService(WindowService):
         existing = self._state_by_handle.get(handle)
         if existing is not None:
             return existing.window_id
-        state = _ToplevelState(internal_id=self._next_id, handle=handle)
+        state = ToplevelState(internal_id=self._next_id, handle=handle)
         self._next_id += 1
         self._state_by_handle[handle] = state
         self._state_by_id[state.internal_id] = state
@@ -315,14 +315,14 @@ class WaylandForeignToplevelWindowService(WindowService):
         self._state_by_id.pop(state.internal_id, None)
         self._publish_running()
 
-    def _ensure_state(self, *, handle: object) -> _ToplevelState:
+    def _ensure_state(self, *, handle: object) -> ToplevelState:
         state = self._state_by_handle.get(handle)
         if state is None:
             self.toplevel_created(handle=handle)
             state = self._state_by_handle[handle]
         return state
 
-    def _refresh_match(self, *, state: _ToplevelState) -> None:
+    def _refresh_match(self, *, state: ToplevelState) -> None:
         self._matcher.sync_visible_items(self._model.tracked_items())
         state.application_match = (
             self._matcher.match_result(state.app_id) if state.app_id else None
@@ -356,10 +356,10 @@ class WaylandForeignToplevelWindowService(WindowService):
         self._model.update_running(running=running)
         self._changes.notify()
 
-    def _taskbar_state(self, state: _ToplevelState) -> bool:
+    def _taskbar_state(self, state: ToplevelState) -> bool:
         return True
 
-    def _states_for_desktop(self, desktop_id: str) -> list[_ToplevelState]:
+    def _states_for_desktop(self, desktop_id: str) -> list[ToplevelState]:
         return [
             state
             for state in self._state_by_id.values()
@@ -368,13 +368,13 @@ class WaylandForeignToplevelWindowService(WindowService):
             and self._taskbar_state(state)
         ]
 
-    def _first_state_for_desktop(self, desktop_id: str) -> _ToplevelState | None:
+    def _first_state_for_desktop(self, desktop_id: str) -> ToplevelState | None:
         states = self._states_for_desktop(desktop_id)
         if not states:
             return None
         return next((state for state in states if state.active), states[0])
 
-    def _state_for_window_id(self, window_id: WindowId) -> _ToplevelState | None:
+    def _state_for_window_id(self, window_id: WindowId) -> ToplevelState | None:
         if window_id.backend is not DisplayServer.WAYLAND:
             return None
         try:
@@ -386,7 +386,7 @@ class WaylandForeignToplevelWindowService(WindowService):
             return None
         return state
 
-    def _snapshot_for(self, state: _ToplevelState) -> WindowSnapshot:
+    def _snapshot_for(self, state: ToplevelState) -> WindowSnapshot:
         preview_handles = self._preview_handles
         if preview_handles is not None:
             preview_handles.associate_window(
@@ -423,7 +423,7 @@ class WaylandForeignToplevelWindowService(WindowService):
             getattr(handle, action, None)
         )
 
-    def _call_action(self, *, state: _ToplevelState, action: str) -> ActionResult:
+    def _call_action(self, *, state: ToplevelState, action: str) -> ActionResult:
         if not self._supports_action(action, state.handle):
             return ActionResult.UNSUPPORTED
         protocol_method = getattr(self._protocol, action, None)
@@ -443,7 +443,7 @@ class WaylandStandardToplevelWindowService(WaylandForeignToplevelWindowService):
     def _supports_action(self, action: str, handle: object) -> bool:
         return False
 
-    def _snapshot_for(self, state: _ToplevelState) -> WindowSnapshot:
+    def _snapshot_for(self, state: ToplevelState) -> WindowSnapshot:
         from dataclasses import replace
 
         return replace(

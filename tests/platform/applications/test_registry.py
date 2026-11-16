@@ -592,8 +592,8 @@ def test_idless_gio_entries_have_distinct_listing_side_table_records():
     assert listings[0].exec_line == "first"
     assert listings[0].description == "First description"
     assert listings[0].generic_name == "First generic name"
-    assert registry._gio_handle_for_unidentified(listings[0].listing_key) is first
-    assert registry._gio_handle_for_unidentified(listings[1].listing_key) is second
+    assert registry.gio_handle_for_unidentified(listings[0].listing_key) is first
+    assert registry.gio_handle_for_unidentified(listings[1].listing_key) is second
     assert registry.get("") is None
     assert registry.snapshot() == ()
 
@@ -638,11 +638,11 @@ def test_idless_tokens_rotate_without_public_change_and_reject_stale_rows():
     assert registry.generation == generation
     assert notifications == [generation]
     assert all(
-        registry._gio_handle_for_unidentified(listing_key) is None
+        registry.gio_handle_for_unidentified(listing_key) is None
         for listing_key in stale_keys
     )
-    assert registry._gio_handle_for_unidentified(current_keys[0]) is second
-    assert registry._gio_handle_for_unidentified(current_keys[1]) is first
+    assert registry.gio_handle_for_unidentified(current_keys[0]) is second
+    assert registry.gio_handle_for_unidentified(current_keys[1]) is first
 
 
 def test_unchanged_refresh_atomically_replaces_private_gio_handles():
@@ -664,7 +664,7 @@ def test_unchanged_refresh_atomically_replaces_private_gio_handles():
     assert registry.refresh() is True
     generation = registry.generation
     snapshot = registry.snapshot()
-    assert registry._gio_handle_for("stable.desktop") is first
+    assert registry.gio_handle_for("stable.desktop") is first
 
     applications[0] = replacement
 
@@ -672,7 +672,7 @@ def test_unchanged_refresh_atomically_replaces_private_gio_handles():
     assert registry.generation == generation
     assert registry.snapshot() is snapshot
     assert notifications == [generation]
-    assert registry._gio_handle_for("stable.desktop") is replacement
+    assert registry.gio_handle_for("stable.desktop") is replacement
 
 
 def test_file_discovery_preserves_visibility_precedence_order_and_indexes(
@@ -844,7 +844,7 @@ def test_file_only_id_uses_canonical_gio_metadata_without_losing_xdg_mask(
     assert application.wm_class == "CanonicalClass"
     assert application.visible is False
     assert application not in registry.snapshot()
-    assert registry._gio_handle_for("duplicate.desktop") is canonical
+    assert registry.gio_handle_for("duplicate.desktop") is canonical
     from_filename.assert_not_called()
 
 
@@ -1010,7 +1010,7 @@ def test_gio_metadata_keeps_exact_file_and_action_provenance(tmp_path):
     assert shared.file_exec_line == "actions --shared"
     assert gio_only.sources == frozenset({ActionSource.GIO})
     assert file_only.sources == frozenset({ActionSource.DESKTOP_FILE})
-    assert registry._gio_handle_for(desktop_id) is app_info
+    assert registry.gio_handle_for(desktop_id) is app_info
 
 
 @pytest.mark.parametrize(
@@ -1354,7 +1354,7 @@ def test_launchable_default_retains_unregistered_handler_metadata_and_handle(
     assert listing.exec_line == "external-handler %U"
     assert listing.description == "Handles external media"
     assert listing.generic_name == "Media Handler"
-    assert registry._gio_handle_for_unidentified(listing.listing_key) is handler
+    assert registry.gio_handle_for_unidentified(listing.listing_key) is handler
     assert registry.get(desktop_id) is None
 
 
@@ -1468,7 +1468,7 @@ def test_launchable_recommended_handlers_include_registered_idless_and_unregiste
         if isinstance(listing, TransientApplicationInfo)
     ] == ["ID-less Recommended", "Unregistered Recommended"]
     assert all(
-        registry._gio_handle_for_unidentified(listing.listing_key)
+        registry.gio_handle_for_unidentified(listing.listing_key)
         in {idless, unregistered}
         for listing in listings[1:]
         if isinstance(listing, TransientApplicationInfo)
@@ -1567,13 +1567,13 @@ def test_content_handler_tokens_are_bounded_and_expire_on_refresh(monkeypatch):
     assert isinstance(first, TransientApplicationInfo)
     assert isinstance(second, TransientApplicationInfo)
     assert isinstance(third, TransientApplicationInfo)
-    assert registry._gio_handle_for_unidentified(first.listing_key) is None
-    assert registry._gio_handle_for_unidentified(second.listing_key) is handlers[1]
-    assert registry._gio_handle_for_unidentified(third.listing_key) is handlers[2]
+    assert registry.gio_handle_for_unidentified(first.listing_key) is None
+    assert registry.gio_handle_for_unidentified(second.listing_key) is handlers[1]
+    assert registry.gio_handle_for_unidentified(third.listing_key) is handlers[2]
 
     assert registry.refresh() is False
-    assert registry._gio_handle_for_unidentified(second.listing_key) is None
-    assert registry._gio_handle_for_unidentified(third.listing_key) is None
+    assert registry.gio_handle_for_unidentified(second.listing_key) is None
+    assert registry.gio_handle_for_unidentified(third.listing_key) is None
 
 
 def test_content_type_lookup_retains_a_launchable_unlisted_gio_handler(monkeypatch):
@@ -1598,7 +1598,7 @@ def test_content_type_lookup_retains_a_launchable_unlisted_gio_handler(monkeypat
     assert application.desktop_id is None
     assert application.name == "Unlisted"
     assert application.has_gio_source is True
-    assert registry._gio_handle_for_unidentified(application.listing_key) is handler
+    assert registry.gio_handle_for_unidentified(application.listing_key) is handler
     assert registry.get("unlisted.desktop") is None
 
 

@@ -10,7 +10,7 @@ import pytest
 from docking.core.config import Config
 from docking.core.items import DockItem
 from docking.platform.icon_overrides import custom_icon_path, set_custom_icon
-from docking.ui.folder._browser import FolderBrowser, FolderPrefs
+from docking.ui.folder.browser import FolderBrowser, FolderPrefs
 from docking.ui.folder.stack import FolderStackController
 from tests.platform_factories import make_target_service
 
@@ -161,9 +161,9 @@ def test_directory_lru_remains_bounded(tmp_path, browser):
 
 
 def test_directory_cache_keeps_recently_reopened_folder(tmp_path, browser, monkeypatch):
-    from docking.ui.folder import _browser
+    from docking.ui.folder import browser as browser_mod
 
-    monkeypatch.setattr(_browser, "FOLDER_DIRECTORY_CACHE_MAX_ENTRIES", 2)
+    monkeypatch.setattr(browser_mod, "FOLDER_DIRECTORY_CACHE_MAX_ENTRIES", 2)
     subject, _loader = browser
     folders = [tmp_path / name for name in ("first", "second", "third")]
     for folder in folders:

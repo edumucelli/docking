@@ -237,7 +237,7 @@ def test_picker_revalidates_native_pid_and_termination_target():
     windows.refresh()
     target = windows.list_all_windows()[0].id
     client.for_window = MagicMock(return_value=99)
-    client._action_result = CinnamonShellClient._action_result
+    client.action_result = CinnamonShellClient.action_result
     picker = CinnamonWindowPickService(windows=windows)
     assert picker.pid_for(target) == 99
     client.for_window.return_value = os.getpid()
@@ -321,7 +321,7 @@ def test_color_picker_validates_channels_and_cleans_up_sampling(
     monkeypatch, value, expected
 ):
     client = MagicMock()
-    client._eval.side_effect = [True, {"done": True, "value": value}, True]
+    client.evaluate.side_effect = [True, {"done": True, "value": value}, True]
     picker = CinnamonColorPickerService(client=client)
     loop = MagicMock()
     callbacks = []
@@ -336,7 +336,7 @@ def test_color_picker_validates_channels_and_cleans_up_sampling(
     assert picker._sample(10, 20) == expected
     assert picker._loop is None and picker._sample_key is None
     remove.assert_called_once_with(42)
-    assert "s.restore()" in client._eval.call_args.args[0]
+    assert "s.restore()" in client.evaluate.call_args.args[0]
 
 
 def test_snapshot_metadata_and_features_are_probed_separately_from_windows():
@@ -363,7 +363,7 @@ def test_modal_selection_releases_timer_and_shell_resources(monkeypatch, value):
 
     client = SimpleNamespace(
         bus_name=":1.10",
-        _eval=MagicMock(side_effect=[True, {"done": True, "value": value}, True]),
+        evaluate=MagicMock(side_effect=[True, {"done": True, "value": value}, True]),
     )
     loop = MagicMock()
     callbacks = []
@@ -378,28 +378,28 @@ def test_modal_selection_releases_timer_and_shell_resources(monkeypatch, value):
     assert selector.select(pick_body="return [x,y];") == value
     assert selector._token is None and selector._loop is None
     remove.assert_called_once_with(42)
-    assert "bus_watch_name" in client._eval.call_args_list[0].args[0]
-    assert "s.dispose()" in client._eval.call_args_list[-1].args[0]
+    assert "bus_watch_name" in client.evaluate.call_args_list[0].args[0]
+    assert "s.dispose()" in client.evaluate.call_args_list[-1].args[0]
 
 
 def test_modal_selection_fails_before_grabbing_input_without_client_identity():
     from docking.platform.backends.cinnamon.selection import CinnamonSelection
 
-    client = SimpleNamespace(bus_name=None, _eval=MagicMock())
+    client = SimpleNamespace(bus_name=None, evaluate=MagicMock())
     selector = CinnamonSelection(client=client)
     assert selector.select(pick_body="return [x,y];") is None
-    client._eval.assert_not_called()
+    client.evaluate.assert_not_called()
 
 
 def test_modal_selection_stop_releases_active_grab_and_nested_loop():
     from docking.platform.backends.cinnamon.selection import CinnamonSelection
 
-    client = SimpleNamespace(_eval=MagicMock())
+    client = SimpleNamespace(evaluate=MagicMock())
     selector = CinnamonSelection(client=client)
     selector._token = "owned"
     selector._loop = MagicMock()
     selector.stop()
-    assert "finish(null)" in client._eval.call_args.args[0]
+    assert "finish(null)" in client.evaluate.call_args.args[0]
     selector._loop.quit.assert_called_once()
 
 

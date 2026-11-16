@@ -122,7 +122,7 @@ def test_selected_shortcut_discards_old_exports_until_its_generation_is_ready(
     assert not updated.document_target
     assert updated.export_file is None and updated.export_data == ()
     lookup.invalidate.assert_called_once()
-    assert registry._gio_handle_for(selected.desktop_id) is handle
+    assert registry.gio_handle_for(selected.desktop_id) is handle
 
     lookup.applications = (
         replace(
@@ -201,7 +201,7 @@ def test_windows_registry_works_without_unix_desktop_app_info(monkeypatch):
     assert registry.refresh()
     assert registry.generation == 1
     assert registry.get("Example.App").name == "Example"
-    assert registry._gio_handle_for("Example.App") is handle
+    assert registry.gio_handle_for("Example.App") is handle
 
 
 def test_visibility_updates_hide_components_but_keep_canonical_lookup_and_launch_handles(
@@ -246,8 +246,8 @@ def test_visibility_updates_hide_components_but_keep_canonical_lookup_and_launch
             "Example.Package!Main"
         ]
         assert registry.get("Example.Package!Widget").visible is False
-        assert registry._gio_handle_for("Example.Package!Widget") is widget
-        assert registry._gio_handle_for("Example.Package!Main") is main
+        assert registry.gio_handle_for("Example.Package!Widget") is widget
+        assert registry.gio_handle_for("Example.Package!Main") is main
         lookup.invalidate.assert_not_called()
         registry._catalog._on_native_changed()
         lookup.invalidate.assert_called_once()
@@ -261,7 +261,7 @@ def test_visibility_updates_hide_components_but_keep_canonical_lookup_and_launch
 def test_windows_launch_uses_native_handle_instead_of_posix_exec(monkeypatch):
     handle = native_app()
     app = discover_windows_applications([handle]).applications[0]
-    registry = SimpleNamespace(get=lambda _id: app, _gio_handle_for=lambda _id: handle)
+    registry = SimpleNamespace(get=lambda _id: app, gio_handle_for=lambda _id: handle)
     popen = MagicMock(side_effect=AssertionError("Windows commands need native launch"))
     launcher = ApplicationLauncher(
         registry, LaunchProvenanceStore(), backend=WindowsApplicationLaunchBackend()
@@ -348,7 +348,7 @@ def test_native_menu_catalog_keeps_association_only_clients_but_hides_components
     assert registry._listing_for_content_type_result(hidden) is None
     listing = registry._listing_for_content_type_result(client)
     assert listing is not None and listing.desktop_id is None
-    assert registry._gio_handle_for_unidentified(listing.listing_key) is client
+    assert registry.gio_handle_for_unidentified(listing.listing_key) is client
     monkeypatch.setattr(
         Gio.AppInfo,
         "get_all_for_type",
@@ -369,7 +369,7 @@ def test_packaged_launch_delegates_foreground_permission_without_double_launch(
         desktop_id="Example.Package!App",
         executable_path=None,
     )
-    registry = SimpleNamespace(get=lambda _id: app, _gio_handle_for=lambda _id: handle)
+    registry = SimpleNamespace(get=lambda _id: app, gio_handle_for=lambda _id: handle)
     native = MagicMock(return_value=False)
     monkeypatch.setattr(shell, "activate_packaged_application", native)
     launcher = ApplicationLauncher(

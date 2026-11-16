@@ -355,8 +355,8 @@ def test_send_files_reports_denied_launch(backend, monkeypatch, tmp_path):
 
 def test_bluetooth_structures_match_windows_abi():
     assert ctypes.sizeof(radio._RadioInfo) == 520
-    assert ctypes.sizeof(radio._DeviceInfo) == 560
-    assert radio._DeviceInfo.name.offset == 64
+    assert ctypes.sizeof(radio.DeviceInfo) == 560
+    assert radio.DeviceInfo.name.offset == 64
     assert ctypes.sizeof(radio._Search) == (
         40 if ctypes.sizeof(ctypes.c_void_p) == 8 else 32
     )

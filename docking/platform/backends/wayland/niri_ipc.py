@@ -89,7 +89,7 @@ _NIRI_WORKSPACE_EVENTS = {
 }
 
 
-def _niri_socket_path(environ: Mapping[str, str] | None = None) -> Path | None:
+def niri_socket_path(environ: Mapping[str, str] | None = None) -> Path | None:
     """Return the Niri IPC socket path from the process environment."""
     env = os.environ if environ is None else environ
     raw = env.get("NIRI_SOCKET", "").strip()
@@ -189,7 +189,7 @@ class NiriIpcClient:
                     if not chunk:
                         break
                     chunks.append(chunk)
-            return _parse_response(b"".join(chunks))
+            return parse_response(b"".join(chunks))
         except OSError as exc:
             log.info("Niri IPC request failed: %s", exc)
             return {}
@@ -385,7 +385,7 @@ class NiriWindowService(WindowService):
 
     def live_window(self, window_id: WindowId) -> WindowSnapshot | None:
         """Resolve a fresh target; a failed query must not reuse cached PIDs."""
-        niri_id = _niri_window_id(window_id)
+        niri_id = niri_window_id(window_id)
         if niri_id is None:
             return None
         raw = self._client.ok_data({"Windows": None}, "Windows")
@@ -421,7 +421,7 @@ class NiriWindowService(WindowService):
 
     def activate(self, window_id: WindowId) -> ActionResult:
         """Focus a Niri window by id."""
-        niri_id = _niri_window_id(window_id)
+        niri_id = niri_window_id(window_id)
         if niri_id is None or niri_id not in self._records:
             return ActionResult.NOT_FOUND
         return self._client.action({"FocusWindow": {"id": niri_id}})
@@ -443,7 +443,7 @@ class NiriWindowService(WindowService):
 
     def close(self, window_id: WindowId) -> ActionResult:
         """Close a Niri window by id."""
-        niri_id = _niri_window_id(window_id)
+        niri_id = niri_window_id(window_id)
         if niri_id is None or niri_id not in self._records:
             return ActionResult.NOT_FOUND
         return self._client.action({"CloseWindow": {"id": niri_id}})
@@ -478,7 +478,7 @@ class NiriWindowService(WindowService):
 
     def fullscreen(self, window_id: WindowId) -> ActionResult:
         """Toggle fullscreen state for a Niri window."""
-        niri_id = _niri_window_id(window_id)
+        niri_id = niri_window_id(window_id)
         if niri_id is None or niri_id not in self._records:
             return ActionResult.NOT_FOUND
         return self._client.action({"FullscreenWindow": {"id": niri_id}})
@@ -912,7 +912,7 @@ def load_niri_window_service(
     process_identity_service: ProcessIdentityService,
 ) -> NiriWindowService | None:
     """Return a Niri WindowService when the IPC socket is detectable."""
-    socket_path = _niri_socket_path()
+    socket_path = niri_socket_path()
     if socket_path is None or not socket_path.exists():
         return None
     client = NiriIpcClient(socket_path=socket_path)
@@ -930,7 +930,7 @@ def load_niri_window_service(
 
 def load_niri_workspace_service() -> NiriWorkspaceService | None:
     """Return a Niri WorkspaceService when the IPC socket is detectable."""
-    socket_path = _niri_socket_path()
+    socket_path = niri_socket_path()
     if socket_path is None or not socket_path.exists():
         return None
     client = NiriIpcClient(socket_path=socket_path)
@@ -945,7 +945,7 @@ def load_niri_workspace_service() -> NiriWorkspaceService | None:
 
 def load_niri_desktop_action_service() -> NiriDesktopActionService | None:
     """Return Niri desktop actions when the IPC socket is detectable."""
-    socket_path = _niri_socket_path()
+    socket_path = niri_socket_path()
     if socket_path is None or not socket_path.exists():
         return None
     return NiriDesktopActionService(client=NiriIpcClient(socket_path=socket_path))
@@ -953,7 +953,7 @@ def load_niri_desktop_action_service() -> NiriDesktopActionService | None:
 
 def load_niri_preview_service() -> NiriPreviewService | None:
     """Return a Niri PreviewService when the IPC socket is detectable."""
-    socket_path = _niri_socket_path()
+    socket_path = niri_socket_path()
     if socket_path is None or not socket_path.exists():
         return None
     return NiriPreviewService(socket_path=str(socket_path))
@@ -967,7 +967,7 @@ def niri_pick_color(
     Returns an ``(r, g, b)`` tuple of byte values (0-255), or ``None`` when
     the picker is unavailable or the user cancels.
     """
-    path = socket_path or _niri_socket_path()
+    path = socket_path or niri_socket_path()
     if path is None:
         return None
     try:
@@ -983,7 +983,7 @@ def niri_pick_color(
                 if not chunk:
                     break
                 chunks.append(chunk)
-        reply = _parse_response(b"".join(chunks))
+        reply = parse_response(b"".join(chunks))
         ok = reply.get("Ok")
         ok_object = as_json_object(ok)
         if ok_object is not None:
@@ -1068,7 +1068,7 @@ class NiriPreviewService(PreviewService):
     ) -> PreviewImage | None:
         if window_id.backend is not DisplayServer.WAYLAND:
             return None
-        niri_id = _niri_window_id(window_id)
+        niri_id = niri_window_id(window_id)
         if niri_id is None:
             return None
 
@@ -1169,7 +1169,7 @@ def _workspaces_by_id(items: list[JsonValue]) -> dict[int, JsonObject]:
     return workspaces
 
 
-def _parse_response(raw: bytes) -> JsonObject:
+def parse_response(raw: bytes) -> JsonObject:
     """Parse one reply line from Niri IPC into a dict."""
     text = raw.decode("utf-8", errors="replace").strip()
     if not text:
@@ -1339,7 +1339,7 @@ def _float_value(value: JsonValue) -> float | None:
         return None
 
 
-def _niri_window_id(window_id: WindowId) -> int | None:
+def niri_window_id(window_id: WindowId) -> int | None:
     """Extract a Niri numeric window id from a backend-neutral ``WindowId``."""
     if window_id.backend is not DisplayServer.WAYLAND:
         return None

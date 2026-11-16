@@ -32,7 +32,7 @@ class SessionAction(NamedTuple):
 
 
 LOCK_SCREEN_LABEL = _("Lock Screen")
-_ACTIONS: list[SessionAction] = [
+ACTIONS: list[SessionAction] = [
     SessionAction(LOCK_SCREEN_LABEL, "lock"),
     SessionAction(_("Log Out"), "logout"),
     SessionAction(_("Suspend"), "suspend"),
@@ -40,7 +40,7 @@ _ACTIONS: list[SessionAction] = [
     SessionAction(_("Shut Down"), "poweroff"),
 ]
 
-_LOCK_SCREEN_DBUS_CANDIDATES: tuple[tuple[str, str, str], ...] = (
+LOCK_SCREEN_DBUS_CANDIDATES: tuple[tuple[str, str, str], ...] = (
     (
         "org.mate.ScreenSaver",
         "/org/mate/ScreenSaver",

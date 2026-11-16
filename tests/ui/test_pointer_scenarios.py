@@ -207,23 +207,23 @@ class _ScenarioHarness:
         self._geometry_signature = MethodType(
             dock_window_mod.DockWindow._geometry_signature, self
         )
-        self._build_and_store_geometry_frame = MethodType(
-            dock_window_mod.DockWindow._build_and_store_geometry_frame, self
+        self.build_and_store_geometry_frame = MethodType(
+            dock_window_mod.DockWindow.build_and_store_geometry_frame, self
         )
-        self._current_or_build_geometry_frame = MethodType(
-            dock_window_mod.DockWindow._current_or_build_geometry_frame, self
+        self.current_or_build_geometry_frame = MethodType(
+            dock_window_mod.DockWindow.current_or_build_geometry_frame, self
         )
-        self._clear_scheduled_redraw = MethodType(
-            dock_window_mod.DockWindow._clear_scheduled_redraw, self
+        self.clear_scheduled_redraw = MethodType(
+            dock_window_mod.DockWindow.clear_scheduled_redraw, self
         )
         self._flush_scheduled_redraw = MethodType(
             dock_window_mod.DockWindow._flush_scheduled_redraw, self
         )
-        self._schedule_redraw = MethodType(
-            dock_window_mod.DockWindow._schedule_redraw, self
+        self.schedule_redraw = MethodType(
+            dock_window_mod.DockWindow.schedule_redraw, self
         )
-        self._invalidate_current_geometry_frame = MethodType(
-            dock_window_mod.DockWindow._invalidate_current_geometry_frame, self
+        self.invalidate_current_geometry_frame = MethodType(
+            dock_window_mod.DockWindow.invalidate_current_geometry_frame, self
         )
 
     def get_size(self) -> tuple[int, int]:

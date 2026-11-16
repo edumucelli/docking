@@ -65,7 +65,7 @@ def parse_vdf(text: str) -> dict[str, object]:
     return root
 
 
-def _read_vdf(path: Path) -> dict[str, object]:
+def read_vdf(path: Path) -> dict[str, object]:
     with path.open("rb") as stream:
         data = stream.read(MAX_VDF_BYTES + 1)
     if len(data) > MAX_VDF_BYTES:

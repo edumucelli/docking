@@ -320,12 +320,12 @@ def _foreground_snapshot(native):
     """Observe current GUI focus without sending input or inspecting its text."""
     import ctypes
 
-    from tools.windows.visual.input_editor import _window_facts
+    from tools.windows.visual.input_editor import window_facts
     from tools.windows.visual.input_environment import bind
     from tools.windows.visual.input_oracle import GUIThreadInfo
 
     hwnd = int(native.user.GetForegroundWindow() or 0)
-    foreground = _window_facts(native.user, hwnd)
+    foreground = window_facts(native.user, hwnd)
     observed = {"foreground": foreground}
     thread = foreground.get("thread", 0)
     if not thread:
@@ -344,8 +344,8 @@ def _foreground_snapshot(native):
     if available:
         observed.update(
             flags=info.flags,
-            active=_window_facts(native.user, int(info.active or 0)),
-            focus=_window_facts(native.user, int(info.focus or 0)),
+            active=window_facts(native.user, int(info.active or 0)),
+            focus=window_facts(native.user, int(info.focus or 0)),
         )
     else:
         observed["gui_error"] = ctypes.get_last_error()
@@ -356,7 +356,7 @@ def _focus_program(native, process, executable, window, observed):
     """Focus only the pinned owned fixture before its ordinary close request."""
     from docking.platform.backends.base import ActionResult
     from docking.platform.backends.windows.windows import Win32WindowAPI
-    from tools.windows.visual.input_editor import _topmost
+    from tools.windows.visual.input_editor import is_topmost
     from tools.windows.visual.window_focus import focus_caption
 
     expected = {key: window[key] for key in ("hwnd", "pid", "class", "title")}
@@ -384,7 +384,7 @@ def _focus_program(native, process, executable, window, observed):
 
     before = current()
     bounds = list(before["rect"])
-    topmost = _topmost(native.user, expected["hwnd"])
+    topmost = is_topmost(native.user, expected["hwnd"])
     observed["target"] = {**expected, "created": created, "rect": list(before["rect"])}
     observed["result"] = "already-foreground"
     if native.user.GetForegroundWindow() != expected["hwnd"]:
@@ -416,7 +416,7 @@ def _focus_program(native, process, executable, window, observed):
             observed["normal_foreground_verified"] = True
 
     assert current()["rect"] == bounds, "Owned association moved before interaction"
-    assert _topmost(native.user, expected["hwnd"]) == topmost, (
+    assert is_topmost(native.user, expected["hwnd"]) == topmost, (
         "Owned association topmost changed before interaction"
     )
     # Completion includes one real interaction with our fixture even if it was
@@ -438,7 +438,7 @@ def _focus_program(native, process, executable, window, observed):
     # Observe the actual owned GUI state after our single activation request.
     native.wait_for(foreground, "Owned association did not receive native focus")
     assert current()["rect"] == bounds, "Owned association focus changed its bounds"
-    assert _topmost(native.user, expected["hwnd"]) == topmost, (
+    assert is_topmost(native.user, expected["hwnd"]) == topmost, (
         "Owned association focus changed its topmost state"
     )
     return observed["native_focus"]
@@ -980,7 +980,7 @@ def _registered_association_checks(
                 assert selected.has_gio_source, (
                     "Association lost its retained Gio handle"
                 )
-                assert registry._gio_handle_for(selected.desktop_id) is not None, (
+                assert registry.gio_handle_for(selected.desktop_id) is not None, (
                     "Registered association has no launch handle"
                 )
                 if mode == "explicit":

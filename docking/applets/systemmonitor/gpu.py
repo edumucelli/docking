@@ -52,9 +52,9 @@ def parse_nvidia_smi_output(text: str) -> GpuStats | None:
             continue
         return GpuStats(
             name=name,
-            utilization=_percent_to_fraction(utilization),
-            memory_used_mib=_int_or_none(memory_used),
-            memory_total_mib=_int_or_none(memory_total),
+            utilization=percent_to_fraction(utilization),
+            memory_used_mib=int_or_none(memory_used),
+            memory_total_mib=int_or_none(memory_total),
         )
     return None
 
@@ -83,21 +83,21 @@ def gpu_summary(stats: GpuStats | None) -> str | None:
     return " | ".join(parts)
 
 
-def _percent_to_fraction(value: str) -> float | None:
+def percent_to_fraction(value: str) -> float | None:
     try:
         return max(0.0, min(1.0, float(value) / 100.0))
     except ValueError:
         return None
 
 
-def _int_or_none(value: str) -> int | None:
+def int_or_none(value: str) -> int | None:
     try:
         return int(value)
     except ValueError:
         return None
 
 
-def _bytes_to_mib(value: int | None) -> int | None:
+def bytes_to_mib(value: int | None) -> int | None:
     if value is None:
         return None
     return int(value / 1024 / 1024)

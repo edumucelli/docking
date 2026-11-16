@@ -94,7 +94,7 @@ class _ConnectionParameters(ctypes.Structure):
 
 
 @dataclass(frozen=True)
-class _RadioState:
+class RadioState:
     identifier: str
     index: int
     software: bool
@@ -102,7 +102,7 @@ class _RadioState:
 
 
 @dataclass(frozen=True)
-class _Candidate:
+class Candidate:
     identifier: str
     ssid: bytes
     profile: str
@@ -133,7 +133,7 @@ def _check(result: int, action: str) -> None:
         raise OSError(result, f"{action} failed")
 
 
-class _Wlan:
+class Wlan:
     def __init__(self):
         dll = windows_ctypes.WinDLL("wlanapi", use_last_error=True)
         self._open = bind(
@@ -251,7 +251,7 @@ class _Wlan:
                 for e in entries
             ]
 
-    def radios(self) -> tuple[list[str], list[_RadioState]]:
+    def radios(self) -> tuple[list[str], list[RadioState]]:
         with self._client() as handle:
             identifiers = self._identifiers(handle)
             radios = []
@@ -282,7 +282,7 @@ class _Wlan:
                             raise OSError("Invalid WLAN radio state")
                         phys = (_PhyRadio * count).from_address(pointer.value + 4)
                         radios.extend(
-                            _RadioState(
+                            RadioState(
                                 identifier,
                                 int(p.index),
                                 p.software == 1,
@@ -295,7 +295,7 @@ class _Wlan:
                     log.debug("Wi-Fi radio unavailable for %s: %s", identifier, exc)
             return identifiers, radios
 
-    def available(self, *, scan: bool) -> list[_Candidate]:
+    def available(self, *, scan: bool) -> list[Candidate]:
         with self._client() as handle:
             result = []
             failure = None
@@ -337,7 +337,7 @@ class _Wlan:
                                 .split("\0", 1)[0]
                             )
                             result.append(
-                                _Candidate(
+                                Candidate(
                                     identifier,
                                     bytes(value.ssid.data[: value.ssid.length]),
                                     profile,
@@ -372,7 +372,7 @@ class _Wlan:
                     "WlanSetInterface(radio)",
                 )
 
-    def connect(self, candidate: _Candidate) -> None:
+    def connect(self, candidate: Candidate) -> None:
         if not candidate.profile or "\0" in candidate.profile:
             raise OSError("Missing WLAN connection profile")
         text = candidate.profile.encode("utf-16-le", errors="surrogatepass")
@@ -401,5 +401,5 @@ class _Wlan:
 
 
 @lru_cache(maxsize=1)
-def _wlan() -> _Wlan:
-    return _Wlan()
+def wlan() -> Wlan:
+    return Wlan()

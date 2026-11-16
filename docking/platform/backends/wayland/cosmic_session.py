@@ -69,8 +69,8 @@ from docking.platform.backends.wayland.previews import (
 from docking.platform.backends.wayland.runtime import WaylandProtocolRuntime
 from docking.platform.backends.wayland.services import WaylandLayerShellSurfaceService
 from docking.platform.backends.wayland.toplevels import (
+    ToplevelState,
     WaylandForeignToplevelWindowService,
-    _ToplevelState,
 )
 
 if TYPE_CHECKING:
@@ -118,7 +118,7 @@ class CosmicWindowService(WaylandForeignToplevelWindowService):
         self._workspace_watch = None
         super().stop()
 
-    def _on_current_workspace(self, state: _ToplevelState) -> bool | None:
+    def _on_current_workspace(self, state: ToplevelState) -> bool | None:
         if not self.supports_workspace_visibility:
             return None
         if state.sticky:
@@ -131,7 +131,7 @@ class CosmicWindowService(WaylandForeignToplevelWindowService):
             return None
         return bool(memberships & active)
 
-    def _taskbar_state(self, state: _ToplevelState) -> bool:
+    def _taskbar_state(self, state: ToplevelState) -> bool:
         return (
             not self.supports_workspace_visibility
             or self._config is None
@@ -139,7 +139,7 @@ class CosmicWindowService(WaylandForeignToplevelWindowService):
             or self._on_current_workspace(state) is True
         )
 
-    def _snapshot_for(self, state: _ToplevelState) -> WindowSnapshot:
+    def _snapshot_for(self, state: ToplevelState) -> WindowSnapshot:
         current = self._on_current_workspace(state)
         visible = (
             bool(state.outputs) and current and state.minimized is False

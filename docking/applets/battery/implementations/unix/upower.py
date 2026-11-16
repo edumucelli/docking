@@ -146,7 +146,7 @@ def _parse_duration_seconds(*, raw: str) -> int | None:
     return max(1, int(total))
 
 
-def _upower_seconds_remaining(*, bat_name: str, status: str) -> int | None:
+def upower_seconds_remaining(*, bat_name: str, status: str) -> int | None:
     if shutil.which("upower") is None:
         return None
     normalized = status.lower().strip()

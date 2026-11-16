@@ -12,10 +12,10 @@ from docking.applets.network.backend import (
 )
 from docking.applets.network.implementations.windows.vpn import WindowsVpn
 from docking.applets.network.implementations.windows.wifi import (
-    _Candidate,
-    _RadioState,
-    _Wlan,
-    _wlan,
+    Candidate,
+    RadioState,
+    Wlan,
+    wlan,
 )
 from docking.applets.network.state import AvailableNetwork, dedupe_networks
 from docking.i18n import _
@@ -26,18 +26,18 @@ _SCAN_INTERVAL_S = 15.0
 
 
 class WindowsConnectionManager(ConnectionManager):
-    def __init__(self, *, api: _Wlan | None = None, vpn: WindowsVpn | None = None):
+    def __init__(self, *, api: Wlan | None = None, vpn: WindowsVpn | None = None):
         self._api = api
         self._vpn = vpn if vpn is not None else WindowsVpn()
         self._identifiers: list[str] = []
-        self._radios: list[_RadioState] = []
-        self._choices: dict[str, _Candidate] = {}
+        self._radios: list[RadioState] = []
+        self._choices: dict[str, Candidate] = {}
         self._last_scan = float("-inf")
         self._reason = ""
         self.changed: Callable[[], None] = lambda: None
 
-    def _native(self) -> _Wlan:
-        return self._api if self._api is not None else _wlan()
+    def _native(self) -> Wlan:
+        return self._api if self._api is not None else wlan()
 
     def refresh(self) -> None:
         try:
