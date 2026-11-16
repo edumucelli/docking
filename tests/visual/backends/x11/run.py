@@ -1037,6 +1037,12 @@ def session(args):
         results.append(
             {"case": "setup", "status": "fail", "detail": traceback.format_exc()}
         )
+    if args.desktop == "lxde":
+        with suppress(FileNotFoundError):
+            shutil.copyfile(
+                Path(env["XDG_CACHE_HOME"]) / "lxsession/LXDE/run.log",
+                output / "lxsession.log",
+            )
     report(output, metadata, results)
     for result in results:
         print(f"{result['case']}: {result['status']}", flush=True)

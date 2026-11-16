@@ -422,6 +422,7 @@ class DockHarness:
             drawing_area=SimpleNamespace(queue_draw=MagicMock()),
             update_input_region=MagicMock(),
             invalidate_current_geometry_frame=MagicMock(),
+            dodge_monitor=None,
         )
         controller = placement_mod.DockPlacementController(
             window,
@@ -827,6 +828,7 @@ class DockHarness:
                 surface_service=surface_service,
                 drawing_area=SimpleNamespace(queue_draw=MagicMock()),
                 _cache=dock_window_mod._DockWindowCache(),
+                dodge_monitor=None,
             )
         )
         window.update_input_region = MethodType(
