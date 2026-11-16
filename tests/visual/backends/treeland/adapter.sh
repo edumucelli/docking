@@ -8,7 +8,7 @@ adapter_prepare() {
 }
 adapter_start() {
     start_sway_parent
-    WAYLAND_DISPLAY="$LAB_PARENT_DISPLAY" WLR_BACKENDS=wayland treeland \
+    WAYLAND_DISPLAY="$LAB_PARENT_DISPLAY" WLR_BACKENDS=wayland treeland --console-log \
         >"$COMPOSITOR_LOG" 2>&1 &
     ADAPTER_COMPOSITOR_PID=$!
     for _ in $(seq 160); do

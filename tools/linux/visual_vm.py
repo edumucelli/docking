@@ -228,6 +228,19 @@ def main() -> int:
                 subprocess.run(
                     [*ssh, "sudo cloud-init status --wait"], check=True, timeout=900
                 )
+                if args.target == "gamescope":
+                    # Lavapipe exports its CPU-rendered buffers through udmabuf.
+                    subprocess.run(
+                        [
+                            *ssh,
+                            (
+                                "sudo modprobe udmabuf && "
+                                "sudo chgrp video /dev/udmabuf && "
+                                "sudo chmod 660 /dev/udmabuf"
+                            ),
+                        ],
+                        check=True,
+                    )
                 source = work / "source.tar"
                 files = (
                     subprocess.check_output(

@@ -224,6 +224,10 @@ class Observer:
         self.windows()
         return self.screen.get_window_manager_name()
 
+    def composited(self):
+        self.windows()
+        return self.Gdk.Screen.get_default().is_composited()
+
     def close(self):
         self.pointer.close()
         # The handle must finalize its screen before destroying its window
@@ -766,7 +770,7 @@ def observe(args):
                 in metadata["window_manager"].casefold()
             ), "Unexpected native desktop window manager"
         wait_for(
-            observer.Gdk.Screen.get_default().is_composited,
+            observer.composited,
             "Window manager compositing unavailable",
         )
         if args.minimum:
@@ -799,6 +803,10 @@ def observe(args):
                 return False
 
             wait_for(desktop_painted, "Native desktop never painted", timeout=30)
+            if args.desktop == "gnome":
+                observer.pointer.escape()
+                time.sleep(0.5)
+                observer.pointer.escape()
         if args.pytest:
 
             def unit_tests():
@@ -860,7 +868,8 @@ def session(args):
             env = private_environment(Path(temporary), args.desktop)
             if args.minimum:
                 env["GSETTINGS_BACKEND"] = "keyfile"
-                env["DBUS_SYSTEM_BUS_ADDRESS"] = env["DBUS_SESSION_BUS_ADDRESS"]
+                if args.desktop == "gnome":
+                    env["DBUS_SYSTEM_BUS_ADDRESS"] = env["DBUS_SESSION_BUS_ADDRESS"]
                 if args.desktop == "plasma":
                     env["KWIN_COMPOSE"] = "O2"
                     env["QT_QUICK_BACKEND"] = "software"

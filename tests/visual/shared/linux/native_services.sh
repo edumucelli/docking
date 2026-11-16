@@ -18,9 +18,13 @@ if [ "${1:-}" != --session ]; then
     fi
     if [ -n "${DOCKING_LAB_RENDER_NODE:-}" ]; then
         [ -c "$DOCKING_LAB_RENDER_NODE" ] || { echo "Render node must be a character device" >&2; exit 1; }
-        device_args=(--device "$DOCKING_LAB_RENDER_NODE" --group-add "$(stat -c %g "$DOCKING_LAB_RENDER_NODE")"
+        device_args+=(--device "$DOCKING_LAB_RENDER_NODE" --group-add "$(stat -c %g "$DOCKING_LAB_RENDER_NODE")"
             -e LAB_PARENT_RENDERER=gles2 -e LAB_KWIN_COMPOSE=O2
             -e "WLR_RENDER_DRM_DEVICE=$DOCKING_LAB_RENDER_NODE")
+    fi
+    if [ "$compositor" = gamescope ]; then
+        [ -c /dev/udmabuf ] || { echo "GameScope CPU rendering requires /dev/udmabuf" >&2; exit 1; }
+        device_args+=(--device /dev/udmabuf --group-add "$(stat -c %g /dev/udmabuf)")
     fi
     docker run --rm --entrypoint cat "$image" /etc/passwd > "$evidence/.passwd"
     docker run --rm --entrypoint cat "$image" /etc/group > "$evidence/.group"
@@ -86,8 +90,8 @@ if [ "$compositor" = gnome-fallback ] || [ "$compositor" = weston ]; then
     export LAB_EXPECTED_BACKEND=reduced LAB_CAPTURE_MODE=x11
 fi
 if [ "$compositor" = cage ]; then export LAB_EXPECTED_BACKEND=reduced; fi
-if [ "$compositor" = jay ] || [ "$compositor" = miriway ]; then export LAB_CAPTURE_MODE=x11; fi
-if [ "$compositor" = treeland ] || [ "$compositor" = gamescope ]; then
+if [ "$compositor" = hyprland ] || [ "$compositor" = miriway ]; then export LAB_CAPTURE_MODE=x11; fi
+if [ "$compositor" = treeland ] || [ "$compositor" = gamescope ] || [ "$compositor" = jay ]; then
     export LAB_CAPTURE_MODE=parent
 fi
 if [ "$compositor" = cinnamon ]; then

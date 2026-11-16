@@ -3,7 +3,7 @@
 import ctypes
 from unittest.mock import MagicMock
 
-from docking.platform.backends.base import Rect
+from docking.platform.backends.base import MonitorSnapshot, Rect
 from docking.platform.backends.x11.impl import workarea as workarea_mod
 from docking.platform.backends.x11.impl.workarea import (
     ExternalWorkareaTracker,
@@ -52,6 +52,32 @@ def test_no_external_panel_preserves_full_monitor_geometry():
     )
 
     assert result == monitor
+
+
+def test_native_panel_is_preserved_without_counting_our_own_later_strut():
+    tracker = ExternalWorkareaTracker()
+    tracker._snapshot = workarea_mod.ExternalStrutSnapshot(True, 1920, 1080, ())
+    geometry = Rect(0, 0, 1920, 1080)
+    monitor = MonitorSnapshot(0, geometry, Rect(0, 32, 1920, 1048))
+    assert tracker.workarea_for(monitor) == monitor.workarea
+
+    own_strut_area = MonitorSnapshot(0, geometry, Rect(0, 85, 1920, 995))
+    assert tracker.workarea_for(own_strut_area) == monitor.workarea
+
+
+def test_native_panel_combines_with_changing_foreign_struts():
+    tracker = ExternalWorkareaTracker()
+    bottom_panel = _reservation(1, _partial(bottom=40))
+    tracker._snapshot = workarea_mod.ExternalStrutSnapshot(
+        True, 1920, 1080, (bottom_panel,)
+    )
+    monitor = MonitorSnapshot(0, Rect(0, 0, 1920, 1080), Rect(0, 32, 1920, 1008))
+    assert tracker.workarea_for(monitor) == Rect(0, 32, 1920, 1008)
+
+    tracker._snapshot = workarea_mod.ExternalStrutSnapshot(True, 1920, 1080, ())
+    assert tracker.workarea_for(monitor) == Rect(0, 32, 1920, 1048)
+    tracker.stop()
+    assert tracker._native_workareas == {}
 
 
 def test_panels_on_all_edges_compose_by_root_boundary():

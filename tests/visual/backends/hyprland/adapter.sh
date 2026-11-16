@@ -7,10 +7,13 @@ adapter_prepare() {
     export XDG_CURRENT_DESKTOP=Hyprland XDG_SESSION_TYPE=wayland GDK_BACKEND=wayland
     export AQ_BACKENDS=wayland LIBGL_ALWAYS_SOFTWARE="${LAB_SOFTWARE_RENDERING:-1}"
     unset DISPLAY
-    prepare_sway_parent
 }
 adapter_start() {
-    start_sway_parent
+    start_x11_child weston --backend=x11-backend.so --renderer=gl \
+        --shell=kiosk-shell.so --socket=lab-parent --no-config --idle-time=0 \
+        --width="${LAB_WIDTH:-1280}" --height="${LAB_HEIGHT:-720}"
+    ADAPTER_NESTED_PARENT_PID="$ADAPTER_COMPOSITOR_PID"
+    export LAB_PARENT_DISPLAY="$WAYLAND_DISPLAY"
     WAYLAND_DISPLAY="$LAB_PARENT_DISPLAY" Hyprland \
         >"$COMPOSITOR_LOG" 2>&1 &
     ADAPTER_COMPOSITOR_PID=$!
@@ -39,5 +42,5 @@ adapter_start() {
     return 1
 }
 adapter_wait_ready() { hyprctl -j monitors >"$LAB_DIR/monitors.json"; }
-adapter_screenshot() { capture_parent "$1"; }
+adapter_screenshot() { capture_x11_parent "$1"; }
 adapter_stop() { adapter_cleanup; }

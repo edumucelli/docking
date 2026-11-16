@@ -155,7 +155,7 @@ RUN command -v wayfire && wayfire --version
 
 # Hyprland's nested Aquamarine backend needs a render node and dmabuf feedback.
 FROM base AS hyprland
-RUN pacman -Syu --noconfirm --needed hyprland && pacman -Scc --noconfirm
+RUN pacman -Syu --noconfirm --needed hyprland weston xorg-server-xvfb xorg-xauth xdotool && pacman -Scc --noconfirm
 RUN command -v Hyprland && command -v hyprctl
 
 FROM base AS treeland
@@ -169,7 +169,7 @@ RUN command -v gamescope
 
 FROM base AS jay
 RUN pacman -Syu --noconfirm --needed rust cargo gcc libinput pango fontconfig \
-        xorg-server-xvfb xorg-xauth xdotool vulkan-swrast \
+        xorg-xwayland vulkan-swrast \
     && pacman -Scc --noconfirm
 RUN cargo install --locked --version 1.15.1 --root /usr/local jay-compositor \
     && rm -rf /root/.cargo/registry /root/.cargo/git

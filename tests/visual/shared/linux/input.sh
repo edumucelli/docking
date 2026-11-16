@@ -65,7 +65,9 @@ start_lab_input() {
     adapter_screenshot "$LAB_DIR/input-probe.png"
     terminate_pid "$ADAPTER_PROBE_PID"
     ADAPTER_PROBE_PID=""
-    # Niri's top-left hot corner opens its overview and changes the whole scene.
-    if [ "$COMPOSITOR" = niri ]; then lab_pointer 100 100 || true
-    else lab_pointer 0 0 || true; fi
+    # Overview hot corners must not change the scene after input verification.
+    case "$COMPOSITOR" in
+        niri|gnome|gnome-fallback) lab_pointer 100 100 || true ;;
+        *) lab_pointer 0 0 || true ;;
+    esac
 }

@@ -143,6 +143,10 @@ adapter_cleanup() {
         terminate_pid "$ADAPTER_COMPOSITOR_PID"
         ADAPTER_COMPOSITOR_PID=""
     fi
+    if [ -n "${ADAPTER_NESTED_PARENT_PID:-}" ]; then
+        terminate_pid "$ADAPTER_NESTED_PARENT_PID"
+        ADAPTER_NESTED_PARENT_PID=""
+    fi
     # After the child: a nested compositor is a client of the parent, so killing
     # the parent first would leave the child to die of a broken connection.
     if [ -n "$ADAPTER_PARENT_PID" ]; then

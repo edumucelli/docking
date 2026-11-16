@@ -58,7 +58,12 @@ TARGETS = (
         virtual_gpu=True,
     ),
     Target(
-        "jay", "layer_shell", "jay", image_file="Dockerfile.arch", services="foreign"
+        "jay",
+        "layer_shell",
+        "jay",
+        image_file="Dockerfile.arch",
+        services="foreign",
+        virtual_gpu=True,
     ),
     Target("miriway", "layer_shell", "miriway", services="foreign"),
     Target(

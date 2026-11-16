@@ -166,6 +166,10 @@ if [ -n "${LAB_RENDER_DEVICE:-}" ]; then
     fi
     device_args+=(--device "$LAB_RENDER_DEVICE" --group-add "$(stat -c '%g' "$LAB_RENDER_DEVICE")")
 fi
+if [ "$COMPOSITOR" = gamescope ]; then
+    [ -c /dev/udmabuf ] || { echo "GameScope CPU rendering requires /dev/udmabuf" >&2; exit 2; }
+    device_args+=(--device /dev/udmabuf --group-add "$(stat -c '%g' /dev/udmabuf)")
+fi
 docker run --rm \
     "${device_args[@]}" \
     --user "$(id -u):$(id -g)" \

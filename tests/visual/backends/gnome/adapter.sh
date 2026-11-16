@@ -13,6 +13,7 @@ adapter_prepare() {
     gsettings set org.gnome.desktop.background picture-uri-dark "''"
     gsettings set org.gnome.desktop.background primary-color "'#000000'"
     gsettings set org.gnome.desktop.background color-shading-type "'solid'"
+    gsettings set org.gnome.desktop.notifications show-banners false
     if gnome-shell --help | grep -q -- '--nested'; then
         GNOME_LAB_MODE=nested
     else
@@ -51,9 +52,13 @@ adapter_wait_ready() {
             org.gnome.Shell >/dev/null 2>&1; then
             sleep 2
             if [ "$GNOME_LAB_MODE" = nested ]; then
+                local window
+                window="$(DISPLAY="$(cat "$LAB_DIR/outer-display")" \
+                    XAUTHORITY="$(cat "$LAB_DIR/outer-authority")" \
+                    xdotool search --onlyvisible --name '' | tail -1)"
                 DISPLAY="$(cat "$LAB_DIR/outer-display")" \
                     XAUTHORITY="$(cat "$LAB_DIR/outer-authority")" \
-                    xdotool search --onlyvisible --name . windowfocus key Escape
+                    xdotool windowfocus "$window" key Escape key Escape
             fi
             return 0
         fi

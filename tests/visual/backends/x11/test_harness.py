@@ -25,6 +25,23 @@ def frame(
     return Frame(width, height, channels, stride, bytes(pixels))
 
 
+def test_compositor_readiness_dispatches_pending_window_manager_events():
+    ready = False
+
+    def dispatch():
+        nonlocal ready
+        ready = True
+
+    observer = run.Observer.__new__(run.Observer)
+    observer.windows = dispatch
+    observer.Gdk = SimpleNamespace(
+        Screen=SimpleNamespace(
+            get_default=lambda: SimpleNamespace(is_composited=lambda: ready)
+        )
+    )
+    assert observer.composited()
+
+
 @pytest.mark.parametrize("channels,padding", [(3, 0), (3, 2), (4, 4)])
 @pytest.mark.parametrize("color", [(30, 190, 220), (35, 224, 255)])
 def test_markers_respect_channels_row_padding_and_hover_brightness(
