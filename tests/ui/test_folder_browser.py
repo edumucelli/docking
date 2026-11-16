@@ -9,6 +9,7 @@ import pytest
 
 from docking.core.config import Config
 from docking.core.items import DockItem
+from docking.platform.icon_overrides import custom_icon_path, set_custom_icon
 from docking.ui.folder.browser import FolderBrowser, FolderPrefs
 from docking.ui.folder.stack import FolderStackController
 from tests.platform_factories import make_target_service
@@ -197,6 +198,37 @@ def test_production_stack_requests_only_visible_icons_and_menu_requests_all(
         == 30
     )
     assert loader.resolve_file_icon.call_count == 30
+
+
+@pytest.mark.parametrize("key,value", [("sort", "size"), ("show_hidden", True)])
+@pytest.mark.parametrize("prefs_key", ["", "pinned-folder"])
+def test_folder_preferences_preserve_custom_icon_on_save(
+    tmp_path, browser, monkeypatch, key, value, prefs_key
+):
+    config_path = tmp_path / "dock.json"
+    config = Config.load(config_path, initial_pinned_factory=list)
+    item = DockItem(
+        desktop_id=tmp_path.as_uri(),
+        target=tmp_path.as_uri(),
+        kind="folder",
+        prefs_key=prefs_key,
+    )
+    icon = tmp_path / "custom-icon.png"
+    set_custom_icon(config, item, icon)
+    subject, _loader = browser
+    controller = FolderStackController(
+        config=config,
+        runtime=MagicMock(),
+        dock_window=MagicMock(),
+        target_service=subject._target_service,
+    )
+    monkeypatch.setattr(controller, "schedule_prewarm", lambda _item: None)
+
+    controller.update_folder_pref(item, key, value)
+
+    saved = Config.load(config_path)
+    assert saved.item_prefs[prefs_key or item.target][key] == value
+    assert custom_icon_path(saved, item) == icon
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Native Windows hidden attribute")

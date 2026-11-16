@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import subprocess
 from types import SimpleNamespace
+from unittest.mock import MagicMock
+
+import pytest
 
 import docking.applets.docker.applet as docker_applet_mod
 import docking.applets.docker.state as docker_state_mod
@@ -19,6 +22,7 @@ from docking.applets.docker.state import (
     stop_container,
 )
 from docking.core.config import Config
+from tests.applets.deferred_worker import DeferredWorker
 
 
 class _InlineWorker:
@@ -179,6 +183,38 @@ class TestDockerState:
 
 
 class TestDockerApplet:
+    @pytest.fixture(autouse=True)
+    def _worker_and_timer(self, monkeypatch):
+        monkeypatch.setattr(docker_applet_mod, "BackgroundWorker", _InlineWorker)
+        monkeypatch.setattr(
+            docker_applet_mod.GLib, "timeout_add_seconds", lambda *_args: 0
+        )
+
+    def test_initial_query_waits_for_worker_and_publishes_on_start(self, monkeypatch):
+        state = DockerState(available=True, containers=(_container(),))
+        query = MagicMock(return_value=state)
+        deferred = DeferredWorker()
+        monkeypatch.setattr(docker_applet_mod, "query_docker_state", query)
+        monkeypatch.setattr(
+            docker_applet_mod, "BackgroundWorker", lambda **_kwargs: deferred.worker
+        )
+        monkeypatch.setattr(
+            docker_applet_mod, "render_icon", lambda **_kwargs: object()
+        )
+
+        applet = DockerApplet(icon_size=48, config=Config())
+        query.assert_not_called()
+        assert applet._state.available is False
+        applet.start(notify=lambda: None)
+        query.assert_not_called()
+        assert len(deferred.tasks) == 1
+
+        deferred.read()
+        query.assert_called_once_with()
+        assert applet._state.available is False
+        deferred.publish()
+        assert applet.item.name == "Docker: 1 running container"
+
     def test_presents_state_and_tooltip(self, monkeypatch):
         state = DockerState(available=True, containers=(_container(),))
         monkeypatch.setattr(docker_applet_mod, "query_docker_state", lambda: state)
@@ -187,6 +223,7 @@ class TestDockerApplet:
         )
 
         applet = DockerApplet(icon_size=48, config=Config())
+        applet.start(notify=lambda: None)
 
         assert applet.item.name == "Docker: 1 running container"
         assert applet.item.icon is not None
@@ -200,9 +237,8 @@ class TestDockerApplet:
         monkeypatch.setattr(
             docker_applet_mod, "render_icon", lambda **_kwargs: object()
         )
-        monkeypatch.setattr(docker_applet_mod, "BackgroundWorker", _InlineWorker)
-
         applet = DockerApplet(icon_size=48, config=Config())
+        applet.start(notify=lambda: None)
         items = applet.get_menu_items()
 
         labels = [item.get_label() for item in items]
@@ -216,9 +252,8 @@ class TestDockerApplet:
         monkeypatch.setattr(
             docker_applet_mod, "render_icon", lambda **_kwargs: object()
         )
-        monkeypatch.setattr(docker_applet_mod, "BackgroundWorker", _InlineWorker)
-
         applet = DockerApplet(icon_size=48, config=Config())
+        applet.start(notify=lambda: None)
         items = applet.get_menu_items()
         container_item = next(
             item for item in items if item.get_label() == "web (nginx:latest)"
@@ -249,9 +284,8 @@ class TestDockerApplet:
         monkeypatch.setattr(
             docker_applet_mod, "render_icon", lambda **_kwargs: object()
         )
-        monkeypatch.setattr(docker_applet_mod, "BackgroundWorker", _InlineWorker)
-
         applet = DockerApplet(icon_size=48, config=Config())
+        applet.start(notify=lambda: None)
         container_item = next(
             item
             for item in applet.get_menu_items()
@@ -274,9 +308,8 @@ class TestDockerApplet:
         monkeypatch.setattr(
             docker_applet_mod, "render_icon", lambda **_kwargs: object()
         )
-        monkeypatch.setattr(docker_applet_mod, "BackgroundWorker", _InlineWorker)
-
         applet = DockerApplet(icon_size=48, config=Config())
+        applet.start(notify=lambda: None)
         applet.on_clicked()
 
         assert applet.item.name == "Docker: 1 running container"

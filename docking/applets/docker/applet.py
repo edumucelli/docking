@@ -55,7 +55,7 @@ class DockerApplet(Applet):
     icon_name = "docker"
 
     def __init__(self, icon_size: int, config: Config) -> None:
-        self._state: DockerState = query_docker_state()
+        self._state = DockerState(available=False)
         self._timer_id: int = 0
         self._worker = BackgroundWorker(logger=log)
         super().__init__(icon_size=icon_size, config=config)
@@ -73,6 +73,7 @@ class DockerApplet(Applet):
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
+        self._tick()
         self._timer_id = GLib.timeout_add_seconds(POLL_INTERVAL_S, self._tick)
 
     def stop(self) -> None:
