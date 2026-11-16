@@ -10,6 +10,11 @@ dbus-uuidgen --ensure
 dbus-daemon --system --fork --nopidfile
 # Arch's dbus package delegates activation to systemd, absent in this container.
 /usr/lib/polkit-1/polkitd --no-debug >"${LAB_DIR:-/evidence}/polkit.log" 2>&1 &
+# Placement assertions distinguish dock pixels from a plain desktop background.
+python3 -c 'import cairo; cairo.ImageSurface(cairo.FORMAT_RGB24, 1, 1).write_to_png("/tmp/docking-background.png")'
+schema=/usr/share/dsg/configs/org.deepin.dde.treeland/org.deepin.dde.treeland.user.json
+jq '.contents.defaultBackground.value = "/tmp/docking-background.png"' "$schema" >/tmp/treeland-user.json
+cp /tmp/treeland-user.json "$schema"
 install -d -o deepin-daemon -g deepin-daemon /var/lib/dde-dconfig-daemon
 runuser -u deepin-daemon -- env HOME=/var/lib/dde-dconfig-daemon DSG_DATA_DIRS=/usr/share/dsg \
     /usr/bin/dde-dconfig-daemon -e false >"${LAB_DIR:-/evidence}/dconfig.log" 2>&1 &
