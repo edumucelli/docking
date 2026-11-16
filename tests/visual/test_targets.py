@@ -208,3 +208,49 @@ def test_visual_source_has_no_superseded_platform_directories():
             for path in directory.rglob("*")
             if "__pycache__" not in path.parts
         )
+
+
+@pytest.mark.parametrize("failure", [None, "save", "compress", "load"])
+def test_guest_image_stream_preserves_bytes_and_propagates_failures(
+    monkeypatch, failure
+):
+    popen, run = subprocess.Popen, subprocess.run
+    payload = "b'owned compositor image' * 100000"
+
+    def producer(command, **kwargs):
+        if command[0] == "docker":
+            script = (
+                f"import sys; sys.stdout.buffer.write({payload}); "
+                f"sys.exit({7 if failure == 'save' else 0})"
+            )
+            command = [sys.executable, "-c", script]
+        elif command[0] == "gzip" and failure == "compress":
+            command = [
+                sys.executable,
+                "-c",
+                (
+                    "import gzip,sys; "
+                    "sys.stdout.buffer.write(gzip.compress(sys.stdin.buffer.read())); "
+                    "sys.exit(8)"
+                ),
+            ]
+        return popen(command, **kwargs)
+
+    def consumer(command, **kwargs):
+        assert command == ["ssh", "private-guest", "sudo docker load"]
+        script = (
+            "import sys; sys.exit(9)"
+            if failure == "load"
+            else f"import gzip,sys; assert gzip.decompress(sys.stdin.buffer.read()) == {payload}"
+        )
+        return run([sys.executable, "-c", script], **kwargs)
+
+    monkeypatch.setattr(visual_vm.subprocess, "Popen", producer)
+    monkeypatch.setattr(visual_vm.subprocess, "run", consumer)
+    if failure:
+        with pytest.raises(
+            subprocess.CalledProcessError if failure == "load" else AssertionError
+        ):
+            visual_vm.load_guest_image(["ssh", "private-guest"], "owned:fixture")
+    else:
+        visual_vm.load_guest_image(["ssh", "private-guest"], "owned:fixture")

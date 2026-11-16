@@ -79,6 +79,22 @@ def stop_guest(guest: subprocess.Popen) -> None:
         guest.wait(timeout=5)
 
 
+def load_guest_image(ssh: list[str], image: str) -> None:
+    """Compress the image in flight over the emulated guest's slow SSH link."""
+    with subprocess.Popen(["docker", "save", image], stdout=subprocess.PIPE) as saved:
+        assert saved.stdout is not None
+        with subprocess.Popen(
+            ["gzip", "-1"], stdin=saved.stdout, stdout=subprocess.PIPE
+        ) as compressed:
+            saved.stdout.close()
+            assert compressed.stdout is not None
+            subprocess.run(
+                [*ssh, "sudo docker load"], stdin=compressed.stdout, check=True
+            )
+            assert compressed.wait() == 0, "Failed to compress compositor image"
+        assert saved.wait() == 0, "Failed to export compositor image"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target", required=True)
@@ -95,6 +111,7 @@ def main() -> int:
         "scp",
         "ssh-keygen",
         "docker",
+        "gzip",
     ):
         if shutil.which(command) is None:
             parser.error(f"Missing VM prerequisite: {command}")
@@ -288,13 +305,7 @@ def main() -> int:
                 subprocess.run(
                     [*ssh, "mkdir src && tar -xf source.tar -C src"], check=True
                 )
-                with subprocess.Popen(
-                    ["docker", "save", args.image], stdout=subprocess.PIPE
-                ) as saved:
-                    subprocess.run(
-                        [*ssh, "sudo docker load"], stdin=saved.stdout, check=True
-                    )
-                    assert saved.wait() == 0, "Failed to export compositor image"
+                load_guest_image(ssh, args.image)
                 # The emulated GPU supplies DRM buffers for guest CPU rendering.
                 command = (
                     "set -eu; render=$(find /dev/dri -name 'renderD*' | head -1); "
