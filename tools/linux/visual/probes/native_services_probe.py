@@ -9,6 +9,7 @@ import sys
 import time
 import traceback
 import types
+from contextlib import ExitStack
 from pathlib import Path
 
 # Choose Cinnamon's dock transport before importing GTK, as the launcher does.
@@ -62,15 +63,27 @@ def dock_marker_points(image, bounds):
     return largest if width >= 32 and height >= 32 else set()
 
 
-def fixture():
-    GLib.set_prgname("lab-native")
-    window = Gtk.Window(title="Native backend fixture")
+def fixture(*, transparent=False):
+    import cairo
+
+    GLib.set_prgname("lab-scene" if transparent else "lab-native")
+    window = Gtk.Window(
+        title="Quiet scene fixture" if transparent else "Native backend fixture"
+    )
     window.set_decorated(False)
     window.set_default_size(1280, 720)
+    if transparent:
+        window.set_app_paintable(True)
+        visual = window.get_screen().get_rgba_visual()
+        assert visual is not None, "Transparent scene fixture requires an RGBA visual"
+        window.set_visual(visual)
     area = Gtk.DrawingArea()
 
     def draw(_widget, cr):
-        cr.set_source_rgb(1, 0, 0)
+        if transparent:
+            cr.set_operator(cairo.OPERATOR_CLEAR)
+        else:
+            cr.set_source_rgb(1, 0, 0)
         cr.paint()
         return False
 
@@ -96,6 +109,7 @@ class Probe:
         self.window, self.backend, self.position = window, backend, position
         self.evidence = Path(os.environ["LAB_DIR"])
         self.child = None
+        self.scene = None
 
     @types.coroutine
     def settle(self, seconds=0.2):
@@ -362,6 +376,23 @@ class Probe:
         print(json.dumps(result), flush=True)
 
     async def check_quiet(self):
+        if os.environ.get("LAB_COMPOSITOR") == "phosh":
+            # Keep a clear client alive so Phosh does not reopen Overview.
+            self.scene = subprocess.Popen(
+                [sys.executable, __file__, "--fixture", "--transparent"]
+            )
+            await self.wait(
+                lambda: any(
+                    row.title == "Quiet scene fixture"
+                    for row in self.backend.windows.list_all_windows()
+                ),
+                "Transparent scene fixture did not map",
+            )
+            row = next(
+                row for row in self.backend.windows.list_all_windows()
+                if row.title == "Quiet scene fixture"
+            )
+            assert self.backend.windows.activate(row.id).succeeded
         if self.backend.name == "gnome-shell-bridge":
             # GNOME starts in Overview. Activate an owned client to leave it.
             self.child = subprocess.Popen([sys.executable, __file__, "--fixture"])
@@ -483,14 +514,16 @@ class Probe:
         )
 
     def close(self):
-        if self.child is not None:
-            self.child.terminate()
-            self.child.wait(timeout=3)
+        with ExitStack() as cleanup:
+            for child in (self.child, self.scene):
+                if child is not None:
+                    cleanup.callback(child.wait, timeout=3)
+                    child.terminate()
 
 
 def main():
     if "--fixture" in sys.argv:
-        fixture()
+        fixture(transparent="--transparent" in sys.argv)
         return
     if "--capture-x11" in sys.argv:
         root = Gdk.get_default_root_window()

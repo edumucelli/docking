@@ -33,6 +33,31 @@ def test_native_pixel_marker_excludes_fixture_titlebar_icon(dock_present):
     )
 
 
+def test_native_probe_closes_cover_and_scene_even_when_a_wait_fails():
+    from tools.linux.visual.probes.native_services_probe import Probe
+
+    events = []
+
+    def wait(name, timeout):
+        assert timeout == 3
+        events.append(f"wait-{name}")
+        if name == "scene":
+            raise subprocess.TimeoutExpired(name, timeout)
+
+    probe = Probe.__new__(Probe)
+    probe.child = SimpleNamespace(
+        terminate=lambda: events.append("terminate-cover"),
+        wait=lambda timeout: wait("cover", timeout),
+    )
+    probe.scene = SimpleNamespace(
+        terminate=lambda: events.append("terminate-scene"),
+        wait=lambda timeout: wait("scene", timeout),
+    )
+    with pytest.raises(subprocess.TimeoutExpired):
+        probe.close()
+    assert events == ["terminate-cover", "terminate-scene", "wait-scene", "wait-cover"]
+
+
 @pytest.mark.parametrize("compositor", ["phoc", "phosh", "weston"])
 @pytest.mark.parametrize("layer_shell", [False, True])
 def test_additional_adapter_capabilities(compositor, layer_shell):
