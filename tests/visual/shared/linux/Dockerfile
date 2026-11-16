@@ -290,8 +290,13 @@ FROM x11-base AS x11-mate
 RUN apt-get update && apt-get install -y --no-install-recommends mate-session-manager marco mate-panel caja mate-settings-daemon-common \
     && rm -rf /var/lib/apt/lists/*
 FROM x11-base AS x11-lxde
-RUN apt-get update && apt-get install -y --no-install-recommends lxde-core x11-utils \
+RUN apt-get update && apt-get install -y --no-install-recommends lxde-core x11-utils strace \
     && rm -rf /var/lib/apt/lists/*
+RUN for app in lxpanel pcmanfm; do \
+        mv "/usr/bin/$app" "/usr/bin/$app.real"; \
+        printf '#!/bin/sh\nexec strace -f -qq -s 128 -e trace=statx,newfstatat,access,faccessat,faccessat2,clone,clone3,exit_group -o "/evidence/%s.strace" "/usr/bin/%s.real" "$@"\n' "$app" "$app" >"/usr/bin/$app"; \
+        chmod +x "/usr/bin/$app"; \
+    done
 FROM x11-base AS x11-lxqt
 RUN apt-get update && apt-get install -y --no-install-recommends lxqt-session lxqt-panel pcmanfm-qt openbox \
     && rm -rf /var/lib/apt/lists/*

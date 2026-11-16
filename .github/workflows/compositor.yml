@@ -1,4 +1,4 @@
-name: Native desktop visuals
+name: Native LXDE diagnostic
 
 on:
   pull_request:
@@ -24,7 +24,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - id: targets
-        run: echo "matrix=$(python3 -m tests.visual.targets --matrix linux)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "matrix=$(python3 -m tests.visual.targets --matrix linux | jq -c '{include:[.include[]|select(.name=="x11-lxde")]}')" >> "$GITHUB_OUTPUT"
 
   compositor:
     name: Native visual (${{ matrix.name }})
