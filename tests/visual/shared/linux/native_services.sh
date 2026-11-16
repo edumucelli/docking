@@ -96,7 +96,8 @@ if [ "$compositor" = gnome-fallback ] || [ "$compositor" = weston ]; then
 fi
 if [ "$compositor" = cage ]; then export LAB_EXPECTED_BACKEND=reduced; fi
 if [ "$compositor" = miriway ]; then export LAB_CAPTURE_MODE=x11; fi
-if [ "$compositor" = treeland ] || [ "$compositor" = gamescope ] || [ "$compositor" = jay ]; then
+if [ "$compositor" = gamescope ]; then export LAB_CAPTURE_MODE=gamescope; fi
+if [ "$compositor" = treeland ] || [ "$compositor" = jay ]; then
     export LAB_CAPTURE_MODE=parent
 fi
 if [ "$compositor" = cinnamon ]; then
@@ -119,6 +120,13 @@ PY
 fi
 positions="bottom top left right"
 probe=native_services_probe.py
+if [ "$LAB_SERVICE_MODE" = overlay ]; then
+    # GameScope's native layer-shell surfaces are display-only external overlays.
+    export LAB_PROBE_HIDE_MODE=none
+    positions=bottom
+    probe=../../../backends/layer_shell/gamescope/probe.py
+    limit=60
+fi
 if [ "$LAB_SERVICE_MODE" = launcher ]; then
     source "$LAB_SCRIPTS/input.sh"
     start_lab_input

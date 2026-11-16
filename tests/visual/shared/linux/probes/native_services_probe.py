@@ -88,13 +88,6 @@ def fixture(*, transparent=False):
         return False
 
     area.connect("draw", draw)
-
-    # Keep nested outputs repainting while the dock animates over the fixture.
-    def redraw():
-        area.queue_draw()
-        return GLib.SOURCE_CONTINUE
-
-    GLib.timeout_add(200, redraw)
     window.add(area)
     geometry_file = os.environ.get("LAB_FIXTURE_SIZE_FILE")
     if geometry_file:
@@ -157,11 +150,16 @@ class Probe:
                 env=env,
                 check=True,
             )
-        elif mode == "gnome":
+        elif mode in {"gnome", "gamescope"}:
             subprocess.run(
                 [
                     sys.executable,
-                    str(Path(__file__).parents[3] / "backends/gnome/capture.py"),
+                    str(
+                        Path(__file__).parents[3]
+                        / "backends"
+                        / ("gnome" if mode == "gnome" else "layer_shell/gamescope")
+                        / "capture.py"
+                    ),
                     str(target),
                 ],
                 check=True,
@@ -180,6 +178,24 @@ class Probe:
     def pixel(image, point):
         offset = point[1] * image.get_rowstride() + point[0] * image.get_n_channels()
         return tuple(image.get_pixels()[offset : offset + 3])
+
+    async def wait_for_marker_pixels(self, points, *, phase, present):
+        painted = len(points)
+        deadline = time.monotonic() + 8
+        while True:
+            image = await self.capture(phase)
+            data = image.get_pixels()
+            stride, channels = image.get_rowstride(), image.get_n_channels()
+            changed = sum(
+                (
+                    data[y * stride + x * channels : y * stride + x * channels + 3]
+                    == b"\x00\x00\xff"
+                )
+                is present
+                for x, y in points
+            )
+            if changed >= max(32, painted * 0.98) or time.monotonic() >= deadline:
+                return changed, painted
 
     async def run(self):
         assert self.backend.name == os.environ["LAB_EXPECTED_BACKEND"]
@@ -247,7 +263,6 @@ class Probe:
         await self.wait(
             lambda: self.window.autohide.hide_offset > 0.999, "Dock did not dodge"
         )
-        hidden = await self.capture("hidden")
         # Locate actual dock pixels inside the fixture's edge band. Mutter may
         # constrain ordinary dock windows below a panel even when GTK reports
         # the requested origin; that request is not an independent pixel oracle.
@@ -264,18 +279,10 @@ class Probe:
             y1 = min(y1, y0 + band)
         else:
             y0 = max(y0, y1 - band)
-        hidden_data = hidden.get_pixels()
-        hidden_stride, hidden_channels = hidden.get_rowstride(), hidden.get_n_channels()
+        # Nested compositors can commit pixels after the GTK animation completes.
         marker_points = dock_marker_points(visible, (x0, y0, x1, y1))
-        painted = len(marker_points)
-        changed = sum(
-            hidden_data[
-                y * hidden_stride + x * hidden_channels : y * hidden_stride
-                + x * hidden_channels
-                + 3
-            ]
-            != b"\x00\x00\xff"
-            for x, y in marker_points
+        changed, painted = await self.wait_for_marker_pixels(
+            marker_points, phase="hidden", present=False
         )
         pixels_passed = changed >= max(32, painted * 0.98)
         if os.environ.get("LAB_SERVICE_MODE") != "services":
@@ -355,18 +362,8 @@ class Probe:
             lambda: self.window.autohide.hide_offset < 0.05,
             "Closed window still hides dock",
         )
-        restored = await self.capture("restored")
-        restored_data = restored.get_pixels()
-        restored_stride = restored.get_rowstride()
-        restored_channels = restored.get_n_channels()
-        restored_count = sum(
-            restored_data[
-                y * restored_stride + x * restored_channels : y * restored_stride
-                + x * restored_channels
-                + 3
-            ]
-            == b"\x00\x00\xff"
-            for x, y in marker_points
+        restored_count, _ = await self.wait_for_marker_pixels(
+            marker_points, phase="restored", present=True
         )
         restore_passed = restored_count >= max(32, painted * 0.98)
         if os.environ.get("LAB_SERVICE_MODE") != "services":

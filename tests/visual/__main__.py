@@ -73,7 +73,7 @@ def commands(
             ]
         ]
     result = []
-    if target.backend != "reduced":
+    if target.backend != "reduced" and target.services != "overlay":
         result.append(
             [
                 "bash",
@@ -94,7 +94,14 @@ def commands(
                 "--require-supported",
             ]
         )
-    result.append(["bash", str(LINUX / "native_services.sh"), target.name, "launcher"])
+    result.append(
+        [
+            "bash",
+            str(LINUX / "native_services.sh"),
+            target.name,
+            "overlay" if target.services == "overlay" else "launcher",
+        ]
+    )
     if target.services == "cinnamon":
         result.append(["bash", str(target.directory / "services.sh")])
     elif target.services in {"visual", "foreign", "treeland"}:
@@ -105,6 +112,10 @@ def commands(
                 target.name,
                 target.services,
             ]
+        )
+    if target.services == "visual":
+        result.append(
+            ["bash", str(LINUX / "native_services.sh"), target.name, "services"]
         )
     if target.services == "foreign":
         result.append(

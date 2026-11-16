@@ -155,7 +155,7 @@ RUN command -v wayfire && wayfire --version
 
 # Hyprland's nested Aquamarine backend needs a render node and dmabuf feedback.
 FROM base AS hyprland
-RUN pacman -Syu --noconfirm --needed hyprland weston && pacman -Scc --noconfirm
+RUN pacman -Syu --noconfirm --needed hyprland niri && pacman -Scc --noconfirm
 RUN command -v Hyprland && command -v hyprctl
 
 FROM base AS treeland
@@ -164,7 +164,7 @@ RUN command -v treeland
 ENTRYPOINT ["bash", "/src/tests/visual/backends/treeland/system_session.sh"]
 
 FROM base AS gamescope
-RUN pacman -Syu --noconfirm --needed gamescope vulkan-swrast xorg-server-xvfb xorg-xauth xdotool \
+RUN pacman -Syu --noconfirm --needed gamescope vulkan-swrast xorg-xprop xdotool \
     && pacman -Scc --noconfirm
 RUN command -v gamescope
 

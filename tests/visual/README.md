@@ -29,12 +29,20 @@ python -m tests.visual --target windows-server --installed-root artifacts/window
 sh tools/bsd/vm-run.sh artifacts/bsd-visual/freebsd
 ```
 
-Each native target requires independently captured dock pixels, real launcher
-input, the expected backend and successful shutdown. Placement-capable targets
+Each native target requires independently captured dock pixels, the expected
+backend and successful shutdown. Interactive desktops require real launcher
+input. Placement-capable targets
 check all four edges and a configured gap. Window-capable backends additionally
 exercise their native actions and supported visibility behavior. Reduced targets
 must visibly render and accept launcher input; unsupported placement is never a
 substitute for this check. Missing required capabilities fail the target.
+
+GameScope is the display-only exception: its native layer-shell implementation
+marks surfaces as external overlays and excludes them from input focus. Its
+minimum suite requires all four edges, a configured gap and visible overlay
+pixels, and records the input limitation explicitly. Captures use GameScope's
+own composed screen buffer, including overlays; Xwayland input reaching a game
+does not establish input support for the dock.
 
 Every pull request runs all registered Linux targets. The `Native visual (NAME)`
 checks are required by `master` branch protection, alongside the BSD and Windows
@@ -46,8 +54,8 @@ Linux native evidence goes under `artifacts/visual/`. Renderer failures go under
 their artifact paths and formats. Baseline updates remain explicit; moving a
 suite does not change its PNGs, thresholds or provenance.
 
-The native Linux Actions workflow runs every registered Linux target on relevant
-PRs, pushes, weekly and manual runs. Windows and BSD retain their existing native
+The native Linux Actions workflow runs every registered Linux target on all
+PRs, relevant pushes, weekly and manual runs. Windows and BSD retain their existing native
 Actions workflows. Renderer comparisons run in the main CI under Xvfb. Ordinary
 pytest and pre-commit run harness unit tests, without launching native desktops;
 tests marked `visual` remain excluded by default.

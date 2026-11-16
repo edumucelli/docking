@@ -5,8 +5,11 @@ test -f /.dockerenv
 test "$(id -u)" = 0
 test "$LAB_UID" -gt 0
 mkdir -p /run/dbus
+dbus-uuidgen --ensure=/etc/machine-id
 dbus-uuidgen --ensure
 dbus-daemon --system --fork --nopidfile
+# Arch's dbus package delegates activation to systemd, absent in this container.
+/usr/lib/polkit-1/polkitd --no-debug >"${LAB_DIR:-/evidence}/polkit.log" 2>&1 &
 # The wrapper supplies a private passwd entry; it also needs a locked shadow entry.
 printf 'lab:!:0:0:99999:7:::\n' >>/etc/shadow
 /usr/lib/accounts-daemon >"${LAB_DIR:-/evidence}/accounts.log" 2>&1 &

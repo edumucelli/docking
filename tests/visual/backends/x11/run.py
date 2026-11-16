@@ -23,7 +23,7 @@ import sys
 import tempfile
 import time
 import traceback
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager, nullcontext, suppress
 from pathlib import Path
 
 from docking.platform.environment import is_freebsd, is_netbsd
@@ -100,6 +100,17 @@ def wait_for(check, message: str, timeout: float = 12):
     raise AssertionError(message)
 
 
+def stop_process_group(child: subprocess.Popen) -> None:
+    """Stop owned helpers even when their launcher has already exited."""
+    with suppress(ProcessLookupError):
+        os.killpg(child.pid, signal.SIGTERM)
+    with suppress(subprocess.TimeoutExpired):
+        child.wait(timeout=5)
+    with suppress(ProcessLookupError):
+        os.killpg(child.pid, signal.SIGKILL)
+    child.wait(timeout=5)
+
+
 @contextmanager
 def process(command: list[str], log: Path, env: dict[str, str], *, cwd: Path = ROOT):
     """Bound every child lifetime and redirect output away from the CI SSH pipe."""
@@ -115,13 +126,7 @@ def process(command: list[str], log: Path, env: dict[str, str], *, cwd: Path = R
         try:
             yield child
         finally:
-            if child.poll() is None:
-                os.killpg(child.pid, signal.SIGTERM)
-                try:
-                    child.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    os.killpg(child.pid, signal.SIGKILL)
-                    child.wait(timeout=5)
+            stop_process_group(child)
 
 
 class Pointer:
@@ -399,6 +404,8 @@ def dock_case(observer: Observer, env: dict[str, str], name: str, overrides: dic
     config_path.write_text(json.dumps(config))
     (observer.output / f"{name}.config.json").write_text(json.dumps(config, indent=2))
     log = observer.output / f"{name}.log"
+    # Let the previous dock's strut removal settle before sampling native workarea.
+    observer.settled(f"{name}-desktop")
     observer.windows()
     area = observer.Gdk.Display.get_default().get_monitor(0).get_workarea()
     observer.workarea = (area.x, area.y, area.width, area.height)
@@ -868,152 +875,148 @@ def session(args):
     metadata = environment_metadata(args)
     results = []
     try:
-        with tempfile.TemporaryDirectory(prefix="docking-x11-") as temporary:
-            env = private_environment(Path(temporary), args.desktop)
-            if args.minimum:
-                env["GSETTINGS_BACKEND"] = "keyfile"
-                if args.desktop == "gnome":
-                    env["DBUS_SYSTEM_BUS_ADDRESS"] = env["DBUS_SESSION_BUS_ADDRESS"]
-                if args.desktop == "plasma":
-                    env["KWIN_COMPOSE"] = "O2"
-                    env["QT_QUICK_BACKEND"] = "software"
-                autostart = Path(env["XDG_CONFIG_HOME"]) / "autostart"
-                autostart.mkdir()
-                (autostart / "picom.desktop").write_text(
-                    "[Desktop Entry]\nType=Application\nName=Picom\nHidden=true\n"
-                )
-                if args.desktop == "mate":
-                    subprocess.run(
-                        [
-                            "gsettings",
-                            "set",
-                            "org.mate.Marco.general",
-                            "compositing-manager",
-                            "true",
-                        ],
-                        env=env,
-                        check=True,
-                    )
-            seed(env)
-            display_number = next(
-                n
-                for n in range(90, 190)
-                if not Path(f"/tmp/.X{n}-lock").exists()
-                and not Path(f"/tmp/.X11-unix/X{n}").exists()
+        # The bus controller removes runtime directories after its services stop.
+        env = dict(os.environ)
+        if args.minimum:
+            env["GSETTINGS_BACKEND"] = "keyfile"
+            if args.desktop == "gnome":
+                env["DBUS_SYSTEM_BUS_ADDRESS"] = env["DBUS_SESSION_BUS_ADDRESS"]
+            if args.desktop == "plasma":
+                env["KWIN_COMPOSE"] = "O2"
+                env["QT_QUICK_BACKEND"] = "software"
+            autostart = Path(env["XDG_CONFIG_HOME"]) / "autostart"
+            autostart.mkdir()
+            (autostart / "picom.desktop").write_text(
+                "[Desktop Entry]\nType=Application\nName=Picom\nHidden=true\n"
             )
-            env["DISPLAY"] = f":{display_number}"
-            with process(
-                [
-                    "Xvfb",
-                    env["DISPLAY"],
-                    "-screen",
-                    "0",
-                    f"{WIDTH}x{HEIGHT}x24",
-                    "-nolisten",
-                    "tcp",
-                    "-ac",
-                    "-noreset",
-                ],
-                output / "xvfb.log",
-                env,
-            ) as xvfb:
+            if args.desktop == "mate":
+                subprocess.run(
+                    [
+                        "gsettings",
+                        "set",
+                        "org.mate.Marco.general",
+                        "compositing-manager",
+                        "true",
+                    ],
+                    env=env,
+                    check=True,
+                )
+        seed(env)
+        display_number = next(
+            n
+            for n in range(90, 190)
+            if not Path(f"/tmp/.X{n}-lock").exists()
+            and not Path(f"/tmp/.X11-unix/X{n}").exists()
+        )
+        env["DISPLAY"] = f":{display_number}"
+        with process(
+            [
+                "Xvfb",
+                env["DISPLAY"],
+                "-screen",
+                "0",
+                f"{WIDTH}x{HEIGHT}x24",
+                "-nolisten",
+                "tcp",
+                "-ac",
+                "-noreset",
+            ],
+            output / "xvfb.log",
+            env,
+        ) as xvfb:
 
-                def display_ready():
-                    if xvfb.poll() is not None:
-                        raise RuntimeError("Private Xvfb exited; inspect xvfb.log")
-                    return Path(f"/tmp/.X11-unix/X{display_number}").exists()
+            def display_ready():
+                if xvfb.poll() is not None:
+                    raise RuntimeError("Private Xvfb exited; inspect xvfb.log")
+                return Path(f"/tmp/.X11-unix/X{display_number}").exists()
 
-                wait_for(display_ready, "Private Xvfb never became ready")
-                with (
-                    process(shlex.split(args.wm), output / "wm.log", env),
-                    (
-                        process(
-                            ["picom", "--backend", "xrender", "--config", "/dev/null"],
-                            output / "picom.log",
-                            env,
-                        )
-                        if args.desktop in {"lxde", "lxqt"}
-                        else nullcontext()
-                    ),
-                    (
-                        process(
-                            [
-                                sys.executable,
-                                "-m",
-                                "tests.visual.backends.x11.run",
-                                "--background",
-                            ],
-                            output / "desktop.log",
-                            env,
-                        )
-                        if not args.minimum
-                        else nullcontext()
-                    ) as background,
-                ):
-
-                    def desktop_ready():
-                        if background.poll() is not None:
-                            raise RuntimeError(
-                                "Desktop fixture exited; inspect desktop.log"
-                            )
-                        return (Path(env["XDG_RUNTIME_DIR"]) / "desktop-ready").exists()
-
-                    if not args.minimum:
-                        wait_for(
-                            desktop_ready, "Desktop fixture never mapped", timeout=30
-                        )
-                    with process(
+            wait_for(display_ready, "Private Xvfb never became ready")
+            with (
+                process(shlex.split(args.wm), output / "wm.log", env),
+                (
+                    process(
+                        ["picom", "--backend", "xrender", "--config", "/dev/null"],
+                        output / "picom.log",
+                        env,
+                    )
+                    if args.desktop in {"lxde", "lxqt"}
+                    else nullcontext()
+                ),
+                (
+                    process(
                         [
                             sys.executable,
                             "-m",
                             "tests.visual.backends.x11.run",
-                            "--observe",
-                            "--output",
-                            str(output),
-                            "--wm",
-                            args.wm,
-                            "--desktop",
-                            args.desktop,
-                            *(["--minimum"] if args.minimum else []),
-                            *(["--pytest"] if args.pytest else []),
-                            *(
-                                ["--dock-command", args.dock_command]
-                                if args.dock_command
-                                else []
-                            ),
-                            *[
-                                argument
-                                for name in args.case
-                                for argument in ("--case", name)
-                            ],
+                            "--background",
                         ],
-                        output / "observer.log",
+                        output / "desktop.log",
                         env,
-                    ) as child:
-                        status = child.wait(timeout=900)
-                    payload_path = output / "results.json"
-                    if payload_path.exists():
-                        payload = json.loads(payload_path.read_text())
-                        metadata, results = payload["environment"], payload["results"]
-                    if status:
-                        results.append(
-                            {
-                                "case": "observer-exit",
-                                "status": "fail",
-                                "detail": f"Observer exit {status}; see observer.log",
-                            }
+                    )
+                    if not args.minimum
+                    else nullcontext()
+                ) as background,
+            ):
+
+                def desktop_ready():
+                    if background.poll() is not None:
+                        raise RuntimeError(
+                            "Desktop fixture exited; inspect desktop.log"
                         )
-            for log in output.glob("*.log"):
-                if "Traceback (most recent call last):" in log.read_text(
-                    errors="replace"
-                ):
+                    return (Path(env["XDG_RUNTIME_DIR"]) / "desktop-ready").exists()
+
+                if not args.minimum:
+                    wait_for(desktop_ready, "Desktop fixture never mapped", timeout=30)
+                with process(
+                    [
+                        sys.executable,
+                        "-m",
+                        "tests.visual.backends.x11.run",
+                        "--observe",
+                        "--output",
+                        str(output),
+                        "--wm",
+                        args.wm,
+                        "--desktop",
+                        args.desktop,
+                        *(["--minimum"] if args.minimum else []),
+                        *(["--pytest"] if args.pytest else []),
+                        *(
+                            ["--dock-command", args.dock_command]
+                            if args.dock_command
+                            else []
+                        ),
+                        *[
+                            argument
+                            for name in args.case
+                            for argument in ("--case", name)
+                        ],
+                    ],
+                    output / "observer.log",
+                    env,
+                ) as child:
+                    status = child.wait(timeout=900)
+                payload_path = output / "results.json"
+                if payload_path.exists():
+                    payload = json.loads(payload_path.read_text())
+                    metadata, results = payload["environment"], payload["results"]
+                if status:
                     results.append(
                         {
-                            "case": log.name,
+                            "case": "observer-exit",
                             "status": "fail",
-                            "detail": "Python traceback in runtime log",
+                            "detail": f"Observer exit {status}; see observer.log",
                         }
                     )
+        for log in output.glob("*.log"):
+            if "Traceback (most recent call last):" in log.read_text(errors="replace"):
+                results.append(
+                    {
+                        "case": log.name,
+                        "status": "fail",
+                        "detail": "Python traceback in runtime log",
+                    }
+                )
     except Exception:
         results.append(
             {"case": "setup", "status": "fail", "detail": traceback.format_exc()}
@@ -1107,7 +1110,7 @@ def main():
             '<allow send_destination="*"/><allow receive_sender="*"/>'
             '<allow own="*"/></policy></busconfig>'
         )
-        status = subprocess.call(
+        with subprocess.Popen(
             [
                 "dbus-run-session",
                 f"--config-file={bus_config}",
@@ -1129,7 +1132,12 @@ def main():
             ],
             cwd=ROOT,
             env=bus_env,
-        )
+            start_new_session=True,
+        ) as bus:
+            try:
+                status = bus.wait()
+            finally:
+                stop_process_group(bus)
         print(
             f"Visual report: {args.output / 'index.html'} (session exit {status})",
             flush=True,

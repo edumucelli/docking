@@ -71,7 +71,7 @@ TARGETS = (
         "layer_shell",
         "gamescope",
         image_file="Dockerfile.arch",
-        services="launcher",
+        services="overlay",
         virtual_gpu=True,
     ),
     Target("phoc", "layer_shell", "phoc", services="foreign"),

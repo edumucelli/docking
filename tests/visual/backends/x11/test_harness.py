@@ -1,5 +1,7 @@
 """Reject blank, misplaced and incomplete screenshots in the BSD visual lab."""
 
+import signal
+import subprocess
 from contextlib import contextmanager
 from dataclasses import replace
 from types import SimpleNamespace
@@ -41,6 +43,21 @@ def test_compositor_readiness_dispatches_pending_window_manager_events():
         )
     )
     assert observer.composited()
+
+
+@pytest.mark.parametrize("timeout", [False, True])
+def test_private_helpers_are_stopped_after_their_launcher_exits(monkeypatch, timeout):
+    kill = MagicMock()
+    monkeypatch.setattr(run.os, "killpg", kill)
+    child = MagicMock(pid=12345)
+    child.poll.return_value = 0
+    if timeout:
+        child.wait.side_effect = [subprocess.TimeoutExpired("fixture", 5), 0]
+    run.stop_process_group(child)
+    assert [call.args for call in kill.call_args_list] == [
+        (12345, signal.SIGTERM),
+        (12345, signal.SIGKILL),
+    ]
 
 
 @pytest.mark.parametrize("channels,padding", [(3, 0), (3, 2), (4, 4)])

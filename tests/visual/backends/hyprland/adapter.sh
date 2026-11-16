@@ -8,24 +8,31 @@ adapter_prepare() {
     export AQ_BACKENDS=wayland LIBGL_ALWAYS_SOFTWARE="${LAB_SOFTWARE_RENDERING:-1}"
     unset DISPLAY
     prepare_sway_parent
+    mkdir -p "$XDG_CONFIG_HOME/hypr"
+    # Exercise the supported Hyprlang dispatch API rather than generated Lua defaults.
+    printf 'monitor = , %sx%s@60, auto, 1\ngeneral {\n border_size = 0\n gaps_in = 0\n gaps_out = 0\n}\nanimations {\n enabled = false\n}\n' "${LAB_WIDTH:-1280}" "${LAB_HEIGHT:-720}" \
+        >"$XDG_CONFIG_HOME/hypr/hyprland.conf"
+    mkdir -p "$XDG_CONFIG_HOME/niri"
+    printf 'animations { off; }\nhotkey-overlay { skip-at-startup; }\nlayout { gaps 0; border { off; }; focus-ring { off; }; }\nwindow-rule { open-fullscreen true; }\n' \
+        >"$XDG_CONFIG_HOME/niri/config.kdl"
 }
 adapter_start() {
     start_sway_parent
-    # Hyprland needs XDG shell v6 and DRM buffers. Xvfb falls back to llvmpipe,
-    # so nest Weston inside VirGL-backed Sway to preserve both. Screenshots
-    # and physical input still come from the outer Sway session.
-    WAYLAND_DISPLAY="$LAB_PARENT_DISPLAY" weston --backend=wayland-backend.so --renderer=gl \
-        --shell=kiosk-shell.so --socket=wayland-hypr-parent --no-config --idle-time=0 \
-        --width="${LAB_WIDTH:-1280}" --height="${LAB_HEIGHT:-720}" --fullscreen \
-        >"$LAB_DIR/weston-parent.log" 2>&1 &
+    # Hyprland needs newer shell protocols and DRM buffers. Xvfb falls back to
+    # llvmpipe, so keep the working VirGL-backed Sway session. Weston supplies
+    # XDG shell v6 but its wl_compositor v5 is still too old for Hyprland;
+    # nest Niri instead. Screenshots and input still come from outer Sway.
+    WAYLAND_DISPLAY="$LAB_PARENT_DISPLAY" niri >"$LAB_DIR/niri-parent.log" 2>&1 &
     ADAPTER_NESTED_PARENT_PID=$!
+    local parent_display=""
     for _ in $(seq 120); do
-        kill -0 "$ADAPTER_NESTED_PARENT_PID" 2>/dev/null || { tail -60 "$LAB_DIR/weston-parent.log"; return 1; }
-        [ -S "$XDG_RUNTIME_DIR/wayland-hypr-parent" ] && break
+        kill -0 "$ADAPTER_NESTED_PARENT_PID" 2>/dev/null || { tail -60 "$LAB_DIR/niri-parent.log"; return 1; }
+        parent_display="$(sed -n 's/.*listening on Wayland socket: //p' "$LAB_DIR/niri-parent.log" | tail -1)"
+        [ -n "$parent_display" ] && break
         sleep 0.25
     done
-    [ -S "$XDG_RUNTIME_DIR/wayland-hypr-parent" ] || return 1
-    WAYLAND_DISPLAY=wayland-hypr-parent Hyprland \
+    [ -S "$XDG_RUNTIME_DIR/$parent_display" ] || return 1
+    WAYLAND_DISPLAY="$parent_display" Hyprland --config "$XDG_CONFIG_HOME/hypr/hyprland.conf" \
         >"$COMPOSITOR_LOG" 2>&1 &
     ADAPTER_COMPOSITOR_PID=$!
     for _ in $(seq 120); do
@@ -41,7 +48,7 @@ adapter_start() {
         for display in "$XDG_RUNTIME_DIR"/wayland-*; do
             [ -S "$display" ] || continue
             [ "${display##*/}" = "$LAB_PARENT_DISPLAY" ] && continue
-            [ "${display##*/}" = wayland-hypr-parent ] && continue
+            [ "${display##*/}" = "$parent_display" ] && continue
             for socket in "$XDG_RUNTIME_DIR"/hypr/*/.socket.sock; do
                 [ -S "$socket" ] || continue
                 export HYPRLAND_INSTANCE_SIGNATURE="$(basename "$(dirname "$socket")")"

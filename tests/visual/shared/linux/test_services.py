@@ -9,25 +9,39 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock
 
 import pytest
 
 
-def test_native_scene_repaints_while_nested_compositor_animates(monkeypatch):
+@pytest.mark.parametrize("present", [False, True])
+@pytest.mark.parametrize("delivered", [False, True])
+def test_visibility_wait_requires_the_compositor_pixels_to_change(
+    monkeypatch, tmp_path, present, delivered
+):
     from tests.visual.shared.linux.probes import native_services_probe as native
 
-    window, area, timer = MagicMock(), MagicMock(), MagicMock()
-    monkeypatch.setattr(native.Gtk, "Window", lambda **kwargs: window)
-    monkeypatch.setattr(native.Gtk, "DrawingArea", lambda: area)
-    monkeypatch.setattr(native.Gtk, "main", lambda: None)
-    monkeypatch.setattr(native.GLib, "set_prgname", lambda _name: None)
-    monkeypatch.setattr(native.GLib, "timeout_add", timer)
-    native.fixture()
-    interval, tick = timer.call_args.args
-    assert interval == 200
-    assert tick() == native.GLib.SOURCE_CONTINUE
-    area.queue_draw.assert_called_once_with()
+    monkeypatch.setenv("LAB_DIR", str(tmp_path))
+    ticks = itertools.count()
+    monkeypatch.setattr(native.time, "monotonic", lambda: next(ticks))
+    calls = []
+
+    async def capture(phase):
+        calls.append(phase)
+        blue = present if delivered and len(calls) > 1 else not present
+        return SimpleNamespace(
+            get_pixels=lambda: (b"\x00\x00\xff" if blue else b"\xff\x00\x00") * 48 * 48,
+            get_rowstride=lambda: 144,
+            get_n_channels=lambda: 3,
+        )
+
+    probe = native.Probe(None, None, "bottom")
+    probe.capture = capture
+    points = {(x, y) for y in range(48) for x in range(48)}
+    task = probe.wait_for_marker_pixels(points, phase="test", present=present)
+    with pytest.raises(StopIteration) as done:
+        task.send(None)
+    assert done.value.value == (2304 if delivered else 0, 2304)
+    assert len(calls) >= 2
 
 
 @pytest.mark.parametrize("dock_present", [False, True])

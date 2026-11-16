@@ -127,6 +127,19 @@ def test_reduced_targets_require_visible_launcher_input(name, tmp_path):
     assert commands[0][-1] == "launcher"
 
 
+def test_gamescope_requires_placement_and_display_only_overlay_pixels(tmp_path):
+    commands = runner.commands(target_named("gamescope"), tmp_path, None)
+    assert len(commands) == 1
+    assert commands[0][-1] == "overlay"
+
+
+@pytest.mark.parametrize("target", [t for t in TARGETS if t.services == "visual"])
+def test_native_minimum_requires_pixels_and_window_actions(target, tmp_path):
+    commands = runner.commands(target, tmp_path, None)
+    modes = [command[-1] for command in commands if "native_services.sh" in command[1]]
+    assert modes == ["launcher", "visual", "services"]
+
+
 def test_windows_minimum_preserves_installed_runtime_and_all_four_edges(tmp_path):
     installed = tmp_path / "installed"
     commands = runner.commands(target_named("windows-11"), tmp_path, installed)

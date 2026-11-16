@@ -8,8 +8,11 @@ suites now live under that tree, grouped by backend and desktop. The target
 registry is the source for the Linux pull-request matrix; every registered
 Linux desktop runs the minimum suite, alongside native Windows and BSD jobs.
 
-The minimum suite requires visible dock pixels, verified physical launcher
-input, expected backend selection and successful shutdown. Supported placement,
+The minimum suite requires visible dock pixels, expected backend selection and
+successful shutdown. Interactive desktops require verified physical launcher
+input. GameScope's native layer-shell overlays are display-only: it excludes
+them from input focus, so its suite requires placement and composed overlay
+pixels and records that limitation. Supported placement,
 window actions and visibility are checked in addition. Reduced backends must
 produce real visible/input evidence. CPU-rendered virtual-GPU guests cover the
 render-device-dependent Linux targets; a failed render remains a failure.
