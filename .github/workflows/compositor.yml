@@ -2,7 +2,6 @@ name: Native desktop visuals
 
 on:
   pull_request:
-    paths: ["docking/**", "tests/visual/**", "tools/linux/visual_vm.py", "pyproject.toml", "tools/dependency_policy.py", ".github/workflows/compositor.yml"]
   push:
     branches: [master]
     paths: ["docking/**", "tests/visual/**", "tools/linux/visual_vm.py", "pyproject.toml", "tools/dependency_policy.py", ".github/workflows/compositor.yml"]

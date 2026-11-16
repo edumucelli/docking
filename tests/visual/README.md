@@ -36,6 +36,11 @@ exercise their native actions and supported visibility behavior. Reduced targets
 must visibly render and accept launcher input; unsupported placement is never a
 substitute for this check. Missing required capabilities fail the target.
 
+Every pull request runs all registered Linux targets. The `Native visual (NAME)`
+checks are required by `master` branch protection, alongside the BSD and Windows
+desktop checks. Keep the workflow's pull-request trigger unfiltered so required
+checks report a result for every PR.
+
 Linux native evidence goes under `artifacts/visual/`. Renderer failures go under
 `rendering/output/`. Existing Windows and BSD release acceptance reports retain
 their artifact paths and formats. Baseline updates remain explicit; moving a
