@@ -109,7 +109,7 @@ class Probe:
         self.window, self.backend, self.position = window, backend, position
         self.evidence = Path(os.environ["LAB_DIR"])
         self.child = None
-        self.scene = None
+        self.scene_child = None
 
     @types.coroutine
     def settle(self, seconds=0.2):
@@ -378,7 +378,7 @@ class Probe:
     async def check_quiet(self):
         if os.environ.get("LAB_COMPOSITOR") == "phosh":
             # Keep a clear client alive so Phosh does not reopen Overview.
-            self.scene = subprocess.Popen(
+            self.scene_child = subprocess.Popen(
                 [sys.executable, __file__, "--fixture", "--transparent"]
             )
             await self.wait(
@@ -515,7 +515,7 @@ class Probe:
 
     def close(self):
         with ExitStack() as cleanup:
-            for child in (self.child, self.scene):
+            for child in (self.child, self.scene_child):
                 if child is not None:
                     cleanup.callback(child.wait, timeout=3)
                     child.terminate()

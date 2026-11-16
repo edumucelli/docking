@@ -6,6 +6,7 @@ import itertools
 import json
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -49,13 +50,39 @@ def test_native_probe_closes_cover_and_scene_even_when_a_wait_fails():
         terminate=lambda: events.append("terminate-cover"),
         wait=lambda timeout: wait("cover", timeout),
     )
-    probe.scene = SimpleNamespace(
+    probe.scene_child = SimpleNamespace(
         terminate=lambda: events.append("terminate-scene"),
         wait=lambda timeout: wait("scene", timeout),
     )
     with pytest.raises(subprocess.TimeoutExpired):
         probe.close()
     assert events == ["terminate-cover", "terminate-scene", "wait-scene", "wait-cover"]
+
+
+def test_native_panel_scene_is_not_shadowed_by_scene_client(tmp_path, monkeypatch):
+    from tools.linux.visual.probes import native_services_probe as native
+
+    monkeypatch.setitem(sys.modules, "native_services_probe", native)
+    from tools.linux.visual.probes.phoc_panel_probe import PanelProbe
+
+    monkeypatch.setenv("LAB_DIR", str(tmp_path))
+    image = SimpleNamespace(
+        get_width=lambda: 48,
+        get_height=lambda: 48,
+        get_pixels=lambda: b"\x00\x00\xff" * 48 * 48,
+        get_rowstride=lambda: 48 * 3,
+        get_n_channels=lambda: 3,
+    )
+
+    async def capture(_phase):
+        return image
+
+    probe = PanelProbe(None, None, "bottom")
+    probe.capture = capture
+    task = probe.scene("before-panel", panel_present=False, expected_shift=0)
+    with pytest.raises(StopIteration) as result:
+        task.send(None)
+    assert result.value.value == 0
 
 
 @pytest.mark.parametrize("compositor", ["phoc", "phosh", "weston"])
