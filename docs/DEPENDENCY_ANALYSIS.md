@@ -251,7 +251,7 @@ These packages normally do not ship as application runtime requirements.
 
 ### Visual metrics
 
-At the baseline, [`tests/visual/support.py`](../tests/visual/support.py) called only
+At the baseline, [`tests/visual/rendering/support.py`](../tests/visual/rendering/support.py) called only
 `peak_signal_noise_ratio` and `structural_similarity` from scikit-image. The
 dependency chain included:
 
@@ -271,7 +271,7 @@ scikit-image, SciPy, NetworkX, ImageIO, tifffile, and lazy-loader: approximately
 145.8 MiB of baseline development payload. NumPy is now an explicit development
 dependency. This does not reduce the installed dock's runtime dependencies.
 
-[`tests/visual/metrics.py`](../tests/visual/metrics.py) adapts scikit-image 0.26.0's
+[`tests/visual/rendering/metrics.py`](../tests/visual/rendering/metrics.py) adapts scikit-image 0.26.0's
 SSIM and PSNR code for the float32 RGB/RGBA configuration Docking uses. The SSIM
 source is also unchanged in scikit-image 0.25.2. The port retains per-channel
 processing, a seven-pixel window, sample covariance, border cropping, and

@@ -1,11 +1,11 @@
-name: Wayland compositors
+name: Native desktop visuals
 
 on:
   pull_request:
-    paths: ["docking/**", "tools/linux/visual/**", "tests/test_visual_compositor.py", ".github/workflows/compositor.yml"]
+    paths: ["docking/**", "tests/visual/**", "tools/linux/visual_vm.py", "pyproject.toml", "tools/dependency_policy.py", ".github/workflows/compositor.yml"]
   push:
     branches: [master]
-    paths: ["docking/**", "tools/linux/visual/**", ".github/workflows/compositor.yml"]
+    paths: ["docking/**", "tests/visual/**", "tools/linux/visual_vm.py", "pyproject.toml", "tools/dependency_policy.py", ".github/workflows/compositor.yml"]
   workflow_dispatch:
   schedule:
     - cron: "23 4 * * 1"
@@ -18,109 +18,104 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  compositor:
-    name: Real Wayland (${{ matrix.compositor }})
+  targets:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        compositor: ${{ fromJSON((github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '["sway","cinnamon","niri","labwc","cosmic","kwin","wayfire","phoc","phosh","weston","cage","gnome"]' || '["sway","cinnamon","niri","cosmic","kwin","wayfire","phoc","phosh","weston","gnome"]') }}
+    outputs:
+      matrix: ${{ steps.targets.outputs.matrix }}
     steps:
       - uses: actions/checkout@v7
-      - name: Install comparison dependencies
+      - id: targets
+        run: echo "matrix=$(python3 -m tests.visual.targets --matrix linux)" >> "$GITHUB_OUTPUT"
+
+  compositor:
+    name: Native visual (${{ matrix.name }})
+    needs: targets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.targets.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install comparison and software GPU dependencies
+        env:
+          VIRTUAL_GPU: ${{ matrix.virtual_gpu }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends python3-cairo
+          sudo apt-get install -y --no-install-recommends python3-cairo python3-venv
+          if [ "$VIRTUAL_GPU" = true ]; then
+            sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils cloud-image-utils openssh-client
+          fi
           python3 -m venv --system-site-packages .venv
-          .venv/bin/python -m pip install --upgrade pip
-          export PIP_UPLOADED_PRIOR_TO="$(date -d '7 days ago' -I)"
+          export PIP_UPLOADED_PRIOR_TO="$(.venv/bin/python tools/dependency_policy.py cutoff)"
+          .venv/bin/python tools/dependency_policy.py bootstrap
           .venv/bin/python -m pip install -e '.[dev]'
+      - uses: actions/cache@v6
+        if: matrix.virtual_gpu
+        with:
+          path: artifacts/visual-vm-cache/
+          key: visual-guest-debian-13-20261001-2618
       - uses: docker/setup-buildx-action@v4
-      - name: Build pinned-base compositor image
+      - name: Build pinned desktop image
         uses: docker/build-push-action@v7
         with:
-          context: tools/linux/visual
-          file: tools/linux/visual/${{ contains(fromJSON('["niri","cosmic","wayfire"]'), matrix.compositor) && 'Dockerfile.arch' || 'Dockerfile' }}
-          target: ${{ matrix.compositor }}
-          tags: docking-ci:${{ matrix.compositor }}
+          context: tests/visual/shared/linux
+          file: tests/visual/shared/linux/${{ matrix.image_file }}
+          target: ${{ matrix.image_target }}
+          tags: docking-ci:${{ matrix.name }}
           load: true
-          cache-from: type=gha,scope=compositor-${{ matrix.compositor }}
-          # Cache uploads must not prevent tests from running on a loaded image.
-          cache-to: type=gha,mode=max,scope=compositor-${{ matrix.compositor }},ignore-error=true
-      - name: Check real compositor geometry and lifecycle
+          cache-from: type=gha,scope=compositor-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=compositor-${{ matrix.name }},ignore-error=true
+      - name: Require native pixels, input and supported window actions
         env:
-          DOCKING_LAB_IMAGE: docking-ci:${{ matrix.compositor }}
-          COMPOSITOR: ${{ matrix.compositor }}
+          DOCKING_LAB_IMAGE: docking-ci:${{ matrix.name }}
+          TARGET: ${{ matrix.name }}
+        run: .venv/bin/python -m tests.visual --target "$TARGET" --output "artifacts/visual/$TARGET"
+      - name: Check Cinnamon reservations and window switching
+        if: matrix.name == 'cinnamon'
+        env:
+          DOCKING_LAB_IMAGE: docking-ci:cinnamon
         run: |
-          if [ "$COMPOSITOR" = cinnamon ]; then
-            bash tools/linux/visual/matrix.sh --compositor cinnamon --behavior reservation --geometry-only --require-supported
-            bash tools/linux/visual/matrix.sh --compositor cinnamon --behavior windows --geometry-only --require-supported
-            bash tools/linux/visual/cinnamon_services.sh
-            bash tools/linux/visual/native_services.sh cinnamon quiet
-            bash tools/linux/visual/native_services.sh cinnamon quiet-x11
-          elif [ "$COMPOSITOR" = cage ] || [ "$COMPOSITOR" = gnome ] || [ "$COMPOSITOR" = weston ]; then
-            # Negative compatibility lanes still verify backend, startup and shutdown.
-            bash tools/linux/visual/matrix.sh --compositor "$COMPOSITOR" --case placement-bottom --geometry-only
-          else
-            bash tools/linux/visual/matrix.sh --compositor "$COMPOSITOR" --behavior placement \
-              --case placement-bottom --case placement-top --case placement-left \
-              --case placement-right --case placement-bottom-gap --geometry-only --require-supported
-          fi
+          bash tests/visual/shared/linux/matrix.sh --compositor cinnamon --behavior reservation --geometry-only --require-supported
+          bash tests/visual/shared/linux/matrix.sh --compositor cinnamon --behavior windows --geometry-only --require-supported
+          bash tests/visual/shared/linux/native_services.sh cinnamon quiet
+          bash tests/visual/shared/linux/native_services.sh cinnamon quiet-x11
       - name: Check pointer-driven behaviour
-        if: matrix.compositor == 'sway'
+        if: matrix.name == 'sway'
         env:
           DOCKING_LAB_IMAGE: docking-ci:sway
         run: |
-          bash tools/linux/visual/matrix.sh --compositor sway --behavior visibility \
+          bash tests/visual/shared/linux/matrix.sh --compositor sway --behavior visibility \
             --case autohide-bottom --case autohide-top --case autohide-left --case autohide-right --geometry-only --require-supported
-          bash tools/linux/visual/matrix.sh --compositor sway --behavior interaction --geometry-only --require-supported
-          bash tools/linux/visual/matrix.sh --compositor sway --behavior displays --geometry-only --require-supported
-          bash tools/linux/visual/matrix.sh --compositor sway --behavior layouts --geometry-only --require-supported
+          bash tests/visual/shared/linux/matrix.sh --compositor sway --behavior interaction --geometry-only --require-supported
+          bash tests/visual/shared/linux/matrix.sh --compositor sway --behavior displays --geometry-only --require-supported
+          bash tests/visual/shared/linux/matrix.sh --compositor sway --behavior layouts --geometry-only --require-supported
       - name: Check native Wayfire dodge
-        if: matrix.compositor == 'wayfire'
+        if: matrix.name == 'wayfire'
         env:
           DOCKING_LAB_IMAGE: docking-ci:wayfire
         run: |
-          bash tools/linux/visual/matrix.sh --compositor wayfire --case dodge-active --geometry-only --require-supported
-          bash tools/linux/visual/wayfire_services.sh
-      - name: Check native services and independent dock pixels
-        if: contains(fromJSON('["sway","niri","gnome","kwin","cosmic","wayfire","phoc","phosh"]'), matrix.compositor)
+          bash tests/visual/shared/linux/matrix.sh --compositor wayfire --case dodge-active --geometry-only --require-supported
+          bash tests/visual/backends/wayfire/services.sh
+      - name: Retain native service diagnostics and Quiet checks
+        if: contains(fromJSON('["sway","niri","gnome","wayfire","phoc","phosh"]'), matrix.name)
         env:
-          DOCKING_LAB_IMAGE: docking-ci:${{ matrix.compositor }}
-          COMPOSITOR: ${{ matrix.compositor }}
+          DOCKING_LAB_IMAGE: docking-ci:${{ matrix.name }}
+          COMPOSITOR: ${{ matrix.name }}
         run: |
-          if [ "$COMPOSITOR" = kwin ]; then
-            # GPU-less QPainter validates state/actions, not animation pixels or
-            # the OpenGL-only ScreenShot2 effect. Keep this distinction in JSON.
-            bash tools/linux/visual/native_services.sh kwin services
-          elif [ "$COMPOSITOR" = cosmic ]; then
-            # Native state/actions/filtering remain testable without GPU pixel acceptance.
-            bash tools/linux/visual/native_services.sh cosmic services
-            bash tools/linux/visual/native_services.sh cosmic idle
-          elif [ "$COMPOSITOR" = phoc ] || [ "$COMPOSITOR" = phosh ]; then
-            bash tools/linux/visual/native_services.sh "$COMPOSITOR" foreign
-            if [ "$COMPOSITOR" = phoc ]; then
-              bash tools/linux/visual/native_services.sh phoc panel
-              # Explicit bare-compositor diagnostic, never the normal Phosh shell path.
-              DOCKING_PHOC_PRIVATE_PREVIEWS=1 bash tools/linux/visual/native_services.sh phoc foreign
-            fi
-          else
-            bash tools/linux/visual/native_services.sh "$COMPOSITOR"
-            if [ "$COMPOSITOR" = niri ]; then
-              bash tools/linux/visual/native_services.sh niri picker
-            fi
+          if [ "$COMPOSITOR" = phoc ]; then
+            bash tests/visual/shared/linux/native_services.sh phoc panel
+            DOCKING_PHOC_PRIVATE_PREVIEWS=1 bash tests/visual/shared/linux/native_services.sh phoc foreign
+          elif [ "$COMPOSITOR" = niri ]; then
+            bash tests/visual/shared/linux/native_services.sh niri picker
           fi
-          if [ "$COMPOSITOR" != kwin ] && [ "$COMPOSITOR" != cosmic ]; then
-            # Their GPU-less lanes cannot provide reliable dock pixel changes.
-            bash tools/linux/visual/native_services.sh "$COMPOSITOR" quiet
-          fi
+          bash tests/visual/shared/linux/native_services.sh "$COMPOSITOR" quiet
       - name: Upload captures, geometry, input proof and logs
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: compositor-${{ matrix.compositor }}
-          path: tools/linux/visual/evidence/
+          name: compositor-${{ matrix.name }}
+          path: artifacts/visual/
           include-hidden-files: false
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14

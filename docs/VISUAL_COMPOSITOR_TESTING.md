@@ -1,4 +1,28 @@
-# Visual testing Docking on Wayland compositors
+# Visual testing Docking
+
+## Unified suites and required desktop coverage
+
+The current organization and commands are documented in
+[tests/visual/README.md](../tests/visual/README.md). All renderer and native visual
+suites now live under that tree, grouped by backend and desktop. The target
+registry is the source for the Linux pull-request matrix; every registered
+Linux desktop runs the minimum suite, alongside native Windows and BSD jobs.
+
+The minimum suite requires visible dock pixels, verified physical launcher
+input, expected backend selection and successful shutdown. Supported placement,
+window actions and visibility are checked in addition. Reduced backends must
+produce real visible/input evidence. CPU-rendered virtual-GPU guests cover the
+render-device-dependent Linux targets; a failed render remains a failure.
+
+Renderer PNG comparisons remain controlled Xvfb tests. Native geometry-only mode
+still uses captured pixels for geometry and behavior; it does not compare or
+update machine-specific PNG baselines. Existing baselines retain their bytes and
+provenance.
+
+The dated investigation below describes the earlier harness and coverage. Its
+historical matrices and rendering limitations are not claims of a pass on the
+expanded current target list.
+
 
 Docking's recent Wayland fixes were all found by *looking at a real compositor*:
 [#337](https://github.com/edumucelli/docking/pull/337) (compositor allocation sizing),
@@ -17,7 +41,7 @@ Evidence is marked **[reproduced]** when the harness demonstrated it on a real c
 **[static]** when it comes from reading the code — static findings have not been executed and
 should be confirmed with a harness case before being treated as settled.
 
-The case matrix was produced by `tools/linux/visual/matrix.sh` on 2026-10-02. Every cell is a
+The case matrix was produced by `tests/visual/shared/linux/matrix.sh` on 2026-10-02. Every cell is a
 real run, not an expectation.
 
 This document merges and supersedes three former ones — the harness guide, the compositor × case
@@ -52,22 +76,22 @@ are per adapter: this is not a claim that every case runs on every desktop.
 
 ```bash
 # Geometry and behavior assertions without comparing a machine-specific baseline.
-bash tools/linux/visual/matrix.sh --compositor cinnamon --behavior windows --geometry-only --require-supported
-bash tools/linux/visual/matrix.sh --compositor sway --behavior interaction --geometry-only --require-supported
-bash tools/linux/visual/matrix.sh --compositor sway --behavior layouts --geometry-only --require-supported
-bash tools/linux/visual/matrix.sh --compositor sway --behavior displays --geometry-only --require-supported
-bash tools/linux/visual/matrix.sh --compositor sway --behavior visibility --case autohide-bottom --case autohide-top --case autohide-left --case autohide-right --geometry-only --require-supported
-bash tools/linux/visual/matrix.sh --compositor wayfire --case dodge-active --geometry-only --require-supported
+bash tests/visual/shared/linux/matrix.sh --compositor cinnamon --behavior windows --geometry-only --require-supported
+bash tests/visual/shared/linux/matrix.sh --compositor sway --behavior interaction --geometry-only --require-supported
+bash tests/visual/shared/linux/matrix.sh --compositor sway --behavior layouts --geometry-only --require-supported
+bash tests/visual/shared/linux/matrix.sh --compositor sway --behavior displays --geometry-only --require-supported
+bash tests/visual/shared/linux/matrix.sh --compositor sway --behavior visibility --case autohide-bottom --case autohide-top --case autohide-left --case autohide-right --geometry-only --require-supported
+bash tests/visual/shared/linux/matrix.sh --compositor wayfire --case dodge-active --geometry-only --require-supported
 
 # GNOME's expected unsupported placement still checks real app lifecycle.
-bash tools/linux/visual/matrix.sh --compositor gnome --case placement-bottom --geometry-only
+bash tests/visual/shared/linux/matrix.sh --compositor gnome --case placement-bottom --geometry-only
 
 # Quiet-mode pixels must stay below a real client, return when it closes, and
 # switch back above it when Always on Top is selected, on all four edges.
-bash tools/linux/visual/native_services.sh sway quiet
-bash tools/linux/visual/native_services.sh gnome quiet
-bash tools/linux/visual/native_services.sh cinnamon quiet
-bash tools/linux/visual/native_services.sh cinnamon quiet-x11
+bash tests/visual/shared/linux/native_services.sh sway quiet
+bash tests/visual/shared/linux/native_services.sh gnome quiet
+bash tests/visual/shared/linux/native_services.sh cinnamon quiet
+bash tests/visual/shared/linux/native_services.sh cinnamon quiet-x11
 ```
 
 Layouts include a 360-pixel output, 32 launchers, scale 2, mixed output scales,
@@ -113,7 +137,7 @@ preview images, version information, and `services.json` alongside other CI
 artifacts. Run it locally using an already-built Cinnamon image:
 
 ```bash
-DOCKING_LAB_IMAGE=docking-lab:cinnamon bash tools/linux/visual/cinnamon_services.sh
+DOCKING_LAB_IMAGE=docking-lab:cinnamon bash tests/visual/backends/cinnamon/services.sh
 ```
 
 ### Native backend services
@@ -125,13 +149,13 @@ dock pixels against the fixture's red contents. GNOME's bridge is installed only
 inside its private session. No host configuration or session bus is shared.
 
 ```bash
-DOCKING_LAB_IMAGE=docking-lab:sway bash tools/linux/visual/native_services.sh sway
-DOCKING_LAB_IMAGE=docking-lab:gnome bash tools/linux/visual/native_services.sh gnome
-DOCKING_LAB_IMAGE=docking-lab:niri bash tools/linux/visual/native_services.sh niri
-DOCKING_LAB_IMAGE=docking-lab:kwin bash tools/linux/visual/native_services.sh kwin services
-DOCKING_LAB_IMAGE=docking-lab:cosmic bash tools/linux/visual/native_services.sh cosmic idle
-DOCKING_LAB_IMAGE=docking-lab:wayfire bash tools/linux/visual/native_services.sh wayfire idle
-DOCKING_LAB_IMAGE=docking-lab:sway bash tools/linux/visual/native_services.sh sway outline
+DOCKING_LAB_IMAGE=docking-lab:sway bash tests/visual/shared/linux/native_services.sh sway
+DOCKING_LAB_IMAGE=docking-lab:gnome bash tests/visual/shared/linux/native_services.sh gnome
+DOCKING_LAB_IMAGE=docking-lab:niri bash tests/visual/shared/linux/native_services.sh niri
+DOCKING_LAB_IMAGE=docking-lab:kwin bash tests/visual/shared/linux/native_services.sh kwin services
+DOCKING_LAB_IMAGE=docking-lab:cosmic bash tests/visual/shared/linux/native_services.sh cosmic idle
+DOCKING_LAB_IMAGE=docking-lab:wayfire bash tests/visual/shared/linux/native_services.sh wayfire idle
+DOCKING_LAB_IMAGE=docking-lab:sway bash tests/visual/shared/linux/native_services.sh sway outline
 ```
 
 `outline` mode (Sway only) shows the real preview-hover window outline around a
@@ -163,13 +187,13 @@ the eight normal-scale cases. Unsupported capabilities remain explicit.
 # Real exclusive overlay panel, matching the original panel-offset failure.
 env LAB_PANEL_HEIGHT=64 LAB_PANEL_POSITION=top LAB_PANEL_LAYER=overlay \
   LAB_WIDTH=1280 LAB_HEIGHT=800 \
-  bash tools/linux/visual/matrix.sh --compositor sway --behavior stacks \
+  bash tests/visual/shared/linux/matrix.sh --compositor sway --behavior stacks \
   --geometry-only --require-supported
 
 # Same eight 1x cases on KWin; do not silently count unsupported scaling.
 env LAB_PANEL_HEIGHT=64 LAB_PANEL_POSITION=top LAB_PANEL_LAYER=overlay \
   LAB_WIDTH=1280 LAB_HEIGHT=800 \
-  bash tools/linux/visual/matrix.sh --compositor kwin \
+  bash tests/visual/shared/linux/matrix.sh --compositor kwin \
   --case stack-bottom --case stack-top --case stack-left --case stack-right \
   --case stack-bottom-small --case stack-top-small \
   --case stack-left-small --case stack-right-small \
@@ -304,19 +328,19 @@ and retain the shell's normal layering; all five pinned-image edge/gap cases pas
 Example local commands:
 
 ```bash
-bash tools/linux/visual/local_run.sh native wayfire contract
-bash tools/linux/visual/local_run.sh native phosh foreign
-bash tools/linux/visual/local_run.sh native phoc foreign
-bash tools/linux/visual/local_run.sh native phoc panel
-bash tools/linux/visual/local_run.sh native niri picker
-DOCKING_PHOC_PRIVATE_PREVIEWS=1 bash tools/linux/visual/local_run.sh native phoc foreign
-bash tools/linux/visual/local_run.sh matrix weston --case placement-bottom
+bash tests/visual/shared/linux/local_run.sh native wayfire contract
+bash tests/visual/shared/linux/local_run.sh native phosh foreign
+bash tests/visual/shared/linux/local_run.sh native phoc foreign
+bash tests/visual/shared/linux/local_run.sh native phoc panel
+bash tests/visual/shared/linux/local_run.sh native niri picker
+DOCKING_PHOC_PRIVATE_PREVIEWS=1 bash tests/visual/shared/linux/local_run.sh native phoc foreign
+bash tests/visual/shared/linux/local_run.sh matrix weston --case placement-bottom
 LAB_PARENT_RENDERER=gles2 WLR_RENDER_DRM_DEVICE=/dev/dri/renderD129 \
-  bash tools/linux/visual/local_run.sh native cosmic
+  bash tests/visual/shared/linux/local_run.sh native cosmic
 ```
 
 Use a render node appropriate to the machine. Local evidence is retained in
-`tools/linux/visual/evidence/local-*`; it is ignored by Git. Cinnamon/Muffin,
+`artifacts/visual/linux/local-*`; it is ignored by Git. Cinnamon/Muffin,
 Cage, Weston, Phoc/Phosh, grim, xdotool and dbus-x11 were installed locally;
 Sway, labwc, Niri, COSMIC, Wayfire, Hyprland, KWin and GNOME were already present.
 
@@ -359,22 +383,22 @@ Only observing the compositor catches that.
 
 ```bash
 # one-time build (~5-10 min: installs sway + the GTK stack)
-bash tools/linux/visual/matrix.sh --rebuild
+bash tests/visual/shared/linux/matrix.sh --rebuild
 
 # run the placement cases on sway
-bash tools/linux/visual/matrix.sh --compositor sway --behavior placement
+bash tests/visual/shared/linux/matrix.sh --compositor sway --behavior placement
 
 # first time: record the baselines, then re-run to verify they pass
-bash tools/linux/visual/matrix.sh --compositor sway --update-baselines
+bash tests/visual/shared/linux/matrix.sh --compositor sway --update-baselines
 
 # one case, when iterating
-bash tools/linux/visual/matrix.sh --compositor sway --case placement-bottom
+bash tests/visual/shared/linux/matrix.sh --compositor sway --case placement-bottom
 ```
 
 Requirements: `docker`, and the project venv (`.venv`) — the comparison runs on the host and
 uses Pillow/NumPy from the `dev` extra.
 
-Artifacts land in `tools/linux/visual/evidence/<compositor>-<timestamp>/`:
+Artifacts land in `artifacts/visual/linux/<compositor>-<timestamp>/`:
 `<case>.png` (full output), `<case>.log` (Docking's log), `<case>.json` (probed geometry).
 
 ### Evidence production vs comparison
@@ -384,7 +408,7 @@ The container only *produces evidence*; all comparison happens on the host.
 ```text
 host                                     container (debian:trixie)
 ─────────────────────────────────────    ──────────────────────────────────
-tools/linux/visual/matrix.sh
+tests/visual/shared/linux/matrix.sh
   scenarios.py ──▶ cases.json ──────────▶ run_session.sh
                                            adapters/sway.sh
                                              ├─ sway (headless wlroots)
@@ -397,7 +421,7 @@ tools/linux/visual/matrix.sh
 ```
 
 Keeping comparison on the host means the container needs no imaging stack, and the metric code
-stays in one place — it reuses `tests/visual/support.py`'s `compute_metrics` and `diff_image`
+stays in one place — it reuses `tests/visual/rendering/support.py`'s `compute_metrics` and `diff_image`
 rather than reimplementing them.
 
 ### Layer 1 — geometry
@@ -419,10 +443,10 @@ Cropping the expected band, not the measured rect, is deliberate: a crop that fo
 would follow the bug and hide it.
 
 Thresholds default to SSIM 0.985 / PSNR 30.0 (`LIVE_THRESHOLDS` in `compare.py`), looser than
-`tests/visual/support.py`'s 0.995/35.0, which is calibrated for bit-identical in-process
+`tests/visual/rendering/support.py`'s 0.995/35.0, which is calibrated for bit-identical in-process
 rendering.
 
-The metrics in `tests/visual/metrics.py` adapt the float32 RGB/RGBA paths from
+The metrics in `tests/visual/rendering/metrics.py` adapt the float32 RGB/RGBA paths from
 [scikit-image 0.26.0 SSIM](https://github.com/scikit-image/scikit-image/blob/v0.26.0/skimage/metrics/_structural_similarity.py)
 and [PSNR](https://github.com/scikit-image/scikit-image/blob/v0.26.0/skimage/metrics/simple_metrics.py).
 The separable 7x7 uniform filter ports
@@ -432,9 +456,9 @@ after each axis. SSIM retains sample covariance, three-pixel border cropping,
 float64 spatial means, and float32 channel averaging. The upstream BSD notices
 are retained in the Python file's header.
 
-`tests/visual/metrics_reference.json` records upstream results for deterministic
+`tests/visual/rendering/metrics_reference.json` records upstream results for deterministic
 images, including alpha-only changes, flat regions, borders, the minimum window,
-and both sides of each SSIM/PSNR threshold. `tests/test_visual_metrics.py` checks
+and both sides of each SSIM/PSNR threshold. `tests/visual/rendering/test_metrics.py` checks
 these results without importing scikit-image or SciPy. When changing the port,
 compare against the upstream versions above before regenerating any reference
 values; keep visual baselines and acceptance thresholds independent of metric
@@ -677,8 +701,8 @@ Reservation is covered by six cases covering all four edges, a 40-pixel bottom
 gap, and forced termination:
 
 ```bash
-bash tools/linux/visual/matrix.sh --compositor cinnamon --behavior reservation --update-baselines
-bash tools/linux/visual/matrix.sh --compositor cinnamon --behavior reservation
+bash tests/visual/shared/linux/matrix.sh --compositor cinnamon --behavior reservation --update-baselines
+bash tests/visual/shared/linux/matrix.sh --compositor cinnamon --behavior reservation
 ```
 
 All six matched their baselines exactly on an independent rerun on Debian 13's
@@ -775,7 +799,7 @@ where a virtual-pointer device can be held open.
 
 ## The case matrix
 
-Produced by `tools/linux/visual/matrix.sh` on 2026-10-02. Every cell is a
+Produced by `tests/visual/shared/linux/matrix.sh` on 2026-10-02. Every cell is a
 real run, not an expectation.
 
 | Case | sway | labwc | cage | cinnamon | wayfire | kwin | niri | cosmic |
@@ -886,7 +910,7 @@ an experiment before a vendoring project.
 
 ## Findings
 
-Compiled from the visual compositor harness (`tools/linux/visual/matrix.sh`),
+Compiled from the visual compositor harness (`tests/visual/shared/linux/matrix.sh`),
 static analysis of the backend code, and the `#347` investigation. Each issue
 states how it was found, the evidence, the root cause with file:line, the user
 impact, and the fix I would make.
@@ -1510,7 +1534,7 @@ was silently converted into a confident wrong answer.
 
 ## Writing an adapter
 
-Create `tools/linux/visual/adapters/<name>.sh` implementing the contract, and add the
+Create `tests/visual/shared/linux/adapters/<name>.sh` implementing the contract, and add the
 package to the Dockerfile. The shared lifecycle lives in `adapters/common.sh` and is lifted
 from `packaging/deb/runtime-smoke.sh`: cleanup trap with PID sentinels, socket discovery that
 globs `wayland-*` with a liveness check inside the loop, two readiness gates, and

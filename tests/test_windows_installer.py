@@ -21,10 +21,10 @@ import pytest
 from docking.platform.host.implementations.windows import process as hook_command
 from docking.platform.native.windows import installation as install_module
 from docking.platform.native.windows.installation import installed_hook
+from tests.visual.backends.windows import installer_smoke
 from tools.windows import installer as installer_tool
 from tools.windows.bundle import filesystem_path, native_path, payload_root
 from tools.windows.installer import build, payload_script, removal_manifest
-from tools.windows.visual import installer_smoke
 
 
 @pytest.mark.parametrize(
@@ -663,7 +663,7 @@ def test_native_builder_compiles_and_cleans_an_installer_in_the_msys_environment
 def test_native_interrupted_first_install_keeps_ownership_and_removal_inventory(
     tmp_path, native_helpers
 ):
-    from tools.windows.visual.installer_smoke import (
+    from tests.visual.backends.windows.installer_smoke import (
         UNINSTALL_KEY,
         registry_value,
     )

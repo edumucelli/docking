@@ -258,7 +258,7 @@ missing or unshipped implementation files. API return values, protocol
 observations, physical input and reviewed screenshots are separate evidence.
 A capture labeled `captured-not-reviewed` is not visual acceptance.
 
-The hosted-only `tools.windows.visual.hosted_desktop` wrapper prepares
+The hosted-only `tests.visual.backends.windows.hosted_desktop` wrapper prepares
 recognized first-login/runner windows, hides the verified Start surface,
 records actions and temporarily scopes
 the privacy-experience policy. It restores that policy afterward and does not
@@ -272,7 +272,7 @@ distribution or Windows optional features; WSL is not a Docking dependency.
 
 ### Feature probes
 
-Run as `python -m tools.windows.visual.<module> --output PATH`. Use `--help`
+Run as `python -m tests.visual.backends.windows.<module> --output PATH`. Use `--help`
 for device/fixture arguments and destructive desktop modes.
 
 | Area | Probe modules/options |
@@ -298,7 +298,7 @@ connection or brightness change. Camera fixtures generate frames rather than
 opening a physical camera. Session shutdown/restart needs an external observer;
 an accepted API request alone does not prove the transition.
 
-See the [desktop tool guide](../tools/windows/visual/README.md) for host-side
+See the [desktop tool guide](../tests/visual/backends/windows/README.md) for host-side
 `vm_input`, `vm_pointer`, `vm_audio` and capture helpers.
 
 ### Packaging acceptance
@@ -333,8 +333,8 @@ and GTK versions 3/4 with GUID-only updates. Release staging requires all four.
 ### API and ownership matrix
 
 ```powershell
-python -m tools.windows.visual.tray_provider_smoke --mode explorer --all --output artifacts/tray-explorer
-python -m tools.windows.visual.tray_provider_smoke --mode backend --all --installed-root artifacts/windows/runtime --wheel dist/docking.whl --output artifacts/tray-backend
+python -m tests.visual.backends.windows.tray_provider_smoke --mode explorer --all --output artifacts/tray-explorer
+python -m tests.visual.backends.windows.tray_provider_smoke --mode backend --all --installed-root artifacts/windows/runtime --wheel dist/docking.whl --output artifacts/tray-backend
 ```
 
 The independent C# provider calls `Shell_NotifyIconA/W` and
@@ -356,8 +356,8 @@ to Explorer.
 ### GTK and physical input
 
 ```powershell
-python -m tools.windows.visual.tray_smoke --verify-geometry --verify-interactions --installed-root artifacts/windows/runtime --wheel dist/docking.whl --output artifacts/tray-gtk-v0-v4
-python -m tools.windows.visual.tray_smoke --verify-interactions --legacy-version 3 --modern-version 4 --guid-only-updates --installed-root artifacts/windows/runtime --wheel dist/docking.whl --output artifacts/tray-gtk-v3-v4-guid
+python -m tests.visual.backends.windows.tray_smoke --verify-geometry --verify-interactions --installed-root artifacts/windows/runtime --wheel dist/docking.whl --output artifacts/tray-gtk-v0-v4
+python -m tests.visual.backends.windows.tray_smoke --verify-interactions --legacy-version 3 --modern-version 4 --guid-only-updates --installed-root artifacts/windows/runtime --wheel dist/docking.whl --output artifacts/tray-gtk-v3-v4-guid
 ```
 
 Require actual hover, rich popups, SHOWTIP off/on/off, Enter/Space, Shift+F10,
@@ -380,7 +380,7 @@ are never synthesized.
 ### Controlled provider inspection
 
 ```powershell
-python -m tools.windows.visual.tray_provider_smoke --mode explorer --case 64-unicode-guid-v4-full --hold-phase fresh --hold-seconds 120 --output artifacts/tray-hover-fresh
+python -m tests.visual.backends.windows.tray_provider_smoke --mode explorer --case 64-unicode-guid-v4-full --hold-phase fresh --hold-seconds 120 --output artifacts/tray-hover-fresh
 ```
 
 Holds are available at `fresh`, `showtip-on`, `showtip-off`, `collision`,
@@ -409,8 +409,8 @@ with `DOCKING_WINDOWS_STORAGE`, `DOCKING_WINDOWS_SHARE`,
 
 ```sh
 docker compose --env-file /path/to/lab.env -f packaging/windows/lab/compose.yaml -f packaging/windows/lab/compose.install.yaml up -d
-python -m tools.windows.visual.lab --share /path/to/shared/artifacts configure-share
-python -m tools.windows.visual.lab --share /path/to/shared/artifacts ready
+python -m tools.windows.lab.run --share /path/to/shared/artifacts configure-share
+python -m tools.windows.lab.run --share /path/to/shared/artifacts ready
 ```
 
 After installation, stop gracefully and confirm `storage/windows.boot`. Later
