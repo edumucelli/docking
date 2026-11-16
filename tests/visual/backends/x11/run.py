@@ -462,7 +462,7 @@ def ready(observer: Observer, child, count: int = 3):
 
 
 def run_checks(observer: Observer, env: dict[str, str], record):
-    distances = {}
+    resting_bounds = {}
     for edge, gap in (
         ("bottom", 0),
         ("top", 0),
@@ -482,10 +482,14 @@ def run_checks(observer: Observer, env: dict[str, str], record):
             ) as child:
                 window = ready(observer, child)
                 bounds = placement(observer.settled(name), edge, gap)
-                if gap and edge in distances:
-                    assert abs(bounds["distance"] - distances[edge] - gap) <= 2, bounds
+                if gap and edge in resting_bounds:
+                    # Compare pixels directly; GDK may publish panel workareas late.
+                    assert (
+                        abs(resting_bounds[edge]["bottom"] - bounds["bottom"] - gap)
+                        <= 2
+                    ), bounds
                 elif not gap:
-                    distances[edge] = bounds["distance"]
+                    resting_bounds[edge] = bounds
                 return {"pixels": bounds, "window": list(window.get_geometry())}
 
         record(name, check)

@@ -45,8 +45,4 @@ adapter_geometry() {
     /usr/bin/python3 "$LAB_SCRIPTS/probes/session_probe.py" geometry
 }
 adapter_pointer() { lab_pointer "$@"; }
-adapter_start_frame_clock() {
-    /usr/bin/python3 "$LAB_SCRIPTS/probes/frame_probe.py" >"$LAB_DIR/background.log" 2>&1 &
-    ADAPTER_FRAME_PID=$!
-}
 adapter_stop() { adapter_cleanup; }

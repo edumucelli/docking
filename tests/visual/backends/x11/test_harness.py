@@ -1,6 +1,7 @@
 """Reject blank, misplaced and incomplete screenshots in the BSD visual lab."""
 
 from contextlib import contextmanager
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -161,3 +162,39 @@ def test_gap_scenario_can_run_without_other_placement_cases(monkeypatch):
 
     run.run_checks(observer, {}, record)
     assert results[0]["pixels"]["distance"] == 26
+
+
+@pytest.mark.parametrize("gap_applied", [True, False])
+def test_gap_pair_uses_captured_pixels_when_panel_workarea_updates_late(
+    monkeypatch, gap_applied
+):
+    @contextmanager
+    def dock_case(*args, **kwargs):
+        yield None
+
+    monkeypatch.setattr(run, "dock_case", dock_case)
+    monkeypatch.setattr(
+        run,
+        "ready",
+        lambda *args: SimpleNamespace(get_geometry=lambda: (0, 0, 200, 160)),
+    )
+    baseline = frame(rect=(80, 115, 120, 145))
+    offset = 16 if gap_applied else 0
+    shifted = replace(
+        frame(rect=(80, 115 - offset, 120, 145 - offset)),
+        workarea=(0, 0, 200, 150 if gap_applied else 176),
+    )
+    observer = SimpleNamespace(
+        pointer=MagicMock(),
+        settled=lambda name: shifted if name.endswith("-gap") else baseline,
+    )
+
+    def record(name, check):
+        if name in {"placement-bottom", "placement-bottom-gap"}:
+            check()
+
+    if gap_applied:
+        run.run_checks(observer, {}, record)
+    else:
+        with pytest.raises(AssertionError):
+            run.run_checks(observer, {}, record)

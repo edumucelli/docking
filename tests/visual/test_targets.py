@@ -5,8 +5,11 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import signal
+import subprocess
 import sys
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -165,6 +168,20 @@ def test_guest_uses_an_emulated_gpu_and_loopback_only_ssh(tmp_path):
     assert "sdl,gl=on" in command
     assert "user,id=net0,hostfwd=tcp:127.0.0.1:12345-:22" in command
     assert not any("vfio" in arg or "/dev/dri" in arg for arg in command)
+
+
+@pytest.mark.parametrize("timeout", [False, True])
+def test_guest_cleanup_terminates_the_entire_owned_process_group(monkeypatch, timeout):
+    kill = MagicMock()
+    monkeypatch.setattr(visual_vm.os, "killpg", kill)
+    guest = MagicMock(pid=12345)
+    if timeout:
+        guest.wait.side_effect = [subprocess.TimeoutExpired("guest", 10), 0]
+    visual_vm.stop_guest(guest)
+    assert kill.call_args_list[0].args == (12345, signal.SIGTERM)
+    if timeout:
+        assert kill.call_args_list[1].args == (12345, signal.SIGKILL)
+    assert kill.call_count == (2 if timeout else 1)
 
 
 def test_visual_source_has_no_superseded_platform_directories():

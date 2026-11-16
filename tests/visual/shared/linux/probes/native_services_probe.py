@@ -88,6 +88,13 @@ def fixture(*, transparent=False):
         return False
 
     area.connect("draw", draw)
+
+    # Keep nested outputs repainting while the dock animates over the fixture.
+    def redraw():
+        area.queue_draw()
+        return GLib.SOURCE_CONTINUE
+
+    GLib.timeout_add(200, redraw)
     window.add(area)
     geometry_file = os.environ.get("LAB_FIXTURE_SIZE_FILE")
     if geometry_file:

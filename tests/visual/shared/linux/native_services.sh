@@ -11,7 +11,12 @@ if [ "${1:-}" != --session ]; then
     image="${DOCKING_LAB_IMAGE:-docking-lab:$compositor}"
     lab_uid="$(id -u)"
     lab_gid="$(id -g)"
+    container_user="$lab_uid:$lab_gid"
     device_args=()
+    if [ "$compositor" = treeland ]; then
+        container_user=0
+        device_args+=(-e "LAB_UID=$lab_uid" -e "LAB_GID=$lab_gid" -e LAB_DIR=/evidence)
+    fi
     if [ "$compositor" = jay ]; then
         # Docker's default profile blocks Jay's required io_uring syscalls.
         device_args+=(--security-opt seccomp=unconfined)
@@ -31,7 +36,7 @@ if [ "${1:-}" != --session ]; then
     printf 'lab:x:%s:%s:lab:/tmp:/bin/sh\n' "$lab_uid" "$lab_gid" >> "$evidence/.passwd"
     printf 'lab:x:%s:\n' "$lab_gid" >> "$evidence/.group"
     printf 'Evidence: %s\n' "$evidence"
-    docker run --rm --network none --user "$lab_uid:$lab_gid" -e HOME=/tmp \
+    docker run --rm --network none --user "$container_user" -e HOME=/tmp \
         -e "LAB_OUTPUTS=${LAB_OUTPUTS:-1}" -e DOCKING_PHOC_PRIVATE_PREVIEWS -e LAB_SOFTWARE_RENDERING "${device_args[@]}" \
         -v "$evidence/.passwd:/etc/passwd:ro" -v "$evidence/.group:/etc/group:ro" \
         -v "$repo_dir:/src:ro" -v "$evidence:/evidence" \
@@ -90,7 +95,7 @@ if [ "$compositor" = gnome-fallback ] || [ "$compositor" = weston ]; then
     export LAB_EXPECTED_BACKEND=reduced LAB_CAPTURE_MODE=x11
 fi
 if [ "$compositor" = cage ]; then export LAB_EXPECTED_BACKEND=reduced; fi
-if [ "$compositor" = hyprland ] || [ "$compositor" = miriway ]; then export LAB_CAPTURE_MODE=x11; fi
+if [ "$compositor" = miriway ]; then export LAB_CAPTURE_MODE=x11; fi
 if [ "$compositor" = treeland ] || [ "$compositor" = gamescope ] || [ "$compositor" = jay ]; then
     export LAB_CAPTURE_MODE=parent
 fi

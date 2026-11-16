@@ -8,12 +8,14 @@ import json
 import os
 import shlex
 import shutil
+import signal
 import socket
 import subprocess
 import tarfile
 import tempfile
 import time
 import urllib.request
+from contextlib import suppress
 from pathlib import Path
 
 from tests.visual.targets import ROOT, target_named
@@ -63,6 +65,18 @@ def qemu_command(disk: Path, seed: Path, port: int) -> list[str]:
         "-device",
         "virtio-net-pci,netdev=net0",
     ]
+
+
+def stop_guest(guest: subprocess.Popen) -> None:
+    """Release QEMU as well as its Xvfb launcher before deleting the overlay."""
+    with suppress(ProcessLookupError):
+        os.killpg(guest.pid, signal.SIGTERM)
+    try:
+        guest.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        with suppress(ProcessLookupError):
+            os.killpg(guest.pid, signal.SIGKILL)
+        guest.wait(timeout=5)
 
 
 def main() -> int:
@@ -200,6 +214,7 @@ def main() -> int:
                 qemu_command(disk, seed, port),
                 stdout=log,
                 stderr=subprocess.STDOUT,
+                start_new_session=True,
                 env={
                     **os.environ,
                     "LIBGL_ALWAYS_SOFTWARE": "1",
@@ -234,7 +249,7 @@ def main() -> int:
                         [
                             *ssh,
                             (
-                                "sudo modprobe udmabuf && "
+                                "(test -c /dev/udmabuf || sudo modprobe udmabuf) && "
                                 "sudo chgrp video /dev/udmabuf && "
                                 "sudo chmod 660 /dev/udmabuf"
                             ),
@@ -304,12 +319,7 @@ def main() -> int:
                 )
                 return status or copied.returncode
             finally:
-                guest.terminate()
-                try:
-                    guest.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    guest.kill()
-                    guest.wait(timeout=5)
+                stop_guest(guest)
 
 
 if __name__ == "__main__":

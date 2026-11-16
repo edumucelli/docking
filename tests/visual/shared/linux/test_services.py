@@ -9,8 +9,25 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
+
+
+def test_native_scene_repaints_while_nested_compositor_animates(monkeypatch):
+    from tests.visual.shared.linux.probes import native_services_probe as native
+
+    window, area, timer = MagicMock(), MagicMock(), MagicMock()
+    monkeypatch.setattr(native.Gtk, "Window", lambda **kwargs: window)
+    monkeypatch.setattr(native.Gtk, "DrawingArea", lambda: area)
+    monkeypatch.setattr(native.Gtk, "main", lambda: None)
+    monkeypatch.setattr(native.GLib, "set_prgname", lambda _name: None)
+    monkeypatch.setattr(native.GLib, "timeout_add", timer)
+    native.fixture()
+    interval, tick = timer.call_args.args
+    assert interval == 200
+    assert tick() == native.GLib.SOURCE_CONTINUE
+    area.queue_draw.assert_called_once_with()
 
 
 @pytest.mark.parametrize("dock_present", [False, True])
@@ -152,12 +169,17 @@ adapter_capabilities
 )
 @pytest.mark.parametrize("minimize_delivered", [False, True])
 def test_foreign_service_probe_requires_actual_fixture_pixels(
-    tmp_path, monkeypatch, color, minimize_delivered, private_previews
+    tmp_path,
+    monkeypatch,
+    color,
+    minimize_delivered,
+    private_previews,
+    idle_available=True,
 ):
     from tests.visual.shared.linux.probes import foreign_services_probe as probe
 
     monkeypatch.setenv("LAB_EXPECTED_BACKEND", "wayland-layer-shell")
-    monkeypatch.setenv("LAB_COMPOSITOR", "phoc")
+    monkeypatch.setenv("LAB_COMPOSITOR", "phoc" if idle_available else "miriway")
     monkeypatch.setenv(
         "DOCKING_PHOC_PRIVATE_PREVIEWS", "1" if private_previews else "0"
     )
@@ -212,6 +234,7 @@ def test_foreign_service_probe_requires_actual_fixture_pixels(
             supports_activate=True,
             supports_overlap_active=False,
             supports_overlap_any=False,
+            supports_idle_time=idle_available,
         ),
         windows=SimpleNamespace(
             list_all_windows=lambda: rows,
@@ -219,7 +242,11 @@ def test_foreign_service_probe_requires_actual_fixture_pixels(
             minimize_all=minimize,
             close=close,
         ),
-        idle=SimpleNamespace(idle_seconds=lambda: next(idle_values)),
+        idle=(
+            SimpleNamespace(idle_seconds=lambda: next(idle_values))
+            if idle_available
+            else None
+        ),
         previews=SimpleNamespace(capture=capture),
     )
     task = probe.ForeignServicesProbe(None, backend, "bottom").run()
@@ -238,6 +265,21 @@ def test_foreign_service_probe_requires_actual_fixture_pixels(
             "minimize_restore" in report["unsupported_reasons"]
         ) is not minimize_delivered
         assert report["close"] is True
+        assert (report["idle_seconds"] is not None) is idle_available
+        assert ("idle_seconds" in report["unsupported_reasons"]) is not idle_available
     except AssertionError:
         assert private_previews and color != b"\xff\x00\x00"
         assert not (tmp_path / "foreign-services.json").exists()
+
+
+def test_foreign_actions_still_run_when_miriway_has_no_idle_protocol(
+    tmp_path, monkeypatch
+):
+    test_foreign_service_probe_requires_actual_fixture_pixels(
+        tmp_path,
+        monkeypatch,
+        color=b"\x00\x00\x00",
+        minimize_delivered=True,
+        private_previews=False,
+        idle_available=False,
+    )

@@ -33,7 +33,7 @@ def dock_window(rows: list[dict]) -> dict | None:
 def placement_pixels(
     before, after, workarea, edge: str, dpi: int, origin=(0, 0), gap: int = 0
 ) -> dict:
-    """Measure changed desktop pixels in the independently expected edge band."""
+    """Measure the fixture shelf in the independently expected desktop edge band."""
     from PIL import ImageChops
 
     scale = dpi / 96
@@ -50,6 +50,16 @@ def placement_pixels(
     mask = (
         difference.crop(crop).convert("L").point(lambda value: 255 if value > 20 else 0)
     )
+    # AppBar reservations also resize unrelated windows behind the dock.
+    red, green, blue = after.convert("RGB").crop(crop).split()
+    marker = ImageChops.multiply(
+        red.point(lambda value: 255 if value > 230 else 0),
+        blue.point(lambda value: 255 if value > 230 else 0),
+    )
+    marker = ImageChops.multiply(
+        marker, green.point(lambda value: 255 if value < 30 else 0)
+    )
+    mask = ImageChops.multiply(mask, marker)
     bounds = mask.getbbox()
     count = mask.histogram()[255]
     assert bounds is not None and count >= 1000 * scale * scale, (
@@ -69,7 +79,9 @@ def placement_pixels(
         "Dock pixels misplaced"
     )
     if gap:
-        assert abs(distance - gap * scale) <= 12 * scale, "Configured dock gap absent"
+        assert abs(distance - gap * scale) <= 12 * scale, (
+            f"Configured dock gap absent: expected {gap * scale}, measured {distance}"
+        )
     return {"edge": edge, "pixels": count, "distance": distance}
 
 
@@ -119,6 +131,7 @@ def main() -> None:
                 "icon_size": 48,
                 "position": args.position,
                 "additional_distance_from_edge": args.edge_gap,
+                **({"theme": "visual-placement"} if args.placement_only else {}),
                 "hide_mode": "none",
                 "startup_tips_enabled": False,
                 "update_check_enabled": False,
@@ -126,6 +139,25 @@ def main() -> None:
         ),
         encoding="utf-8",
     )
+    if args.placement_only:
+        theme = config.parent / "themes" / "visual-placement.json"
+        theme.parent.mkdir(parents=True, exist_ok=True)
+        theme.write_text(
+            json.dumps(
+                {
+                    "shelf": {
+                        key: [255, 0, 255, 255]
+                        for key in (
+                            "fill_start_color",
+                            "fill_end_color",
+                            "stroke_color",
+                            "inner_stroke_color",
+                        )
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
     user32.EnumWindows.argtypes = (callback_type, wintypes.LPARAM)
@@ -384,6 +416,8 @@ def main() -> None:
     child = None
     dock = None
     before = ImageGrab.grab(all_screens=True)
+    if args.placement_only:
+        before.save(output / "before.png")
     try:
         with (output / "docking.log").open("w", encoding="utf-8") as log:
             child = subprocess.Popen(

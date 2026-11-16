@@ -148,6 +148,7 @@ echo "[lab] evidence: $RUN_DIR"
 # appended, rather than depending on that coincidence.
 LAB_UID="$(id -u)"
 LAB_GID="$(id -g)"
+container_user="$LAB_UID:$LAB_GID"
 docker run --rm --entrypoint cat "$IMAGE" /etc/passwd >"$RUN_DIR/.passwd"
 docker run --rm --entrypoint cat "$IMAGE" /etc/group >"$RUN_DIR/.group"
 printf 'lab:x:%s:%s:lab:/tmp:/bin/sh\n' "$LAB_UID" "$LAB_GID" >>"$RUN_DIR/.passwd"
@@ -155,6 +156,10 @@ printf 'lab:x:%s:\n' "$LAB_GID" >>"$RUN_DIR/.group"
 
 set +e
 device_args=()
+if [ "$COMPOSITOR" = treeland ]; then
+    container_user=0
+    device_args+=(-e "LAB_UID=$LAB_UID" -e "LAB_GID=$LAB_GID")
+fi
 if [ "$COMPOSITOR" = jay ]; then
     # Docker's default profile blocks Jay's required io_uring syscalls.
     device_args+=(--security-opt seccomp=unconfined)
@@ -172,7 +177,7 @@ if [ "$COMPOSITOR" = gamescope ]; then
 fi
 docker run --rm \
     "${device_args[@]}" \
-    --user "$(id -u):$(id -g)" \
+    --user "$container_user" \
     -e HOME=/tmp \
     -e LAB_GNOME_BRIDGE \
     -e LAB_PARENT_RENDERER -e LAB_KWIN_COMPOSE -e LAB_SOFTWARE_RENDERING \

@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[4]
     "script,args",
     [
         ("shared/linux/native_services.sh", ["phoc", "foreign"]),
+        ("shared/linux/native_services.sh", ["treeland", "treeland"]),
         ("backends/wayfire/services.sh", []),
         ("backends/cinnamon/services.sh", []),
     ],
@@ -48,6 +49,10 @@ def test_service_runner_creates_evidence_in_fresh_checkout(tmp_path, script, arg
     assert len(docker_calls) == 3
     assert f"{tmp_path / 'checkout'}:/src:ro" in docker_calls[-1]
     assert f"/src/tests/visual/{script} --session" in docker_calls[-1]
+    if "treeland" in args:
+        assert "--user 0" in docker_calls[-1]
+        assert f"LAB_UID={os.getuid()}" in docker_calls[-1]
+        assert f"LAB_GID={os.getgid()}" in docker_calls[-1]
 
 
 @pytest.mark.parametrize("no_xwayland", [False, True])

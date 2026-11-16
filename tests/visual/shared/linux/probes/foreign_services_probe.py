@@ -100,15 +100,19 @@ class ForeignServicesProbe(native.Probe):
             ),
             "Foreign toplevel restore not delivered",
         )
-        assert self.backend.idle is not None
-        await self.wait(
-            lambda: self.backend.idle.idle_seconds() is not None,
-            "Idle notification not delivered",
-        )
-        before = self.backend.idle.idle_seconds()
-        await self.settle(0.3)
-        after = self.backend.idle.idle_seconds()
-        assert after > before
+        if os.environ["LAB_COMPOSITOR"] in {"phoc", "phosh", "jay"}:
+            assert caps.supports_idle_time
+        after = None
+        if caps.supports_idle_time:
+            assert self.backend.idle is not None
+            await self.wait(
+                lambda: self.backend.idle.idle_seconds() is not None,
+                "Idle notification not delivered",
+            )
+            before = self.backend.idle.idle_seconds()
+            await self.settle(0.3)
+            after = self.backend.idle.idle_seconds()
+            assert after > before
         assert self.backend.windows.close(row.id).succeeded
         await self.wait(
             lambda: (
@@ -142,10 +146,13 @@ class ForeignServicesProbe(native.Probe):
             "preview_pixels": preview is not None,
             "private_previews_opted_in": private_previews,
         }
+        if not caps.supports_idle_time:
+            result["unsupported_reasons"]["idle_seconds"] = (
+                "Compositor does not advertise an idle notification protocol"
+            )
         if not row.can_preview:
             result["unsupported_reasons"]["preview_pixels"] = (
-                "Phosh private thumbnails use a singleton shell protocol; "
-                "normal clients leave it unbound"
+                "Compositor does not provide a supported preview protocol to this client"
             )
         (self.evidence / "foreign-services.json").write_text(
             json.dumps(result, indent=2)
