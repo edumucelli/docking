@@ -48,8 +48,9 @@ pytest and pre-commit run harness unit tests, without launching native desktops;
 tests marked `visual` remain excluded by default.
 
 GPU-dependent Linux targets use the pinned Debian guest in
-`tools/linux/visual_vm.py`: an emulated VirtIO GPU supplies DRM buffers and Mesa
-renders on the CPU. The host needs QEMU, cloud-image-utils, SSH and Docker; no
+`tools/linux/visual_vm.py`: an emulated VirtIO GPU supplies DRM buffers through
+VirGL, backed by host Mesa llvmpipe on a private Xvfb display. Rendering stays on
+the CPU. The host needs QEMU with SDL/OpenGL, Xvfb, cloud-image-utils, SSH and Docker; no
 physical GPU or self-hosted runner is required. The image is checked against its
 pinned SHA512 before boot. Guest failures remain failures, with the boot log and
 available native evidence retained. The download cache is `artifacts/visual-vm-cache/`.

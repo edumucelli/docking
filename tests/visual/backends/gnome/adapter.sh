@@ -50,6 +50,11 @@ adapter_wait_ready() {
             --object-path /org/freedesktop/DBus --method org.freedesktop.DBus.GetNameOwner \
             org.gnome.Shell >/dev/null 2>&1; then
             sleep 2
+            if [ "$GNOME_LAB_MODE" = nested ]; then
+                DISPLAY="$(cat "$LAB_DIR/outer-display")" \
+                    XAUTHORITY="$(cat "$LAB_DIR/outer-authority")" \
+                    xdotool search --onlyvisible --name . windowfocus key Escape
+            fi
             return 0
         fi
         sleep 0.5

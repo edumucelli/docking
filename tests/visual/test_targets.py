@@ -139,6 +139,9 @@ def test_windows_minimum_preserves_installed_runtime_and_all_four_edges(tmp_path
         for command in placement
     )
     assert any(
+        command[command.index("--edge-gap") + 1] == "40" for command in placement
+    )
+    assert any(
         "--multiple-windows" in command and "--uncataloged" in command
         for command in commands
     )
@@ -157,7 +160,9 @@ def test_guest_checksum_rejects_partial_or_changed_downloads(tmp_path, monkeypat
 
 def test_guest_uses_an_emulated_gpu_and_loopback_only_ssh(tmp_path):
     command = visual_vm.qemu_command(tmp_path / "disk", tmp_path / "seed", 12345)
-    assert "virtio-gpu-pci" in command
+    assert "virtio-vga-gl" in command
+    assert command[0] == "xvfb-run"
+    assert "sdl,gl=on" in command
     assert "user,id=net0,hostfwd=tcp:127.0.0.1:12345-:22" in command
     assert not any("vfio" in arg or "/dev/dri" in arg for arg in command)
 

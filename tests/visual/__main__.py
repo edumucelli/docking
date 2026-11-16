@@ -30,11 +30,19 @@ def commands(
                 "--placement-only",
                 "--position",
                 edge,
+                "--edge-gap",
+                str(gap),
                 "--output",
-                str(output / f"placement-{edge}"),
+                str(output / (f"placement-{edge}" + ("-gap" if gap else ""))),
                 *runtime,
             ]
-            for edge in ("bottom", "top", "left", "right")
+            for edge, gap in (
+                ("bottom", 0),
+                ("top", 0),
+                ("left", 0),
+                ("right", 0),
+                ("bottom", 40),
+            )
         ] + [
             [
                 sys.executable,

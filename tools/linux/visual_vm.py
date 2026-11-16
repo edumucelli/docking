@@ -36,6 +36,10 @@ def verify_image(path: Path) -> bool:
 
 def qemu_command(disk: Path, seed: Path, port: int) -> list[str]:
     return [
+        "xvfb-run",
+        "-a",
+        "-s",
+        "-screen 0 1280x720x24 +extension GLX",
         "qemu-system-x86_64",
         "-accel",
         "kvm" if os.access("/dev/kvm", os.R_OK | os.W_OK) else "tcg",
@@ -44,12 +48,12 @@ def qemu_command(disk: Path, seed: Path, port: int) -> list[str]:
         "-smp",
         "2",
         "-display",
-        "none",
+        "sdl,gl=on",
         "-serial",
         "stdio",
         "-no-reboot",
         "-device",
-        "virtio-gpu-pci",
+        "virtio-vga-gl",
         "-drive",
         f"file={disk},if=virtio,format=qcow2",
         "-drive",
@@ -70,6 +74,7 @@ def main() -> int:
     target_named(args.target)
     for command in (
         "qemu-system-x86_64",
+        "xvfb-run",
         "qemu-img",
         "cloud-localds",
         "ssh",
@@ -192,7 +197,14 @@ def main() -> int:
         scp = ["scp", *options, "-P", str(port)]
         with (output / "guest-boot.log").open("w") as log:
             guest = subprocess.Popen(
-                qemu_command(disk, seed, port), stdout=log, stderr=subprocess.STDOUT
+                qemu_command(disk, seed, port),
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                env={
+                    **os.environ,
+                    "LIBGL_ALWAYS_SOFTWARE": "1",
+                    "SDL_VIDEODRIVER": "x11",
+                },
             )
             try:
                 deadline = time.monotonic() + 300
@@ -257,11 +269,12 @@ def main() -> int:
                     assert saved.wait() == 0, "Failed to export compositor image"
                 # The emulated GPU supplies DRM buffers for guest CPU rendering.
                 command = (
-                    "set -eu; render=$(find /dev/dri -name 'card*' | head -1); "
+                    "set -eu; render=$(find /dev/dri -name 'renderD*' | head -1); "
                     'test -c "$render"; '
                     "cd src; env DOCKING_VISUAL_GUEST=1 "
                     'DOCKING_LAB_RENDER_NODE="$render" LAB_RENDER_DEVICE="$render" '
                     "LAB_PARENT_RENDERER=gles2 LAB_KWIN_COMPOSE=O2 "
+                    "LAB_SOFTWARE_RENDERING=0 "
                     f"DOCKING_LAB_IMAGE={shlex.quote(args.image)} "
                     "python3 -m tests.visual "
                     f"--target {shlex.quote(args.target)} "

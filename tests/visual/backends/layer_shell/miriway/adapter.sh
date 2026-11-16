@@ -9,7 +9,9 @@ adapter_prepare() {
 add-wayland-extensions=zwlr_layer_shell_v1:zwlr_foreign_toplevel_manager_v1
 CONFIG
 }
-adapter_start() { start_x11_child miriway-shell; }
+adapter_start() {
+    start_x11_child miriway-shell --x11-output "${LAB_WIDTH:-1280}x${LAB_HEIGHT:-720}"
+}
 adapter_capabilities() {
     session_probe_json | jq '{compositor:"miriway", expected_backend:"wayland-layer-shell",
         placement:.layer_shell_supported, native_geometry:false, pointer:false,

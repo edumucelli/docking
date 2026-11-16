@@ -3,7 +3,7 @@ source "$LAB_SCRIPTS/adapters/nested.sh"
 adapter_prepare() {
     COMPOSITOR_LOG="$LAB_DIR/treeland.log"
     export XDG_CURRENT_DESKTOP=Deepin XDG_SESSION_TYPE=wayland GDK_BACKEND=wayland
-    export LIBGL_ALWAYS_SOFTWARE=1 QT_QPA_PLATFORM=wayland
+    export LIBGL_ALWAYS_SOFTWARE="${LAB_SOFTWARE_RENDERING:-1}" QT_QPA_PLATFORM=wayland
     prepare_sway_parent
 }
 adapter_start() {

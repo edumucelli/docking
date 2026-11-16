@@ -62,6 +62,7 @@ start_lab_input() {
             "$LAB_DIR/input-delivery.json" >/dev/null; then
         LAB_INPUT_SUPPORTED=true
     fi
+    adapter_screenshot "$LAB_DIR/input-probe.png"
     terminate_pid "$ADAPTER_PROBE_PID"
     ADAPTER_PROBE_PID=""
     # Niri's top-left hot corner opens its overview and changes the whole scene.

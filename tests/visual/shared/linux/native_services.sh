@@ -28,7 +28,7 @@ if [ "${1:-}" != --session ]; then
     printf 'lab:x:%s:\n' "$lab_gid" >> "$evidence/.group"
     printf 'Evidence: %s\n' "$evidence"
     docker run --rm --network none --user "$lab_uid:$lab_gid" -e HOME=/tmp \
-        -e "LAB_OUTPUTS=${LAB_OUTPUTS:-1}" -e DOCKING_PHOC_PRIVATE_PREVIEWS "${device_args[@]}" \
+        -e "LAB_OUTPUTS=${LAB_OUTPUTS:-1}" -e DOCKING_PHOC_PRIVATE_PREVIEWS -e LAB_SOFTWARE_RENDERING "${device_args[@]}" \
         -v "$evidence/.passwd:/etc/passwd:ro" -v "$evidence/.group:/etc/group:ro" \
         -v "$repo_dir:/src:ro" -v "$evidence:/evidence" \
         "$image" dbus-run-session -- bash /src/tests/visual/shared/linux/native_services.sh --session "$compositor" "$mode"

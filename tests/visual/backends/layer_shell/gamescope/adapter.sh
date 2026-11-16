@@ -3,7 +3,7 @@ source "$LAB_SCRIPTS/adapters/nested.sh"
 adapter_prepare() {
     COMPOSITOR_LOG="$LAB_DIR/gamescope.log"
     export XDG_CURRENT_DESKTOP=gamescope XDG_SESSION_TYPE=wayland GDK_BACKEND=wayland
-    export LIBGL_ALWAYS_SOFTWARE=1
+    export LIBGL_ALWAYS_SOFTWARE="${LAB_SOFTWARE_RENDERING:-1}"
     prepare_sway_parent
 }
 adapter_start() {

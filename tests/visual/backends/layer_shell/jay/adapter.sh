@@ -13,6 +13,15 @@ capabilities = ["layer-shell", "foreign-toplevel-manager", "foreign-toplevel-lis
 TOML
 }
 adapter_start() { start_x11_child jay run --backends x11; }
+retain_jay_log() {
+    for log in "$XDG_DATA_HOME"/jay/logs/jay/*.txt; do
+        [ -f "$log" ] || continue
+        mv "$log" "$LAB_DIR/jay-native.log"
+        COMPOSITOR_LOG="$LAB_DIR/jay-native.log"
+    done
+}
+report_compositor_failure() { retain_jay_log; tail -60 "$COMPOSITOR_LOG"; }
+adapter_wait_ready() { retain_jay_log; session_probe_json >"$LAB_DIR/display-probe.json"; }
 adapter_capabilities() {
     session_probe_json | jq '{compositor:"jay", expected_backend:"wayland-layer-shell",
         placement:.layer_shell_supported, native_geometry:false, pointer:false,

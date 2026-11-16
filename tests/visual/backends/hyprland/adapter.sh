@@ -5,7 +5,7 @@ adapter_prepare() {
     export XDG_RUNTIME_DIR="$(mktemp -d /tmp/h.XXXXXX)"
     COMPOSITOR_LOG="$LAB_DIR/hyprland.log"
     export XDG_CURRENT_DESKTOP=Hyprland XDG_SESSION_TYPE=wayland GDK_BACKEND=wayland
-    export AQ_BACKENDS=wayland LIBGL_ALWAYS_SOFTWARE=1
+    export AQ_BACKENDS=wayland LIBGL_ALWAYS_SOFTWARE="${LAB_SOFTWARE_RENDERING:-1}"
     unset DISPLAY
     prepare_sway_parent
 }

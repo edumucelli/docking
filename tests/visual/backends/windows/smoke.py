@@ -31,7 +31,7 @@ def dock_window(rows: list[dict]) -> dict | None:
 
 
 def placement_pixels(
-    before, after, workarea, edge: str, dpi: int, origin=(0, 0)
+    before, after, workarea, edge: str, dpi: int, origin=(0, 0), gap: int = 0
 ) -> dict:
     """Measure changed desktop pixels in the independently expected edge band."""
     from PIL import ImageChops
@@ -68,6 +68,8 @@ def placement_pixels(
     assert abs(center - expected) <= 32 * scale and distance <= 60 * scale, (
         "Dock pixels misplaced"
     )
+    if gap:
+        assert abs(distance - gap * scale) <= 12 * scale, "Configured dock gap absent"
     return {"edge": edge, "pixels": count, "distance": distance}
 
 
@@ -78,6 +80,7 @@ def main() -> None:
         "--position", choices=("bottom", "top", "left", "right"), default="bottom"
     )
     parser.add_argument("--placement-only", action="store_true")
+    parser.add_argument("--edge-gap", type=int, choices=(0, 40), default=0)
     installation = parser.add_mutually_exclusive_group()
     installation.add_argument(
         "--installed-root",
@@ -115,6 +118,7 @@ def main() -> None:
                 ],
                 "icon_size": 48,
                 "position": args.position,
+                "additional_distance_from_edge": args.edge_gap,
                 "hide_mode": "none",
                 "startup_tips_enabled": False,
                 "update_check_enabled": False,
@@ -449,6 +453,7 @@ def main() -> None:
                 args.position,
                 report["window_dpi"],
                 (user32.GetSystemMetrics(76), user32.GetSystemMetrics(77)),
+                args.edge_gap,
             )
             assert backend_file.read_text() == "windows", "Unexpected session backend"
             user32.PostMessageW(dock["hwnd"], 0x0010, 0, 0)

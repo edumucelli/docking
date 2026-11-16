@@ -30,8 +30,6 @@ from tests.visual.backends.windows.runtime_pin_smoke import (
 def test_classic_cleanup_does_not_close_a_process_that_reused_a_fixture_pid(
     tmp_path, monkeypatch, reused
 ):
-    import psutil
-
     from tests.visual.backends.windows.classic_fixture import ClassicApplications
 
     fixture = ClassicApplications.__new__(ClassicApplications)
@@ -46,7 +44,11 @@ def test_classic_cleanup_does_not_close_a_process_that_reused_a_fixture_pid(
     process = SimpleNamespace(
         pid=123, exe=lambda: str(executable), wait=Mock(return_value=0)
     )
-    monkeypatch.setattr(psutil, "Process", lambda _pid: process)
+    monkeypatch.setitem(
+        sys.modules,
+        "psutil",
+        SimpleNamespace(Process=lambda _pid: process, NoSuchProcess=ProcessLookupError),
+    )
     fixture.native = SimpleNamespace(windows=Mock(return_value=[]))
     fixture.close()
     assert fixture.native.windows.call_count == (0 if reused else 1)

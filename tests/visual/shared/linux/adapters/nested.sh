@@ -56,7 +56,7 @@ start_x11_child() {
     wait_for_wayland_socket 160
     local window
     for _ in $(seq 80); do
-        window="$(xdotool search --onlyvisible --pid "$ADAPTER_COMPOSITOR_PID" 2>/dev/null | head -1 || true)"
+        window="$(xdotool search --onlyvisible --name . 2>/dev/null | head -1 || true)"
         [ -n "$window" ] && break
         sleep 0.1
     done

@@ -44,7 +44,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends python3-cairo python3-venv
           if [ "$VIRTUAL_GPU" = true ]; then
-            sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils cloud-image-utils openssh-client
+            sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-system-gui qemu-utils cloud-image-utils openssh-client xvfb xauth libgl1-mesa-dri
           fi
           python3 -m venv --system-site-packages .venv
           export PIP_UPLOADED_PRIOR_TO="$(.venv/bin/python tools/dependency_policy.py cutoff)"

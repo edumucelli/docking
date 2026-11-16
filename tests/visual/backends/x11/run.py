@@ -47,6 +47,7 @@ DESKTOPS = {
 }
 MINIMUM_CASES = (
     *(f"placement-{edge}" for edge in ("bottom", "top", "left", "right")),
+    "placement-bottom-gap",
     "interaction",
     "autohide",
 )
@@ -784,6 +785,20 @@ def observe(args):
             wait_for(
                 panel_ready, "Desktop panel workarea never became ready", timeout=30
             )
+
+            def desktop_painted():
+                frame = observer.capture("desktop-ready")
+                colored = 0
+                for y in range(frame.height):
+                    for x in range(frame.width):
+                        offset = y * frame.stride + x * frame.channels
+                        if any(frame.pixels[offset : offset + 3]):
+                            colored += 1
+                            if colored > 1000:
+                                return True
+                return False
+
+            wait_for(desktop_painted, "Native desktop never painted", timeout=30)
         if args.pytest:
 
             def unit_tests():
@@ -845,9 +860,15 @@ def session(args):
             env = private_environment(Path(temporary), args.desktop)
             if args.minimum:
                 env["GSETTINGS_BACKEND"] = "keyfile"
+                env["DBUS_SYSTEM_BUS_ADDRESS"] = env["DBUS_SESSION_BUS_ADDRESS"]
                 if args.desktop == "plasma":
                     env["KWIN_COMPOSE"] = "O2"
-                    env["QSG_RHI_BACKEND"] = "software"
+                    env["QT_QUICK_BACKEND"] = "software"
+                autostart = Path(env["XDG_CONFIG_HOME"]) / "autostart"
+                autostart.mkdir()
+                (autostart / "picom.desktop").write_text(
+                    "[Desktop Entry]\nType=Application\nName=Picom\nHidden=true\n"
+                )
                 if args.desktop == "mate":
                     subprocess.run(
                         [
@@ -1052,6 +1073,19 @@ def main():
             if source.exists():
                 shutil.copyfile(source, service_dir / source.name)
                 break
+        if args.minimum:
+            for prefix in ("/usr/pkg/share", "/usr/local/share", "/usr/share"):
+                for source in (Path(prefix) / "dbus-1/services").glob("*.service"):
+                    if source.name.startswith(
+                        (
+                            "org.kde.",
+                            "org.gnome.",
+                            "org.mate.",
+                            "org.lxde.",
+                            "org.lxqt.",
+                        )
+                    ):
+                        shutil.copyfile(source, service_dir / source.name)
         bus_config = Path(directory) / "session.conf"
         bus_config.write_text(
             "<busconfig><type>session</type><listen>unix:tmpdir=/tmp</listen>"

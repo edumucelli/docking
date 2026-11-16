@@ -71,3 +71,20 @@ def test_native_placement_translates_negative_monitor_origins():
         ]
         == 8000
     )
+
+
+@pytest.mark.parametrize("gap_applied", [False, True])
+def test_native_gap_coverage_rejects_an_unchanged_edge_position(gap_applied):
+    from PIL import Image, ImageDraw
+
+    before = Image.new("RGB", (800, 600))
+    after = before.copy()
+    offset = 40 if gap_applied else 0
+    ImageDraw.Draw(after).rectangle(
+        (300, 555 - offset, 499, 594 - offset), fill="white"
+    )
+    if gap_applied:
+        assert placement_pixels(before, after, (0, 0, 800, 600), "bottom", 96, gap=40)
+    else:
+        with pytest.raises(AssertionError, match="gap absent"):
+            placement_pixels(before, after, (0, 0, 800, 600), "bottom", 96, gap=40)

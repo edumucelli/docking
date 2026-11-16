@@ -81,6 +81,7 @@ adapter_prepare() {
     export XDG_CURRENT_DESKTOP=COSMIC
     export XDG_SESSION_TYPE=wayland
     export GDK_BACKEND=wayland
+    export LIBGL_ALWAYS_SOFTWARE="${LAB_SOFTWARE_RENDERING:-1}"
 
     # See the niri adapter: sway's config must parse, and `output ... bg` takes a
     # scaling mode. Getting it wrong drops sway back to its default config,

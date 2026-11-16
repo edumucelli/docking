@@ -90,6 +90,7 @@ jobs:
           for edge in bottom top left right; do
             python -m tests.visual.backends.windows.smoke --placement-only --position "$edge" --installed-root artifacts/windows/runtime --output "artifacts/windows/placement/$edge"
           done
+          python -m tests.visual.backends.windows.smoke --placement-only --position bottom --edge-gap 40 --installed-root artifacts/windows/runtime --output artifacts/windows/placement/bottom-gap
       - name: Exercise the installed application on the Windows desktop
         run: python -m tests.visual.backends.windows.smoke --output artifacts/windows/smoke --installed-root artifacts/windows/runtime
       - name: Verify native multiwindow grouping, cycling and restored pins

@@ -89,7 +89,7 @@ def test_gnome_adapter_preserves_nested_and_supports_headless(tmp_path, nested):
             "bash",
             "-c",
             (
-                'set -eu; source "$1"; adapter_prepare; '
+                'set -eu; gsettings() { :; }; source "$1"; adapter_prepare; '
                 'printf "%s|%s" "$GNOME_LAB_MODE" "$LAB_CAPTURE_MODE"'
             ),
             "test",

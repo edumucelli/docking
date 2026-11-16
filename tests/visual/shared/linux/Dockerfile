@@ -265,7 +265,7 @@ RUN for tool in sway labwc wayfire cage phoc weston cinnamon muffin kwin_wayland
 
 # GNOME/Mutter without the Docking bridge: negative compatibility lane.
 FROM cinnamon AS gnome
-RUN apt-get update && apt-get install -y --no-install-recommends gnome-shell \
+RUN apt-get update && apt-get install -y --no-install-recommends gnome-shell xdotool \
     && rm -rf /var/lib/apt/lists/*
 RUN command -v gnome-shell
 

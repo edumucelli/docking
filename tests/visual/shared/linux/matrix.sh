@@ -171,7 +171,7 @@ docker run --rm \
     --user "$(id -u):$(id -g)" \
     -e HOME=/tmp \
     -e LAB_GNOME_BRIDGE \
-    -e LAB_PARENT_RENDERER -e LAB_KWIN_COMPOSE \
+    -e LAB_PARENT_RENDERER -e LAB_KWIN_COMPOSE -e LAB_SOFTWARE_RENDERING \
     -e LAB_DIR=/lab-run \
     -e DOCKING_SOURCE=/src \
     -e "LAB_OUTPUTS=${LAB_OUTPUTS:-1}" \
