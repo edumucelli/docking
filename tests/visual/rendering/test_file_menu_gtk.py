@@ -27,6 +27,7 @@ def browser(tmp_path):
     if not Gtk.init_check()[0]:
         pytest.skip("GTK display required")
     window = Gtk.Window()
+    window.set_default_size(400, 200)
     window.add(Gtk.Label(label="Owned folder menu fixture"))
     window.show_all()
     targets = MagicMock()
@@ -379,11 +380,15 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
             )
 
     try:
+        window.set_keep_above(True)
         window.present()
+        settle_gtk()
         owner_window = next(row for row in native.windows() if row["hwnd"] == owner)
         left, top, right, bottom = owner_window["rect"]
         native.click((left + right) // 2, (top + bottom) // 2)
         _wait(lambda: native.user.GetForegroundWindow() == owner)
+        window.set_keep_above(False)
+        settle_gtk()
         controller.open_with(target.as_uri())
         chooser = _wait(lambda: next(iter(chooser_windows()), None))
         capture()
