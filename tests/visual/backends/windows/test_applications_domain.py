@@ -57,8 +57,8 @@ def test_classic_fixture_uses_64_bit_compiler_and_keeps_compile_failures_fatal(
             "/reference:System.Web.Extensions.dll",
         ]
         assert command[-2:] == [
-            "/out:" + str(PureWindowsPath(fixture.executables["First"])),
-            str(PureWindowsPath(fixture.root / "fixture.cs")),
+            "/out:" + mod.command_path(fixture.executables["First"]),
+            mod.command_path(fixture.root / "fixture.cs"),
         ]
         assert kwargs["timeout"] == 120
         assert kwargs["creationflags"] == 0x08000000
