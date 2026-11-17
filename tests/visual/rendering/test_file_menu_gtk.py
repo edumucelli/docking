@@ -14,7 +14,7 @@ import pytest
 from gi.repository import Gdk, Gio, GLib, Gtk
 
 from docking.core.items import FOLDER_KIND, DockItem
-from docking.platform.desktop.base import OpenWithMode
+from docking.platform.desktop.base import OpenWithMode, OpenWithResult
 from docking.ui.file_actions import FileActionsController
 from docking.ui.folder.browser import FolderRow
 from docking.ui.menu import MenuHandler, _DirectoryMenuRow
@@ -304,7 +304,7 @@ def test_portal_receives_selected_fd_even_when_response_precedes_method_reply(
 def test_windows_native_chooser_can_be_cancelled_without_launching(
     owner_window, tmp_path, close_owner, monkeypatch
 ):
-    from docking.platform.native.windows import shell
+    from docking.platform.native.windows import open_with
     from docking.platform.native.windows.ffi import bind, window_handle
     from docking.platform.native.windows.process import read_process_metadata
     from docking.platform.targets import TargetService
@@ -336,22 +336,27 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
             row.get("process") == "openwith.exe"
             or (row.get("class") == "#32770" and row.get("owner") == owner)
         ) and row.get("bounds"):
-            return row
+            left, top, right, bottom = row["bounds"]
+            if (
+                native.window_at((left + right) // 2, (top + bottom) // 2)
+                == row["hwnd"]
+            ):
+                return row
         return None
 
     assert active_chooser() is None, "Close the existing Open With dialog first"
     target = tmp_path / "owned file.txt"
     target.write_text("owned fixture")
     results = []
-    show = shell.open_with_dialog
+    show = open_with.open_with_dialog
 
-    def observe(path, hwnd):
+    def observe(path, hwnd, cancelled):
         assert Path(path) == target and hwnd == owner
-        result = show(path, hwnd)
+        result = show(path, hwnd, cancelled)
         results.append(result)
         return result
 
-    monkeypatch.setattr(shell, "open_with_dialog", observe)
+    monkeypatch.setattr(open_with, "open_with_dialog", observe)
     service = TargetService(icon_loader=MagicMock(), application_registry=MagicMock())
     controller = FileActionsController(parent=window, target_service=service)
     report = Path("artifacts/windows/file-actions")
@@ -392,10 +397,8 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
             native.key(0x1B)
         _wait(lambda: results)
         _wait(lambda: not controller._pending)
-        assert active_chooser() is None
-        assert not native.user.IsWindowVisible(chooser["hwnd"])
-        if not close_owner:
-            assert results == [shell.OpenWithResult.CANCELLED]
+        _wait(lambda: not native.user.IsWindowVisible(chooser["hwnd"]))
+        assert results == [OpenWithResult.CANCELLED]
         assert controller._error_dialog is None
     finally:
         capture()

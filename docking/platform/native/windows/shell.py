@@ -9,7 +9,6 @@ from pathlib import PureWindowsPath
 
 from docking.log import get_logger
 from docking.platform.applications.backend import LaunchOutcome
-from docking.platform.desktop.base import OpenWithResult
 from docking.platform.native.windows.com import (
     GUID,
     HRESULT,
@@ -20,41 +19,6 @@ from docking.platform.native.windows.com import (
 from docking.platform.native.windows.ffi import bind as _bind
 
 log = get_logger("windows.shell")
-
-
-class _OpenAsInfo(ctypes.Structure):
-    _fields_ = [
-        ("file", wintypes.LPCWSTR),
-        ("class_name", wintypes.LPCWSTR),
-        ("flags", ctypes.c_uint32),
-    ]
-
-
-def open_with_dialog(path: str, owner: int) -> OpenWithResult:
-    """Run the owned single-file chooser in the caller's worker apartment."""
-    from docking.platform.native.windows.ffi import windows_ctypes
-
-    try:
-        with apartment():
-            show = _bind(
-                windows_ctypes.WinDLL("shell32"),
-                "SHOpenWithDialog",
-                HRESULT,
-                wintypes.HWND,
-                ctypes.POINTER(_OpenAsInfo),
-            )
-            # MSYS2 can use forward separators that Windows Shell APIs reject.
-            info = _OpenAsInfo(path.replace("/", "\\"), None, 0x00000004)  # OAIF_EXEC
-            status = show(owner, ctypes.byref(info))
-    except OSError as exc:
-        log.warning("Application chooser failed: %s", exc)
-        return OpenWithResult.FAILED
-    if status & 0xFFFFFFFF == 0x800704C7:
-        return OpenWithResult.CANCELLED
-    if status < 0:
-        log.warning("Application chooser failed: 0x%08x", status & 0xFFFFFFFF)
-        return OpenWithResult.FAILED
-    return OpenWithResult.ACCEPTED
 
 
 def launch_application_target(target: str) -> LaunchOutcome:

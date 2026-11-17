@@ -2,7 +2,6 @@
 
 import errno
 import os
-from contextlib import nullcontext
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock
 
@@ -16,7 +15,7 @@ from docking.platform.desktop.implementations.windows import file_actions as win
 from docking.platform.desktop.implementations.windows.backend import (
     WindowsDesktopServices,
 )
-from docking.platform.native.windows import shell
+from docking.platform.native.windows import open_with
 from tests.platform_factories import make_target_service
 
 
@@ -115,34 +114,6 @@ def test_target_terminal_rejects_files_before_platform_launch(tmp_path, monkeypa
     desktop.open_in_terminal.assert_not_called()
     assert service.open_in_terminal(tmp_path.as_uri())
     desktop.open_in_terminal.assert_called_once_with(tmp_path)
-
-
-@pytest.mark.parametrize(
-    "status,expected",
-    [
-        (0, OpenWithResult.ACCEPTED),
-        (-2147023673, OpenWithResult.CANCELLED),
-        (-1, OpenWithResult.FAILED),
-    ],
-)
-def test_windows_native_chooser_uses_owned_single_file_execution(
-    monkeypatch, status, expected
-):
-    seen = []
-
-    def show(owner, info):
-        seen.append((owner, info._obj.file, info._obj.flags))
-        return status
-
-    monkeypatch.setattr(shell, "apartment", nullcontext)
-    monkeypatch.setattr(shell, "_bind", lambda *a: show)
-    from docking.platform.native.windows import ffi
-
-    monkeypatch.setattr(
-        ffi.windows_ctypes, "WinDLL", lambda *a: object(), raising=False
-    )
-    assert shell.open_with_dialog("C:/owned/résumé.txt", 42) is expected
-    assert seen == [(42, "C:\\owned\\résumé.txt", 4)]
 
 
 @pytest.fixture
@@ -281,10 +252,36 @@ def test_windows_cancellation_during_target_validation_does_not_open_chooser(
     path = Mock()
     monkeypatch.setattr(windows, "local_path_from_uri_or_path", lambda uri: path)
     opened = Mock()
-    monkeypatch.setattr(shell, "open_with_dialog", opened)
+    monkeypatch.setattr(open_with, "open_with_dialog", opened)
     cancel = windows.request_open_with(
         "file:///owned/file.txt", parent=MagicMock(), on_result=Mock()
     )
     path.is_file.side_effect = lambda: cancel() or True
     assert worker.run.call_args.kwargs["fn"]() is OpenWithResult.CANCELLED
     opened.assert_not_called()
+
+
+def test_windows_shutdown_cancels_picker_without_delivering_result(
+    monkeypatch, tmp_path
+):
+    target = tmp_path / "owned.txt"
+    target.touch()
+    worker = Mock()
+    completed = Mock()
+    monkeypatch.setattr(windows, "BackgroundWorker", lambda: worker)
+    monkeypatch.setattr(windows, "window_handle", lambda _window: 42)
+    monkeypatch.setattr(windows, "local_path_from_uri_or_path", lambda _uri: target)
+
+    def picker(path, owner, event):
+        assert path == str(target) and owner == 42 and not event.is_set()
+        cancel()
+        assert event.is_set()
+        return OpenWithResult.CANCELLED
+
+    monkeypatch.setattr(open_with, "open_with_dialog", picker)
+    cancel = windows.request_open_with(
+        target.as_uri(), parent=MagicMock(), on_result=completed
+    )
+    callbacks = worker.run.call_args.kwargs
+    callbacks["on_result"](callbacks["fn"]())
+    completed.assert_not_called()

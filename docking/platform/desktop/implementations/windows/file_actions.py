@@ -47,7 +47,7 @@ def request_open_with(
     parent: object,
     on_result: Callable[[OpenWithResult], None],
 ) -> Callable[[], None]:
-    from docking.platform.native.windows.shell import open_with_dialog
+    from docking.platform.native.windows.open_with import open_with_dialog
 
     window = cast(Gtk.Window, parent).get_window()
     owner = window_handle(window) if window is not None else None
@@ -61,7 +61,7 @@ def request_open_with(
             return OpenWithResult.FAILED
         if cancelled.is_set():
             return OpenWithResult.CANCELLED
-        return open_with_dialog(str(path), owner)
+        return open_with_dialog(str(path), owner, cancelled)
 
     def completed(result: OpenWithResult) -> None:
         if not cancelled.is_set():
