@@ -11,6 +11,8 @@ import uuid
 from contextlib import ExitStack
 from pathlib import Path
 
+from tools.windows.bundle import command_path
+
 from .desktop_driver import WindowsDesktop, read_shared_json
 
 _SOURCE = r"""
@@ -91,10 +93,6 @@ public static class ClassicFixture {
     }
 }
 """
-
-
-def _quoted(value: Path) -> str:
-    return "'" + str(value).replace("'", "''") + "'"
 
 
 def write_shortcut(
@@ -219,25 +217,27 @@ class ClassicApplications:
                     self.labels[key], encoding="utf-8"
                 )
             source = self.root / "fixture.cs"
-            source.write_text(_SOURCE)
+            source.write_text(_SOURCE, encoding="utf-8")
+            # Use the input editor's compiler host for Windows on Arm.
+            compiler = (
+                Path(os.environ["SYSTEMROOT"])
+                / "Microsoft.NET/Framework64/v4.0.30319/csc.exe"
+            )
             compiled = subprocess.run(
                 [
-                    "powershell.exe",
-                    "-NoProfile",
-                    "-NonInteractive",
-                    "-Command",
-                    "[Console]::OutputEncoding=[Text.UTF8Encoding]::new(); "
-                    "Add-Type -TypeDefinition (Get-Content -Raw -LiteralPath "
-                    + _quoted(source)
-                    + ") -OutputType WindowsApplication -OutputAssembly "
-                    + _quoted(self.executables["First"])
-                    + " -ReferencedAssemblies "
-                    "System.Windows.Forms,System.Web.Extensions",
+                    command_path(compiler),
+                    "/nologo",
+                    "/target:winexe",
+                    "/platform:anycpu",
+                    "/reference:System.Windows.Forms.dll",
+                    "/reference:System.Web.Extensions.dll",
+                    "/out:" + command_path(self.executables["First"]),
+                    command_path(source),
                 ],
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
-                timeout=90,
+                timeout=120,
                 creationflags=subprocess.CREATE_NO_WINDOW,
             )
             assert compiled.returncode == 0, compiled.stdout + compiled.stderr

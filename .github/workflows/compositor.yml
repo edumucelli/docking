@@ -1,42 +1,70 @@
-name: LXDE stability validation
+name: Windows fixture compiler validation
 on:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  mapping:
-    name: Repeat clean native LXDE startup
-    runs-on: ubuntu-24.04
-    timeout-minutes: 25
+  compiler:
+    name: Repeat native Arm classic fixture compilation
+    runs-on: windows-11-arm
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v4
-      - name: Build native desktop image
-        uses: docker/build-push-action@v7
-        with:
-          context: tests/visual/shared/linux
-          file: tests/visual/shared/linux/Dockerfile
-          target: x11-lxde
-          tags: docking-ci:lxde-mapping
-          load: true
-          cache-from: type=gha,scope=compositor-x11-lxde
-      - name: Repeat cold native desktop starts
-        env:
-          DOCKING_LAB_IMAGE: docking-ci:lxde-mapping
+      - name: Compile and map five independent classic fixtures
+        shell: pwsh
         run: |
-          failures=0
-          for attempt in $(seq 24); do
-            if python3 -m tests.visual --target x11-lxde --output "artifacts/visual/lxde-$attempt"; then
-              echo "LXDE $attempt passed"
-            else
-              echo "LXDE $attempt failed"
-              failures=$((failures + 1))
-            fi
-          done
-          test "$failures" -eq 0
+          $ErrorActionPreference = 'Stop'
+          $fixture = Get-Content tests/visual/backends/windows/classic_fixture.py -Raw
+          if ($fixture -notmatch '(?s)_SOURCE = r"""(.*?)"""') { throw 'Missing fixture source' }
+          $sourceText = $Matches[1]
+          $root = Join-Path $env:RUNNER_TEMP 'docking-classic-compiler'
+          New-Item -ItemType Directory -Force $root | Out-Null
+          $compiler = Join-Path $env:SYSTEMROOT 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
+          $results = @()
+          foreach ($attempt in 1..5) {
+            $directory = Join-Path $root "$attempt"
+            New-Item -ItemType Directory -Force $directory | Out-Null
+            $source = Join-Path $directory 'fixture.cs'
+            $executable = Join-Path $directory 'SharedFixture.exe'
+            [IO.File]::WriteAllText($source, $sourceText, [Text.UTF8Encoding]::new($false))
+            [IO.File]::WriteAllText((Join-Path $directory 'fixture-title.txt'), "Owned classic fixture $attempt")
+            $arguments = @('/nologo', '/target:winexe', '/platform:anycpu',
+              '/reference:System.Windows.Forms.dll', '/reference:System.Web.Extensions.dll',
+              "/out:`"$executable`"", "`"$source`"")
+            $timer = [Diagnostics.Stopwatch]::StartNew()
+            $build = Start-Process $compiler -ArgumentList $arguments -PassThru -NoNewWindow `
+              -RedirectStandardOutput (Join-Path $root "build-$attempt.log") `
+              -RedirectStandardError (Join-Path $root "build-$attempt.err")
+            if (-not $build.WaitForExit(120000)) {
+              Stop-Process -Id $build.Id -Force
+              throw "Compiler timed out for fixture $attempt"
+            }
+            if ($build.ExitCode -ne 0) { throw "Compiler exit $($build.ExitCode)" }
+            $elapsed = $timer.ElapsedMilliseconds
+            $client = Start-Process $executable -PassThru
+            try {
+              $facts = Join-Path $directory 'facts-generated.json'
+              $timer.Restart()
+              do {
+                Start-Sleep -Milliseconds 100
+                $client.Refresh()
+              } while (($client.MainWindowHandle -eq 0 -or -not (Test-Path $facts)) -and $timer.Elapsed.TotalSeconds -lt 30)
+              if ($client.MainWindowHandle -eq 0) { throw 'Classic fixture did not map' }
+              $launch = Get-Content $facts -Raw | ConvertFrom-Json
+              if ($launch.pid -ne $client.Id) { throw 'Wrong owned fixture PID' }
+              $results += @{ attempt = $attempt; compiled_ms = $elapsed; mapped = $true }
+              Write-Host "Fixture $attempt compiled in $elapsed ms and mapped"
+            } finally {
+              Stop-Process -Id $client.Id -Force -ErrorAction SilentlyContinue
+            }
+          }
+          $results | ConvertTo-Json | Set-Content (Join-Path $root 'results.json')
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: lxde-stability-validation
-          path: artifacts/visual/
+          name: windows-compiler-validation
+          path: |
+            ${{ runner.temp }}/docking-classic-compiler/*.log
+            ${{ runner.temp }}/docking-classic-compiler/*.err
+            ${{ runner.temp }}/docking-classic-compiler/results.json
           retention-days: 7
