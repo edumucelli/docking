@@ -179,7 +179,9 @@ class Probe:
         offset = point[1] * image.get_rowstride() + point[0] * image.get_n_channels()
         return tuple(image.get_pixels()[offset : offset + 3])
 
-    async def wait_for_marker_pixels(self, points, *, phase, present):
+    async def wait_for_marker_pixels(
+        self, points, *, phase, present, color=b"\x00\x00\xff"
+    ):
         painted = len(points)
         deadline = time.monotonic() + 8
         while True:
@@ -189,7 +191,7 @@ class Probe:
             changed = sum(
                 (
                     data[y * stride + x * channels : y * stride + x * channels + 3]
-                    == b"\x00\x00\xff"
+                    == color
                 )
                 is present
                 for x, y in points
@@ -434,14 +436,23 @@ class Probe:
             await self.wait(
                 lambda: self.child.poll() is not None, "Fixture did not exit"
             )
-        await self.settle(0.5)
-        initial = await self.capture("quiet-uncovered")
-        points = dock_marker_points(
-            initial, (0, 0, initial.get_width(), initial.get_height())
-        )
+        deadline = time.monotonic() + 8
+        while True:
+            initial = await self.capture("quiet-uncovered")
+            points = dock_marker_points(
+                initial, (0, 0, initial.get_width(), initial.get_height())
+            )
+            if len(points) >= 32 or time.monotonic() >= deadline:
+                break
         assert len(points) >= 32, "Quiet dock is not visible above the desktop"
         self.child = subprocess.Popen([sys.executable, __file__, "--fixture"])
-        await self.settle(1)
+        await self.wait(
+            lambda: any(
+                row.title == "Native backend fixture"
+                for row in self.backend.windows.list_all_windows()
+            ),
+            "Fixture did not map",
+        )
         bounds = next(
             (
                 row.geometry
@@ -460,8 +471,9 @@ class Probe:
         assert self.window.config.hide_mode == "quiet", (
             "Probe did not start in Quiet mode"
         )
-        startup = await self.capture("quiet-startup-covered")
-        count = sum(self.pixel(startup, point) == (255, 0, 0) for point in points)
+        count, _ = await self.wait_for_marker_pixels(
+            points, phase="quiet-startup-covered", present=True, color=b"\xff\x00\x00"
+        )
         assert count >= len(points) * 0.98, ("startup", count, len(points))
         assert self.window.autohide.hide_offset == 0
         for mode, visible in (
@@ -473,17 +485,17 @@ class Probe:
             self.window.on_hide_mode_changed()
             self.window.autohide.on_mouse_enter()
             self.window.autohide.on_mouse_leave()
-            await self.settle(0.6)
-            image = await self.capture(f"stacking-{mode}")
-            expected = (0, 0, 255) if visible else (255, 0, 0)
-            count = sum(self.pixel(image, point) == expected for point in points)
+            expected = b"\x00\x00\xff" if visible else b"\xff\x00\x00"
+            count, _ = await self.wait_for_marker_pixels(
+                points, phase=f"stacking-{mode}", present=True, color=expected
+            )
             assert count >= len(points) * 0.98, (mode, count, len(points))
             assert self.window.autohide.hide_offset == 0
         self.child.terminate()
         await self.wait(lambda: self.child.poll() is not None, "Fixture did not exit")
-        await self.settle(0.5)
-        restored = await self.capture("quiet-restored")
-        count = sum(self.pixel(restored, point) == (0, 0, 255) for point in points)
+        count, _ = await self.wait_for_marker_pixels(
+            points, phase="quiet-restored", present=True
+        )
         assert count >= len(points) * 0.98, "Quiet dock stayed behind the desktop"
         result = {
             "backend": self.backend.name,

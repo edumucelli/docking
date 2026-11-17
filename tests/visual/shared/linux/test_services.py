@@ -26,8 +26,9 @@ def test_native_profiles_use_valid_hide_modes():
 
 @pytest.mark.parametrize("present", [False, True])
 @pytest.mark.parametrize("delivered", [False, True])
+@pytest.mark.parametrize("color", [b"\x00\x00\xff", b"\xff\x00\x00"])
 def test_visibility_wait_requires_the_compositor_pixels_to_change(
-    monkeypatch, tmp_path, present, delivered
+    monkeypatch, tmp_path, present, delivered, color
 ):
     from tests.visual.shared.linux.probes import native_services_probe as native
 
@@ -38,9 +39,9 @@ def test_visibility_wait_requires_the_compositor_pixels_to_change(
 
     async def capture(phase):
         calls.append(phase)
-        blue = present if delivered and len(calls) > 1 else not present
+        matched = present if delivered and len(calls) > 1 else not present
         return SimpleNamespace(
-            get_pixels=lambda: (b"\x00\x00\xff" if blue else b"\xff\x00\x00") * 48 * 48,
+            get_pixels=lambda: (color if matched else b"\x00\x00\x00") * 48 * 48,
             get_rowstride=lambda: 144,
             get_n_channels=lambda: 3,
         )
@@ -48,11 +49,94 @@ def test_visibility_wait_requires_the_compositor_pixels_to_change(
     probe = native.Probe(None, None, "bottom")
     probe.capture = capture
     points = {(x, y) for y in range(48) for x in range(48)}
-    task = probe.wait_for_marker_pixels(points, phase="test", present=present)
+    task = probe.wait_for_marker_pixels(
+        points, phase="test", present=present, color=color
+    )
     with pytest.raises(StopIteration) as done:
         task.send(None)
     assert done.value.value == (2304 if delivered else 0, 2304)
     assert len(calls) >= 2
+
+
+@pytest.mark.parametrize("delivered", [False, True])
+def test_quiet_probe_waits_for_mapping_and_delayed_pixels(
+    monkeypatch, tmp_path, delivered
+):
+    from tests.visual.shared.linux.probes import native_services_probe as native
+
+    clock, mapped_at, exit_code = [0.0], [float("inf")], [None]
+    captures, modes = {}, []
+    monkeypatch.setenv("LAB_DIR", str(tmp_path))
+    monkeypatch.delenv("LAB_COMPOSITOR", raising=False)
+    monkeypatch.setattr(native.time, "monotonic", lambda: clock[0])
+    child = SimpleNamespace(
+        terminate=lambda: exit_code.__setitem__(0, 0), poll=lambda: exit_code[0]
+    )
+
+    def launch(_command):
+        mapped_at[0] = clock[0] + 1.5
+        return child
+
+    monkeypatch.setattr(native.subprocess, "Popen", launch)
+    row = SimpleNamespace(title="Native backend fixture", geometry=None)
+    backend = SimpleNamespace(
+        name="sway",
+        windows=SimpleNamespace(
+            list_all_windows=lambda: [row] if clock[0] >= mapped_at[0] else []
+        ),
+    )
+    window = SimpleNamespace(
+        config=SimpleNamespace(hide_mode="quiet"),
+        autohide=SimpleNamespace(
+            hide_offset=0, on_mouse_enter=lambda: None, on_mouse_leave=lambda: None
+        ),
+    )
+
+    def changed():
+        modes.append(window.config.hide_mode)
+        captures["stacking-" + window.config.hide_mode] = 0
+
+    window.on_hide_mode_changed = changed
+    probe = native.Probe(window, backend, "bottom")
+
+    async def capture(phase):
+        if phase == "quiet-startup-covered":
+            assert clock[0] >= mapped_at[0], "Sampled before the fixture mapped"
+            assert not modes, "Startup check reapplied the mode"
+        captures[phase] = captures.get(phase, 0) + 1
+        await probe.settle(0.4)
+        expected = (
+            b"\xff\x00\x00"
+            if phase in {"quiet-startup-covered", "stacking-quiet"}
+            else b"\x00\x00\xff"
+        )
+        ready = captures[phase] >= 3 and (delivered or phase != "quiet-startup-covered")
+        return SimpleNamespace(
+            get_width=lambda: 48,
+            get_height=lambda: 48,
+            get_pixels=lambda: (expected if ready else b"\x00\x00\x00") * 48 * 48,
+            get_rowstride=lambda: 144,
+            get_n_channels=lambda: 3,
+        )
+
+    probe.capture = capture
+    task = probe.check_quiet()
+
+    def drive():
+        while True:
+            try:
+                clock[0] += task.send(None)
+            except StopIteration:
+                return
+
+    if delivered:
+        drive()
+        assert all(count >= 3 for count in captures.values())
+        assert modes == ["quiet", "always-on-top", "quiet"]
+        assert json.loads((tmp_path / "bottom-result.json").read_text())["quiet_pixels"]
+    else:
+        with pytest.raises(AssertionError, match="startup"):
+            drive()
 
 
 @pytest.mark.parametrize("dock_present", [False, True])
