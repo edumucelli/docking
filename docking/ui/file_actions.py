@@ -79,6 +79,7 @@ class FileActionsController:
             self._dialog = dialog
             dialog.connect("response", self._chosen, uri)
             dialog.show_all()
+            dialog.present()
         else:
             self._cancel_request = self._targets.request_open_with(
                 uri,

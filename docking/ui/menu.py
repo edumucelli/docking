@@ -714,6 +714,12 @@ class MenuHandler:
         ):
             return False
         row = menu.get_selected_item()
+        # A menu grab can deliver keyboard input to an ancestor menu shell.
+        while isinstance(row, _DirectoryMenuRow):
+            submenu = row.get_submenu()
+            if not isinstance(submenu, Gtk.Menu) or not submenu.get_mapped():
+                break
+            row = submenu.get_selected_item()
         if not isinstance(row, _DirectoryMenuRow):
             return False
         self._show_entry_actions(row.target, row.is_dir, event)

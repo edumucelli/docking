@@ -130,6 +130,38 @@ def test_system_chooser_cancellation_does_not_launch_or_leave_a_dialog(browser):
         controller.stop()
 
 
+def test_keyboard_event_delivered_to_parent_targets_mapped_nested_entry(browser):
+    handler, root, targets, _window = browser
+    item = DockItem(
+        desktop_id="file:///owned", kind=FOLDER_KIND, target="file:///owned"
+    )
+    handler._append_directory_row(
+        root,
+        item,
+        FolderRow("file:///owned/nested", "Nested", "dir", True, True, 0, 0, 0, None),
+    )
+    root.show_all()
+    directory = root.get_children()[-1]
+    root.select_item(directory)
+    nested = directory.get_submenu()
+    nested.popup_at_widget(
+        directory, Gdk.Gravity.NORTH_EAST, Gdk.Gravity.NORTH_WEST, None
+    )
+    settle_gtk()
+    row = next(
+        child for child in nested.get_children() if isinstance(child, _DirectoryMenuRow)
+    )
+    nested.select_item(row)
+    event = Gdk.Event.new(Gdk.EventType.KEY_PRESS)
+    event.keyval, event.state, event.window = Gdk.KEY_Menu, 0, root.get_window()
+    assert root.emit("key-press-event", event)
+    settle_gtk()
+    commands = next(iter(handler._open_menus))
+    commands.get_children()[1].activate()
+    handler._file_actions.open_with.assert_called_once_with(row.target)
+    targets.open_target.assert_not_called()
+
+
 def _wait(predicate, seconds=15):
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:

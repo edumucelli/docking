@@ -3036,6 +3036,22 @@ def test_windows_folder_menu_omits_unsupported_chooser(handler, monkeypatch):
     assert _labels(menu) == ["Open With…"]
 
 
+def test_keyboard_commands_follow_mapped_submenu_selection(handler):
+    parent = FakeDirectoryMenuRow("Parent")
+    parent.target, parent.is_dir = "file:///owned/parent", True
+    child = FakeDirectoryMenuRow("Child")
+    child.target, child.is_dir = "file:///owned/parent/child", False
+    submenu = FakeMenu()
+    submenu.get_mapped = lambda: True
+    submenu.get_selected_item = lambda: child
+    parent.set_submenu(submenu)
+    root = SimpleNamespace(get_selected_item=lambda: parent)
+    event = SimpleNamespace(keyval=menu_mod.Gdk.KEY_Menu, state=0)
+    handler._show_entry_actions = MagicMock()
+    assert handler._on_directory_menu_key(root, event)
+    handler._show_entry_actions.assert_called_once_with(child.target, False, event)
+
+
 @pytest.mark.skipif(not menu_mod.Gtk.init_check()[0], reason="GTK display required")
 def test_closing_the_last_window_removes_its_separator_after_gtk_takes_ownership():
     menu = menu_mod.Gtk.Menu()
