@@ -8,8 +8,9 @@ the development environment. For native Wayland protocol clients, also install
 the `[wayland]` extra described there.
 
 Shared development scripts live directly in `tools/`; platform-specific scripts
-live in `tools/linux/` and `tools/bsd/`, each with its visual harness under
-`visual/`. See the [tools guide](../tools/README.md) for entry points and coverage.
+live in `tools/linux/` and `tools/bsd/`. Visual suites live together in
+[`tests/visual/`](../tests/visual/README.md), grouped by backend and desktop.
+See the [tools guide](../tools/README.md) for general setup and VM utilities.
 
 ## Source Setup
 
@@ -282,7 +283,7 @@ same checks. Hardware readings, audio devices and power actions need physical
 hardware validation; the reference desktop is compositing Xfce.
 
 The NetBSD target is 11.0/amd64 with pkgsrc Python 3.12. When changing this target,
-update the X11 SHA512 pins in `tools/bsd/visual/checksums/` from the signed NetBSD
+update the X11 SHA512 pins in `tools/bsd/checksums/` from the signed NetBSD
 release hash list. The installer verifies each archive before extraction.
 The CI workflow sets the following environment. Export it before running the
 NetBSD VM scripts manually:
@@ -299,7 +300,7 @@ readings without requiring a laptop or temperature sensor in the VM.
 
 For a local Linux/BSD X11 control, install GTK3/Cairo/Wnck GI bindings, Xvfb,
 Xfwm, D-Bus and XTest, then run
-`"${DOCKING_BSD_PYTHON:-python3}" -m tools.bsd.visual.run --pytest`.
+`"${DOCKING_BSD_PYTHON:-python3}" -m tests.visual.backends.x11.run --pytest`.
 `--case placement-bottom` selects one scenario, and `--dock-command` can point
 at an installed executable. The default output is a timestamped directory under
 `artifacts/bsd-visual/`; an explicit `--output` must be empty.

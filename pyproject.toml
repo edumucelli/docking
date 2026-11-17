@@ -92,6 +92,7 @@ omit = [
 ]
 
 [tool.ruff]
+extend-exclude = ["tests/visual/shared/linux/probes/generated/"]
 target-version = "py310"
 line-length = 88
 

@@ -5,12 +5,12 @@ platform-specific tools live under the corresponding platform directory.
 
 | Location | Purpose |
 | --- | --- |
-| `linux/visual/` | Linux desktop and compositor checks, including the matrix runner, adapters, probes, Docker images, and visual baselines. |
-| `linux/` | Live COSMIC protocol checks, GNOME bridge management, Wayfire IPC, and the XWayland redraw reproducer. |
-| `bsd/visual/` | Full-process X11 visual checks and BSD VM setup and execution helpers. |
-| `windows/visual/` | Native Windows desktop checks, fixtures, VM controls, captures and independent observations. |
-| `windows/` | Windows CI entry points and WebView2 loader setup. |
-| `tools/` root | Shared translation, packaging, versioning, test, benchmark, and asset-generation tools. |
+| [`../tests/visual/`](../tests/visual/README.md) | All renderer and native desktop visual suites, adapters, probes, fixtures and baselines. |
+| `linux/` | Linux integration utilities and the pinned software-GPU VM controller. |
+| `bsd/` | BSD VM/package setup, checksum pins and installed acceptance orchestration. |
+| `windows/lab/` | General Windows VM controls, input and capture transport. |
+| `windows/` | Windows CI, packaging, release validation and runtime setup. |
+| `tools/` root | Shared translation, packaging, versioning and asset-generation tools. |
 
 The visual harnesses serve related purposes with different coverage.
 The Linux harness exercises multiple Wayland compositors and Cinnamon/X11,
@@ -23,19 +23,19 @@ with real input, desktop captures and independent native API observations.
 
 ```bash
 # Linux compositor matrix (Docker).
-bash tools/linux/visual/matrix.sh --compositor sway --case placement-bottom --geometry-only
+bash tests/visual/shared/linux/matrix.sh --compositor sway --case placement-bottom --geometry-only
 
 # Linux installed compositor in an isolated local session.
-bash tools/linux/visual/local_run.sh matrix weston --case placement-bottom
+bash tests/visual/shared/linux/local_run.sh matrix weston --case placement-bottom
 
 # BSD X11 checks, also runnable on Linux with the same desktop dependencies.
-.venv/bin/python -m tools.bsd.visual.run --case placement-bottom
+.venv/bin/python -m tests.visual.backends.x11.run --case placement-bottom
 
 # Windows desktop check (native Windows Python).
-python -m tools.windows.visual.smoke --output artifacts/windows/smoke
+python -m tests.visual.backends.windows.smoke --output artifacts/windows/smoke
 ```
 
-Linux visual evidence goes under `tools/linux/visual/evidence/`; BSD evidence goes
+Linux visual evidence goes under `artifacts/visual/`; BSD evidence goes
 under `artifacts/bsd-visual/` and Windows evidence under `artifacts/windows/`.
 These directories are ignored by Git. Setup and coverage details
 are in the [development guide](../docs/DEVELOPMENT.md#bsd-package-and-desktop-checks)

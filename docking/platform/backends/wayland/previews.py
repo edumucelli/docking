@@ -19,7 +19,7 @@ import mmap
 import os
 import tempfile
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
@@ -232,6 +232,20 @@ class WaylandPreviewHandleTracker:
 
     def identifier_changed(self, handle: object, identifier: str) -> None:
         self._ensure_state(handle).identifier = identifier.strip()
+
+    # The wlr listing also sends window state and output/parent relationships;
+    # preview matching uses identity only, including while a window is hidden.
+    def state_changed(self, handle: object, states: Iterable[object]) -> None:
+        pass
+
+    def output_entered(self, handle: object, output: object) -> None:
+        pass
+
+    def output_left(self, handle: object, output: object) -> None:
+        pass
+
+    def parent_changed(self, handle: object, parent: object | None) -> None:
+        pass
 
     def done(self, handle: object) -> None:
         self._refresh_match(self._ensure_state(handle))

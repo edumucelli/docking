@@ -8,7 +8,7 @@ import pytest
 from docking.applets.webapp.implementations.windows.companion import protocol as p
 from docking.applets.webapp.state import BrowserPhase
 from tests.applets.test_windows_webapp_companion import PROFILE
-from tools.windows.visual import webengine_protocol as fixture
+from tests.visual.backends.windows import webengine_protocol as fixture
 
 
 @pytest.mark.parametrize(

@@ -14,6 +14,7 @@ from collections.abc import Callable
 from functools import partial
 from pathlib import Path
 
+from tests.visual.backends.windows.desktop_driver import write_shared_json
 from tools.windows.bundle import command_path, staging_directory
 from tools.windows.input_acceptance import (
     PROFILES,
@@ -22,7 +23,6 @@ from tools.windows.input_acceptance import (
     validate_input_report,
 )
 from tools.windows.release import validate_applications_report, validate_tray_report
-from tools.windows.visual.desktop_driver import write_shared_json
 
 _SHARED_TESTS = (
     "tests/core",
@@ -54,6 +54,7 @@ def test_paths(root: Path) -> list[str]:
             "tests/platform/test_windows*.py",
             "tests/applets/*windows*.py",
             "tests/test_windows*.py",
+            "tests/visual/backends/windows/test_*.py",
         )
         for path in root.glob(pattern)
     }
@@ -181,7 +182,7 @@ def input_domain(
         tuple(
             (
                 name,
-                "tools.windows.visual." + module,
+                "tests.visual.backends.windows." + module,
                 "installed-wheel",
                 arguments,
                 partial(
@@ -221,7 +222,7 @@ def tray_domain(root: Path, output: Path, installed: Path, wheel: Path) -> int:
         tuple(
             (
                 "tray/" + profile,
-                "tools.windows.visual." + module,
+                "tests.visual.backends.windows." + module,
                 "source" if profile == "explorer" else "installed-wheel",
                 arguments,
                 partial(validate_tray_report, profile=profile, wheel_sha256=checksum),
@@ -266,7 +267,7 @@ def applications_domain(root: Path, output: Path, installed: Path, wheel: Path) 
         (
             (
                 "applications-explorer",
-                "tools.windows.visual.applications_domain_smoke",
+                "tests.visual.backends.windows.applications_domain_smoke",
                 "installed-wheel",
                 [
                     "--installed-root",
@@ -384,7 +385,7 @@ def main() -> None:
     ]
     if args.stage == "gtk":
         command += [
-            "tests/visual/test_preview_gtk.py",
+            "tests/visual/rendering/test_preview_gtk.py",
             "tests/search/ui/test_window.py",
             "tests/search/ui/test_shortcut_capture.py",
             "-o",

@@ -594,6 +594,8 @@ class DockPlacementController:
         self.set_struts()
         self._window.update_input_region()
         self._window.drawing_area.queue_draw()
+        if self._window.dodge_monitor is not None:
+            self._window.dodge_monitor.evaluate_now()
 
     def _poll_active_display(self) -> bool:
         """Poll cursor position and move dock to the monitor under cursor."""

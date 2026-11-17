@@ -13,7 +13,10 @@ from docking.platform.backends.base import (
     ReservationRequest,
     Size,
 )
-from docking.platform.backends.cinnamon.shell import CinnamonShellSurfaceService
+from docking.platform.backends.cinnamon.shell import (
+    CinnamonShellSurfaceService,
+    CinnamonX11SurfaceService,
+)
 from docking.platform.backends.reduced.services import ReducedSurfaceService
 from docking.platform.backends.wayland.phoc_surface import PhocLayerShellSurfaceService
 from docking.platform.backends.wayland.services import WaylandLayerShellSurfaceService
@@ -38,6 +41,9 @@ def _request(keep_above):
         ReducedSurfaceService,
         pytest.param(
             lambda: CinnamonShellSurfaceService(client=MagicMock()), id="cinnamon"
+        ),
+        pytest.param(
+            lambda: CinnamonX11SurfaceService(client=MagicMock()), id="cinnamon-x11"
         ),
     ],
 )
