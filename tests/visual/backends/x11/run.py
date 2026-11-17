@@ -891,6 +891,17 @@ def observe(args):
                 ["xwininfo", "-root", "-tree"],
             ):
                 subprocess.run(command, stdout=stream, stderr=stream, check=False)
+        with (output / "native-stacks.log").open("w") as stream:
+            for app in ("lxpanel", "pcmanfm", "lxpolkit"):
+                matches = subprocess.run(["pgrep", "-x", app], capture_output=True, text=True, check=False)
+                for pid in matches.stdout.split():
+                    try:
+                        subprocess.run(
+                            ["gdb", "--batch", "-iex", "set debuginfod enabled off", "-ex", "thread apply all bt", "-p", pid],
+                            stdout=stream, stderr=stream, check=False, timeout=10,
+                        )
+                    except subprocess.TimeoutExpired:
+                        stream.write(f"Stack capture timed out for {app}\n")
         if observer is not None:
             try:
                 observer.capture("observer-setup-failure")
