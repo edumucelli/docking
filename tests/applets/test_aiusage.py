@@ -283,6 +283,34 @@ class TestProvider:
 
 
 class TestClaudeCost:
+    @pytest.mark.parametrize(
+        ("tier", "rates"),
+        [
+            ("fable-5-2", (8, 40, 10, 0.20)),
+            ("mythos-5-2", (8, 40, 10, 0.20)),
+            ("opus-5-5", (4, 20, 5, 0.20)),
+            ("sonnet-5-5", (2, 10, 2.50, 0.10)),
+            ("haiku-5-5", (0.10, 0.50, 0.125, 0.01)),
+        ],
+    )
+    def test_current_model_rates(self, tier, rates):
+        model = f"claude-{tier}"
+        assert match_model_tier(model=model) == tier
+        for field, expected in zip(
+            (
+                "input_tokens",
+                "output_tokens",
+                "cache_write_tokens",
+                "cache_read_tokens",
+            ),
+            rates,
+            strict=True,
+        ):
+            assert (
+                cost_for_usage(model=model, usage=ModelUsage(**{field: 1_000_000}))
+                == expected
+            )
+
     def test_match_fable_5_1_before_fable_5(self):
         assert match_model_tier(model="claude-fable-5-1") == "fable-5-1"
 
@@ -345,20 +373,27 @@ class TestClaudeCost:
 
 
 class TestCodexCost:
-    def test_current_sol_and_luna_costs(self):
+    @pytest.mark.parametrize(
+        ("model", "expected"),
+        [
+            ("gpt-6.2-astra", 44.2),
+            ("gpt-6.2-sol", 11.05),
+            ("gpt-6.1-terra", 5.525),
+            ("gpt-6.1-sol", 11.05),
+            ("gpt-6-sol", 11.1),
+            ("gpt-6-luna", 0.555),
+        ],
+    )
+    def test_current_model_costs(self, model, expected):
+        snapshot = f"{model}-2026-11-17"
         usage = ModelUsage(
             input_tokens=1_000_000,
             cache_read_tokens=500_000,
             output_tokens=1_000_000,
         )
-        for model, expected in (
-            ("gpt-6.1-sol", 11.05),
-            ("gpt-6-sol", 11.1),
-            ("gpt-6-luna", 0.555),
-        ):
-            assert match_model_tier(model=f"{model}-2026-10-01") == model
-            assert provider_for_model(model=model) == Provider.CODEX
-            assert cost_for_usage(model=model, usage=usage) == expected
+        assert match_model_tier(model=snapshot) == model
+        assert provider_for_model(model=snapshot) == Provider.CODEX
+        assert cost_for_usage(model=snapshot, usage=usage) == expected
 
     def test_match_gpt_6_astra(self):
         assert match_model_tier(model="gpt-6-astra") == "gpt-6-astra"
