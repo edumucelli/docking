@@ -102,6 +102,29 @@ def test_layer_surfaces_restore_layer_and_clear_reservation_helpers(surface_type
 
 
 @pytest.mark.parametrize("native_commit", [False, True])
+def test_reservation_changes_commit_without_waiting_for_a_frame(native_commit):
+    layer = MagicMock()
+    if not native_commit:
+        layer.try_force_commit = None
+    service = WaylandLayerShellSurfaceService(layer_shell=layer)
+    window = MagicMock()
+    service.configure_before_realize(window, keep_above=False)
+    layer.reset_mock()
+    request = _request(False)
+    service.set_reservation(
+        ReservationRequest(request.monitor, request.position, thickness=48)
+    )
+    service.clear_reservation()
+    expected = [call.set_exclusive_zone(window, 48)]
+    if native_commit:
+        expected.append(call.try_force_commit(window))
+    expected.append(call.set_exclusive_zone(window, 0))
+    if native_commit:
+        expected.append(call.try_force_commit(window))
+    assert layer.mock_calls == expected
+
+
+@pytest.mark.parametrize("native_commit", [False, True])
 def test_layer_change_commits_even_when_the_bottom_surface_is_occluded(native_commit):
     layer = MagicMock()
     layer.Layer = SimpleNamespace(TOP="top", BOTTOM="bottom")

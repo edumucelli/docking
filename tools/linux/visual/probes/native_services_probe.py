@@ -430,6 +430,13 @@ class Probe:
                 if bounds.x <= x < bounds.right and bounds.y <= y < bounds.bottom
             }
         assert len(points) >= 32, "Fixture does not cover the dock marker"
+        assert self.window.config.hide_mode == "quiet", (
+            "Probe did not start in Quiet mode"
+        )
+        startup = await self.capture("quiet-startup-covered")
+        count = sum(self.pixel(startup, point) == (255, 0, 0) for point in points)
+        assert count >= len(points) * 0.98, ("startup", count, len(points))
+        assert self.window.autohide.hide_offset == 0
         for mode, visible in (
             ("quiet", False), ("always-on-top", True), ("quiet", False)
         ):

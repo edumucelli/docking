@@ -400,6 +400,8 @@ class WaylandLayerShellSurfaceService(SurfaceService):
             window,
             self._exclusive_zone,
         )
+        # Occluded bottom-layer surfaces may receive no frame callbacks.
+        call_if_available(self._layer_shell, "try_force_commit", window)
 
 
 def layer_shell_edges(layer_shell: object) -> object:

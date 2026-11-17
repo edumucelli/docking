@@ -339,6 +339,22 @@ def run_scenario(output: Path, scenario: str) -> None:
                     window.config.hide_mode = mode
                     window.on_hide_mode_changed()
 
+                def stacked(expected_topmost=False):
+                    state = observe()
+                    return (
+                        state
+                        if state["dock_topmost"] == expected_topmost
+                        and (state["non_fixture_pixels"] > 0) == expected_topmost
+                        and state["foreground"] == state["fixture"]["hwnd"]
+                        else None
+                    )
+
+                report["startup_covered"] = native.wait_for(
+                    stacked, "Quiet dock covered the maximized startup fixture"
+                )
+                ImageGrab.grab(all_screens=True).save(
+                    output / "quiet-startup-covered.png"
+                )
                 for mode, topmost in (
                     ("quiet", False),
                     ("always-on-top", True),
@@ -346,18 +362,11 @@ def run_scenario(output: Path, scenario: str) -> None:
                 ):
                     call(lambda value=mode: set_mode(value))
 
-                    def stacked(expected_topmost=topmost):
-                        state = observe()
-                        return (
-                            state
-                            if state["dock_topmost"] == expected_topmost
-                            and (state["non_fixture_pixels"] > 0) == expected_topmost
-                            and state["foreground"] == state["fixture"]["hwnd"]
-                            else None
-                        )
-
                     report["cycles"].append(
-                        native.wait_for(stacked, f"Incorrect {mode} stacking")
+                        native.wait_for(
+                            lambda expected=topmost: stacked(expected),
+                            f"Incorrect {mode} stacking",
+                        )
                     )
                     if not topmost:
                         native.click(*point)
