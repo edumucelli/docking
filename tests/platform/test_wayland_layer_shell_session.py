@@ -412,6 +412,30 @@ def test_position_or_anchor_maps_placement_to_layer_shell():
 
 
 @pytest.mark.parametrize("position", list(Position))
+def test_gamescope_uses_full_output_overlay_for_every_edge(monkeypatch, position):
+    monkeypatch.setenv("GAMESCOPE_WAYLAND_DISPLAY", "gamescope-0")
+    layer_shell, window = _layer_shell(), MagicMock()
+    service = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
+    service.configure_before_realize(window)
+    service.position_or_anchor(
+        PlacementRequest(
+            monitor=_monitor_snapshot(),
+            position=position,
+            x=100,
+            y=220,
+            size=Size(800, 163)
+            if position in (Position.TOP, Position.BOTTOM)
+            else Size(163, 600),
+        )
+    )
+    window.set_size_request.assert_called_once_with(
+        -1 if position in (Position.TOP, Position.BOTTOM) else 800,
+        600 if position in (Position.TOP, Position.BOTTOM) else -1,
+    )
+    assert service.get_surface_position() == (100, 200)
+
+
+@pytest.mark.parametrize("position", list(Position))
 def test_layer_shell_releases_only_the_compositor_sized_axis(position):
     layer_shell = _layer_shell()
     window = MagicMock()

@@ -229,6 +229,7 @@ class ExternalWorkareaTracker:
         self._atoms: dict[bytes, int] = {}
         self._tracked_windows: dict[int, GdkX11.X11Window] = {}
         self._snapshot = ExternalStrutSnapshot(False, 0, 0, ())
+        self._native_workareas: dict[tuple[Rect, int], Rect] = {}
         self._change_handler: Callable[[], None] | None = None
         self._refresh_source: int = 0
         self._filter_installed = False
@@ -292,6 +293,7 @@ class ExternalWorkareaTracker:
         self._filter_installed = False
         self._filter_ref = None
         self._tracked_windows.clear()
+        self._native_workareas.clear()
         self._snapshot = ExternalStrutSnapshot(False, 0, 0, ())
         self._xlib = None
         self._gdk_lib = None
@@ -306,12 +308,38 @@ class ExternalWorkareaTracker:
     def workarea_for(self, monitor: MonitorSnapshot) -> Rect | None:
         if not self._snapshot.available:
             return None
-        return compute_external_workarea(
+        external = compute_external_workarea(
             monitor=monitor.geometry,
             screen_width=self._snapshot.screen_width,
             screen_height=self._snapshot.screen_height,
             scale=monitor.scale,
             reservations=self._snapshot.reservations,
+        )
+        key = (monitor.geometry, monitor.scale)
+        if key not in self._native_workareas:
+            # Sample WM-owned chrome before publishing our own reservation.
+            workarea = monitor.workarea or monitor.geometry
+            geometry = monitor.geometry
+            left = workarea.x if workarea.x > external.x else geometry.x
+            top = workarea.y if workarea.y > external.y else geometry.y
+            right = (
+                workarea.right if workarea.right < external.right else geometry.right
+            )
+            bottom = (
+                workarea.bottom
+                if workarea.bottom < external.bottom
+                else geometry.bottom
+            )
+            # shortcut: native panel changes hidden by struts need a shell service.
+            self._native_workareas[key] = Rect(left, top, right - left, bottom - top)
+        native = self._native_workareas[key]
+        left = max(external.x, native.x)
+        top = max(external.y, native.y)
+        return Rect(
+            left,
+            top,
+            max(0, min(external.right, native.right) - left),
+            max(0, min(external.bottom, native.bottom) - top),
         )
 
     def refresh(self) -> None:

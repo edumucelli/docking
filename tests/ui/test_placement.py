@@ -52,6 +52,7 @@ def _make_window(**overrides):
         drawing_area=SimpleNamespace(queue_draw=MagicMock()),
         invalidate_current_geometry_frame=MagicMock(),
         update_input_region=MagicMock(),
+        dodge_monitor=None,
         surface_service=surface_service,
     )
     for key, value in overrides.items():
@@ -1373,7 +1374,7 @@ class TestPlacementControllerStruts:
         assert controller._resolve_target_monitor(display=display) is indexed
 
     def test_reposition_updates_input_region_and_redraw(self):
-        window = _make_window()
+        window = _make_window(dodge_monitor=MagicMock())
         controller = _make_controller(window)
         controller.position_dock = MagicMock()
         controller.set_struts = MagicMock()
@@ -1385,3 +1386,4 @@ class TestPlacementControllerStruts:
         controller.set_struts.assert_called_once()
         window.update_input_region.assert_called_once()
         window.drawing_area.queue_draw.assert_called_once()
+        window.dodge_monitor.evaluate_now.assert_called_once()

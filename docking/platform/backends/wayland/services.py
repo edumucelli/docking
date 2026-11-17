@@ -34,6 +34,7 @@ support, when available, separately provides running and active app state.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Protocol, cast
 from weakref import WeakKeyDictionary
@@ -46,8 +47,10 @@ from docking.platform.backends.base import (
     PlacementRequest,
     Rect,
     ReservationRequest,
+    Size,
     SurfaceService,
 )
+from docking.platform.environment import is_gamescope_session
 
 if TYPE_CHECKING:
     from gi.repository import Gdk
@@ -188,6 +191,16 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         if position is None:
             return
 
+        if is_gamescope_session():
+            # GameScope overlays ignore anchors and place every buffer at (0, 0).
+            # Fill the output so the renderer can place the dock on its real edge.
+            geometry = request.monitor.geometry
+            request = replace(
+                request,
+                x=geometry.x,
+                y=geometry.y,
+                size=Size(geometry.width, geometry.height),
+            )
         self._surface_x = request.x
         self._surface_y = request.y
         self._monitor = request.monitor

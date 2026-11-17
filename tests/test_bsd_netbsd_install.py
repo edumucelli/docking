@@ -22,7 +22,7 @@ pytestmark = pytest.mark.skipif(
 @pytest.mark.parametrize("manifest", ["valid", "missing", "mismatch"])
 def test_x11_sets_are_verified_before_any_extraction(tmp_path, manifest):
     script = tmp_path / "install-netbsd.sh"
-    shutil.copy2(ROOT / "tools/bsd/visual/install-netbsd.sh", script)
+    shutil.copy2(ROOT / "tools/bsd/install-netbsd.sh", script)
     commands = tmp_path / "bin"
     commands.mkdir()
     receipt = tmp_path / "extracted"

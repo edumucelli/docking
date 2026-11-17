@@ -24,7 +24,7 @@ def main() -> int:
         sys.executable,
         "-m",
         "pytest",
-        "tests/visual",
+        "tests/visual/rendering",
         "-q",
         "-m",
         "visual",

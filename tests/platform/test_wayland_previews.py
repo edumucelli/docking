@@ -112,6 +112,33 @@ def test_preview_handle_is_not_guessed_from_an_ambiguous_application():
     assert tracker.handle_for_window_id(window_id) is handles[1]
 
 
+def test_preview_tracker_accepts_wlr_listing_state_and_relationship_events():
+    from docking.platform.backends.wayland.runtime import ForeignToplevelProtocolAdapter
+
+    protocol = ForeignToplevelProtocolAdapter()
+    tracker = WaylandPreviewHandleTracker(
+        model=_model(), **identity_services(), protocol=protocol
+    )
+    protocol.start(tracker)
+    handle = FakeFrame()
+    protocol._on_toplevel(None, handle)
+    handle.dispatcher["app_id"](handle, "org.gnome.Nautilus")
+    handle.dispatcher["title"](handle, "Files")
+    handle.dispatcher["state"](handle, [])
+    handle.dispatcher["output_enter"](handle, object())
+    handle.dispatcher["output_leave"](handle, object())
+    handle.dispatcher["parent"](handle, None)
+    handle.dispatcher["done"](handle)
+    window_id = WindowId(DisplayServer.WAYLAND, "hyprland:123")
+    tracker.associate_window(
+        window_id=window_id,
+        desktop_id="org.gnome.Nautilus.desktop",
+        app_id="org.gnome.Nautilus",
+        title="Files",
+    )
+    assert tracker._handle_by_window_id[window_id] is handle
+
+
 def test_wayland_preview_service_starts_once_and_returns_cached_frame(monkeypatch):
     window_id = WindowId(backend=DisplayServer.WAYLAND, value=7)
     handle = object()

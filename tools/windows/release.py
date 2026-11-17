@@ -17,7 +17,7 @@ from packaging.version import InvalidVersion, Version
 from tools.windows.application_acceptance import validate_applications_report
 from tools.windows.bundle import verify_archive
 from tools.windows.input_acceptance import validate_input_artifact
-from tools.windows.visual.tray_provider import provider_cases
+from tools.windows.tray_contract import provider_cases
 
 REQUIRED_CHECKS = (
     "in_use_upgrade_rejected",

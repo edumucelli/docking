@@ -33,7 +33,11 @@ from docking.platform.backends.base import (
     WindowSnapshot,
 )
 from docking.platform.backends.diagnostics import WindowTrackingDiagnostic
-from docking.platform.backends.gtk_surface import apply_dock_hints, place_window
+from docking.platform.backends.gtk_surface import (
+    apply_dock_hints,
+    apply_dock_stacking,
+    place_window,
+)
 
 
 class ReducedWindowService(WindowService):
@@ -105,6 +109,7 @@ class ReducedSurfaceService(SurfaceService):
 
     def __init__(self) -> None:
         self._window: object | None = None
+        self._keep_above = True
 
     def start(self) -> None:
         """No runtime state is tracked."""
@@ -112,15 +117,18 @@ class ReducedSurfaceService(SurfaceService):
     def stop(self) -> None:
         """No resources are held."""
 
-    def configure_before_realize(self, window: object) -> None:
+    def configure_before_realize(
+        self, window: object, *, keep_above: bool = True
+    ) -> None:
         """Apply generic dock-window hints and remember the window."""
         self._window = window
-        apply_dock_hints(window)
+        self._keep_above = keep_above
+        apply_dock_hints(window, keep_above=keep_above)
 
     def on_realize(self, window: object) -> None:
         """Reapply dock-window hints once the native window exists."""
         self._window = window
-        apply_dock_hints(window)
+        apply_dock_hints(window, keep_above=self._keep_above)
 
     def set_workspace_scope(self, *, current_workspace_only: bool) -> None:
         """Workspace stickiness is unavailable in the reduced backend."""
@@ -130,6 +138,8 @@ class ReducedSurfaceService(SurfaceService):
         window = self._window
         if window is None:
             return
+        self._keep_above = request.keep_above
+        apply_dock_stacking(window, keep_above=request.keep_above)
         place_window(window, request)
 
     def set_reservation(self, request: ReservationRequest) -> None:

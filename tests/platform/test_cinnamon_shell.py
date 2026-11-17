@@ -226,6 +226,34 @@ def test_shell_external_workarea_excludes_only_own_reservation_and_restores_it()
     assert "affectsStruts:true" in script
 
 
+@pytest.mark.parametrize("keep_above", [True, False])
+def test_native_x11_surface_uses_muffin_reservations_and_retains_pointer_barriers(
+    keep_above,
+):
+    client = MagicMock()
+    client.workarea.return_value = Rect(0, 0, 1920, 1040)
+    surface = shell.CinnamonX11SurfaceService(client=client)
+    window = MagicMock()
+    surface.configure_before_realize(window, keep_above=keep_above)
+    window.set_keep_above.assert_called_with(keep_above)
+    window.set_keep_below.assert_called_with(not keep_above)
+    title = window.set_title.call_args.args[0]
+    monitor = _request().monitor
+    assert surface.external_workarea(monitor) == Rect(0, 0, 1920, 1040)
+    client.workarea.assert_called_once_with(monitor, exclude_title=title)
+    request = ReservationRequest(monitor, Position.BOTTOM, 53)
+    surface.set_reservation(request)
+    client.reserve_dock.assert_called_once_with(title=title, request=request)
+    surface._barrier = MagicMock(supported=True)
+    surface.update_pointer_barrier(
+        monitor=monitor, position=Position.BOTTOM, enabled=True
+    )
+    surface._barrier.update.assert_called_once()
+    surface.stop()
+    client.clear_reservation.assert_called_once_with(title=title)
+    surface._barrier.shutdown.assert_called_once()
+
+
 def test_surface_retries_reservation_after_mapping_and_clears_on_stop(monkeypatch):
     monkeypatch.setattr(shell.GLib, "timeout_add", lambda *_: 42)
     monkeypatch.setattr(shell.GLib, "source_remove", lambda *_: None)

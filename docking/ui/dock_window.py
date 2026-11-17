@@ -387,9 +387,16 @@ class DockWindow(Gtk.Window):
         self.connect("realize", self.placement.on_realize)
         self.connect("screen-changed", self.placement.on_screen_changed)
         self.connect("notify::scale-factor", self.placement.on_scale_factor_changed)
+        self.connect("size-allocate", self._on_size_allocate)
         self.connect("destroy", self.placement.on_destroy)
         self.connect("destroy", self._on_destroy)
         self.connect("destroy", Gtk.main_quit)
+
+    def _on_size_allocate(self, *_args: object) -> None:
+        # Native overlap subscriptions need the compositor's final allocation.
+        self.invalidate_current_geometry_frame()
+        if self.dodge_monitor is not None:
+            self.dodge_monitor.evaluate_now()
 
     def _setup_drawing_area(self) -> None:
         """Create the drawing surface and wire all mouse/scroll event handlers.

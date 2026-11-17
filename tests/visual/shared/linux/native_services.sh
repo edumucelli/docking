@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+# Isolated native-service and actual dock-pixel regressions. No host session bus.
+set -euo pipefail
+if [ "${1:-}" != --session ]; then
+    compositor="${1:?compositor required}"
+    mode="${2:-visual}"
+    repo_dir="$(cd "$(dirname "$0")/../../../.." && pwd)"
+    mkdir -p "$repo_dir/artifacts/visual/linux"
+    evidence="${DOCKING_VISUAL_OUTPUT:-$(mktemp -d "$repo_dir/artifacts/visual/linux/native-$compositor.XXXXXX")}"
+    mkdir -p "$evidence"
+    image="${DOCKING_LAB_IMAGE:-docking-lab:$compositor}"
+    lab_uid="$(id -u)"
+    lab_gid="$(id -g)"
+    container_user="$lab_uid:$lab_gid"
+    device_args=()
+    if [ "$compositor" = treeland ]; then
+        container_user=0
+        device_args+=(-e "LAB_UID=$lab_uid" -e "LAB_GID=$lab_gid" -e LAB_DIR=/evidence)
+    fi
+    if [ "$compositor" = jay ]; then
+        # Docker's default profile blocks Jay's required io_uring syscalls.
+        device_args+=(--security-opt seccomp=unconfined)
+    fi
+    if [ -n "${DOCKING_LAB_RENDER_NODE:-}" ]; then
+        [ -c "$DOCKING_LAB_RENDER_NODE" ] || { echo "Render node must be a character device" >&2; exit 1; }
+        device_args+=(--device "$DOCKING_LAB_RENDER_NODE" --group-add "$(stat -c %g "$DOCKING_LAB_RENDER_NODE")"
+            -e LAB_PARENT_RENDERER=gles2 -e LAB_KWIN_COMPOSE=O2
+            -e "WLR_RENDER_DRM_DEVICE=$DOCKING_LAB_RENDER_NODE")
+    fi
+    if [ "$compositor" = gamescope ]; then
+        [ -c /dev/udmabuf ] || { echo "GameScope CPU rendering requires /dev/udmabuf" >&2; exit 1; }
+        device_args+=(--device /dev/udmabuf --group-add "$(stat -c %g /dev/udmabuf)")
+    fi
+    docker run --rm --entrypoint cat "$image" /etc/passwd > "$evidence/.passwd"
+    docker run --rm --entrypoint cat "$image" /etc/group > "$evidence/.group"
+    printf 'lab:x:%s:%s:lab:/tmp:/bin/sh\n' "$lab_uid" "$lab_gid" >> "$evidence/.passwd"
+    printf 'lab:x:%s:\n' "$lab_gid" >> "$evidence/.group"
+    printf 'Evidence: %s\n' "$evidence"
+    docker run --rm --network none --user "$container_user" -e HOME=/tmp \
+        -e "LAB_OUTPUTS=${LAB_OUTPUTS:-1}" -e DOCKING_PHOC_PRIVATE_PREVIEWS -e LAB_SOFTWARE_RENDERING "${device_args[@]}" \
+        -v "$evidence/.passwd:/etc/passwd:ro" -v "$evidence/.group:/etc/group:ro" \
+        -v "$repo_dir:/src:ro" -v "$evidence:/evidence" \
+        "$image" dbus-run-session -- bash /src/tests/visual/shared/linux/native_services.sh --session "$compositor" "$mode"
+    exit
+fi
+compositor="${2:?compositor required}"
+export LAB_SERVICE_MODE="${3:-visual}"
+export LAB_DIR="${LAB_DIR:-/evidence}"
+export LAB_SCRIPTS="${LAB_SCRIPTS:-/src/tests/visual/shared/linux}"
+export DOCKING_SOURCE="${DOCKING_SOURCE:-/src}"
+export XDG_RUNTIME_DIR="$(mktemp -d /tmp/docking-native.XXXXXX)"
+export XDG_CONFIG_HOME="$LAB_DIR/config" XDG_CACHE_HOME="$LAB_DIR/cache"
+export XDG_DATA_HOME="$LAB_DIR/data" XDG_STATE_HOME="$LAB_DIR/state"
+export GSETTINGS_BACKEND=memory DOCKING_LOG_LEVEL=DEBUG
+unset DISPLAY WAYLAND_DISPLAY DOCKING_BACKEND SWAYSOCK NIRI_SOCKET HYPRLAND_INSTANCE_SIGNATURE
+unset XDG_SESSION_DESKTOP DESKTOP_SESSION WAYFIRE_SOCKET
+mkdir -p "$XDG_CONFIG_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME" "$XDG_STATE_HOME"
+source "$LAB_SCRIPTS/adapters/common.sh"
+source "$(adapter_script "$compositor")"
+trap adapter_cleanup EXIT
+export LAB_EXPECTED_BACKEND="$compositor" LAB_CAPTURE_MODE=wayland
+export LAB_COMPOSITOR="$compositor"
+export COMPOSITOR="$compositor"
+export DOCKING_LAB_PRIVATE_SESSION=1
+if [ "$compositor" = phoc ] || [ "$compositor" = phosh ] || [ "$compositor" = labwc ] || [ "$compositor" = jay ] || [ "$compositor" = miriway ] || [ "$compositor" = gamescope ]; then
+    export LAB_EXPECTED_BACKEND=wayland-layer-shell
+fi
+if [ "$compositor" = gnome ]; then
+    export GSETTINGS_BACKEND=keyfile LAB_EXPECTED_BACKEND=gnome-shell-bridge LAB_CAPTURE_MODE=x11
+    extension="$XDG_DATA_HOME/gnome-shell/extensions/docking-bridge@docking.org"
+    mkdir -p "$extension"
+    cp "$DOCKING_SOURCE"/docking/platform/backends/gnome/extension/* "$extension/"
+    gsettings set org.gnome.shell enabled-extensions "['docking-bridge@docking.org']"
+    gsettings set org.gnome.desktop.notifications show-banners false
+elif [ "$compositor" = kwin ] || [ "$compositor" = cosmic ] || [ "$compositor" = hyprland ]; then
+    export LAB_CAPTURE_MODE=parent
+fi
+adapter_prepare
+if [ "$compositor" = kwin ]; then
+    printf '[Desktops]\nNumber=2\n' > "$XDG_CONFIG_HOME/kwinrc"
+fi
+if [ "$compositor" = sway ]; then
+    # Blue server decorations are not part of the fixture's red client image.
+    printf '\ndefault_border none\ndefault_floating_border none\n' >> "$SWAY_CONFIG"
+fi
+if [ "$compositor" = niri ] && [ "$LAB_SERVICE_MODE" != picker ]; then
+    # Niri currently exposes absolute positions for floating windows only.
+    # Tiled windows must retain unknown geometry, not be guessed at the origin.
+    printf '\nwindow-rule {\n match app-id="lab-native";\n open-floating true;\n default-floating-position x=0 y=0 relative-to="top-left";\n}\n' >> "$XDG_CONFIG_HOME/niri/config.kdl"
+fi
+adapter_start
+adapter_wait_ready
+if declare -F adapter_start_frame_clock >/dev/null; then adapter_start_frame_clock; fi
+if [ "$compositor" = gnome-fallback ] || [ "$compositor" = weston ]; then
+    export LAB_EXPECTED_BACKEND=reduced LAB_CAPTURE_MODE=x11
+fi
+if [ "$compositor" = cage ]; then export LAB_EXPECTED_BACKEND=reduced; fi
+if [ "$compositor" = miriway ]; then export LAB_CAPTURE_MODE=x11; fi
+if [ "$compositor" = gamescope ]; then export LAB_CAPTURE_MODE=gamescope; fi
+if [ "$compositor" = treeland ] || [ "$compositor" = jay ]; then
+    export LAB_CAPTURE_MODE=parent
+fi
+if [ "$compositor" = cinnamon ]; then
+    export LAB_EXPECTED_BACKEND="$(adapter_capabilities | jq -r .expected_backend)"
+    export LAB_CAPTURE_MODE=x11
+fi
+export PYTHONPATH="$(docking_source_pythonpath)"
+
+limit=40
+positions="bottom top left right"
+probe=native_services_probe.py
+if [ "$LAB_SERVICE_MODE" = overlay ]; then
+    # GameScope's native layer-shell surfaces are display-only external overlays.
+    export LAB_PROBE_HIDE_MODE=none
+    positions=bottom
+    probe=../../../backends/layer_shell/gamescope/probe.py
+    limit=180
+fi
+if [ "$LAB_SERVICE_MODE" = launcher ]; then
+    source "$LAB_SCRIPTS/input.sh"
+    start_lab_input
+    export LAB_INPUT_SUPPORTED LAB_INPUT_SOCKET
+    export LAB_LAUNCH_NONCE="$(cat /proc/sys/kernel/random/uuid)"
+    export LAB_LAUNCH_COMMAND="/usr/bin/python3 -m tests.visual.shared.linux.probes.launcher_probe --launched"
+    export LAB_PROBE_HIDE_MODE=none
+    positions=bottom
+    probe=launcher_probe.py
+fi
+
+[ "$LAB_SERVICE_MODE" = idle ] && positions=idle
+if [ "$LAB_SERVICE_MODE" = treeland ]; then
+    positions=bottom
+    probe=../../../backends/treeland/probe.py
+    export LAB_PROBE_HIDE_MODE=window-dodge
+fi
+if [ "$LAB_SERVICE_MODE" = foreign ]; then
+    positions=bottom
+    probe=foreign_services_probe.py
+fi
+if [ "$LAB_SERVICE_MODE" = picker ]; then
+    positions=bottom
+    probe=../../../backends/niri/picker_probe.py
+fi
+if [ "$LAB_SERVICE_MODE" = panel ]; then
+    probe=../../../backends/layer_shell/phoc/panel_probe.py
+    limit=60
+    export LAB_PROBE_HIDE_MODE=none
+fi
+if [ "$LAB_SERVICE_MODE" = outline ]; then
+    positions=bottom
+    probe=window_outline_probe.py
+    limit=60
+fi
+for position in $positions; do
+    timeout -k 5 "$limit" /usr/bin/python3 "$LAB_SCRIPTS/probes/$probe" "$position" \
+        > "$LAB_DIR/$position.log" 2>&1 || {
+            tail -60 "$LAB_DIR/$position.log"
+            if [ "$compositor" = niri ]; then
+                niri msg -j outputs
+                niri msg -j workspaces
+                niri msg -j windows
+            fi
+            exit 1
+        }
+    tail -1 "$LAB_DIR/$position.log"
+done

@@ -33,6 +33,7 @@ from docking.platform.backends.base import (
     ReservationRequest,
     SurfaceService,
 )
+from docking.platform.backends.gtk_surface import apply_dock_stacking
 from docking.platform.backends.x11.impl.barriers import PointerBarrier
 from docking.platform.backends.x11.impl.struts import (
     BlurRect,
@@ -85,14 +86,16 @@ class X11SurfaceService(SurfaceService):
         self._workarea.stop()
         self._barrier.shutdown()
 
-    def configure_before_realize(self, window: object) -> None:
+    def configure_before_realize(
+        self, window: object, *, keep_above: bool = True
+    ) -> None:
         """Configure the GTK window as an X11 dock before realization."""
         window = cast("Gtk.Window", window)
         self._window = window
         window.set_skip_taskbar_hint(True)
         window.set_skip_pager_hint(True)
         window.stick()
-        window.set_keep_above(True)
+        apply_dock_stacking(window, keep_above=keep_above)
         window.set_type_hint(Gdk.WindowTypeHint.DOCK)
 
     def on_realize(self, window: object) -> None:
@@ -122,6 +125,7 @@ class X11SurfaceService(SurfaceService):
         """Move and resize the X11 dock window."""
         if self._window is None:
             return
+        apply_dock_stacking(self._window, keep_above=request.keep_above)
         self._window.set_size_request(request.size.width, request.size.height)
         self._window.resize(request.size.width, request.size.height)
         self._window.move(request.x, request.y)

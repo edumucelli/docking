@@ -126,7 +126,7 @@ def runtime_acceptance(
 ) -> Acceptance:
     # This verifier is stdlib-only and compares all installed docking/* bytes,
     # rejecting missing/extra/changed files before any production import.
-    from tools.windows.visual.tray_acceptance import verify_installed_wheel
+    from tools.windows.runtime_acceptance import verify_installed_wheel
 
     checksum = verify_installed_wheel(root, wheel)
     _identity(checksum, source_sha)
