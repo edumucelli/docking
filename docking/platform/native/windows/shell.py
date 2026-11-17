@@ -50,7 +50,10 @@ def open_with_dialog(path: str, owner: int) -> OpenWithResult:
         return OpenWithResult.FAILED
     if status & 0xFFFFFFFF == 0x800704C7:
         return OpenWithResult.CANCELLED
-    return OpenWithResult.ACCEPTED if status >= 0 else OpenWithResult.FAILED
+    if status < 0:
+        log.warning("Application chooser failed: 0x%08x", status & 0xFFFFFFFF)
+        return OpenWithResult.FAILED
+    return OpenWithResult.ACCEPTED
 
 
 def launch_application_target(target: str) -> LaunchOutcome:

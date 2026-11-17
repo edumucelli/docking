@@ -182,6 +182,7 @@ jobs:
             artifacts/windows/smoke/
             artifacts/windows/multiple-windows/
             artifacts/windows/fullscreen/
+            artifacts/windows/file-actions/
             artifacts/windows/search-layouts/
             artifacts/windows/input-profiles/
             artifacts/windows/tray/

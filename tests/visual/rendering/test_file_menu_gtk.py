@@ -1,8 +1,11 @@
 """Real GTK ownership, secondary input, keyboard routing and chooser lifetime."""
 
 import gc
+import json
 import os
 import time
+from ctypes import wintypes
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -242,31 +245,75 @@ def test_portal_receives_selected_fd_even_when_response_precedes_method_reply(
 def test_windows_native_chooser_can_be_cancelled_without_launching(
     browser, tmp_path, close_owner
 ):
+    from docking.platform.native.windows.ffi import bind, window_handle
+    from docking.platform.native.windows.process import read_process_metadata
     from docking.platform.targets import TargetService
     from tests.visual.backends.windows.desktop_driver import WindowsDesktop
 
     _handler, root, _targets, window = browser
     root.popdown()
     native = WindowsDesktop()
-    before = {row["hwnd"] for row in native.windows()}
+    owner = window_handle(window.get_window())
+    get_owner = bind(
+        native.user, "GetWindow", wintypes.HWND, wintypes.HWND, wintypes.UINT
+    )
+
+    def chooser_windows():
+        found = []
+        for row in native.windows(include_immersive=True):
+            if row["pid"] == os.getpid() and row["class"] == "#32770":
+                found.append(row)
+                continue
+            if row["class"].casefold().startswith("gdk"):
+                continue
+            metadata = read_process_metadata(row["pid"], include_aumid=False)
+            if (
+                metadata is not None
+                and metadata.executable_path is not None
+                and metadata.executable_path.name.casefold() == "openwith.exe"
+            ):
+                found.append(row)
+        return found
+
+    assert not chooser_windows(), (
+        "Close an existing Open With dialog before this owned fixture"
+    )
     target = tmp_path / "owned file.txt"
     target.write_text("owned fixture")
     service = TargetService(icon_loader=MagicMock(), application_registry=MagicMock())
     controller = FileActionsController(parent=window, target_service=service)
     chooser = None
+    report = Path("artifacts/windows/file-actions")
+    report.mkdir(parents=True, exist_ok=True)
+    name = "chooser-owner" if close_owner else "chooser-escape"
+
+    def capture():
+        facts = {
+            "owner": owner,
+            "pending": controller._pending,
+            "foreground": native.user.GetForegroundWindow(),
+            "error_dialog": controller._error_dialog is not None,
+            "windows": [
+                {key: row[key] for key in ("hwnd", "pid", "class", "rect")}
+                | {"owner": get_owner(row["hwnd"], 4)}
+                for row in chooser_windows()
+            ],
+        }
+        (report / (name + ".json")).write_text(
+            json.dumps(facts, indent=2), encoding="utf-8"
+        )
+        print(json.dumps(facts))
+        if chooser is not None and native.user.IsWindowVisible(chooser["hwnd"]):
+            from PIL import ImageGrab
+
+            ImageGrab.grab(bbox=tuple(chooser["rect"]), all_screens=True).save(
+                report / (name + ".png")
+            )
+
     try:
         controller.open_with(target.as_uri())
-        chooser = _wait(
-            lambda: next(
-                (
-                    row
-                    for row in native.windows()
-                    if row["hwnd"] not in before
-                    and not row["class"].casefold().startswith("gdk")
-                ),
-                None,
-            )
-        )
+        chooser = _wait(lambda: next(iter(chooser_windows()), None))
+        capture()
         if close_owner:
             window.destroy()
         else:
@@ -274,10 +321,13 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
             native.click((left + right) // 2, top + 15)
             native.key(0x1B)
         _wait(
-            lambda: not any(row["hwnd"] == chooser["hwnd"] for row in native.windows())
+            lambda: not any(row["hwnd"] == chooser["hwnd"] for row in chooser_windows())
         )
         _wait(lambda: not controller._pending)
         assert controller._error_dialog is None
+    except AssertionError:
+        capture()
+        raise
     finally:
         controller.stop()
         if chooser is not None and native.user.IsWindow(chooser["hwnd"]):
