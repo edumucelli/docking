@@ -43,7 +43,8 @@ def open_with_dialog(path: str, owner: int) -> OpenWithResult:
                 wintypes.HWND,
                 ctypes.POINTER(_OpenAsInfo),
             )
-            info = _OpenAsInfo(path, None, 0x00000004)  # OAIF_EXEC
+            # MSYS2 can use forward separators that Windows Shell APIs reject.
+            info = _OpenAsInfo(path.replace("/", "\\"), None, 0x00000004)  # OAIF_EXEC
             status = show(owner, ctypes.byref(info))
     except OSError as exc:
         log.warning("Application chooser failed: %s", exc)

@@ -141,7 +141,7 @@ def test_windows_native_chooser_uses_owned_single_file_execution(
     monkeypatch.setattr(
         ffi.windows_ctypes, "WinDLL", lambda *a: object(), raising=False
     )
-    assert shell.open_with_dialog("C:\\owned\\résumé.txt", 42) is expected
+    assert shell.open_with_dialog("C:/owned/résumé.txt", 42) is expected
     assert seen == [(42, "C:\\owned\\résumé.txt", 4)]
 
 

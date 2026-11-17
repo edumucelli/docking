@@ -406,6 +406,7 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
             "target_matches": Path(path) == target,
             "target_exists": Path(path).is_file(),
             "extended_path": path.startswith("\\\\?\\"),
+            "forward_separators": "/" in path,
             "path_length": len(path),
         }
         calls.append(facts)
