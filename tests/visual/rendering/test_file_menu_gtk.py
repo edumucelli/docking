@@ -106,6 +106,8 @@ def test_entry_commands_replace_browsing_menu_without_launching(browser, keyboar
     targets.open_target.assert_not_called()
     assert not root.get_visible()
     commands = next(iter(handler._open_menus))
+    assert commands.get_attach_widget() is handler._dock_window
+    assert commands.get_toplevel().get_transient_for() is handler._dock_window
     assert [child.get_label() for child in commands.get_children()] == [
         "Open",
         "Open With…",

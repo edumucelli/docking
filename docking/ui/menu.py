@@ -682,6 +682,8 @@ class MenuHandler:
         for opened in list(self._open_menus):
             opened.popdown()
         menu = self._new_popup_menu()
+        # The event's menu surface is already hidden; retain a live popup parent.
+        menu.attach_to_widget(self._dock_window, None)
         open_item = Gtk.MenuItem(label=_("Open Folder") if is_dir else _("Open"))
         open_item.connect("activate", self._on_open_target, target)
         menu.append(open_item)

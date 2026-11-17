@@ -59,6 +59,8 @@ def request_open_with(
             return OpenWithResult.CANCELLED
         if path is None or owner is None or not path.is_file():
             return OpenWithResult.FAILED
+        if cancelled.is_set():
+            return OpenWithResult.CANCELLED
         return open_with_dialog(str(path), owner)
 
     def completed(result: OpenWithResult) -> None:

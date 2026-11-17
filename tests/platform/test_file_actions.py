@@ -86,7 +86,9 @@ def test_windows_terminal_uses_new_console_and_cwd(monkeypatch, tmp_path):
 
 
 def test_target_preparation_rejects_missing_and_non_files(tmp_path):
-    service = make_target_service(icon_loader=MagicMock())
+    service = make_target_service(
+        icon_loader=MagicMock(), application_registry=MagicMock()
+    )
     assert service.prepare_open_with(tmp_path.as_uri()) == (
         tmp_path.as_uri(),
         "inode/directory",
@@ -104,7 +106,9 @@ def test_target_terminal_rejects_files_before_platform_launch(tmp_path, monkeypa
     file.write_text("owned fixture")
     desktop = Mock()
     monkeypatch.setattr(targets, "desktop_services", lambda: desktop)
-    service = make_target_service(icon_loader=MagicMock())
+    service = make_target_service(
+        icon_loader=MagicMock(), application_registry=MagicMock()
+    )
     assert not service.open_in_terminal(file.as_uri())
     assert not service.open_in_terminal("sftp://example.com/folder")
     desktop.open_in_terminal.assert_not_called()
@@ -208,3 +212,21 @@ def test_portal_method_failure_closes_descriptors_and_reports_failure(portal):
     assert portal.descriptors.get_length() == 0
     assert portal.results == [OpenWithResult.FAILED]
     portal.bus.call_with_unix_fd_list_finish.side_effect = None
+
+
+def test_windows_cancellation_during_target_validation_does_not_open_chooser(
+    monkeypatch,
+):
+    worker = Mock()
+    monkeypatch.setattr(windows, "BackgroundWorker", lambda: worker)
+    monkeypatch.setattr(windows, "window_handle", lambda window: 42)
+    path = Mock()
+    monkeypatch.setattr(windows, "local_path_from_uri_or_path", lambda uri: path)
+    opened = Mock()
+    monkeypatch.setattr(shell, "open_with_dialog", opened)
+    cancel = windows.request_open_with(
+        "file:///owned/file.txt", parent=MagicMock(), on_result=Mock()
+    )
+    path.is_file.side_effect = lambda: cancel() or True
+    assert worker.run.call_args.kwargs["fn"]() is OpenWithResult.CANCELLED
+    opened.assert_not_called()
