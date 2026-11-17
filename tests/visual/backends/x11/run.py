@@ -892,6 +892,22 @@ def observe(args):
             "status": "fail",
             "detail": traceback.format_exc(),
         }
+        if args.desktop == "lxde":
+            with (output / "mapping-state.log").open("w") as stream:
+                for command in (
+                    ["xprop", "-root", "_NET_CURRENT_DESKTOP", "_NET_WORKAREA", "_NET_CLIENT_LIST", "_NET_SUPPORTED"],
+                    ["xwininfo", "-root", "-tree"],
+                ):
+                    subprocess.run(command, stdout=stream, stderr=stream, check=False)
+                for app in ("lxpanel", "pcmanfm", "lxpolkit"):
+                    matches = subprocess.run(["pgrep", "-x", app], capture_output=True, text=True, check=False)
+                    for pid in matches.stdout.split():
+                        stream.write(f"\nProcess {app} {pid}\n")
+                        stream.flush()
+                        try:
+                            subprocess.run(["gdb", "--batch", "-x", str(ROOT / "tests/visual/backends/x11/lxde/mapping.gdb"), "-p", pid], stdout=stream, stderr=stream, check=False, timeout=12)
+                        except subprocess.TimeoutExpired:
+                            stream.write("GDB inspection timed out\n")
         if observer is not None:
             try:
                 observer.capture("observer-setup-failure")

@@ -1,119 +1,42 @@
-name: Native desktop visuals
-
+name: LXDE mapping investigation
 on:
-  pull_request:
-  push:
-    branches: [master]
-    paths: ["docking/**", "tests/visual/**", "tools/linux/visual_vm.py", "pyproject.toml", "tools/dependency_policy.py", ".github/workflows/compositor.yml"]
   workflow_dispatch:
-  schedule:
-    - cron: "23 4 * * 1"
-
 permissions:
   contents: read
-
-concurrency:
-  group: compositor-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  targets:
+  mapping:
+    name: Inspect native LXDE mapping
     runs-on: ubuntu-24.04
-    outputs:
-      matrix: ${{ steps.targets.outputs.matrix }}
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
-      - id: targets
-        run: echo "matrix=$(python3 -m tests.visual.targets --matrix linux)" >> "$GITHUB_OUTPUT"
-
-  compositor:
-    name: Native visual (${{ matrix.name }})
-    needs: targets
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.targets.outputs.matrix) }}
-    steps:
-      - uses: actions/checkout@v7
-      - name: Install comparison and software GPU dependencies
-        env:
-          VIRTUAL_GPU: ${{ matrix.virtual_gpu }}
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends python3-cairo python3-venv
-          if [ "$VIRTUAL_GPU" = true ]; then
-            sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-system-gui qemu-utils cloud-image-utils openssh-client xvfb xauth libgl1-mesa-dri
-          fi
-          python3 -m venv --system-site-packages .venv
-          export PIP_UPLOADED_PRIOR_TO="$(.venv/bin/python tools/dependency_policy.py cutoff)"
-          .venv/bin/python tools/dependency_policy.py bootstrap
-          .venv/bin/python -m pip install -e '.[dev]'
-      - uses: actions/cache@v6
-        if: matrix.virtual_gpu
-        with:
-          path: artifacts/visual-vm-cache/
-          key: visual-guest-debian-13-20261001-2618
       - uses: docker/setup-buildx-action@v4
-      - name: Build pinned desktop image
+      - name: Build diagnostic desktop image
         uses: docker/build-push-action@v7
         with:
           context: tests/visual/shared/linux
-          file: tests/visual/shared/linux/${{ matrix.image_file }}
-          target: ${{ matrix.image_target }}
-          tags: docking-ci:${{ matrix.name }}
+          file: tests/visual/shared/linux/Dockerfile
+          target: x11-lxde
+          tags: docking-ci:lxde-mapping
           load: true
-          cache-from: type=gha,scope=compositor-${{ matrix.name }}
-          cache-to: type=gha,mode=max,scope=compositor-${{ matrix.name }},ignore-error=true
-      - name: Require native pixels, input and supported window actions
+          cache-from: type=gha,scope=compositor-x11-lxde
+      - name: Repeat cold native desktop starts
         env:
-          DOCKING_LAB_IMAGE: docking-ci:${{ matrix.name }}
-          TARGET: ${{ matrix.name }}
-        run: .venv/bin/python -m tests.visual --target "$TARGET" --output "artifacts/visual/$TARGET"
-      - name: Check Cinnamon reservations and window switching
-        if: matrix.name == 'cinnamon'
-        env:
-          DOCKING_LAB_IMAGE: docking-ci:cinnamon
+          DOCKING_LAB_IMAGE: docking-ci:lxde-mapping
         run: |
-          bash tests/visual/shared/linux/matrix.sh --compositor cinnamon --behavior reservation --geometry-only --require-supported
-          bash tests/visual/shared/linux/matrix.sh --compositor cinnamon --behavior windows --geometry-only --require-supported
-      - name: Check pointer-driven behaviour
-        if: matrix.name == 'sway'
-        env:
-          DOCKING_LAB_IMAGE: docking-ci:sway
-        run: |
-          bash tests/visual/shared/linux/matrix.sh --compositor sway --behavior visibility \
-            --case autohide-bottom --case autohide-top --case autohide-left --case autohide-right --geometry-only --require-supported
-          bash tests/visual/shared/linux/matrix.sh --compositor sway --behavior interaction --geometry-only --require-supported
-          bash tests/visual/shared/linux/matrix.sh --compositor sway --behavior displays --geometry-only --require-supported
-          bash tests/visual/shared/linux/matrix.sh --compositor sway --behavior layouts --geometry-only --require-supported
-      - name: Check native Wayfire dodge
-        if: matrix.name == 'wayfire'
-        env:
-          DOCKING_LAB_IMAGE: docking-ci:wayfire
-        run: |
-          bash tests/visual/shared/linux/matrix.sh --compositor wayfire --case dodge-active --geometry-only --require-supported
-          bash tests/visual/backends/wayfire/services.sh
-      - name: Retain native service diagnostics
-        if: contains(fromJSON('["sway","niri","gnome","wayfire","phoc","phosh"]'), matrix.name)
-        env:
-          DOCKING_LAB_IMAGE: docking-ci:${{ matrix.name }}
-          COMPOSITOR: ${{ matrix.name }}
-        run: |
-          if [ "$COMPOSITOR" = phoc ]; then
-            bash tests/visual/shared/linux/native_services.sh phoc panel
-            DOCKING_PHOC_PRIVATE_PREVIEWS=1 bash tests/visual/shared/linux/native_services.sh phoc foreign
-          elif [ "$COMPOSITOR" = niri ]; then
-            bash tests/visual/shared/linux/native_services.sh niri picker
-          fi
-      - name: Upload captures, geometry, input proof and logs
+          failures=0
+          for attempt in $(seq 12); do
+            if python3 -m tests.visual --target x11-lxde --output "artifacts/visual/lxde-$attempt"; then
+              echo "LXDE $attempt passed"
+            else
+              echo "LXDE $attempt failed"
+              failures=$((failures + 1))
+            fi
+          done
+          test "$failures" -eq 0
+      - uses: actions/upload-artifact@v7
         if: always()
-        uses: actions/upload-artifact@v7
         with:
-          name: compositor-${{ matrix.name }}
-          path: |
-            artifacts/visual/
-            !artifacts/visual/**/jay/logs/**
-          include-hidden-files: false
-          if-no-files-found: error
-          retention-days: 14
+          name: lxde-mapping-investigation
+          path: artifacts/visual/
+          retention-days: 7

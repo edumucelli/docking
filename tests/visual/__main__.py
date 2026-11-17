@@ -232,6 +232,8 @@ def main() -> int:
                 "--rm",
                 "--network",
                 "none",
+                "--cap-add",
+                "SYS_PTRACE",
                 "--user",
                 f"{os.getuid()}:{os.getgid()}",
                 "-e",
