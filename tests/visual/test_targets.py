@@ -120,6 +120,40 @@ def test_native_failure_is_retained_and_cannot_become_a_success(monkeypatch, tmp
     assert ["later-probe"] not in calls
 
 
+@pytest.mark.parametrize("software_rendering", [None, "0"])
+def test_render_node_override_reaches_placement_and_native_services(
+    monkeypatch, tmp_path, software_rendering
+):
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["visual", "--target", "hyprland", "--output", str(tmp_path / "run")],
+    )
+    monkeypatch.delenv("DOCKING_VISUAL_GUEST", raising=False)
+    monkeypatch.setenv("DOCKING_LAB_RENDER_NODE", "/dev/dri/renderD128")
+    monkeypatch.delenv("LAB_SOFTWARE_RENDERING", raising=False)
+    if software_rendering is not None:
+        monkeypatch.setenv("LAB_SOFTWARE_RENDERING", software_rendering)
+    calls = []
+
+    def run(command, **kwargs):
+        calls.append((command, kwargs.get("env")))
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(runner.subprocess, "run", run)
+    assert runner.main() == 0
+    assert calls[0][0][:3] == ["docker", "image", "inspect"]
+    assert len(calls) == 4
+    assert calls[1][0][1].endswith("matrix.sh")
+    for command, env in calls[1:]:
+        assert "tools.linux.visual_vm" not in command
+        assert env["LAB_RENDER_DEVICE"] == "/dev/dri/renderD128"
+        assert env["LAB_PARENT_RENDERER"] == "gles2"
+        assert env["LAB_KWIN_COMPOSE"] == "O2"
+        assert env["LAB_SOFTWARE_RENDERING"] == (software_rendering or "1")
+
+
 @pytest.mark.parametrize("name", ["cage", "weston", "gnome-fallback"])
 def test_reduced_targets_require_visible_launcher_input(name, tmp_path):
     commands = runner.commands(target_named(name), tmp_path, None)

@@ -1,7 +1,10 @@
 """Tests for generic X11 external panel workarea composition."""
 
 import ctypes
+from dataclasses import replace
 from unittest.mock import MagicMock
+
+import pytest
 
 from docking.platform.backends.base import MonitorSnapshot, Rect
 from docking.platform.backends.x11.impl import workarea as workarea_mod
@@ -78,6 +81,53 @@ def test_native_panel_combines_with_changing_foreign_struts():
     assert tracker.workarea_for(monitor) == Rect(0, 32, 1920, 1048)
     tracker.stop()
     assert tracker._native_workareas == {}
+
+
+@pytest.mark.parametrize("native_top", [0, 32])
+@pytest.mark.parametrize("edge", ["left", "top", "right", "bottom"])
+@pytest.mark.parametrize("connector", [None, "DP-1"])
+def test_monitor_reconfiguration_does_not_cache_our_own_strut(
+    native_top, edge, connector
+):
+    tracker = ExternalWorkareaTracker()
+    tracker._snapshot = workarea_mod.ExternalStrutSnapshot(True, 1920, 1080, ())
+    monitor = MonitorSnapshot(
+        0,
+        Rect(0, 0, 1920, 1080),
+        Rect(0, native_top, 1920, 1080 - native_top),
+        connector=connector,
+    )
+    assert tracker.workarea_for(monitor) == monitor.workarea
+
+    geometry = Rect(100, 200, 1280, 800)
+    expected = Rect(100, 200 + native_top, 1280, 800 - native_top)
+    own_insets = dict.fromkeys(("left", "top", "right", "bottom"), 0)
+    own_insets[edge] = 53
+    own_workarea = Rect(
+        expected.x + own_insets["left"],
+        expected.y + own_insets["top"],
+        expected.width - own_insets["left"] - own_insets["right"],
+        expected.height - own_insets["top"] - own_insets["bottom"],
+    )
+    changed = replace(monitor, geometry=geometry, workarea=own_workarea, scale=2)
+    tracker._snapshot = workarea_mod.ExternalStrutSnapshot(True, 2760, 2000, ())
+    assert tracker.workarea_for(changed) == expected
+    assert tracker.workarea_for(replace(changed, workarea=expected)) == expected
+
+
+def test_native_insets_follow_connector_when_monitor_indexes_change():
+    tracker = ExternalWorkareaTracker()
+    tracker._snapshot = workarea_mod.ExternalStrutSnapshot(True, 1920, 1080, ())
+    monitor = MonitorSnapshot(
+        0, Rect(0, 0, 1920, 1080), Rect(0, 32, 1920, 1048), connector="DP-1"
+    )
+    assert tracker.workarea_for(monitor) == monitor.workarea
+    replacement = replace(monitor, connector="DP-2", workarea=Rect(0, 64, 1920, 1016))
+    assert tracker.workarea_for(replacement) == replacement.workarea
+    assert (
+        tracker.workarea_for(replace(monitor, index=1, workarea=None))
+        == monitor.workarea
+    )
 
 
 def test_panels_on_all_edges_compose_by_root_boundary():

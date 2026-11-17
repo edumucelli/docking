@@ -229,7 +229,7 @@ class ExternalWorkareaTracker:
         self._atoms: dict[bytes, int] = {}
         self._tracked_windows: dict[int, GdkX11.X11Window] = {}
         self._snapshot = ExternalStrutSnapshot(False, 0, 0, ())
-        self._native_workareas: dict[tuple[Rect, int], Rect] = {}
+        self._native_workareas: dict[str | int, tuple[int, int, int, int]] = {}
         self._change_handler: Callable[[], None] | None = None
         self._refresh_source: int = 0
         self._filter_installed = False
@@ -315,11 +315,11 @@ class ExternalWorkareaTracker:
             scale=monitor.scale,
             reservations=self._snapshot.reservations,
         )
-        key = (monitor.geometry, monitor.scale)
+        key = monitor.connector or monitor.index
+        geometry = monitor.geometry
         if key not in self._native_workareas:
             # Sample WM-owned chrome before publishing our own reservation.
             workarea = monitor.workarea or monitor.geometry
-            geometry = monitor.geometry
             left = workarea.x if workarea.x > external.x else geometry.x
             top = workarea.y if workarea.y > external.y else geometry.y
             right = (
@@ -330,16 +330,24 @@ class ExternalWorkareaTracker:
                 if workarea.bottom < external.bottom
                 else geometry.bottom
             )
+            # Keep edge insets across resizes; later GDK workareas include our strut.
             # shortcut: native panel changes hidden by struts need a shell service.
-            self._native_workareas[key] = Rect(left, top, right - left, bottom - top)
-        native = self._native_workareas[key]
-        left = max(external.x, native.x)
-        top = max(external.y, native.y)
+            self._native_workareas[key] = (
+                left - geometry.x,
+                top - geometry.y,
+                geometry.right - right,
+                geometry.bottom - bottom,
+            )
+        native_left, native_top, native_right, native_bottom = self._native_workareas[
+            key
+        ]
+        left = max(external.x, geometry.x + native_left)
+        top = max(external.y, geometry.y + native_top)
         return Rect(
             left,
             top,
-            max(0, min(external.right, native.right) - left),
-            max(0, min(external.bottom, native.bottom) - top),
+            max(0, min(external.right, geometry.right - native_right) - left),
+            max(0, min(external.bottom, geometry.bottom - native_bottom) - top),
         )
 
     def refresh(self) -> None:

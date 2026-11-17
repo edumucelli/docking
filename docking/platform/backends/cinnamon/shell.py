@@ -557,12 +557,20 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
 
     def set_reservation(self, request: ReservationRequest) -> None:
         self._reservation = request
-        self._client.reserve_dock(title=self._title, request=request)
+        if not self._client.reserve_dock(title=self._title, request=request):
+            # X11 placement does not start the native shell's mapping retry.
+            self._attempts_left = 20
+            if not self._retry_source:
+                self._retry_source = GLib.timeout_add(100, self._retry_position)
 
     def clear_reservation(self) -> None:
         if self._reservation is not None:
             self._client.clear_reservation(title=self._title)
             self._reservation = None
+        if self._request is None and self._retry_source:
+            GLib.source_remove(self._retry_source)
+            self._retry_source = 0
+            self._attempts_left = 0
 
     def get_surface_position(self) -> tuple[int, int] | None:
         # Muffin can adjust the frame again after an asynchronous GTK resize.
@@ -597,18 +605,17 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
             self._retry_source = GLib.timeout_add(100, self._retry_position)
 
     def _apply_position(self) -> None:
-        if self._request is None:
-            return
-        position = self._client.position_dock(
-            title=self._title,
-            request=self._request,
-            current_workspace_only=self._current_workspace_only,
-        )
-        if position is not None:
-            self._position = position
-            self._position_revision = self._client.snapshot_revision
-            if self._reservation is not None:
-                self._client.reserve_dock(title=self._title, request=self._reservation)
+        if self._request is not None:
+            position = self._client.position_dock(
+                title=self._title,
+                request=self._request,
+                current_workspace_only=self._current_workspace_only,
+            )
+            if position is not None:
+                self._position = position
+                self._position_revision = self._client.snapshot_revision
+        if self._reservation is not None:
+            self._client.reserve_dock(title=self._title, request=self._reservation)
 
     def _retry_position(self) -> bool:
         self._attempts_left -= 1
@@ -616,7 +623,7 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
         if self._attempts_left > 0:
             return True
         self._retry_source = 0
-        if self._position is None:
+        if self._request is not None and self._position is None:
             log.warning("Cinnamon could not position the dock window")
         return False
 

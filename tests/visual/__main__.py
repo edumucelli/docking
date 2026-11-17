@@ -177,6 +177,11 @@ def main() -> int:
                 check=True,
             )
         env["DOCKING_LAB_IMAGE"] = image
+        if render_node := env.get("DOCKING_LAB_RENDER_NODE"):
+            env["LAB_RENDER_DEVICE"] = render_node
+            env["LAB_PARENT_RENDERER"] = "gles2"
+            env["LAB_KWIN_COMPOSE"] = "O2"
+            env.setdefault("LAB_SOFTWARE_RENDERING", "1")
         if (
             target.virtual_gpu
             and not env.get("DOCKING_VISUAL_GUEST")

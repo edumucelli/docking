@@ -279,6 +279,34 @@ def test_surface_retries_reservation_after_mapping_and_clears_on_stop(monkeypatc
     assert surface._reservation is None
 
 
+@pytest.mark.parametrize("cleanup", ["clear_reservation", "stop"])
+def test_x11_reservation_retries_mapping_without_native_placement(monkeypatch, cleanup):
+    schedule = MagicMock(return_value=42)
+    remove = MagicMock()
+    monkeypatch.setattr(shell.GLib, "timeout_add", schedule)
+    monkeypatch.setattr(shell.GLib, "source_remove", remove)
+    client = MagicMock(spec=shell.CinnamonShellClient)
+    client.reserve_dock.side_effect = [False, True]
+    surface = shell.CinnamonX11SurfaceService(client=client)
+    window = MagicMock()
+    surface.configure_before_realize(window)
+    request = ReservationRequest(_request().monitor, Position.BOTTOM, 53)
+    surface.set_reservation(request)
+    callback = schedule.call_args.args[1]
+    assert callback() is True
+    assert client.reserve_dock.call_count == 2
+    assert client.reserve_dock.call_args == client.reserve_dock.call_args_list[0]
+    client.position_dock.assert_not_called()
+    if cleanup == "clear_reservation":
+        surface.clear_reservation()
+    else:
+        surface.stop()
+    remove.assert_called_once_with(42)
+    client.clear_reservation.assert_called_once_with(
+        title=window.set_title.call_args.args[0]
+    )
+
+
 def test_surface_retries_mapping_and_uses_latest_placement(monkeypatch):
     timeout = MagicMock(return_value=42)
     remove = MagicMock()

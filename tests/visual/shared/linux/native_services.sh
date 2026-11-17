@@ -91,7 +91,8 @@ fi
 adapter_start
 adapter_wait_ready
 if declare -F adapter_start_frame_clock >/dev/null; then adapter_start_frame_clock; fi
-if [ "$compositor" = gnome-fallback ] || [ "$compositor" = weston ]; then
+if [ "$compositor" = gnome-fallback ]; then export LAB_EXPECTED_BACKEND=reduced; fi
+if [ "$compositor" = weston ]; then
     export LAB_EXPECTED_BACKEND=reduced LAB_CAPTURE_MODE=x11
 fi
 if [ "$compositor" = cage ]; then export LAB_EXPECTED_BACKEND=reduced; fi

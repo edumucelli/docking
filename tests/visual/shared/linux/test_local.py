@@ -89,13 +89,20 @@ def test_gnome_adapter_preserves_nested_and_supports_headless(tmp_path, nested):
     command = tmp_path / "gnome-shell"
     command.write_text(f"#!/bin/sh\necho '{'--nested' if nested else '--headless'}'\n")
     command.chmod(0o755)
+    service_selection = (
+        (ROOT / "tests/visual/shared/linux/native_services.sh")
+        .read_text()
+        .split("adapter_wait_ready\n", 1)[1]
+        .split("export PYTHONPATH=", 1)[0]
+    )
     completed = subprocess.run(
         [
             "bash",
             "-c",
             (
                 'set -eu; gsettings() { :; }; source "$1"; adapter_prepare; '
-                'printf "%s|%s" "$GNOME_LAB_MODE" "$LAB_CAPTURE_MODE"'
+                + service_selection
+                + 'printf "%s|%s|%s" "$GNOME_LAB_MODE" "$LAB_CAPTURE_MODE" "$LAB_EXPECTED_BACKEND"'
             ),
             "test",
             str(ROOT / "tests/visual/backends/gnome/adapter.sh"),
@@ -105,13 +112,16 @@ def test_gnome_adapter_preserves_nested_and_supports_headless(tmp_path, nested):
             "PATH": f"{tmp_path}:{os.environ['PATH']}",
             "LAB_DIR": str(tmp_path),
             "LAB_CAPTURE_MODE": "x11",
+            "compositor": "gnome-fallback",
             "DBUS_SESSION_BUS_ADDRESS": "private-test-bus",
         },
         capture_output=True,
         text=True,
         check=True,
     )
-    assert completed.stdout == ("nested|x11" if nested else "headless|gnome")
+    assert completed.stdout == (
+        "nested|x11|reduced" if nested else "headless|gnome|reduced"
+    )
 
 
 def test_virtual_pointer_binding_imports_with_supported_pywayland():
