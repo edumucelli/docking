@@ -1,11 +1,12 @@
 """Real GTK ownership, secondary input, keyboard routing and chooser lifetime."""
 
+import ctypes
 import gc
 import json
 import os
 import subprocess
 import time
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 from ctypes import wintypes
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -320,6 +321,7 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
         native.user, "GetWindow", wintypes.HWND, wintypes.HWND, wintypes.UINT
     )
     before = {row["hwnd"] for row in native.windows(include_immersive=True)}
+    reference_processes = []
 
     def chooser_windows():
         found = []
@@ -328,7 +330,10 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
                 continue
             if row["rect"][2] <= 0 or row["rect"][3] <= 0:
                 continue
-            if row["pid"] == os.getpid() and row["class"] == "#32770":
+            if (
+                row["pid"] in {os.getpid(), *(p.pid for p in reference_processes)}
+                and row["class"] == "#32770"
+            ):
                 found.append(row)
                 continue
             if row["class"].casefold().startswith("gdk"):
@@ -357,7 +362,43 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
     target = tmp_path / "owned file.txt"
     target.write_text("owned fixture")
     calls = []
+    apartments = []
     open_dialog = shell.open_with_dialog
+    apartment = shell.apartment
+    reference = tmp_path / "open-with-probe.exe"
+    if unowned:
+        source = Path(__file__).parents[1] / "backends/windows/open_with_probe.c"
+        subprocess.run(
+            [
+                "gcc",
+                "-municode",
+                str(source),
+                "-lole32",
+                "-lshell32",
+                "-o",
+                str(reference),
+            ],
+            check=True,
+            capture_output=True,
+        )
+
+    @contextmanager
+    def observe_apartment():
+        with apartment() as ole:
+            kind, qualifier = ctypes.c_int32(), ctypes.c_int32()
+            status = bind(
+                ole,
+                "CoGetApartmentType",
+                shell.HRESULT,
+                ctypes.POINTER(ctypes.c_int32),
+                ctypes.POINTER(ctypes.c_int32),
+            )(ctypes.byref(kind), ctypes.byref(qualifier))
+            apartments.append(
+                {"status": status, "kind": kind.value, "qualifier": qualifier.value}
+            )
+            yield ole
+
+    monkeypatch.setattr(shell, "apartment", observe_apartment)
 
     def observe(path, hwnd):
         facts = {
@@ -368,7 +409,23 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
             "path_length": len(path),
         }
         calls.append(facts)
-        result = open_dialog(path, hwnd)
+        if unowned:
+            process = subprocess.Popen(
+                [str(reference), path],
+                stdout=subprocess.PIPE,
+                text=True,
+                creationflags=0x08000000,
+            )
+            reference_processes.append(process)
+            output, _stderr = process.communicate(timeout=30)
+            facts["reference"] = json.loads(output)
+            result = (
+                shell.OpenWithResult.CANCELLED
+                if process.returncode == 0
+                else shell.OpenWithResult.FAILED
+            )
+        else:
+            result = open_dialog(path, hwnd)
         facts["result"] = result.name
         return result
 
@@ -395,6 +452,14 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
             "foreground": native.user.GetForegroundWindow(),
             "error_dialog": controller._error_dialog is not None,
             "calls": calls,
+            "apartments": apartments,
+            "layout": {
+                "size": ctypes.sizeof(shell._OpenAsInfo),
+                "file_offset": shell._OpenAsInfo.file.offset,
+                "class_offset": shell._OpenAsInfo.class_name.offset,
+                "flags_offset": shell._OpenAsInfo.flags.offset,
+                "wchar_size": ctypes.sizeof(ctypes.c_wchar),
+            },
             "windows": [
                 {key: row[key] for key in ("hwnd", "pid", "class", "rect")}
                 | {"owner": get_owner(row["hwnd"], 4)}
@@ -441,11 +506,16 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
         )
         _wait(lambda: not controller._pending)
         assert controller._error_dialog is None
+        capture()
     except AssertionError:
         capture()
         raise
     finally:
         controller.stop()
+        for process in reference_processes:
+            if process.poll() is None:
+                process.terminate()
+            process.wait(timeout=5)
         if chooser is not None and native.user.IsWindow(chooser["hwnd"]):
             native.user.PostMessageW(chooser["hwnd"], 0x10, 0, 0)
 
