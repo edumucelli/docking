@@ -149,7 +149,7 @@ allowed-unresolved-imports = [
 
 [tool.ty.rules]
 import-not-found = "error"
-unresolved-attribute = "error"
+missing-attribute = "error"
 invalid-argument-type = "error"
 no-matching-overload = "error"
 # Rules ty leaves off by default, turned on so the imprecision they describe
