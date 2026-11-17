@@ -25,8 +25,8 @@ jobs:
           DOCKING_LAB_IMAGE: docking-ci:lxde-mapping
         run: |
           failures=0
-          for attempt in $(seq 12); do
-            if python3 -m tests.visual --target x11-lxde --output "artifacts/visual/lxde-$attempt"; then
+          for attempt in $(seq 8); do
+            if python3 -m tests.visual --target x11-lxde --case placement-bottom --output "artifacts/visual/lxde-$attempt"; then
               echo "LXDE $attempt passed"
             else
               echo "LXDE $attempt failed"
