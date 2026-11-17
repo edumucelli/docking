@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import time
+from contextlib import ExitStack
 from ctypes import wintypes
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -23,13 +24,22 @@ pytestmark = pytest.mark.visual
 
 
 @pytest.fixture
-def browser(tmp_path):
+def owner_window():
     if not Gtk.init_check()[0]:
         pytest.skip("GTK display required")
     window = Gtk.Window()
     window.set_default_size(400, 200)
     window.add(Gtk.Label(label="Owned folder menu fixture"))
     window.show_all()
+    settle_gtk()
+    yield window
+    window.destroy()
+    settle_gtk()
+
+
+@pytest.fixture
+def browser(tmp_path, owner_window):
+    window = owner_window
     targets = MagicMock()
     targets.normalize_file_target.return_value = None
     targets.open_with_mode.return_value = OpenWithMode.GTK
@@ -82,7 +92,6 @@ def browser(tmp_path):
         menu.popdown()
         menu.destroy()
     root.destroy()
-    window.destroy()
     settle_gtk()
 
 
@@ -184,12 +193,16 @@ def _wait(predicate, seconds=15):
 def private_portal_bus(monkeypatch):
     from docking.platform.desktop.implementations.unix import file_actions as portal
 
-    with subprocess.Popen(
-        ["dbus-daemon", "--session", "--nofork", "--print-address=1"],
-        stdout=subprocess.PIPE,
-        text=True,
-    ) as daemon:
+    with ExitStack() as cleanup:
+        daemon = subprocess.Popen(
+            ["dbus-daemon", "--session", "--nofork", "--print-address=1"],
+            stdout=subprocess.PIPE,
+            text=True,
+        )
+        cleanup.callback(daemon.wait, timeout=5)
+        cleanup.callback(daemon.terminate)
         assert daemon.stdout is not None
+        cleanup.enter_context(daemon.stdout)
         address = daemon.stdout.readline().strip()
         assert address, "Private portal bus did not start"
         bus = Gio.DBusConnection.new_for_address_sync(
@@ -199,13 +212,9 @@ def private_portal_bus(monkeypatch):
             None,
             None,
         )
+        cleanup.callback(bus.close_sync, None)
         monkeypatch.setattr(portal.Gio, "bus_get_sync", lambda *_: bus)
-        try:
-            yield bus
-        finally:
-            bus.close_sync(None)
-            daemon.terminate()
-            daemon.wait(timeout=5)
+        yield bus
 
 
 @pytest.mark.skipif(os.name == "nt", reason="Unix portal FD transport")
@@ -293,15 +302,14 @@ def test_portal_receives_selected_fd_even_when_response_precedes_method_reply(
 @pytest.mark.skipif(os.name != "nt", reason="Native Windows chooser")
 @pytest.mark.parametrize("close_owner", [False, True])
 def test_windows_native_chooser_can_be_cancelled_without_launching(
-    browser, tmp_path, close_owner
+    owner_window, tmp_path, close_owner
 ):
     from docking.platform.native.windows.ffi import bind, window_handle
     from docking.platform.native.windows.process import read_process_metadata
     from docking.platform.targets import TargetService
     from tests.visual.backends.windows.desktop_driver import WindowsDesktop
 
-    _handler, root, _targets, window = browser
-    root.popdown()
+    window = owner_window
     native = WindowsDesktop()
     owner = window_handle(window.get_window())
     get_owner = bind(
@@ -413,12 +421,12 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Native Windows console")
-def test_windows_terminal_starts_in_selected_directory(browser, tmp_path, monkeypatch):
+def test_windows_terminal_starts_in_selected_directory(
+    owner_window, tmp_path, monkeypatch
+):
     from docking.platform.desktop.implementations.windows import file_actions as windows
     from tests.visual.backends.windows.desktop_driver import WindowsDesktop
 
-    _handler, root, _targets, _window = browser
-    root.popdown()
     native = WindowsDesktop()
     before = {row["hwnd"] for row in native.windows()}
     started = []
