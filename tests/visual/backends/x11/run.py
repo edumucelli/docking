@@ -878,6 +878,12 @@ def observe(args):
             "status": "fail",
             "detail": traceback.format_exc(),
         }
+        with (output / "desktop-state.log").open("w") as stream:
+            for command in (
+                ["xprop", "-root", "_NET_CURRENT_DESKTOP", "_NET_WORKAREA", "_NET_NUMBER_OF_DESKTOPS"],
+                ["xwininfo", "-root", "-tree"],
+            ):
+                subprocess.run(command, stdout=stream, stderr=stream, check=False)
         if observer is not None:
             try:
                 observer.capture("observer-setup-failure")

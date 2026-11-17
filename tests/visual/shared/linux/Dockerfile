@@ -290,13 +290,11 @@ FROM x11-base AS x11-mate
 RUN apt-get update && apt-get install -y --no-install-recommends mate-session-manager marco mate-panel caja mate-settings-daemon-common \
     && rm -rf /var/lib/apt/lists/*
 FROM x11-base AS x11-lxde
-RUN apt-get update && apt-get install -y --no-install-recommends lxde-core x11-utils strace \
+RUN apt-get update && apt-get install -y --no-install-recommends lxde-core x11-utils \
     && rm -rf /var/lib/apt/lists/*
-RUN for app in lxpanel pcmanfm; do \
-        mv "/usr/bin/$app" "/usr/bin/$app.real"; \
-        printf '#!/bin/sh\nexec strace -f -qq -s 128 -e trace=statx,newfstatat,access,faccessat,faccessat2,clone,clone3,exit_group -o "/evidence/%s.strace" "/usr/bin/%s.real" "$@"\n' "$app" "$app" >"/usr/bin/$app"; \
-        chmod +x "/usr/bin/$app"; \
-    done
+RUN mv /usr/bin/pcmanfm /usr/bin/pcmanfm.real \
+    && printf '#!/bin/sh\nfor attempt in $(seq 200); do\n    if xdotool search --onlyvisible --name "^panel$" >/dev/null 2>&1; then\n        exec /usr/bin/pcmanfm.real "$@"\n    fi\n    sleep 0.1\ndone\nexit 1\n' >/usr/bin/pcmanfm \
+    && chmod +x /usr/bin/pcmanfm
 FROM x11-base AS x11-lxqt
 RUN apt-get update && apt-get install -y --no-install-recommends lxqt-session lxqt-panel pcmanfm-qt openbox \
     && rm -rf /var/lib/apt/lists/*
