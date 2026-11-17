@@ -3,6 +3,7 @@
 import gc
 import json
 import os
+import subprocess
 import time
 from ctypes import wintypes
 from pathlib import Path
@@ -178,26 +179,57 @@ def _wait(predicate, seconds=15):
     raise AssertionError("Native file action did not complete")
 
 
+@pytest.fixture
+def private_portal_bus(monkeypatch):
+    from docking.platform.desktop.implementations.unix import file_actions as portal
+
+    with subprocess.Popen(
+        ["dbus-daemon", "--session", "--nofork", "--print-address=1"],
+        stdout=subprocess.PIPE,
+        text=True,
+    ) as daemon:
+        assert daemon.stdout is not None
+        address = daemon.stdout.readline().strip()
+        assert address, "Private portal bus did not start"
+        bus = Gio.DBusConnection.new_for_address_sync(
+            address,
+            Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT
+            | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION,
+            None,
+            None,
+        )
+        monkeypatch.setattr(portal.Gio, "bus_get_sync", lambda *_: bus)
+        try:
+            yield bus
+        finally:
+            bus.close_sync(None)
+            daemon.terminate()
+            daemon.wait(timeout=5)
+
+
 @pytest.mark.skipif(os.name == "nt", reason="Unix portal FD transport")
-@pytest.mark.parametrize("directory", [False, True])
+@pytest.mark.parametrize("scenario", ["file", "directory", "vanished"])
 def test_portal_receives_selected_fd_even_when_response_precedes_method_reply(
-    browser, tmp_path, directory
+    browser, tmp_path, private_portal_bus, scenario
 ):
+    import fcntl
+
     from docking.platform.desktop.implementations.unix import file_actions as portal
 
     _handler, root, _targets, window = browser
     root.popdown()
+    directory = scenario == "directory"
     path = tmp_path if directory else tmp_path / "owned.txt"
     if not directory:
         path.write_text("owned fixture")
-    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    bus = private_portal_bus
     acquired = []
     name = Gio.bus_own_name_on_connection(
         bus,
         portal.PORTAL_NAME,
         Gio.BusNameOwnerFlags.NONE,
         lambda *a: acquired.append(True),
-        lambda *a: None,
+        lambda *a: acquired.append(False),
     )
     interface = Gio.DBusNodeInfo.new_for_xml("""<node><interface name="org.freedesktop.portal.OpenURI">
       <property name="version" type="u" access="read"/>
@@ -212,13 +244,20 @@ def test_portal_receives_selected_fd_even_when_response_precedes_method_reply(
         _parent, index, options = parameters.unpack()
         fd = invocation.get_message().get_unix_fd_list().get(index)
         try:
-            observed.append((os.fstat(fd).st_ino, options["ask"]))
+            writable = fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE == os.O_RDWR
+            observed.append((os.fstat(fd).st_ino, options["ask"], options["writable"]))
+            assert options["writable"] is writable
         finally:
             os.close(fd)
         request = f"/org/freedesktop/portal/desktop/request/{sender[1:].replace('.', '_')}/{options['handle_token']}"
-        connection.emit_signal(
-            None, request, portal.REQUEST, "Response", GLib.Variant("(ua{sv})", (1, {}))
-        )
+        if scenario != "vanished":
+            connection.emit_signal(
+                None,
+                request,
+                portal.REQUEST,
+                "Response",
+                GLib.Variant("(ua{sv})", (1, {})),
+            )
         invocation.return_value(GLib.Variant("(o)", (request,)))
 
     registered = bus.register_object(
@@ -227,17 +266,27 @@ def test_portal_receives_selected_fd_even_when_response_precedes_method_reply(
     cancel = None
     try:
         _wait(lambda: acquired)
+        assert acquired == [True], "Private fake portal could not acquire its name"
         cancel = portal.request_open_with(
             path.as_uri(), parent=window, on_result=results.append
         )
+        if scenario == "vanished":
+            _wait(lambda: observed)
+            Gio.bus_unown_name(name)
+            name = 0
         _wait(lambda: results)
-        assert results == [portal.OpenWithResult.CANCELLED]
-        assert observed == [(path.stat().st_ino, True)]
+        assert results == [
+            portal.OpenWithResult.FAILED
+            if scenario == "vanished"
+            else portal.OpenWithResult.CANCELLED
+        ]
+        assert observed == [(path.stat().st_ino, True, not directory)]
     finally:
         if cancel is not None:
             cancel()
         bus.unregister_object(registered)
-        Gio.bus_unown_name(name)
+        if name:
+            Gio.bus_unown_name(name)
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Native Windows chooser")

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-11-17 21:53+0100\n"
+"POT-Creation-Date: 2026-11-17 22:47+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -3362,7 +3362,7 @@ msgstr ""
 #: docking/search/providers/applications.py:159
 #: docking/search/providers/dock.py:80 docking/search/providers/recent.py:70
 #: docking/search/providers/web.py:93 docking/search/ui/window.py:816
-#: docking/ui/menu.py:478 docking/ui/menu.py:563 docking/ui/menu.py:685
+#: docking/ui/menu.py:478 docking/ui/menu.py:563 docking/ui/menu.py:687
 msgid "Open"
 msgstr ""
 
@@ -4754,7 +4754,7 @@ msgstr ""
 msgid "Assigned by desktop"
 msgstr ""
 
-#: docking/platform/shortcuts.py:133 docking/ui/menu.py:777
+#: docking/platform/shortcuts.py:133 docking/ui/menu.py:785
 #: docking/ui/settings.py:1803
 msgid "Unavailable on this desktop"
 msgstr ""
@@ -4875,7 +4875,7 @@ msgstr ""
 #: docking/search/providers/applications.py:262
 #: docking/search/providers/applications.py:295
 #: docking/search/providers/windows.py:105
-#: docking/search/providers/windows.py:117 docking/ui/menu.py:919
+#: docking/search/providers/windows.py:117 docking/ui/menu.py:927
 msgid "Window"
 msgstr ""
 
@@ -4884,7 +4884,7 @@ msgstr ""
 msgid "Actions"
 msgstr ""
 
-#: docking/search/providers/applications.py:267 docking/ui/menu.py:901
+#: docking/search/providers/applications.py:267 docking/ui/menu.py:909
 #: docking/ui/settings.py:1044
 msgid "Recent Documents"
 msgstr ""
@@ -4963,7 +4963,7 @@ msgid "Retry"
 msgstr ""
 
 #: docking/search/providers/dock.py:82 docking/search/providers/path.py:75
-#: docking/ui/folder/stack.py:396 docking/ui/menu.py:653 docking/ui/menu.py:685
+#: docking/ui/folder/stack.py:396 docking/ui/menu.py:653 docking/ui/menu.py:687
 msgid "Open Folder"
 msgstr ""
 
@@ -5143,7 +5143,7 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: docking/ui/diagnostics.py:86 docking/ui/menu.py:809
+#: docking/ui/diagnostics.py:86 docking/ui/menu.py:817
 msgid "Diagnostics"
 msgstr ""
 
@@ -5311,11 +5311,11 @@ msgstr ""
 msgid "Mode not enabled: {reason}"
 msgstr ""
 
-#: docking/ui/file_actions.py:51 docking/ui/file_actions.py:53
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
 msgid "Could not open folder in terminal."
 msgstr ""
 
-#: docking/ui/file_actions.py:110
+#: docking/ui/file_actions.py:120
 msgid "Could not open this item with another application."
 msgstr ""
 
@@ -5410,39 +5410,39 @@ msgstr ""
 msgid "Show Hidden Files"
 msgstr ""
 
-#: docking/ui/menu.py:735
+#: docking/ui/menu.py:743
 msgid "Search..."
 msgstr ""
 
-#: docking/ui/menu.py:751
+#: docking/ui/menu.py:759
 msgid "Add Applet"
 msgstr ""
 
-#: docking/ui/menu.py:793
+#: docking/ui/menu.py:801
 msgid "No Applets Available"
 msgstr ""
 
-#: docking/ui/menu.py:800
+#: docking/ui/menu.py:808
 msgid "Add Separator"
 msgstr ""
 
-#: docking/ui/menu.py:814 docking/ui/settings.py:397
+#: docking/ui/menu.py:822 docking/ui/settings.py:397
 msgid "Preferences"
 msgstr ""
 
-#: docking/ui/menu.py:819
+#: docking/ui/menu.py:827
 msgid "About"
 msgstr ""
 
-#: docking/ui/menu.py:824
+#: docking/ui/menu.py:832
 msgid "Get Support"
 msgstr ""
 
-#: docking/ui/menu.py:829
+#: docking/ui/menu.py:837
 msgid "Quit"
 msgstr ""
 
-#: docking/ui/menu.py:891
+#: docking/ui/menu.py:899
 msgid "Clear Recent Documents"
 msgstr ""
 

@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, Mock
 
 import pytest
+from gi.repository import GLib
 
 from docking.platform.desktop.base import OpenWithMode, OpenWithResult
 from docking.ui import file_actions
@@ -53,6 +54,23 @@ def test_native_request_cancellation_on_stop_and_no_late_error(controller):
     cancel.assert_called_once()
     controller._finished(OpenWithResult.FAILED)
     assert controller._error_dialog is None
+
+
+@pytest.mark.parametrize("mode", [OpenWithMode.GTK, OpenWithMode.PORTAL])
+def test_failed_chooser_start_allows_another_request(controller, monkeypatch, mode):
+    controller._targets.open_with_mode.return_value = mode
+    controller._targets.request_open_with.side_effect = GLib.Error("owned failure")
+    monkeypatch.setattr(
+        file_actions.Gtk.AppChooserDialog,
+        "new_for_content_type",
+        Mock(side_effect=GLib.Error("owned failure")),
+    )
+    controller._pending = True
+    controller._choose(("file:///owned/document.txt", "text/plain"))
+    assert not controller._pending
+    controller._error.assert_called_once()
+    controller.open_with("file:///owned/another.txt")
+    controller._worker.run.assert_called_once()
 
 
 def test_gtk_chooser_launches_exact_selected_handler_and_cancel_is_silent(

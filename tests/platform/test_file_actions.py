@@ -1,5 +1,6 @@
 """File actions keep paths out of command text and own chooser resources."""
 
+import errno
 import os
 from contextlib import nullcontext
 from types import SimpleNamespace
@@ -149,6 +150,10 @@ def portal(monkeypatch, tmp_path):
     if os.name == "nt":
         pytest.skip("Unix file descriptors are unavailable on Windows")
     monkeypatch.setattr(unix, "_parent_identifier", lambda parent: "")
+    watch = Mock(return_value=8)
+    unwatch = Mock()
+    monkeypatch.setattr(unix.Gio, "bus_watch_name_on_connection", watch)
+    monkeypatch.setattr(unix.Gio, "bus_unwatch_name", unwatch)
     results = []
     chooser = unix._PortalChooser(tmp_path.as_uri(), object(), results.append)
     bus = MagicMock()
@@ -160,13 +165,18 @@ def portal(monkeypatch, tmp_path):
         descriptors.append(fd)
     finally:
         os.close(fd)
-    chooser._ready((bus, descriptors))
+    chooser._ready((bus, descriptors, False))
     bus.call_with_unix_fd_list_finish.return_value = (
         GLib.Variant("(o)", (chooser._handle,)),
         None,
     )
     yield SimpleNamespace(
-        chooser=chooser, bus=bus, descriptors=descriptors, results=results
+        chooser=chooser,
+        bus=bus,
+        descriptors=descriptors,
+        results=results,
+        watch=watch,
+        unwatch=unwatch,
     )
     bus.call_with_unix_fd_list.call_args.args[-1](bus, object())
     chooser.cancel()
@@ -195,6 +205,7 @@ def test_portal_asks_before_opening_and_handles_response_once(
     )
     assert portal.results == [expected]
     portal.bus.signal_unsubscribe.assert_called_once_with(7)
+    portal.unwatch.assert_called_once_with(8)
 
 
 def test_portal_cancel_closes_request_and_ignores_late_response(portal):
@@ -212,6 +223,53 @@ def test_portal_method_failure_closes_descriptors_and_reports_failure(portal):
     assert portal.descriptors.get_length() == 0
     assert portal.results == [OpenWithResult.FAILED]
     portal.bus.call_with_unix_fd_list_finish.side_effect = None
+
+
+def test_portal_owner_loss_finishes_and_cleans_up_once(portal):
+    vanished = portal.watch.call_args.args[-1]
+    vanished(portal.bus, unix.PORTAL_NAME)
+    vanished(portal.bus, unix.PORTAL_NAME)
+    assert portal.results == [OpenWithResult.FAILED]
+    portal.unwatch.assert_called_once_with(8)
+    portal.bus.signal_unsubscribe.assert_called_once_with(7)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Unix descriptor access modes")
+@pytest.mark.parametrize("kind", ["file", "directory", "readonly"])
+def test_portal_prepares_descriptor_with_matching_write_access(
+    monkeypatch, tmp_path, kind
+):
+    import fcntl
+
+    path = tmp_path if kind == "directory" else tmp_path / "owned.txt"
+    if kind != "directory":
+        path.write_text("owned fixture")
+    if kind == "readonly":
+        opening = os.open
+
+        def read_only(path, flags):
+            if flags & os.O_ACCMODE == os.O_RDWR:
+                raise PermissionError(errno.EACCES, "owned read-only fixture")
+            return opening(path, flags)
+
+        monkeypatch.setattr(unix.os, "open", read_only)
+    bus = MagicMock()
+    bus.call_sync.return_value = GLib.Variant("(v)", (GLib.Variant("u", 3),))
+    monkeypatch.setattr(unix.Gio, "bus_get_sync", lambda *_: bus)
+    monkeypatch.setattr(unix, "_parent_identifier", lambda _: "")
+    chooser = unix._PortalChooser(path.as_uri(), object(), Mock())
+    prepared = chooser._prepare()
+    assert prepared is not None
+    _bus, descriptors, writable = prepared
+    fd = descriptors.get(0)
+    try:
+        assert writable is (kind == "file")
+        assert fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE == (
+            os.O_RDWR if writable else os.O_RDONLY
+        )
+    finally:
+        os.close(fd)
+        chooser._close_descriptors(descriptors)
 
 
 def test_windows_cancellation_during_target_validation_does_not_open_chooser(

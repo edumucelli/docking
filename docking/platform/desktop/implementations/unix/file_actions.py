@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import os
 import subprocess
 from collections.abc import Callable
@@ -80,6 +81,7 @@ class _PortalChooser:
         self._bus: Gio.DBusConnection | None = None
         self._handle = ""
         self._subscription = 0
+        self._watch = 0
         self._done = False
 
     def start(self) -> None:
@@ -90,7 +92,7 @@ class _PortalChooser:
             on_error=self._failed,
         )
 
-    def _prepare(self) -> tuple[Gio.DBusConnection, Gio.UnixFDList] | None:
+    def _prepare(self) -> tuple[Gio.DBusConnection, Gio.UnixFDList, bool] | None:
         bus = Gio.bus_get_sync(Gio.BusType.SESSION, self._cancellable)
         version = bus.call_sync(
             PORTAL_NAME,
@@ -109,12 +111,20 @@ class _PortalChooser:
         if path is None:
             raise ValueError("Invalid filesystem target")
         descriptors = Gio.UnixFDList.new()
-        fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_CLOEXEC)
+        flags = os.O_NONBLOCK | os.O_CLOEXEC
+        writable = True
+        try:
+            fd = os.open(path, os.O_RDWR | flags)
+        except OSError as exc:
+            if exc.errno not in {errno.EACCES, errno.EPERM, errno.EROFS, errno.EISDIR}:
+                raise
+            fd = os.open(path, os.O_RDONLY | flags)
+            writable = False
         try:
             descriptors.append(fd)
         finally:
             os.close(fd)
-        return bus, descriptors
+        return bus, descriptors, writable
 
     @staticmethod
     def _close_descriptors(descriptors: Gio.UnixFDList) -> None:
@@ -122,12 +132,12 @@ class _PortalChooser:
             os.close(fd)
 
     def _ready(
-        self, prepared: tuple[Gio.DBusConnection, Gio.UnixFDList] | None
+        self, prepared: tuple[Gio.DBusConnection, Gio.UnixFDList, bool] | None
     ) -> None:
         if prepared is None:
             self._finish(OpenWithResult.UNSUPPORTED)
             return
-        bus, descriptors = prepared
+        bus, descriptors, writable = prepared
         if self._done:
             self._close_descriptors(descriptors)
             return
@@ -148,6 +158,13 @@ class _PortalChooser:
             None,
             Gio.DBusSignalFlags.NONE,
             self._response,
+        )
+        self._watch = Gio.bus_watch_name_on_connection(
+            bus,
+            PORTAL_NAME,
+            Gio.BusNameWatcherFlags.NONE,
+            None,
+            lambda *_args: self._finish(OpenWithResult.FAILED),
         )
 
         def sent(connection: Gio.DBusConnection, result: Gio.AsyncResult) -> None:
@@ -174,7 +191,7 @@ class _PortalChooser:
                     {
                         "handle_token": GLib.Variant("s", token),
                         "ask": GLib.Variant("b", True),
-                        "writable": GLib.Variant("b", True),
+                        "writable": GLib.Variant("b", writable),
                     },
                 ),
             ),
@@ -216,6 +233,9 @@ class _PortalChooser:
         if self._bus is not None and self._subscription:
             self._bus.signal_unsubscribe(self._subscription)
             self._subscription = 0
+        if self._watch:
+            Gio.bus_unwatch_name(self._watch)
+            self._watch = 0
         self._on_result(result)
 
     def cancel(self) -> None:

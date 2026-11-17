@@ -68,24 +68,32 @@ class FileActionsController:
     def _choose(self, prepared: tuple[str, str]) -> None:
         if self._stopped:
             return
-        uri, content_type = prepared
-        mode = self._targets.open_with_mode(is_dir=content_type == "inode/directory")
-        if mode is None:
-            self._finished(OpenWithResult.UNSUPPORTED)
-        elif mode is OpenWithMode.GTK:
-            dialog = Gtk.AppChooserDialog.new_for_content_type(
-                self._parent, Gtk.DialogFlags.MODAL, content_type
+        try:
+            uri, content_type = prepared
+            mode = self._targets.open_with_mode(
+                is_dir=content_type == "inode/directory"
             )
-            self._dialog = dialog
-            dialog.connect("response", self._chosen, uri)
-            dialog.show_all()
-            dialog.present()
-        else:
-            self._cancel_request = self._targets.request_open_with(
-                uri,
-                parent=self._parent,
-                on_result=self._finished,
-            )
+            if mode is None:
+                self._finished(OpenWithResult.UNSUPPORTED)
+            elif mode is OpenWithMode.GTK:
+                dialog = Gtk.AppChooserDialog.new_for_content_type(
+                    self._parent, Gtk.DialogFlags.MODAL, content_type
+                )
+                self._dialog = dialog
+                dialog.connect("response", self._chosen, uri)
+                dialog.show_all()
+                dialog.present()
+            else:
+                self._cancel_request = self._targets.request_open_with(
+                    uri,
+                    parent=self._parent,
+                    on_result=self._finished,
+                )
+        except (GLib.Error, OSError):
+            if self._dialog is not None:
+                self._dialog.destroy()
+                self._dialog = None
+            self._finished(OpenWithResult.FAILED)
 
     def _chosen(self, dialog: Gtk.AppChooserDialog, response: int, uri: str) -> None:
         handler = dialog.get_app_info() if response == Gtk.ResponseType.OK else None
