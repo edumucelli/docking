@@ -12,8 +12,7 @@ def test_bsd_transport_preserves_pinned_asset_and_other_https_requests():
     if node is None:
         pytest.skip("Node.js is not installed")
     transport = (
-        Path(__file__).resolve().parents[1]
-        / "tools/bsd/visual/github_asset_transport.mjs"
+        Path(__file__).resolve().parents[1] / "tools/bsd/github_asset_transport.mjs"
     )
     subprocess.run(
         [

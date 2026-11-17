@@ -36,6 +36,7 @@ from docking.platform.backends.base import (
     WorkspaceSnapshot,
 )
 from docking.platform.backends.reduced.services import ReducedSurfaceService
+from docking.platform.backends.x11.services.surface import X11SurfaceService
 
 log = get_logger(name="backend.cinnamon.shell")
 
@@ -526,8 +527,10 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
     def popups_use_parent_relative_coordinates(self) -> bool:
         return True
 
-    def configure_before_realize(self, window: object) -> None:
-        super().configure_before_realize(window)
+    def configure_before_realize(
+        self, window: object, *, keep_above: bool = True
+    ) -> None:
+        super().configure_before_realize(window, keep_above=keep_above)
         set_title = getattr(window, "set_title", None)
         if callable(set_title):
             set_title(self._title)
@@ -554,12 +557,20 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
 
     def set_reservation(self, request: ReservationRequest) -> None:
         self._reservation = request
-        self._client.reserve_dock(title=self._title, request=request)
+        if not self._client.reserve_dock(title=self._title, request=request):
+            # X11 placement does not start the native shell's mapping retry.
+            self._attempts_left = 20
+            if not self._retry_source:
+                self._retry_source = GLib.timeout_add(100, self._retry_position)
 
     def clear_reservation(self) -> None:
         if self._reservation is not None:
             self._client.clear_reservation(title=self._title)
             self._reservation = None
+        if self._request is None and self._retry_source:
+            GLib.source_remove(self._retry_source)
+            self._retry_source = 0
+            self._attempts_left = 0
 
     def get_surface_position(self) -> tuple[int, int] | None:
         # Muffin can adjust the frame again after an asynchronous GTK resize.
@@ -594,18 +605,17 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
             self._retry_source = GLib.timeout_add(100, self._retry_position)
 
     def _apply_position(self) -> None:
-        if self._request is None:
-            return
-        position = self._client.position_dock(
-            title=self._title,
-            request=self._request,
-            current_workspace_only=self._current_workspace_only,
-        )
-        if position is not None:
-            self._position = position
-            self._position_revision = self._client.snapshot_revision
-            if self._reservation is not None:
-                self._client.reserve_dock(title=self._title, request=self._reservation)
+        if self._request is not None:
+            position = self._client.position_dock(
+                title=self._title,
+                request=self._request,
+                current_workspace_only=self._current_workspace_only,
+            )
+            if position is not None:
+                self._position = position
+                self._position_revision = self._client.snapshot_revision
+        if self._reservation is not None:
+            self._client.reserve_dock(title=self._title, request=self._reservation)
 
     def _retry_position(self) -> bool:
         self._attempts_left -= 1
@@ -613,7 +623,7 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
         if self._attempts_left > 0:
             return True
         self._retry_source = 0
-        if self._position is None:
+        if self._request is not None and self._position is None:
             log.warning("Cinnamon could not position the dock window")
         return False
 
@@ -626,6 +636,33 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
         self._attempts_left = 0
         self._request = None
         self._position = None
+        super().stop()
+
+
+class CinnamonX11SurfaceService(X11SurfaceService):
+    """Retain X11 integration while reserving Muffin's native panel space."""
+
+    def __init__(self, *, client: CinnamonShellClient) -> None:
+        super().__init__()
+        self._chrome = CinnamonShellSurfaceService(client=client)
+
+    def configure_before_realize(
+        self, window: object, *, keep_above: bool = True
+    ) -> None:
+        super().configure_before_realize(window, keep_above=keep_above)
+        self._chrome.configure_before_realize(window, keep_above=keep_above)
+
+    def external_workarea(self, monitor: MonitorSnapshot) -> Rect | None:
+        return self._chrome.external_workarea(monitor)
+
+    def set_reservation(self, request: ReservationRequest) -> None:
+        self._chrome.set_reservation(request)
+
+    def clear_reservation(self) -> None:
+        self._chrome.clear_reservation()
+
+    def stop(self) -> None:
+        self._chrome.stop()
         super().stop()
 
 

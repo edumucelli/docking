@@ -29,11 +29,11 @@ jobs:
             python3-gi python3-gi-cairo python3-cairo python3-pytest python3-venv python3-pip \
             gir1.2-gtk-3.0 gir1.2-wnck-3.0 gir1.2-nm-1.0 libxtst6 xfwm4 xvfb dbus-x11 fonts-dejavu librsvg2-common
       - name: Check visual assertions
-        run: python3 -m pytest -q tests/test_bsd_visual.py
+        run: python3 -m pytest -q tests/visual/backends/x11/test_harness.py
       - name: Install runtime dependencies
-        run: sh tools/bsd/visual/install-python.sh
+        run: sh tools/bsd/install-python.sh
       - name: Exercise the complete dock
-        run: .venv-bsd/bin/python -m tools.bsd.visual.run --output artifacts/bsd-visual/linux
+        run: .venv-bsd/bin/python -m tests.visual.backends.x11.run --output artifacts/bsd-visual/linux
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -57,7 +57,7 @@ jobs:
         if: matrix.os == 'freebsd'
         uses: vmactions/freebsd-vm@v1
         env:
-          NODE_OPTIONS: --import=${{ github.workspace }}/tools/bsd/visual/github_asset_transport.mjs
+          NODE_OPTIONS: --import=${{ github.workspace }}/tools/bsd/github_asset_transport.mjs
         with:
           release: "15.1"
           sync: rsync
@@ -70,12 +70,12 @@ jobs:
               "py${python_suffix}-numpy" \
               gtk3 libwnck3 libXtst libXScrnSaver xfce4-wm xorg-vfbserver dbus dejavu gettext-tools polkit xterm
           run: |
-            sh tools/bsd/visual/vm-run.sh artifacts/bsd-visual/freebsd
+            sh tools/bsd/vm-run.sh artifacts/bsd-visual/freebsd
       - name: OpenBSD desktop checks
         if: matrix.os == 'openbsd'
         uses: vmactions/openbsd-vm@v1
         env:
-          NODE_OPTIONS: --import=${{ github.workspace }}/tools/bsd/visual/github_asset_transport.mjs
+          NODE_OPTIONS: --import=${{ github.workspace }}/tools/bsd/github_asset_transport.mjs
         with:
           release: "7.9"
           sync: rsync
@@ -84,22 +84,22 @@ jobs:
             pkg_add py3-gobject3 py3-cairo py3-test py3-psutil py3-pip py3-numpy gtk+3 libwnck3 xfwm4 dbus gettext-tools polkit
           run: |
             export PATH="/usr/local/bin:/usr/X11R6/bin:$PATH"
-            sh tools/bsd/visual/vm-run.sh artifacts/bsd-visual/openbsd
+            sh tools/bsd/vm-run.sh artifacts/bsd-visual/openbsd
       - name: NetBSD desktop checks
         if: matrix.os == 'netbsd'
         uses: vmactions/netbsd-vm@v1
         env:
-          NODE_OPTIONS: --import=${{ github.workspace }}/tools/bsd/visual/github_asset_transport.mjs
+          NODE_OPTIONS: --import=${{ github.workspace }}/tools/bsd/github_asset_transport.mjs
         with:
           release: "11.0"
           sync: rsync
           copyback: true
           prepare: |
-            sh tools/bsd/visual/install-netbsd.sh
+            sh tools/bsd/install-netbsd.sh
           run: |
             export PATH="/usr/pkg/bin:/usr/pkg/sbin:/usr/X11R7/bin:$PATH"
             export DOCKING_BSD_PYTHON=/usr/pkg/bin/python3.12
-            sh tools/bsd/visual/vm-run.sh artifacts/bsd-visual/netbsd
+            sh tools/bsd/vm-run.sh artifacts/bsd-visual/netbsd
       - name: Check copied BSD results
         env:
           BSD_OS: ${{ matrix.os }}

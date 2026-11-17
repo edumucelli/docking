@@ -136,3 +136,19 @@ def test_x11_session_backend_always_exposes_window_service():
     )
 
     assert isinstance(backend.windows, X11WindowService)
+
+
+def test_cinnamon_x11_keeps_native_panels_with_x11_window_tracking(monkeypatch):
+    from docking.platform.backends.cinnamon.shell import (
+        CinnamonShellClient,
+        CinnamonX11SurfaceService,
+    )
+
+    monkeypatch.setattr(session, "detect_desktop", lambda: session.Desktop.CINNAMON)
+    monkeypatch.setattr(CinnamonShellClient, "connect", lambda: MagicMock())
+    backend = session.X11SessionBackend(
+        model=MagicMock(), config=MagicMock(), **identity_services()
+    )
+    assert backend.name == "x11"
+    assert isinstance(backend.surface, CinnamonX11SurfaceService)
+    assert isinstance(backend.windows, X11WindowService)

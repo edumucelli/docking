@@ -34,6 +34,18 @@ def _autohide(*, enabled: bool = False, state: HideState = HideState.VISIBLE):
     )
 
 
+@pytest.mark.parametrize("subscribed", [False, True])
+def test_final_allocation_refreshes_overlap_after_geometry_is_available(subscribed):
+    monitor = MagicMock() if subscribed else None
+    window = SimpleNamespace(
+        dodge_monitor=monitor, invalidate_current_geometry_frame=MagicMock()
+    )
+    dock_window_mod.DockWindow._on_size_allocate(window, None, None)
+    window.invalidate_current_geometry_frame.assert_called_once()
+    if subscribed:
+        monitor.evaluate_now.assert_called_once()
+
+
 def _model_mock(
     tick: AnimationTickResult | None = None,
 ) -> MagicMock:
@@ -1244,6 +1256,7 @@ class TestDockWindowSetupAndGeometry:
             set_visual=MagicMock(),
             connect=MagicMock(),
             _on_destroy=MagicMock(),
+            _on_size_allocate=MagicMock(),
             config=SimpleNamespace(current_workspace_only=True),
             surface_service=MagicMock(),
             placement=SimpleNamespace(
@@ -1265,7 +1278,8 @@ class TestDockWindowSetupAndGeometry:
         stub.surface_service.set_workspace_scope.assert_called_once_with(
             current_workspace_only=True
         )
-        assert stub.connect.call_count == 6
+        assert stub.connect.call_count == 7
+        stub.connect.assert_any_call("size-allocate", stub._on_size_allocate)
         stub.placement.attach_screen_signals.assert_called_once_with(screen)
 
     def test_setup_drawing_area_initializes_events(self, monkeypatch):

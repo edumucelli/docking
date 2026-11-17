@@ -27,12 +27,12 @@ python -m tools.windows.bundle --wheel dist/docking-2.28.0-py3-none-win_amd64.mi
   --archive dist/docking-2.28.0-windows-x86_64.zip
 python -m tools.windows.installer --archive dist/docking-2.28.0-windows-x86_64.zip \
   --output dist/docking-2.28.0-windows-x86_64-setup.exe
-python -m tools.windows.visual.bundle_smoke --archive dist/docking-2.28.0-windows-x86_64.zip \
+python -m tests.visual.backends.windows.bundle_smoke --archive dist/docking-2.28.0-windows-x86_64.zip \
   --output artifacts/windows/bundle-preflight
-python -m tools.windows.visual.smoke \
+python -m tests.visual.backends.windows.smoke \
   --bundle artifacts/windows/bundle-preflight/extracted/Docking \
   --output artifacts/windows/bundle-desktop
-python -m tools.windows.visual.release_smoke \
+python -m tests.visual.backends.windows.release_smoke \
   --archive dist/docking-2.28.0-windows-x86_64.zip \
   --bundle artifacts/windows/bundle-preflight/extracted/Docking \
   --output artifacts/windows/release-readiness
@@ -88,7 +88,7 @@ Docking instance or existing installed copy:
 ```sh
 python -m tools.windows.installer --fixture-source . \
   --output artifacts/windows/upgrade-fixture
-python -m tools.windows.visual.installer_smoke \
+python -m tests.visual.backends.windows.installer_smoke \
   --installer dist/docking-2.28.0-windows-x86_64-setup.exe \
   --archive dist/docking-2.28.0-windows-x86_64.zip \
   --previous-installer artifacts/windows/upgrade-fixture/previous-setup.exe \

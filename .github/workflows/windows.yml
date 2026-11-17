@@ -85,12 +85,18 @@ jobs:
             artifacts/windows/input-candidate.json
           if-no-files-found: error
           retention-days: 14
+      - name: Verify native dock pixels on all four edges
+        run: |
+          for edge in bottom top left right; do
+            python -m tests.visual.backends.windows.smoke --placement-only --position "$edge" --installed-root artifacts/windows/runtime --output "artifacts/windows/placement/$edge"
+          done
+          python -m tests.visual.backends.windows.smoke --placement-only --position bottom --edge-gap 40 --installed-root artifacts/windows/runtime --output artifacts/windows/placement/bottom-gap
       - name: Exercise the installed application on the Windows desktop
-        run: python -m tools.windows.visual.smoke --output artifacts/windows/smoke --installed-root artifacts/windows/runtime
+        run: python -m tests.visual.backends.windows.smoke --output artifacts/windows/smoke --installed-root artifacts/windows/runtime
       - name: Verify native multiwindow grouping, cycling and restored pins
-        run: python -m tools.windows.visual.runtime_pin_smoke --multiple-windows --uncataloged --output artifacts/windows/multiple-windows
+        run: python -m tests.visual.backends.windows.runtime_pin_smoke --multiple-windows --uncataloged --output artifacts/windows/multiple-windows
       - name: Verify fullscreen stacking and startup recovery
-        run: python -m tools.windows.visual.fullscreen_smoke --output artifacts/windows/fullscreen
+        run: python -m tests.visual.backends.windows.fullscreen_smoke --output artifacts/windows/fullscreen
       - name: Verify Windows Server input API, layouts and shortcuts
         run: python -m tools.windows.ci --stage input --input-coverage server-api --installed-root artifacts/windows/runtime --wheel dist/*.whl --source-sha "$GITHUB_SHA"
       - name: Verify the complete Windows notification icon domain
@@ -122,8 +128,8 @@ jobs:
           retention-days: 14
       - name: Verify Bluetooth menus, ownership and pairing ceremonies
         run: |
-          python -m tools.windows.visual.bluetooth_smoke --fixtures-only --output artifacts/windows/bluetooth
-          python -m tools.windows.visual.pairing_smoke --output artifacts/windows/pairing
+          python -m tests.visual.backends.windows.bluetooth_smoke --fixtures-only --output artifacts/windows/bluetooth
+          python -m tests.visual.backends.windows.pairing_smoke --output artifacts/windows/pairing
       - name: Build the standalone Windows application
         id: bundle
         if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
@@ -133,8 +139,8 @@ jobs:
         id: bundle_smoke
         if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
         run: |
-          python -m tools.windows.visual.bundle_smoke --archive dist/docking-windows-x86_64.zip --output artifacts/windows/bundle-preflight
-          python -m tools.windows.visual.smoke --bundle artifacts/windows/bundle-preflight/extracted/Docking --output artifacts/windows/bundle-desktop
+          python -m tests.visual.backends.windows.bundle_smoke --archive dist/docking-windows-x86_64.zip --output artifacts/windows/bundle-preflight
+          python -m tests.visual.backends.windows.smoke --bundle artifacts/windows/bundle-preflight/extracted/Docking --output artifacts/windows/bundle-desktop
       - name: Build the per-user Windows installer
         id: installer
         if: ${{ !cancelled() && steps.bundle.outcome == 'success' }}
@@ -147,7 +153,7 @@ jobs:
         id: installer_smoke
         if: ${{ !cancelled() && steps.installer.outcome == 'success' && steps.upgrade_fixture.outcome == 'success' }}
         run: >-
-          python -m tools.windows.visual.installer_smoke
+          python -m tests.visual.backends.windows.installer_smoke
           --installer dist/docking-windows-x86_64-setup.exe
           --archive dist/docking-windows-x86_64.zip
           --previous-installer artifacts/windows/upgrade-fixture/previous-setup.exe
@@ -157,7 +163,7 @@ jobs:
         id: release_readiness
         if: ${{ !cancelled() && steps.bundle.outcome == 'success' && steps.bundle_smoke.outcome == 'success' }}
         run: >-
-          python -m tools.windows.visual.release_smoke
+          python -m tests.visual.backends.windows.release_smoke
           --archive dist/docking-windows-x86_64.zip
           --bundle artifacts/windows/bundle-preflight/extracted/Docking
           --output artifacts/windows/release-readiness
@@ -172,6 +178,7 @@ jobs:
             artifacts/windows/tray-domain.json
             artifacts/windows/applications-domain.json
             artifacts/windows/*-junit.xml
+            artifacts/windows/placement/
             artifacts/windows/smoke/
             artifacts/windows/multiple-windows/
             artifacts/windows/fullscreen/

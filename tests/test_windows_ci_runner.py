@@ -166,7 +166,7 @@ def test_input_stage_runs_complete_domain_and_retains_both_results(
     assert calls[0] == [
         sys.executable,
         "-m",
-        "tools.windows.visual.keyboardlayout_smoke",
+        "tests.visual.backends.windows.keyboardlayout_smoke",
         "--search-input",
         *(["--owned-amd64-editor"] if owned_editor else []),
         "--installed-root",
@@ -183,7 +183,7 @@ def test_input_stage_runs_complete_domain_and_retains_both_results(
     assert calls[1] == [
         sys.executable,
         "-m",
-        "tools.windows.visual.input_profile_smoke",
+        "tests.visual.backends.windows.input_profile_smoke",
         *(["--owned-amd64-editor"] if owned_editor else []),
         "--installed-root",
         ci.command_path(installed.resolve()),
@@ -375,7 +375,7 @@ def test_tray_stage_collects_all_api_and_gtk_results_before_failing(
     )
     assert len(calls) == 4
     assert calls[0][2:5] == [
-        "tools.windows.visual.tray_provider_smoke",
+        "tests.visual.backends.windows.tray_provider_smoke",
         "--mode",
         "explorer",
     ]
@@ -385,12 +385,15 @@ def test_tray_stage_collects_all_api_and_gtk_results_before_failing(
         and "--wheel" not in calls[0]
     )
     assert calls[1][2:5] == [
-        "tools.windows.visual.tray_provider_smoke",
+        "tests.visual.backends.windows.tray_provider_smoke",
         "--mode",
         "backend",
     ]
     assert "--all" in calls[1]
-    assert all(command[2] == "tools.windows.visual.tray_smoke" for command in calls[2:])
+    assert all(
+        command[2] == "tests.visual.backends.windows.tray_smoke"
+        for command in calls[2:]
+    )
     assert "--verify-geometry" in calls[2] and "--guid-only-updates" not in calls[2]
     assert (
         "--legacy-version" in calls[3]
@@ -534,7 +537,7 @@ def test_applications_stage_requires_same_wheel_complete_native_acceptance(
     )
     assert len(calls) == 1
     command = calls[0]
-    assert command[2] == "tools.windows.visual.applications_domain_smoke"
+    assert command[2] == "tests.visual.backends.windows.applications_domain_smoke"
     assert "--restart-explorer" in command
     assert command[command.index("--installed-root") + 1] == ci.command_path(
         installed.resolve()

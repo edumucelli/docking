@@ -16,6 +16,7 @@ import pytest
 
 from docking.platform.native.windows.startup import _prepare_bundle
 from docking.platform.native.windows.webview import loader_path
+from tests.visual.backends.windows import bundle_smoke
 from tools.windows import bundle as bundle_tool
 from tools.windows.bundle import (
     NativePackage,
@@ -32,7 +33,6 @@ from tools.windows.bundle import (
     verify_archive,
     write_pixbuf_cache,
 )
-from tools.windows.visual import bundle_smoke
 
 
 @pytest.fixture
