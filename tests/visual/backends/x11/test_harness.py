@@ -47,6 +47,37 @@ def test_compositor_readiness_dispatches_pending_window_manager_events():
     assert observer.composited()
 
 
+def test_mapping_readiness_waits_for_managed_client_and_its_removal(monkeypatch):
+    window = MagicMock()
+    client = SimpleNamespace(get_name=lambda: "Visual startup probe")
+    observer = run.Observer.__new__(run.Observer)
+    observer.Gtk = SimpleNamespace(Window=MagicMock(return_value=window))
+    observer.windows = MagicMock(side_effect=[[], [client], [client], []])
+    monkeypatch.setattr(run.time, "sleep", lambda _: None)
+
+    observer.check_window_mapping()
+
+    assert observer.windows.call_count == 4
+    assert window.present.call_count == 2
+    window.destroy.assert_called_once()
+
+
+def test_mapping_failure_still_destroys_the_owned_client(monkeypatch):
+    window = MagicMock()
+    observer = run.Observer.__new__(run.Observer)
+    observer.Gtk = SimpleNamespace(Window=lambda **kwargs: window)
+    observer.windows = list
+
+    def timed_out(check, message):
+        assert not check()
+        raise AssertionError(message)
+
+    monkeypatch.setattr(run, "wait_for", timed_out)
+    with pytest.raises(AssertionError, match="never mapped"):
+        observer.check_window_mapping()
+    window.destroy.assert_called_once()
+
+
 @pytest.mark.parametrize("timeout", [False, True])
 def test_private_helpers_are_stopped_after_their_launcher_exits(monkeypatch, timeout):
     kill = MagicMock()

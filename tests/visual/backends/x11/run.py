@@ -16,7 +16,6 @@ import html
 import json
 import os
 import platform
-import re
 import shlex
 import shutil
 import signal
@@ -250,6 +249,25 @@ class Observer:
     def composited(self):
         self.windows()
         return self.Gdk.Screen.get_default().is_composited()
+
+    def check_window_mapping(self):
+        title = "Visual startup probe"
+        window = self.Gtk.Window(title=title)
+        window.set_default_size(1, 1)
+        window.set_skip_taskbar_hint(True)
+
+        def managed():
+            return any(client.get_name() == title for client in self.windows())
+
+        def present():
+            window.present()
+            return managed()
+
+        try:
+            wait_for(present, "Window manager never mapped its readiness client")
+        finally:
+            window.destroy()
+        wait_for(lambda: not managed(), "Readiness client never unmapped")
 
     def close(self):
         self.pointer.close()
@@ -819,6 +837,9 @@ def observe(args):
             "Window manager compositing unavailable",
         )
         if args.minimum:
+            if args.desktop == "lxde":
+                # Openbox can retain startup MapRequests until the next X event.
+                observer.check_window_mapping()
 
             def panel_ready():
                 observer.windows()
@@ -893,40 +914,6 @@ def observe(args):
             "status": "fail",
             "detail": traceback.format_exc(),
         }
-        if args.desktop == "lxde":
-            with (output / "mapping-state.log").open("w") as stream:
-                for command in (
-                    ["xprop", "-root", "_NET_CURRENT_DESKTOP", "_NET_WORKAREA", "_NET_CLIENT_LIST", "_NET_SUPPORTED"],
-                    ["xwininfo", "-root", "-tree"],
-                ):
-                    subprocess.run(command, stdout=stream, stderr=stream, check=False)
-                tree = subprocess.run(["xwininfo", "-root", "-tree"], capture_output=True, text=True, check=False)
-                for xid in re.findall(r'^\s*(0x[0-9a-fA-F]+) "(?:panel|Desktop|Error)"', tree.stdout, re.MULTILINE):
-                    subprocess.run(["xwininfo", "-id", xid, "-all"], stdout=stream, stderr=stream, check=False)
-                    subprocess.run(["xprop", "-id", xid], stdout=stream, stderr=stream, check=False)
-                for app in ("openbox",):
-                    matches = subprocess.run(["pgrep", "-x", app], capture_output=True, text=True, check=False)
-                    for pid in matches.stdout.split():
-                        stream.write(f"\nProcess {app} {pid}\n")
-                        stream.flush()
-                        try:
-                            subprocess.run(["gdb", "--batch", "-ex", "set debuginfod enabled off", "-ex", "thread apply all bt", "-ex", "printf \"XPending=%d local-pending=%d\\n\", (int)XPending(*(void **)&obt_display), (int)xqueue_pending_local()", "-p", pid], stdout=stream, stderr=stream, check=False, timeout=12)
-                        except subprocess.TimeoutExpired:
-                            stream.write("GDB inspection timed out\n")
-                subprocess.run(["xprop", "-root", "-f", "_DOCKING_MAPPING_PROBE", "8s", "-set", "_DOCKING_MAPPING_PROBE", "wake"], stdout=stream, stderr=stream, check=False)
-                time.sleep(1)
-                stream.write("\nAfter root property event\n")
-                stream.flush()
-                subprocess.run(["xprop", "-root", "_NET_WORKAREA", "_NET_CLIENT_LIST"], stdout=stream, stderr=stream, check=False)
-                for app in ("lxpanel", "pcmanfm", "lxpolkit"):
-                    matches = subprocess.run(["pgrep", "-x", app], capture_output=True, text=True, check=False)
-                    for pid in matches.stdout.split():
-                        stream.write(f"\nProcess {app} {pid}\n")
-                        stream.flush()
-                        try:
-                            subprocess.run(["gdb", "--batch", "-x", str(ROOT / "tests/visual/backends/x11/lxde/mapping.gdb"), "-p", pid], stdout=stream, stderr=stream, check=False, timeout=12)
-                        except subprocess.TimeoutExpired:
-                            stream.write("GDB inspection timed out\n")
         if observer is not None:
             try:
                 observer.capture("observer-setup-failure")

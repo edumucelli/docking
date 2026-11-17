@@ -1,17 +1,17 @@
-name: LXDE mapping investigation
+name: LXDE stability validation
 on:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   mapping:
-    name: Inspect native LXDE mapping
+    name: Repeat clean native LXDE startup
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
-      - name: Build diagnostic desktop image
+      - name: Build native desktop image
         uses: docker/build-push-action@v7
         with:
           context: tests/visual/shared/linux
@@ -25,7 +25,7 @@ jobs:
           DOCKING_LAB_IMAGE: docking-ci:lxde-mapping
         run: |
           failures=0
-          for attempt in $(seq 8); do
+          for attempt in $(seq 24); do
             if python3 -m tests.visual --target x11-lxde --output "artifacts/visual/lxde-$attempt"; then
               echo "LXDE $attempt passed"
             else
@@ -37,6 +37,6 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: lxde-mapping-investigation
+          name: lxde-stability-validation
           path: artifacts/visual/
           retention-days: 7
