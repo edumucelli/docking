@@ -250,6 +250,25 @@ class Observer:
         self.windows()
         return self.Gdk.Screen.get_default().is_composited()
 
+    def check_window_mapping(self):
+        title = "Visual startup probe"
+        window = self.Gtk.Window(title=title)
+        window.set_default_size(1, 1)
+        window.set_skip_taskbar_hint(True)
+
+        def managed():
+            return any(client.get_name() == title for client in self.windows())
+
+        def present():
+            window.present()
+            return managed()
+
+        try:
+            wait_for(present, "Window manager never mapped its readiness client")
+        finally:
+            window.destroy()
+        wait_for(lambda: not managed(), "Readiness client never unmapped")
+
     def close(self):
         self.pointer.close()
         # The handle must finalize its screen before destroying its window
@@ -818,6 +837,9 @@ def observe(args):
             "Window manager compositing unavailable",
         )
         if args.minimum:
+            if args.desktop == "lxde":
+                # Openbox can retain startup MapRequests until the next X event.
+                observer.check_window_mapping()
 
             def panel_ready():
                 observer.windows()

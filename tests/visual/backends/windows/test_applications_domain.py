@@ -26,6 +26,63 @@ from tests.visual.backends.windows.runtime_pin_smoke import (
 )
 
 
+@pytest.mark.parametrize("succeeds", [False, True])
+def test_classic_fixture_uses_64_bit_compiler_and_keeps_compile_failures_fatal(
+    tmp_path, monkeypatch, succeeds
+):
+    from tests.visual.backends.windows import classic_fixture as mod
+
+    monkeypatch.setenv("SYSTEMROOT", "//owned-fixture/share/Windows")
+    monkeypatch.setattr(mod.subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+    fixture = mod.ClassicApplications.__new__(mod.ClassicApplications)
+    fixture.root = tmp_path / "owned résumé 日本語"
+    fixture.root.mkdir()
+    fixture._install_shortcuts = False
+    fixture.labels = {key: key for key in ("First", "Second", "Recent", "Other")}
+    fixture.executables = {
+        key: fixture.root / key / "SharedFixture.exe" for key in fixture.labels
+    }
+    fixture.close = Mock()
+
+    def compile(command, **kwargs):
+        assert command[0] == (
+            r"\\owned-fixture\share\Windows\Microsoft.NET\Framework64"
+            r"\v4.0.30319\csc.exe"
+        )
+        assert command[1:6] == [
+            "/nologo",
+            "/target:winexe",
+            "/platform:anycpu",
+            "/reference:System.Windows.Forms.dll",
+            "/reference:System.Web.Extensions.dll",
+        ]
+        assert command[-2:] == [
+            "/out:" + mod.command_path(fixture.executables["First"]),
+            mod.command_path(fixture.root / "fixture.cs"),
+        ]
+        assert kwargs["timeout"] == 120
+        assert kwargs["creationflags"] == 0x08000000
+        if succeeds:
+            fixture.executables["First"].write_bytes(b"owned executable")
+        return subprocess.CompletedProcess(command, 0 if succeeds else 1, "", "CS1234")
+
+    run = Mock(side_effect=compile)
+    monkeypatch.setattr(mod.subprocess, "run", run)
+    if succeeds:
+        assert fixture.__enter__() is fixture
+        assert all(
+            path.read_bytes() == b"owned executable"
+            for path in fixture.executables.values()
+        )
+        assert (fixture.root / "fixture.cs").read_text() == mod._SOURCE
+        fixture.close.assert_not_called()
+    else:
+        with pytest.raises(AssertionError, match="CS1234"):
+            fixture.__enter__()
+        fixture.close.assert_called_once()
+    assert run.call_count == 1
+
+
 @pytest.mark.parametrize("reused", [False, True])
 def test_classic_cleanup_does_not_close_a_process_that_reused_a_fixture_pid(
     tmp_path, monkeypatch, reused
