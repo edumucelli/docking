@@ -5,6 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -39,6 +40,19 @@ class IconLocations:
     host_filesystem_root: Path | None
 
 
+class OpenWithMode(Enum):
+    GTK = "gtk"
+    PORTAL = "portal"
+    NATIVE = "native"
+
+
+class OpenWithResult(Enum):
+    ACCEPTED = "accepted"
+    CANCELLED = "cancelled"
+    UNSUPPORTED = "unsupported"
+    FAILED = "failed"
+
+
 class DesktopServices(ABC):
     @abstractmethod
     def compositor_active(self, *, display: object | None = None) -> bool | None: ...
@@ -50,6 +64,18 @@ class DesktopServices(ABC):
     def file_for_path(self, path: str) -> Gio.File: ...
     @abstractmethod
     def open_uri(self, uri: str) -> bool: ...
+    @abstractmethod
+    def open_in_terminal(self, path: Path) -> bool: ...
+    @abstractmethod
+    def open_with_mode(self, *, is_dir: bool) -> OpenWithMode | None: ...
+    @abstractmethod
+    def request_open_with(
+        self,
+        uri: str,
+        *,
+        parent: object,
+        on_result: Callable[[OpenWithResult], None],
+    ) -> Callable[[], None]: ...
     @abstractmethod
     def prepare_display(self) -> bool: ...
     @abstractmethod

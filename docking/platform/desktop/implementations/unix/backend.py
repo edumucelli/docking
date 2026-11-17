@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from docking.log import get_logger
-from docking.platform.desktop.base import DesktopServices
+from docking.platform.desktop.base import DesktopServices, OpenWithMode, OpenWithResult
 
 from ...base import IconLocations
 
@@ -90,6 +91,27 @@ class UnixDesktopServices(DesktopServices):
         from .targets import open_uri
 
         return open_uri(uri)
+
+    def open_in_terminal(self, path: Path) -> bool:
+        from .file_actions import open_in_terminal
+
+        return open_in_terminal(path)
+
+    def open_with_mode(self, *, is_dir: bool) -> OpenWithMode | None:
+        from docking.platform.environment import is_flatpak
+
+        return OpenWithMode.PORTAL if is_flatpak() else OpenWithMode.GTK
+
+    def request_open_with(
+        self,
+        uri: str,
+        *,
+        parent: object,
+        on_result: Callable[[OpenWithResult], None],
+    ) -> Callable[[], None]:
+        from .file_actions import request_open_with
+
+        return request_open_with(uri, parent=parent, on_result=on_result)
 
     def prepare_display(self) -> bool:
         from docking.platform.backends.cinnamon.startup import prepare_cinnamon_display

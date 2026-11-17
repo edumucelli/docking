@@ -141,7 +141,7 @@ def find_terminal(
 
 def build_terminal_argv(
     *,
-    command: str,
+    command: str | None = None,
     shell: str | None = None,
     resolver: Callable[[str], str | None] | None = None,
 ) -> list[str] | None:
@@ -149,7 +149,11 @@ def build_terminal_argv(
     terminal = find_terminal(resolver=resolver)
     if terminal is None:
         return None
-    shell_argv = build_shell_argv(command=command, shell=shell)
+    shell_argv = (
+        [shell or shell_path()]
+        if command is None
+        else build_shell_argv(command=command, shell=shell)
+    )
     if terminal.mode == TerminalMode.COMMAND_STRING:
         exec_argv = [shlex.join(shell_argv)]
     else:

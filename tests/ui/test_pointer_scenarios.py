@@ -487,6 +487,7 @@ class TestMenuLifecycleScenarios:
             application_registry=harness.application_registry,
             application_launcher=harness.application_launcher,
             target_service=harness.target_service,
+            file_actions=MagicMock(),
         )
         created: list[_FakePopupMenu] = []
 

@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-from docking.platform.desktop.base import DesktopServices, IconLocations
+from docking.platform.desktop.base import (
+    DesktopServices,
+    IconLocations,
+    OpenWithMode,
+    OpenWithResult,
+)
 
 if TYPE_CHECKING:
     from gi.repository import Gio
@@ -35,6 +41,25 @@ class WindowsDesktopServices(DesktopServices):
         from .targets import open_uri
 
         return open_uri(uri)
+
+    def open_in_terminal(self, path: Path) -> bool:
+        from .file_actions import open_in_terminal
+
+        return open_in_terminal(path)
+
+    def open_with_mode(self, *, is_dir: bool) -> OpenWithMode | None:
+        return None if is_dir else OpenWithMode.NATIVE
+
+    def request_open_with(
+        self,
+        uri: str,
+        *,
+        parent: object,
+        on_result: Callable[[OpenWithResult], None],
+    ) -> Callable[[], None]:
+        from .file_actions import request_open_with
+
+        return request_open_with(uri, parent=parent, on_result=on_result)
 
     def prepare_display(self) -> bool:
         from docking.platform.native.windows.startup import prepare_windows_runtime

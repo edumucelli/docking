@@ -292,6 +292,18 @@ Each entry has two fields:
 Older configuration files that store pinned entries as plain strings are still
 accepted and converted to typed entries when loaded.
 
+Right-click a folder to browse its contents. **Open Folder**, **Open in Terminal**,
+**Open With…**, sorting, and hidden-file controls appear before the contents,
+including in nested folder menus. Display settings belong to the pinned folder
+and apply throughout its browsing tree.
+
+Right-click an entry inside a folder menu, or select it and press the Menu key
+or Shift+F10, to open commands for that entry. Files also offer **Open With…** in
+their dock context menus. Linux and BSD use the GTK application chooser; Flatpak
+uses the host desktop portal. Windows uses its native file chooser and omits
+**Open With…** for folders. Terminal opening uses the selected folder as its
+working directory; Windows opens Windows PowerShell in a new console.
+
 ## Per-Applet and Per-Item Preferences
 
 `applet_prefs` is a map keyed by applet ID or applet instance. Its contents are
