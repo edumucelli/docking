@@ -581,8 +581,13 @@ def main():
             except Exception:
                 failures.append(traceback.format_exc())
                 print(failures[-1], flush=True)
-            probe.close()
-            Gtk.main_quit()
+            try:
+                probe.close()
+            except Exception:
+                failures.append(traceback.format_exc())
+                print(failures[-1], flush=True)
+            finally:
+                Gtk.main_quit()
             return False
 
         GLib.timeout_add(1000, run)

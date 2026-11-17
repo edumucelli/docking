@@ -9,6 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -57,6 +58,48 @@ def test_native_probe_closes_cover_and_scene_even_when_a_wait_fails():
     with pytest.raises(subprocess.TimeoutExpired):
         probe.close()
     assert events == ["terminate-cover", "terminate-scene", "wait-scene", "wait-cover"]
+
+
+def test_native_probe_quits_and_reports_failure_when_cleanup_times_out(
+    monkeypatch, tmp_path, capsys
+):
+    import docking
+    from docking.core.config import Config
+    from tools.linux.visual.probes import native_services_probe as native
+
+    async def completed():
+        return
+
+    callbacks = []
+    app = SimpleNamespace(_start_runtime=lambda *_: None)
+
+    def main():
+        app._start_runtime(SimpleNamespace(_window=None), None, None)
+        assert callbacks.pop()() is False
+
+    app.main = main
+    monkeypatch.setattr(docking, "app", app, raising=False)
+    monkeypatch.setitem(sys.modules, "docking.app", app)
+    monkeypatch.setattr(sys, "argv", [native.__file__, "bottom"])
+    monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path))
+    monkeypatch.setattr(Config, "save", lambda _: None)
+    monkeypatch.setattr(native.GdkPixbuf.Pixbuf, "new", MagicMock())
+    probe = SimpleNamespace(
+        run=completed,
+        close=MagicMock(side_effect=subprocess.TimeoutExpired("fixture", 3)),
+    )
+    monkeypatch.setattr(native, "Probe", lambda *_: probe)
+    monkeypatch.setattr(
+        native.GLib, "timeout_add", lambda _ms, callback: callbacks.append(callback)
+    )
+    quit_main = MagicMock()
+    monkeypatch.setattr(native.Gtk, "main_quit", quit_main)
+
+    with pytest.raises(SystemExit) as result:
+        native.main()
+    assert result.value.code == 1
+    quit_main.assert_called_once_with()
+    assert "TimeoutExpired" in capsys.readouterr().out
 
 
 def test_native_panel_scene_is_not_shadowed_by_scene_client(tmp_path, monkeypatch):
