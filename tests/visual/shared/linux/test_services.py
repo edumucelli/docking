@@ -59,7 +59,7 @@ def test_visibility_wait_requires_the_compositor_pixels_to_change(
 
 
 @pytest.mark.parametrize("delivered", [False, True])
-def test_quiet_probe_waits_for_mapping_and_delayed_pixels(
+def test_always_behind_probe_waits_for_mapping_and_delayed_pixels(
     monkeypatch, tmp_path, delivered
 ):
     from tests.visual.shared.linux.probes import native_services_probe as native
@@ -86,7 +86,7 @@ def test_quiet_probe_waits_for_mapping_and_delayed_pixels(
         ),
     )
     window = SimpleNamespace(
-        config=SimpleNamespace(hide_mode="quiet"),
+        config=SimpleNamespace(hide_mode="always-behind"),
         autohide=SimpleNamespace(
             hide_offset=0, on_mouse_enter=lambda: None, on_mouse_leave=lambda: None
         ),
@@ -100,17 +100,19 @@ def test_quiet_probe_waits_for_mapping_and_delayed_pixels(
     probe = native.Probe(window, backend, "bottom")
 
     async def capture(phase):
-        if phase == "quiet-startup-covered":
+        if phase == "always-behind-startup-covered":
             assert clock[0] >= mapped_at[0], "Sampled before the fixture mapped"
             assert not modes, "Startup check reapplied the mode"
         captures[phase] = captures.get(phase, 0) + 1
         await probe.settle(0.4)
         expected = (
             b"\xff\x00\x00"
-            if phase in {"quiet-startup-covered", "stacking-quiet"}
+            if phase in {"always-behind-startup-covered", "stacking-always-behind"}
             else b"\x00\x00\xff"
         )
-        ready = captures[phase] >= 3 and (delivered or phase != "quiet-startup-covered")
+        ready = captures[phase] >= 3 and (
+            delivered or phase != "always-behind-startup-covered"
+        )
         return SimpleNamespace(
             get_width=lambda: 48,
             get_height=lambda: 48,
@@ -120,7 +122,7 @@ def test_quiet_probe_waits_for_mapping_and_delayed_pixels(
         )
 
     probe.capture = capture
-    task = probe.check_quiet()
+    task = probe.check_always_behind()
 
     def drive():
         while True:
@@ -132,8 +134,10 @@ def test_quiet_probe_waits_for_mapping_and_delayed_pixels(
     if delivered:
         drive()
         assert all(count >= 3 for count in captures.values())
-        assert modes == ["quiet", "always-on-top", "quiet"]
-        assert json.loads((tmp_path / "bottom-result.json").read_text())["quiet_pixels"]
+        assert modes == ["always-behind", "always-on-top", "always-behind"]
+        assert json.loads((tmp_path / "bottom-result.json").read_text())[
+            "always_behind_pixels"
+        ]
     else:
         with pytest.raises(AssertionError, match="startup"):
             drive()

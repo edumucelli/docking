@@ -298,7 +298,9 @@ def test_unregistered_modes_do_not_inherit_appbar_fullscreen_stacking():
     appbar.fullscreen_active.assert_not_called()
 
 
-def test_quiet_stacking_survives_fullscreen_remapping_and_releases_timer(monkeypatch):
+def test_always_behind_stacking_survives_fullscreen_remapping_and_releases_timer(
+    monkeypatch,
+):
     from docking.platform.backends.windows import surface
 
     added = Mock(return_value=72)
@@ -325,19 +327,19 @@ def test_quiet_stacking_survives_fullscreen_remapping_and_releases_timer(monkeyp
     service._fullscreen_changed(False)
     service._restore_placement()
     assert service._poll_topmost() is False
-    assert service._poll_quiet() is True
-    added.assert_called_once_with(250, service._poll_quiet)
+    assert service._poll_always_behind() is True
+    added.assert_called_once_with(250, service._poll_always_behind)
     assert all(args == call(False) for args in window.set_keep_above.call_args_list)
     appbar.ensure_keep_below.assert_called_with(window.get_window.return_value)
     appbar.ensure_keep_above.assert_not_called()
     service.position_or_anchor(replace(request, keep_above=True))
     removed.assert_called_once_with(72)
-    assert service._quiet_source == 0
-    assert service._poll_quiet() is False
+    assert service._always_behind_source == 0
+    assert service._poll_always_behind() is False
     window.set_keep_above.assert_called_with(True)
     service.position_or_anchor(request)
     service.stop()
-    assert service._quiet_source == 0
+    assert service._always_behind_source == 0
     assert removed.call_count == 2
 
 

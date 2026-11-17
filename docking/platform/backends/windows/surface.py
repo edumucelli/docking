@@ -75,7 +75,7 @@ class WindowsSurfaceService(SurfaceService):
         self._pointer_source = 0
         self._fullscreen_source = 0
         self._topmost_source = 0
-        self._quiet_source = 0
+        self._always_behind_source = 0
         self._keep_above = True
         self._input_rect: Rect | None = None
 
@@ -136,7 +136,7 @@ class WindowsSurfaceService(SurfaceService):
         self._window = window
         apply_dock_hints(window, keep_above=self._keep_above)
         # HWND_BOTTOM can sit behind Explorer's desktop; native placement
-        # below applications supplies the quiet position instead.
+        # below applications supplies the always-behind position instead.
         if not self._keep_above:
             window.set_keep_below(False)
         if self._appbar is None:
@@ -295,9 +295,9 @@ class WindowsSurfaceService(SurfaceService):
         if self._topmost_source:
             GLib.source_remove(self._topmost_source)
             self._topmost_source = 0
-        if self._quiet_source:
-            GLib.source_remove(self._quiet_source)
-            self._quiet_source = 0
+        if self._always_behind_source:
+            GLib.source_remove(self._always_behind_source)
+            self._always_behind_source = 0
         if self._map_source:
             GLib.source_remove(self._map_source)
             self._map_source = 0
@@ -346,12 +346,14 @@ class WindowsSurfaceService(SurfaceService):
             self._keep_above = request.keep_above
             if not self._keep_above:
                 self._fullscreen_changed(False)
-                if not self._quiet_source:
-                    self._quiet_source = GLib.timeout_add(250, self._poll_quiet)
+                if not self._always_behind_source:
+                    self._always_behind_source = GLib.timeout_add(
+                        250, self._poll_always_behind
+                    )
             elif changed:
-                if self._quiet_source:
-                    GLib.source_remove(self._quiet_source)
-                    self._quiet_source = 0
+                if self._always_behind_source:
+                    GLib.source_remove(self._always_behind_source)
+                    self._always_behind_source = 0
                 self._window.set_keep_below(False)
                 self._window.set_keep_above(True)
 
@@ -365,7 +367,7 @@ class WindowsSurfaceService(SurfaceService):
             )
         self.set_workspace_scope(current_workspace_only=self._current_workspace_only)
         if not self._keep_above:
-            self._poll_quiet()
+            self._poll_always_behind()
         return False
 
     def set_workspace_scope(self, *, current_workspace_only: bool) -> None:
@@ -396,7 +398,7 @@ class WindowsSurfaceService(SurfaceService):
                     request.x, request.y, request.size.width, request.size.height
                 )
                 if not self._keep_above:
-                    self._poll_quiet()
+                    self._poll_always_behind()
                 if (
                     self._appbar is not None
                     and self._mapping is not None
@@ -454,7 +456,7 @@ class WindowsSurfaceService(SurfaceService):
                     self._fullscreen_source = 0
                 self._window.set_keep_above(False)
                 self._window.set_keep_below(False)
-                self._poll_quiet()
+                self._poll_always_behind()
                 return
             if fullscreen and self._topmost_source:
                 GLib.source_remove(self._topmost_source)
@@ -520,9 +522,9 @@ class WindowsSurfaceService(SurfaceService):
             return False
         return bool(self._topmost_source)
 
-    def _poll_quiet(self) -> bool:
+    def _poll_always_behind(self) -> bool:
         if self._keep_above or self._window is None:
-            self._quiet_source = 0
+            self._always_behind_source = 0
             return False
         native = self._window.get_window()
         if native is not None and self._appbar is not None:

@@ -128,7 +128,7 @@ class GnomeShellBridgeClient:
     ) -> bool:
         """Ask the GNOME Shell extension to position the dock window via Mutter."""
         result = self._call(
-            "PositionDock" if keep_above else "PositionQuietDock",
+            "PositionDock" if keep_above else "PositionAlwaysBehindDock",
             GLib.Variant("(iiii)", (x, y, width, height)),
         )
         return bool(result.unpack()[0]) if result is not None else False

@@ -16,7 +16,7 @@ from docking.platform.backends.cinnamon.shell import CinnamonShellClient
 
 
 @pytest.mark.parametrize("backend", ["gnome", "cinnamon"])
-def test_quiet_shell_stacking_recovers_and_releases_sources(backend):
+def test_always_behind_shell_stacking_recovers_and_releases_sources(backend):
     node = shutil.which("node")
     if node is None:
         pytest.skip("Shell JavaScript execution requires Node.js")
@@ -95,7 +95,7 @@ const bridge = new DockingBridgeExtension();
 bridge._signals = []; bridge._dockStackSourceId = 0;
 bridge._findDockWindow = () => dock;
 bridge._connect(global.display, 'restacked', () => bridge._queueDockStack());
-const quiet = () => bridge.PositionQuietDock(0, 700, 1280, 100);
+const alwaysBehind = () => bridge.PositionAlwaysBehindDock(0, 700, 1280, 100);
 const normal = () => bridge.PositionDock(0, 700, 1280, 100);
 const stop = () => bridge.disable();
 """
@@ -122,20 +122,22 @@ const stop = () => bridge.disable();
         scripts.append(proxy.call_sync.call_args.args[1].unpack()[0])
         script = setup + "\n".join(
             f"const {name} = () => eval({json.dumps(source)});"
-            for name, source in zip(("quiet", "normal", "stop"), scripts, strict=True)
+            for name, source in zip(
+                ("alwaysBehind", "normal", "stop"), scripts, strict=True
+            )
         )
     script += """
-quiet(); quiet(); assert.equal(pending.size, 1); drain();
+alwaysBehind(); alwaysBehind(); assert.equal(pending.size, 1); drain();
 assert.equal(above, false);
 assert.deepEqual(parent.children, [desktop, closing, actor, app]);
 parent.children = [desktop, closing, app, actor];
 global.display.emit('restacked'); drain();
 assert.deepEqual(parent.children, [desktop, closing, actor, app]);
-// A queued quiet restack must never undo a subsequent normal-mode request.
+// A queued restack below windows must never undo a subsequent normal-mode request.
 global.display.emit('restacked'); normal(); drain();
 assert.equal(above, true);
 assert.deepEqual(parent.children, [desktop, closing, app, actor]);
-quiet(); assert.equal(pending.size, 1); stop();
+alwaysBehind(); assert.equal(pending.size, 1); stop();
 assert.equal(pending.size, 0);
 assert.equal(global.display.signals.size, 0);
 """

@@ -75,7 +75,9 @@ def _make_controller(window):
 
 
 @pytest.mark.parametrize("position", list(Position))
-def test_quiet_placement_clears_reservations_and_barriers_and_restores_top(position):
+def test_always_behind_placement_clears_reservations_and_barriers_and_restores_top(
+    position,
+):
     geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
     monitor = _fake_monitor(geometry=geom, workarea=geom)
     display = SimpleNamespace(
@@ -87,7 +89,7 @@ def test_quiet_placement_clears_reservations_and_barriers_and_restores_top(posit
     window.config.pos = position
     controller = _make_controller(window)
     controller.set_struts()
-    window.config.hide_mode = "quiet"
+    window.config.hide_mode = "always-behind"
     controller.position_dock()
     controller.update_struts()
     request = window.surface_service.position_or_anchor.call_args.args[0]

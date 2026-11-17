@@ -307,7 +307,7 @@ def test_surface_reconnect_retries_latest_placement_after_initial_budget(monkeyp
     bridge.position_dock.assert_not_called()
 
 
-def test_quiet_surface_retries_and_reconnects_with_latest_stacking(monkeypatch):
+def test_always_behind_surface_retries_and_reconnects_with_latest_stacking(monkeypatch):
     monkeypatch.setattr(bridge_mod.GLib, "timeout_add", lambda *_args: 77)
     monkeypatch.setattr(bridge_mod.GLib, "source_remove", lambda _source: None)
     bridge = _bridge()
@@ -330,11 +330,14 @@ def test_quiet_surface_retries_and_reconnects_with_latest_stacking(monkeypatch):
     service.stop()
 
 
-def test_bridge_preserves_legacy_position_method_and_uses_quiet_extension_method():
+def test_bridge_preserves_legacy_position_method_and_uses_always_behind_extension_method():
     proxy = MagicMock()
     proxy.call_sync.return_value.unpack.return_value = (True,)
     client = bridge_mod.GnomeShellBridgeClient(proxy=proxy)
-    for keep_above, method in [(True, "PositionDock"), (False, "PositionQuietDock")]:
+    for keep_above, method in [
+        (True, "PositionDock"),
+        (False, "PositionAlwaysBehindDock"),
+    ]:
         assert client.position_dock(0, 990, 1920, 90, keep_above=keep_above)
         name, parameters, *_args = proxy.call_sync.call_args.args
         assert name == method

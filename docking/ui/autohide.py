@@ -343,7 +343,7 @@ class AutoHideController:
 
     @property
     def enabled(self) -> bool:
-        return self._config.hide_mode not in ("none", "always-on-top", "quiet")
+        return self._config.hide_mode not in ("none", "always-on-top", "always-behind")
 
     def reset(self) -> None:
         """Force dock visible -- call when auto-hide is toggled off."""
