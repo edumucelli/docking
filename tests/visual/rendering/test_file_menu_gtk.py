@@ -306,10 +306,15 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
     get_owner = bind(
         native.user, "GetWindow", wintypes.HWND, wintypes.HWND, wintypes.UINT
     )
+    before = {row["hwnd"] for row in native.windows(include_immersive=True)}
 
     def chooser_windows():
         found = []
         for row in native.windows(include_immersive=True):
+            if row["class"] == "Open With Dummy Window Class For Interim Dialog":
+                continue
+            if row["rect"][2] <= 0 or row["rect"][3] <= 0:
+                continue
             if row["pid"] == os.getpid() and row["class"] == "#32770":
                 found.append(row)
                 continue
@@ -319,7 +324,16 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
             if (
                 metadata is not None
                 and metadata.executable_path is not None
-                and metadata.executable_path.name.casefold() == "openwith.exe"
+                and (
+                    metadata.executable_path.name.casefold() == "openwith.exe"
+                    or (
+                        row["hwnd"] not in before
+                        and row["class"]
+                        in {"Windows.UI.Core.CoreWindow", "ApplicationFrameWindow"}
+                        and metadata.executable_path.name.casefold()
+                        in {"shellexperiencehost.exe", "applicationframehost.exe"}
+                    )
+                )
             ):
                 found.append(row)
         return found
@@ -346,6 +360,11 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
                 {key: row[key] for key in ("hwnd", "pid", "class", "rect")}
                 | {"owner": get_owner(row["hwnd"], 4)}
                 for row in chooser_windows()
+            ],
+            "desktop_windows": [
+                {key: row[key] for key in ("hwnd", "pid", "class", "rect")}
+                | {"owner": get_owner(row["hwnd"], 4)}
+                for row in native.windows(include_immersive=True, include_cloaked=True)
             ],
         }
         (report / (name + ".json")).write_text(
