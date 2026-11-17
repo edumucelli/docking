@@ -5,10 +5,54 @@ import os
 import runpy
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import pytest
 
 from tests.visual.shared.linux.probes import launcher_probe as launcher
+
+
+def test_input_delivery_keeps_the_previous_sample_until_the_next_is_complete(
+    monkeypatch, tmp_path
+):
+    from tests.visual.shared.linux.probes import client_probe as client
+
+    delivery = tmp_path / "input-delivery.json"
+    previous = {"x": 100, "y": 100}
+    delivery.write_text(json.dumps(previous))
+    monkeypatch.setattr(client.sys, "argv", ["client_probe.py", "input", str(delivery)])
+    window = MagicMock()
+
+    def partial_write(path, text):
+        with path.open("w") as stream:
+            stream.write(text[:1])
+            stream.flush()
+            assert json.loads(delivery.read_text()) == previous
+            stream.write(text[1:])
+
+    def deliver_motion():
+        motion = next(
+            call.args[1]
+            for call in window.connect.call_args_list
+            if call.args[0] == "motion-notify-event"
+        )
+        motion(window, SimpleNamespace(x_root=640, y_root=360))
+
+    monkeypatch.setattr(Path, "write_text", partial_write)
+    monkeypatch.setattr(
+        client,
+        "Gtk",
+        SimpleNamespace(
+            Window=lambda **_kwargs: window,
+            DrawingArea=MagicMock,
+            main=deliver_motion,
+            main_quit=lambda: None,
+        ),
+    )
+
+    client.main()
+
+    assert json.loads(delivery.read_text()) == {"x": 640, "y": 360}
 
 
 def test_launch_record_is_invisible_until_the_complete_nonce_is_written(
