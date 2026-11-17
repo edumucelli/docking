@@ -90,6 +90,13 @@ def private_environment(directory: Path, desktop: str = "xfce") -> dict[str, str
         GIO_USE_VFS="local",
         PYTHONPATH=str(ROOT) + os.pathsep + env.get("PYTHONPATH", ""),
     )
+    if desktop == "lxde":
+        profile = directory / "config/lxsession/LXDE"
+        profile.mkdir(parents=True)
+        desktop_script = ROOT / "tests/visual/backends/x11/lxde/desktop.sh"
+        (profile / "autostart").write_text(
+            f"@lxpanel --profile LXDE\n@bash {shlex.quote(str(desktop_script))}\n"
+        )
     return env
 
 

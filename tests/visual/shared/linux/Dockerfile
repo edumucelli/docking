@@ -292,9 +292,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends mate-session-ma
 FROM x11-base AS x11-lxde
 RUN apt-get update && apt-get install -y --no-install-recommends lxde-core x11-utils \
     && rm -rf /var/lib/apt/lists/*
-RUN mv /usr/bin/pcmanfm /usr/bin/pcmanfm.real \
-    && printf '#!/bin/sh\nfor attempt in $(seq 200); do\n    if xdotool search --onlyvisible --name "^panel$" >/dev/null 2>&1; then\n        exec /usr/bin/pcmanfm.real "$@"\n    fi\n    sleep 0.1\ndone\nexit 1\n' >/usr/bin/pcmanfm \
-    && chmod +x /usr/bin/pcmanfm
 FROM x11-base AS x11-lxqt
 RUN apt-get update && apt-get install -y --no-install-recommends lxqt-session lxqt-panel pcmanfm-qt openbox \
     && rm -rf /var/lib/apt/lists/*
