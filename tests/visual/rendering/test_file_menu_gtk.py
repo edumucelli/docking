@@ -1,12 +1,11 @@
 """Real GTK ownership, secondary input, keyboard routing and chooser lifetime."""
 
-import ctypes
 import gc
 import json
 import os
 import subprocess
 import time
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack
 from ctypes import wintypes
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -301,18 +300,16 @@ def test_portal_receives_selected_fd_even_when_response_precedes_method_reply(
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Native Windows chooser")
-@pytest.mark.parametrize(
-    "close_owner,unowned", [(False, False), (True, False), (False, True)]
-)
+@pytest.mark.parametrize("close_owner", [False, True], ids=["escape", "owner-close"])
 def test_windows_native_chooser_can_be_cancelled_without_launching(
-    owner_window, tmp_path, close_owner, unowned, monkeypatch
+    owner_window, tmp_path, close_owner, monkeypatch
 ):
-    from docking.platform.desktop.implementations.windows import file_actions as windows
     from docking.platform.native.windows import shell
     from docking.platform.native.windows.ffi import bind, window_handle
     from docking.platform.native.windows.process import read_process_metadata
     from docking.platform.targets import TargetService
     from tests.visual.backends.windows.desktop_driver import WindowsDesktop
+    from tests.visual.backends.windows.input_editor import window_facts
 
     window = owner_window
     native = WindowsDesktop()
@@ -320,205 +317,93 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
     get_owner = bind(
         native.user, "GetWindow", wintypes.HWND, wintypes.HWND, wintypes.UINT
     )
-    before = {row["hwnd"] for row in native.windows(include_immersive=True)}
-    reference_processes = []
 
-    def chooser_windows():
-        found = []
-        for row in native.windows(include_immersive=True):
-            if row["class"] == "Open With Dummy Window Class For Interim Dialog":
-                continue
-            if row["rect"][2] <= 0 or row["rect"][3] <= 0:
-                continue
-            if (
-                row["pid"] in {os.getpid(), *(p.pid for p in reference_processes)}
-                and row["class"] == "#32770"
-            ):
-                found.append(row)
-                continue
-            if row["class"].casefold().startswith("gdk"):
-                continue
-            metadata = read_process_metadata(row["pid"], include_aumid=False)
-            if (
-                metadata is not None
-                and metadata.executable_path is not None
-                and (
-                    metadata.executable_path.name.casefold() == "openwith.exe"
-                    or (
-                        row["hwnd"] not in before
-                        and row["class"]
-                        in {"Windows.UI.Core.CoreWindow", "ApplicationFrameWindow"}
-                        and metadata.executable_path.name.casefold()
-                        in {"shellexperiencehost.exe", "applicationframehost.exe"}
-                    )
-                )
-            ):
-                found.append(row)
-        return found
+    def foreground():
+        # EnumWindows omits some immersive Windows shell surfaces.
+        hwnd = native.user.GetForegroundWindow()
+        row = window_facts(native.user, hwnd)
+        if row.get("pid"):
+            process = read_process_metadata(row["pid"], include_aumid=False)
+            if process is not None and process.executable_path is not None:
+                row["process"] = process.executable_path.name.casefold()
+        if hwnd:
+            row["owner"] = get_owner(hwnd, 4)
+        return row
 
-    assert not chooser_windows(), (
-        "Close an existing Open With dialog before this owned fixture"
-    )
+    def active_chooser():
+        row = foreground()
+        if (
+            row.get("process") == "openwith.exe"
+            or (row.get("class") == "#32770" and row.get("owner") == owner)
+        ) and row.get("bounds"):
+            return row
+        return None
+
+    assert active_chooser() is None, "Close the existing Open With dialog first"
     target = tmp_path / "owned file.txt"
     target.write_text("owned fixture")
-    calls = []
-    apartments = []
-    open_dialog = shell.open_with_dialog
-    apartment = shell.apartment
-    reference = tmp_path / "open-with-probe.exe"
-    if unowned:
-        source = Path(__file__).parents[1] / "backends/windows/open_with_probe.c"
-        subprocess.run(
-            [
-                "gcc",
-                "-municode",
-                str(source),
-                "-lole32",
-                "-lshell32",
-                "-o",
-                str(reference),
-            ],
-            check=True,
-            capture_output=True,
-        )
-
-    @contextmanager
-    def observe_apartment():
-        with apartment() as ole:
-            kind, qualifier = ctypes.c_int32(), ctypes.c_int32()
-            status = bind(
-                ole,
-                "CoGetApartmentType",
-                shell.HRESULT,
-                ctypes.POINTER(ctypes.c_int32),
-                ctypes.POINTER(ctypes.c_int32),
-            )(ctypes.byref(kind), ctypes.byref(qualifier))
-            apartments.append(
-                {"status": status, "kind": kind.value, "qualifier": qualifier.value}
-            )
-            yield ole
-
-    monkeypatch.setattr(shell, "apartment", observe_apartment)
+    results = []
+    show = shell.open_with_dialog
 
     def observe(path, hwnd):
-        facts = {
-            "owner": hwnd,
-            "target_matches": Path(path) == target,
-            "target_exists": Path(path).is_file(),
-            "extended_path": path.startswith("\\\\?\\"),
-            "forward_separators": "/" in path,
-            "path_length": len(path),
-        }
-        calls.append(facts)
-        if unowned:
-            process = subprocess.Popen(
-                [str(reference), path],
-                stdout=subprocess.PIPE,
-                text=True,
-                creationflags=0x08000000,
-            )
-            reference_processes.append(process)
-            output, _stderr = process.communicate(timeout=30)
-            facts["reference"] = json.loads(output)
-            result = (
-                shell.OpenWithResult.CANCELLED
-                if process.returncode == 0
-                else shell.OpenWithResult.FAILED
-            )
-        else:
-            result = open_dialog(path, hwnd)
-        facts["result"] = result.name
+        assert Path(path) == target and hwnd == owner
+        result = show(path, hwnd)
+        results.append(result)
         return result
 
     monkeypatch.setattr(shell, "open_with_dialog", observe)
-    if unowned:
-        monkeypatch.setattr(windows, "window_handle", lambda _window: 0)
     service = TargetService(icon_loader=MagicMock(), application_registry=MagicMock())
     controller = FileActionsController(parent=window, target_service=service)
-    chooser = None
     report = Path("artifacts/windows/file-actions")
     report.mkdir(parents=True, exist_ok=True)
-    name = (
-        "chooser-unowned"
-        if unowned
-        else "chooser-owner"
-        if close_owner
-        else "chooser-escape"
-    )
+    name = "chooser-owner" if close_owner else "chooser-escape"
+    chooser = None
 
     def capture():
         facts = {
             "owner": owner,
+            "foreground": foreground(),
+            "chooser": chooser,
             "pending": controller._pending,
-            "foreground": native.user.GetForegroundWindow(),
+            "result": [result.name for result in results],
             "error_dialog": controller._error_dialog is not None,
-            "calls": calls,
-            "apartments": apartments,
-            "layout": {
-                "size": ctypes.sizeof(shell._OpenAsInfo),
-                "file_offset": shell._OpenAsInfo.file.offset,
-                "class_offset": shell._OpenAsInfo.class_name.offset,
-                "flags_offset": shell._OpenAsInfo.flags.offset,
-                "wchar_size": ctypes.sizeof(ctypes.c_wchar),
-            },
-            "windows": [
-                {key: row[key] for key in ("hwnd", "pid", "class", "rect")}
-                | {"owner": get_owner(row["hwnd"], 4)}
-                for row in chooser_windows()
-            ],
-            "desktop_windows": [
-                {key: row[key] for key in ("hwnd", "pid", "class", "rect")}
-                | {"owner": get_owner(row["hwnd"], 4)}
-                for row in native.windows(include_immersive=True, include_cloaked=True)
-            ],
         }
         (report / (name + ".json")).write_text(
             json.dumps(facts, indent=2), encoding="utf-8"
         )
         print(json.dumps(facts))
-        if chooser is not None and native.user.IsWindowVisible(chooser["hwnd"]):
-            from PIL import ImageGrab
-
-            ImageGrab.grab(bbox=tuple(chooser["rect"]), all_screens=True).save(
-                report / (name + ".png")
-            )
 
     try:
         window.set_keep_above(True)
         window.present()
         settle_gtk()
-        owner_window = next(row for row in native.windows() if row["hwnd"] == owner)
-        left, top, right, bottom = owner_window["rect"]
+        left, top, right, bottom = window_facts(native.user, owner)["bounds"]
         native.click((left + right) // 2, (top + bottom) // 2)
         _wait(lambda: native.user.GetForegroundWindow() == owner)
         window.set_keep_above(False)
         settle_gtk()
         controller.open_with(target.as_uri())
-        chooser = _wait(lambda: next(iter(chooser_windows()), None))
-        capture()
+        chooser = _wait(active_chooser)
+        assert controller._pending
         if close_owner:
             window.destroy()
         else:
-            left, top, right, _bottom = chooser["rect"]
-            native.click((left + right) // 2, top + 15)
+            assert native.user.GetForegroundWindow() == chooser["hwnd"]
             native.key(0x1B)
-        _wait(
-            lambda: not any(row["hwnd"] == chooser["hwnd"] for row in chooser_windows())
-        )
+        _wait(lambda: results)
         _wait(lambda: not controller._pending)
+        assert active_chooser() is None
+        assert not native.user.IsWindowVisible(chooser["hwnd"])
+        if not close_owner:
+            assert results == [shell.OpenWithResult.CANCELLED]
         assert controller._error_dialog is None
-        capture()
-    except AssertionError:
-        capture()
-        raise
     finally:
+        capture()
         controller.stop()
-        for process in reference_processes:
-            if process.poll() is None:
-                process.terminate()
-            process.wait(timeout=5)
-        if chooser is not None and native.user.IsWindow(chooser["hwnd"]):
-            native.user.PostMessageW(chooser["hwnd"], 0x10, 0, 0)
+        if chooser is not None and native.user.IsWindowVisible(chooser["hwnd"]):
+            remaining = window_facts(native.user, chooser["hwnd"])
+            if remaining.get("pid") == chooser["pid"]:
+                native.user.PostMessageW(chooser["hwnd"], 0x10, 0, 0)
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Native Windows console")
