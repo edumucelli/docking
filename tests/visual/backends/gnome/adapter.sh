@@ -16,6 +16,7 @@ adapter_prepare() {
     gsettings set org.gnome.desktop.notifications show-banners false
     if gnome-shell --help | grep -q -- '--nested'; then
         GNOME_LAB_MODE=nested
+        export LAB_CAPTURE_MODE=x11
     else
         GNOME_LAB_MODE=headless
         export LAB_CAPTURE_MODE=gnome

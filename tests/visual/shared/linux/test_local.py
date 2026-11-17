@@ -111,7 +111,7 @@ def test_gnome_adapter_preserves_nested_and_supports_headless(tmp_path, nested):
             **os.environ,
             "PATH": f"{tmp_path}:{os.environ['PATH']}",
             "LAB_DIR": str(tmp_path),
-            "LAB_CAPTURE_MODE": "x11",
+            "LAB_CAPTURE_MODE": "wayland",
             "compositor": "gnome-fallback",
             "DBUS_SESSION_BUS_ADDRESS": "private-test-bus",
         },
