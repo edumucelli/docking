@@ -9,6 +9,7 @@ import sys
 import time
 import traceback
 import types
+from contextlib import ExitStack
 from pathlib import Path
 
 # Choose Cinnamon's dock transport before importing GTK, as the launcher does.
@@ -62,15 +63,27 @@ def dock_marker_points(image, bounds):
     return largest if width >= 32 and height >= 32 else set()
 
 
-def fixture():
-    GLib.set_prgname("lab-native")
-    window = Gtk.Window(title="Native backend fixture")
+def fixture(*, transparent=False):
+    import cairo
+
+    GLib.set_prgname("lab-scene" if transparent else "lab-native")
+    window = Gtk.Window(
+        title="Quiet scene fixture" if transparent else "Native backend fixture"
+    )
     window.set_decorated(False)
     window.set_default_size(1280, 720)
+    if transparent:
+        window.set_app_paintable(True)
+        visual = window.get_screen().get_rgba_visual()
+        assert visual is not None, "Transparent scene fixture requires an RGBA visual"
+        window.set_visual(visual)
     area = Gtk.DrawingArea()
 
     def draw(_widget, cr):
-        cr.set_source_rgb(1, 0, 0)
+        if transparent:
+            cr.set_operator(cairo.OPERATOR_CLEAR)
+        else:
+            cr.set_source_rgb(1, 0, 0)
         cr.paint()
         return False
 
@@ -98,6 +111,7 @@ class Probe:
         self.window, self.backend, self.position = window, backend, position
         self.evidence = Path(os.environ["LAB_DIR"])
         self.child = None
+        self.scene_child = None
 
     @types.coroutine
     def settle(self, seconds=0.2):
@@ -165,7 +179,9 @@ class Probe:
         offset = point[1] * image.get_rowstride() + point[0] * image.get_n_channels()
         return tuple(image.get_pixels()[offset : offset + 3])
 
-    async def wait_for_marker_pixels(self, points, *, phase, present):
+    async def wait_for_marker_pixels(
+        self, points, *, phase, present, color=b"\x00\x00\xff"
+    ):
         painted = len(points)
         deadline = time.monotonic() + 8
         while True:
@@ -175,7 +191,7 @@ class Probe:
             changed = sum(
                 (
                     data[y * stride + x * channels : y * stride + x * channels + 3]
-                    == b"\x00\x00\xff"
+                    == color
                 )
                 is present
                 for x, y in points
@@ -185,6 +201,9 @@ class Probe:
 
     async def run(self):
         assert self.backend.name == os.environ["LAB_EXPECTED_BACKEND"]
+        if os.environ.get("LAB_SERVICE_MODE") == "quiet":
+            await self.check_quiet()
+            return
         if self.position == "idle":
             assert self.backend.capabilities.supports_idle_time
             assert self.backend.idle is not None
@@ -377,6 +396,115 @@ class Probe:
         )
         print(json.dumps(result), flush=True)
 
+    async def check_quiet(self):
+        if os.environ.get("LAB_COMPOSITOR") == "phosh":
+            # Keep a clear client alive so Phosh does not reopen Overview.
+            self.scene_child = subprocess.Popen(
+                [sys.executable, __file__, "--fixture", "--transparent"]
+            )
+            await self.wait(
+                lambda: any(
+                    row.title == "Quiet scene fixture"
+                    for row in self.backend.windows.list_all_windows()
+                ),
+                "Transparent scene fixture did not map",
+            )
+            row = next(
+                row
+                for row in self.backend.windows.list_all_windows()
+                if row.title == "Quiet scene fixture"
+            )
+            assert self.backend.windows.activate(row.id).succeeded
+        if self.backend.name == "gnome-shell-bridge":
+            # GNOME starts in Overview. Activate an owned client to leave it.
+            self.child = subprocess.Popen([sys.executable, __file__, "--fixture"])
+            await self.wait(
+                lambda: any(
+                    row.title == "Native backend fixture"
+                    for row in self.backend.windows.list_all_windows()
+                ),
+                "Overview fixture did not map",
+            )
+            row = next(
+                row
+                for row in self.backend.windows.list_all_windows()
+                if row.title == "Native backend fixture"
+            )
+            assert self.backend.windows.activate(row.id).succeeded
+            await self.settle(0.5)
+            self.child.terminate()
+            await self.wait(
+                lambda: self.child.poll() is not None, "Fixture did not exit"
+            )
+        deadline = time.monotonic() + 8
+        while True:
+            initial = await self.capture("quiet-uncovered")
+            points = dock_marker_points(
+                initial, (0, 0, initial.get_width(), initial.get_height())
+            )
+            if len(points) >= 32 or time.monotonic() >= deadline:
+                break
+        assert len(points) >= 32, "Quiet dock is not visible above the desktop"
+        self.child = subprocess.Popen([sys.executable, __file__, "--fixture"])
+        await self.wait(
+            lambda: any(
+                row.title == "Native backend fixture"
+                for row in self.backend.windows.list_all_windows()
+            ),
+            "Fixture did not map",
+        )
+        bounds = next(
+            (
+                row.geometry
+                for row in self.backend.windows.list_all_windows()
+                if row.title == "Native backend fixture" and row.geometry is not None
+            ),
+            None,
+        )
+        if bounds is not None:
+            points = {
+                (x, y)
+                for x, y in points
+                if bounds.x <= x < bounds.right and bounds.y <= y < bounds.bottom
+            }
+        assert len(points) >= 32, "Fixture does not cover the dock marker"
+        assert self.window.config.hide_mode == "quiet", (
+            "Probe did not start in Quiet mode"
+        )
+        count, _ = await self.wait_for_marker_pixels(
+            points, phase="quiet-startup-covered", present=True, color=b"\xff\x00\x00"
+        )
+        assert count >= len(points) * 0.98, ("startup", count, len(points))
+        assert self.window.autohide.hide_offset == 0
+        for mode, visible in (
+            ("quiet", False),
+            ("always-on-top", True),
+            ("quiet", False),
+        ):
+            self.window.config.hide_mode = mode
+            self.window.on_hide_mode_changed()
+            self.window.autohide.on_mouse_enter()
+            self.window.autohide.on_mouse_leave()
+            expected = b"\x00\x00\xff" if visible else b"\xff\x00\x00"
+            count, _ = await self.wait_for_marker_pixels(
+                points, phase=f"stacking-{mode}", present=True, color=expected
+            )
+            assert count >= len(points) * 0.98, (mode, count, len(points))
+            assert self.window.autohide.hide_offset == 0
+        self.child.terminate()
+        await self.wait(lambda: self.child.poll() is not None, "Fixture did not exit")
+        count, _ = await self.wait_for_marker_pixels(
+            points, phase="quiet-restored", present=True
+        )
+        assert count >= len(points) * 0.98, "Quiet dock stayed behind the desktop"
+        result = {
+            "backend": self.backend.name,
+            "position": self.position,
+            "quiet_pixels": True,
+        }
+        (self.evidence / f"{self.position}-result.json").write_text(json.dumps(result))
+        print(json.dumps(result), flush=True)
+
     async def check_workspace(self, fixture_window):
         workspaces = self.backend.workspaces
         assert workspaces is not None
@@ -434,14 +562,16 @@ class Probe:
         )
 
     def close(self):
-        if self.child is not None:
-            self.child.terminate()
-            self.child.wait(timeout=3)
+        with ExitStack() as cleanup:
+            for child in (self.child, self.scene_child):
+                if child is not None:
+                    cleanup.callback(child.wait, timeout=3)
+                    child.terminate()
 
 
 def main():
     if "--fixture" in sys.argv:
-        fixture()
+        fixture(transparent="--transparent" in sys.argv)
         return
     if "--capture-x11" in sys.argv:
         root = Gdk.get_default_root_window()
@@ -493,8 +623,13 @@ def main():
             except Exception:
                 failures.append(traceback.format_exc())
                 print(failures[-1], flush=True)
-            probe.close()
-            Gtk.main_quit()
+            try:
+                probe.close()
+            except Exception:
+                failures.append(traceback.format_exc())
+                print(failures[-1], flush=True)
+            finally:
+                Gtk.main_quit()
             return False
 
         GLib.timeout_add(1000, run)

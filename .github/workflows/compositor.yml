@@ -106,6 +106,16 @@ jobs:
           elif [ "$COMPOSITOR" = niri ]; then
             bash tests/visual/shared/linux/native_services.sh niri picker
           fi
+      - name: Check Quiet stacking on all four edges
+        if: contains(fromJSON('["sway","cinnamon","niri","gnome","wayfire","phoc","phosh"]'), matrix.name)
+        env:
+          DOCKING_LAB_IMAGE: docking-ci:${{ matrix.name }}
+          COMPOSITOR: ${{ matrix.name }}
+        run: |
+          bash tests/visual/shared/linux/native_services.sh "$COMPOSITOR" quiet
+          if [ "$COMPOSITOR" = cinnamon ]; then
+            bash tests/visual/shared/linux/native_services.sh cinnamon quiet-x11
+          fi
       - name: Upload captures, geometry, input proof and logs
         if: always()
         uses: actions/upload-artifact@v7

@@ -372,7 +372,9 @@ class DockWindow(Gtk.Window):
         self.set_decorated(False)
         self.set_app_paintable(True)
         self.set_resizable(False)
-        self.surface_service.configure_before_realize(self)
+        self.surface_service.configure_before_realize(
+            self, keep_above=self.config.hide_mode != "quiet"
+        )
         self.surface_service.set_workspace_scope(
             current_workspace_only=self.config.current_workspace_only
         )
@@ -583,6 +585,7 @@ class DockWindow(Gtk.Window):
             self.autohide.set_hovered(self.is_pointer_inside_dock())
             self.autohide.reconcile()
 
+        self.placement.position_dock()
         self.placement.update_struts()
         self.update_input_region()
         self.queue_redraw()

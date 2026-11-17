@@ -51,7 +51,7 @@ from tests.platform.application_fakes import identity_services
 def _layer_shell() -> SimpleNamespace:
     return SimpleNamespace(
         Edge=SimpleNamespace(TOP="top", BOTTOM="bottom", LEFT="left", RIGHT="right"),
-        Layer=SimpleNamespace(TOP="top-layer"),
+        Layer=SimpleNamespace(TOP="top-layer", BOTTOM="bottom-layer"),
         KeyboardMode=SimpleNamespace(NONE="no-keyboard"),
         init_for_window=MagicMock(),
         set_namespace=MagicMock(),
@@ -412,11 +412,14 @@ def test_position_or_anchor_maps_placement_to_layer_shell():
 
 
 @pytest.mark.parametrize("position", list(Position))
-def test_gamescope_uses_full_output_overlay_for_every_edge(monkeypatch, position):
+@pytest.mark.parametrize("keep_above", [True, False])
+def test_gamescope_uses_full_output_overlay_for_every_edge(
+    monkeypatch, position, keep_above
+):
     monkeypatch.setenv("GAMESCOPE_WAYLAND_DISPLAY", "gamescope-0")
     layer_shell, window = _layer_shell(), MagicMock()
     service = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=keep_above)
     service.position_or_anchor(
         PlacementRequest(
             monitor=_monitor_snapshot(),
@@ -426,7 +429,11 @@ def test_gamescope_uses_full_output_overlay_for_every_edge(monkeypatch, position
             size=Size(800, 163)
             if position in (Position.TOP, Position.BOTTOM)
             else Size(163, 600),
+            keep_above=keep_above,
         )
+    )
+    layer_shell.set_layer.assert_called_with(
+        window, "top-layer" if keep_above else "bottom-layer"
     )
     window.set_size_request.assert_called_once_with(
         -1 if position in (Position.TOP, Position.BOTTOM) else 800,

@@ -35,6 +35,7 @@ from docking.platform.backends.base import (
     WindowId,
     WorkspaceSnapshot,
 )
+from docking.platform.backends.gtk_surface import apply_dock_stacking
 from docking.platform.backends.reduced.services import ReducedSurfaceService
 from docking.platform.backends.x11.services.surface import X11SurfaceService
 
@@ -467,6 +468,31 @@ class CinnamonShellClient:
             "guards[key] = {actor, window:w, visible, unmanaged}; }}"
             f"w.{'unstick' if current_workspace_only else 'stick'}();"
             f"w.{'make_above' if request.keep_above else 'unmake_above'}();"
+            # Muffin has no native Wayland keep-below request. Keep only the
+            # dock actor below applications, above desktop actors.
+            "const stacks = global._dockingDockStacks ||= {};"
+            f"const keepAbove = {json.dumps(request.keep_above)};"
+            "if (keepAbove) {stacks[key]?.clear();}"
+            "else if (!stacks[key]) {"
+            "const owned = {source:0}; stacks[key] = owned;"
+            "owned.restack = () => {if (owned.source) return;"
+            "owned.source = imports.gi.GLib.idle_add("
+            "imports.gi.GLib.PRIORITY_HIGH, () => {"
+            "owned.source = 0; if (!w.get_workspace()) return false;"
+            "const actor = w.get_compositor_private(), parent = actor?.get_parent();"
+            "if (parent) {const sibling = parent.get_children().find(child =>"
+            "child !== actor && child.meta_window?.get_workspace() &&"
+            "child.meta_window.get_window_type() !== "
+            "imports.gi.Meta.WindowType.DESKTOP);"
+            "if (sibling) parent.set_child_below_sibling(actor, sibling);}"
+            "return false;});};"
+            "owned.clear = () => {global.display.disconnect(owned.signal);"
+            "w.disconnect(owned.unmanaged);"
+            "if (owned.source) imports.gi.GLib.source_remove(owned.source);"
+            "delete stacks[key];};"
+            "owned.signal = global.display.connect('restacked', owned.restack);"
+            "owned.unmanaged = w.connect('unmanaged', owned.clear);}"
+            "stacks[key]?.restack();"
             # A later GTK configure can move the dock into its own strut after
             # the startup retries have finished. Keep the compositor position
             # attached to the requested anchor throughout the dock's lifetime.
@@ -504,6 +530,7 @@ class CinnamonShellClient:
             "const positions = global._dockingDockPositions, pinned = positions?.[key];"
             "if (pinned) { pinned.window.disconnect(pinned.signal);"
             "pinned.window.disconnect(pinned.unmanaged); delete positions[key];}"
+            "global._dockingDockStacks?.[key]?.clear();"
             "return true;})()"
         )
 
@@ -592,6 +619,8 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
         window = self._window
         if window is None:
             return
+        self._keep_above = request.keep_above
+        apply_dock_stacking(window, keep_above=request.keep_above)
         for method_name in ("set_size_request", "resize"):
             method = getattr(window, method_name, None)
             if callable(method):

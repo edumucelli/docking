@@ -123,10 +123,12 @@ class GnomeShellBridgeClient:
     def close(self, bridge_id: int) -> bool:
         return self._call_window_action("Close", bridge_id)
 
-    def position_dock(self, x: int, y: int, width: int, height: int) -> bool:
+    def position_dock(
+        self, x: int, y: int, width: int, height: int, *, keep_above: bool = True
+    ) -> bool:
         """Ask the GNOME Shell extension to position the dock window via Mutter."""
         result = self._call(
-            "PositionDock",
+            "PositionDock" if keep_above else "PositionQuietDock",
             GLib.Variant("(iiii)", (x, y, width, height)),
         )
         return bool(result.unpack()[0]) if result is not None else False
@@ -705,6 +707,7 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
     def __init__(self, *, bridge: GnomeShellBridgeClient) -> None:
         self._bridge = bridge
         self._window: object | None = None
+        self._keep_above = True
         self._position_retry_source_id: int = 0
         self._position_retry_attempts_remaining: int = 0
         self._latest_position_request: PlacementRequest | None = None
@@ -750,18 +753,22 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
             return self._surface_x, self._surface_y
         return None
 
-    def configure_before_realize(self, window: object) -> None:
+    def configure_before_realize(
+        self, window: object, *, keep_above: bool = True
+    ) -> None:
         self._window = window
-        _apply_dock_window_hints(window)
+        self._keep_above = keep_above
+        _apply_dock_window_hints(window, keep_above=keep_above)
 
     def on_realize(self, window: object) -> None:
         self._window = window
-        _apply_dock_window_hints(window)
+        _apply_dock_window_hints(window, keep_above=self._keep_above)
 
     def position_or_anchor(self, request: PlacementRequest) -> None:
         window = self._window
         if window is None:
             return
+        self._keep_above = request.keep_above
         _call_method(
             window, "set_size_request", request.size.width, request.size.height
         )
@@ -830,7 +837,11 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
         self._surface_y = request.y
         return bool(
             self._bridge.position_dock(
-                request.x, request.y, request.size.width, request.size.height
+                request.x,
+                request.y,
+                request.size.width,
+                request.size.height,
+                keep_above=request.keep_above,
             )
         )
 
@@ -838,13 +849,14 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
 # -- surface helpers (mirror reduced/services.py) ----------------------------
 
 
-def _apply_dock_window_hints(window: object) -> None:
+def _apply_dock_window_hints(window: object, *, keep_above: bool = True) -> None:
     _call_method(window, "set_skip_taskbar_hint", True)
     _call_method(window, "set_skip_pager_hint", True)
     _call_method(window, "set_accept_focus", False)
     _call_method(window, "set_focus_on_map", False)
     _call_method(window, "stick")
-    _call_method(window, "set_keep_above", True)
+    _call_method(window, "set_keep_above", keep_above)
+    _call_method(window, "set_keep_below", not keep_above)
     _set_dock_type_hint(window)
 
 

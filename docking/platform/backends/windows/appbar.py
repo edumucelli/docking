@@ -244,6 +244,61 @@ class WindowsAppBar:
             self._set_position(hwnd, -1, 0, 0, 0, 0, 0x13)
         return False
 
+    def ensure_keep_below(self, window: Gdk.Window) -> bool:
+        """Keep the dock behind applications, immediately above Explorer's desktop."""
+        if self._closed or not (hwnd := window_handle(window)):
+            return False
+        handles: list[int] = []
+        callback_type = windows_ctypes.WINFUNCTYPE(
+            wintypes.BOOL, wintypes.HWND, wintypes.LPARAM
+        )
+        callback = callback_type(lambda handle, _data: handles.append(handle) or True)
+        if not _bind(
+            self._user, "EnumWindows", wintypes.BOOL, callback_type, wintypes.LPARAM
+        )(callback, 0):
+            return False
+        visible = _bind(self._user, "IsWindowVisible", wintypes.BOOL, wintypes.HWND)
+        iconic = _bind(self._user, "IsIconic", wintypes.BOOL, wintypes.HWND)
+        style = _bind(
+            self._user,
+            "GetWindowLongPtrW",
+            ctypes.c_ssize_t,
+            wintypes.HWND,
+            ctypes.c_int,
+        )
+        class_name = _bind(
+            self._user,
+            "GetClassNameW",
+            ctypes.c_int,
+            wintypes.HWND,
+            wintypes.LPWSTR,
+            ctypes.c_int,
+        )
+        seen_dock, move = False, False
+        sibling = 0
+        for handle in handles:
+            if handle == hwnd:
+                seen_dock = True
+                continue
+            if not visible(handle) or iconic(handle):
+                continue
+            name = ctypes.create_unicode_buffer(256)
+            if not class_name(handle, name, len(name)):
+                return False
+            if name.value in {"Progman", "WorkerW"}:
+                break
+            if not style(handle, -20) & 8:  # WS_EX_TOPMOST.
+                sibling = handle
+                move |= seen_dock
+        if style(hwnd, -20) & 8:
+            self._set_position(hwnd, -2, 0, 0, 0, 0, 0x13)  # HWND_NOTOPMOST.
+            move = True
+        if move or not seen_dock:
+            # A normal sibling (or HWND_TOP when none exists) stays above the
+            # desktop. HWND_BOTTOM would put the dock behind desktop icons.
+            return bool(self._set_position(hwnd, sibling, 0, 0, 0, 0, 0x13))
+        return True
+
     def fullscreen_active(self, mapping: ScreenMapping) -> bool | None:
         """Read the active monitor cover without changing stacking on unknown data."""
         if self._closed:

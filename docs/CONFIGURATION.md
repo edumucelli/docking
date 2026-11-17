@@ -179,7 +179,7 @@ Middle-click actions behave as follows:
 | Setting | Default | Values | Description |
 |---|---:|---|---|
 | `dock_shortcut` | `""` | captured shortcut | Shortcut used by Show Only with Shortcut mode; assign one in Preferences before enabling the mode. |
-| `hide_mode` | `"none"` | see below | Controls when the dock hides and whether it reserves screen space. |
+| `hide_mode` | `"none"` | see below | Controls hiding, window stacking, and screen-space reservation. |
 | `hide_delay_ms` | `0` | integer, minimum `0` | Wait before hiding after the pointer leaves. |
 | `unhide_delay_ms` | `0` | integer, minimum `0` | Wait before showing after the pointer returns. |
 | `hide_time_ms` | `250` | integer, minimum `0` | Hide and show slide-animation duration. This is currently file-only. |
@@ -191,6 +191,14 @@ Hide modes:
 - `none` keeps the dock visible and reserves screen space for it.
 - `always-on-top` keeps the dock visible above windows without reserving screen
   space.
+- `quiet` keeps the dock above the desktop and below application windows,
+  without reserving screen space. Minimize, resize, or shade a covering window
+  to use the dock. Edge hover, pointer pressure, and the dock shortcut do not
+  bring it forward. Hide delays and pressure settings are retained but inactive.
+  Choose **Quiet (Below Windows)** in **Preferences -> Behavior**. On GNOME
+  Wayland, reinstall the bundled Shell bridge and restart the session after
+  upgrading an older bridge. Reduced integration can only request GTK stacking
+  hints; the compositor decides whether to honor them.
 - `autohide` hides the dock whenever the pointer leaves it.
 - `shortcut-only` keeps the dock hidden until its shortcut is pressed. It waits
   for the pointer to enter, then hides after the pointer leaves; pressing the

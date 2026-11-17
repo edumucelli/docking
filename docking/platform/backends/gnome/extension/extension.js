@@ -42,6 +42,13 @@ const INTROSPECTION_XML = `
       <arg name="height" type="i" direction="in"/>
       <arg name="ok" type="b" direction="out"/>
     </method>
+    <method name="PositionQuietDock">
+      <arg name="x" type="i" direction="in"/>
+      <arg name="y" type="i" direction="in"/>
+      <arg name="width" type="i" direction="in"/>
+      <arg name="height" type="i" direction="in"/>
+      <arg name="ok" type="b" direction="out"/>
+    </method>
     <method name="CaptureWindow">
       <arg name="id" type="u" direction="in"/>
       <arg name="width" type="i" direction="in"/>
@@ -73,10 +80,13 @@ export default class DockingBridgeExtension extends Extension {
     this._signals = [];
     this._dockConfigured = false;
     this._configuredDockWindow = null;
+    this._dockKeepAbove = true;
+    this._dockStackSourceId = 0;
     this._dockConfigureTimerId = 0;
     this._changedSourceId = 0;
     this._connect(global.display, "window-created", () => this._queueChanged());
     this._connect(global.display, "notify::focus-window", () => this._queueChanged());
+    this._connect(global.display, "restacked", () => this._queueDockStack());
     this._connect(global.workspace_manager, "workspace-switched", () => this._queueChanged());
     this._connect(Main.overview, "showing", () => this._queueChanged());
     this._connect(Main.overview, "hidden", () => this._queueChanged());
@@ -115,6 +125,10 @@ export default class DockingBridgeExtension extends Extension {
   }
 
   disable() {
+    if (this._dockStackSourceId) {
+      GLib.source_remove(this._dockStackSourceId);
+      this._dockStackSourceId = 0;
+    }
     if (this._dockConfigureTimerId) {
       GLib.source_remove(this._dockConfigureTimerId);
       this._dockConfigureTimerId = 0;
@@ -225,16 +239,27 @@ export default class DockingBridgeExtension extends Extension {
   }
 
   PositionDock(x, y, width, height) {
+    return this._positionDock(x, y, width, height, true);
+  }
+
+  PositionQuietDock(x, y, width, height) {
+    return this._positionDock(x, y, width, height, false);
+  }
+
+  _positionDock(x, y, width, height, keepAbove) {
     const win = this._findDockWindow();
     if (!win)
       return false;
-    if (!this._dockConfigured || this._configuredDockWindow !== win) {
+    if (!this._dockConfigured || this._configuredDockWindow !== win ||
+        this._dockKeepAbove !== keepAbove) {
+      this._dockKeepAbove = keepAbove;
       this._configureDockWindow(win);
       this._dockConfigured = true;
       this._configuredDockWindow = win;
     }
     // gravity 0 = NORTH_WEST: (x,y) is the top-left corner
     win.move_resize_frame(0, x, y, width, height);
+    this._queueDockStack();
     return true;
   }
 
@@ -247,8 +272,6 @@ export default class DockingBridgeExtension extends Extension {
       win.set_skip_taskbar(true);
     if (typeof win.hide_from_window_list === "function")
       win.hide_from_window_list();
-    if (typeof win.make_above === "function")
-      win.make_above();
   }
 
   _configureDockWindow(win) {
@@ -257,6 +280,32 @@ export default class DockingBridgeExtension extends Extension {
     this._hideDockFromSwitcher(win);
     if (typeof win.set_type === "function")
       win.set_type(Meta.WindowType.DOCK);
+    if (this._dockKeepAbove)
+      win.make_above();
+    else
+      win.unmake_above();
+  }
+
+  _queueDockStack() {
+    if (this._dockKeepAbove || this._dockStackSourceId)
+      return;
+    // Mutter has no Wayland keep-below request; restore the actor order before drawing.
+    this._dockStackSourceId = GLib.idle_add(GLib.PRIORITY_HIGH, () => {
+      this._dockStackSourceId = 0;
+      const win = this._configuredDockWindow;
+      if (this._dockKeepAbove || !win?.get_workspace())
+        return GLib.SOURCE_REMOVE;
+      const actor = win.get_compositor_private();
+      const parent = actor?.get_parent();
+      if (parent) {
+        const sibling = parent.get_children().find(child =>
+          child !== actor && child.meta_window?.get_workspace() &&
+          child.meta_window.get_window_type() !== Meta.WindowType.DESKTOP);
+        if (sibling)
+          parent.set_child_below_sibling(actor, sibling);
+      }
+      return GLib.SOURCE_REMOVE;
+    });
   }
 
   CaptureWindow(id, width, height) {

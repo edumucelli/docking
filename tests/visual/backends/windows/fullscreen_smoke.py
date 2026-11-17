@@ -19,6 +19,7 @@ from pathlib import Path
 
 COLOR = (19, 47, 83)
 TITLE = "Docking fullscreen stacking fixture"
+SCENARIOS = ("transition", "startup", "startup-close", "quiet")
 
 
 def fixture(*, fullscreen: bool) -> None:
@@ -162,7 +163,7 @@ def run_scenario(output: Path, scenario: str) -> None:
                 errors.append(AssertionError("Fixture did not exit normally"))
                 report["ok"] = False
 
-    if scenario != "transition":
+    if scenario in ("startup", "startup-close"):
         try:
             launch_fixture()
             native.wait_for(
@@ -309,6 +310,90 @@ def run_scenario(output: Path, scenario: str) -> None:
                         count for count, color in colors if color != COLOR
                     ),
                 }
+
+            if scenario == "quiet":
+                initial = observe()
+                assert not initial["dock_topmost"]
+                assert not initial["stacking"]["reservation_active"]
+                assert native.workarea() == baseline
+                rectangle = initial["clock_rectangle"]
+                point = (
+                    (rectangle[0] + rectangle[2]) // 2,
+                    (rectangle[1] + rectangle[3]) // 2,
+                )
+                assert native.window_at(*point) == dock["hwnd"]
+                launch_fixture()
+                bind(
+                    native.user,
+                    "ShowWindow",
+                    wintypes.BOOL,
+                    wintypes.HWND,
+                    ctypes.c_int,
+                )(
+                    fixture_window()["hwnd"],
+                    3,  # SW_MAXIMIZE, an ordinary window.
+                )
+
+                def set_mode(mode):
+                    window = shared["ui"].window
+                    window.config.hide_mode = mode
+                    window.on_hide_mode_changed()
+
+                def stacked(expected_topmost=False):
+                    state = observe()
+                    return (
+                        state
+                        if state["dock_topmost"] == expected_topmost
+                        and (state["non_fixture_pixels"] > 0) == expected_topmost
+                        and state["foreground"] == state["fixture"]["hwnd"]
+                        else None
+                    )
+
+                report["startup_covered"] = native.wait_for(
+                    stacked, "Quiet dock covered the maximized startup fixture"
+                )
+                ImageGrab.grab(all_screens=True).save(
+                    output / "quiet-startup-covered.png"
+                )
+                for mode, topmost in (
+                    ("quiet", False),
+                    ("always-on-top", True),
+                    ("quiet", False),
+                ):
+                    call(lambda value=mode: set_mode(value))
+
+                    report["cycles"].append(
+                        native.wait_for(
+                            lambda expected=topmost: stacked(expected),
+                            f"Incorrect {mode} stacking",
+                        )
+                    )
+                    if not topmost:
+                        native.click(*point)
+                        assert native.window_at(*point) == fixture_window()["hwnd"]
+                        assert stacked(), "Pointer input raised the quiet dock"
+                native.key(0x7A)  # Enter and leave fullscreen while still quiet.
+                native.wait_for(
+                    lambda: fixture_window()["rect"] == shared["monitor"],
+                    "Quiet fixture did not enter fullscreen",
+                )
+                native.wait_for(stacked, "Quiet dock covered the fullscreen fixture")
+                native.key(0x7A)
+                native.wait_for(
+                    lambda: fixture_window()["rect"] != shared["monitor"],
+                    "Quiet fixture did not leave fullscreen",
+                )
+                native.wait_for(stacked, "Fullscreen recovery raised the quiet dock")
+                native.key(0x73, alt=True)
+                assert child.wait(10) == 0
+                native.wait_for(
+                    lambda: native.window_at(*point) == dock["hwnd"],
+                    "Quiet dock did not return above the desktop",
+                )
+                assert not observe()["dock_topmost"]
+                ImageGrab.grab(all_screens=True).save(output / "quiet-restored.png")
+                report["ok"] = True
+                return
 
             if child is None:
                 report["initial"] = observe()
@@ -476,7 +561,7 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
         "--scenario",
-        choices=("all", "transition", "startup", "startup-close"),
+        choices=("all", *SCENARIOS),
         default="all",
     )
     parser.add_argument("--fixture", action="store_true", help=argparse.SUPPRESS)
@@ -492,7 +577,7 @@ def main() -> None:
     sys.path.insert(0, str(repo))
     if args.scenario == "all" and not args.fixture:
         results = {}
-        for scenario in ("transition", "startup", "startup-close"):
+        for scenario in SCENARIOS:
             with (output / f"{scenario}.log").open("w", encoding="utf-8") as log:
                 result = subprocess.run(
                     [
@@ -513,8 +598,7 @@ def main() -> None:
                 json.dumps(
                     {
                         "scenarios": results,
-                        "ok": results
-                        == {"transition": 0, "startup": 0, "startup-close": 0},
+                        "ok": results == dict.fromkeys(SCENARIOS, 0),
                     },
                     indent=2,
                 )
@@ -536,7 +620,7 @@ def main() -> None:
                         {"kind": "applet", "target": "applet://calculator"},
                     ],
                     "icon_size": 48,
-                    "hide_mode": "none",
+                    "hide_mode": "quiet" if args.scenario == "quiet" else "none",
                     "show_recent_apps": False,
                     "startup_tips_enabled": False,
                     "update_check_enabled": False,
@@ -552,7 +636,7 @@ def main() -> None:
     gi.require_version("Gtk", "3.0")
     gi.require_version("Gdk", "3.0")
     if args.fixture:
-        fixture(fullscreen=args.scenario != "transition")
+        fixture(fullscreen=args.scenario in ("startup", "startup-close"))
         return
     run_scenario(output, args.scenario)
 

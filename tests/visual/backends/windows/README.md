@@ -46,6 +46,9 @@ The fullscreen check verifies native F11 transitions and starting
 the dock during an existing fullscreen application, with pixel coverage,
 foreground retention, restored native stacking, direct Alt+F4 closure and normal
 cleanup of both fullscreen and restoration observers.
+Its Quiet scenario also checks ordinary-window coverage, input passing to that
+window, live mode changes, fullscreen recovery, unchanged workarea, and the dock
+returning above the desktop when the covering window closes.
 The Search input mode checks US/French/Dvorak physical typing and French dead
 keys across a cold metadata refresh, live punctuation bindings, unavailable
 layouts, temporary conflicts and shutdown during retry. It restores the original input preferences and loaded

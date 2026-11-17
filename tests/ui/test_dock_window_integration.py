@@ -1232,7 +1232,8 @@ class TestModelChangedFlow:
 
 
 class TestDockWindowSetupAndGeometry:
-    def test_setup_window_applies_hints_and_connects(self):
+    @pytest.mark.parametrize("mode", ["none", "quiet"])
+    def test_setup_window_applies_hints_and_connects(self, mode):
         # Given
         screen = SimpleNamespace(
             get_rgba_visual=lambda: None,
@@ -1257,7 +1258,7 @@ class TestDockWindowSetupAndGeometry:
             connect=MagicMock(),
             _on_destroy=MagicMock(),
             _on_size_allocate=MagicMock(),
-            config=SimpleNamespace(current_workspace_only=True),
+            config=SimpleNamespace(current_workspace_only=True, hide_mode=mode),
             surface_service=MagicMock(),
             placement=SimpleNamespace(
                 attach_screen_signals=MagicMock(),
@@ -1274,7 +1275,9 @@ class TestDockWindowSetupAndGeometry:
         # Then
         stub.set_title.assert_called_once_with("Docking")
         stub.set_visual.assert_called_once_with("sys-visual")
-        stub.surface_service.configure_before_realize.assert_called_once_with(stub)
+        stub.surface_service.configure_before_realize.assert_called_once_with(
+            stub, keep_above=mode != "quiet"
+        )
         stub.surface_service.set_workspace_scope.assert_called_once_with(
             current_workspace_only=True
         )
@@ -1462,7 +1465,9 @@ class TestDockWindowDrawAndHelpers:
     def test_on_hide_mode_changed_resets_autohide_when_disabled(self):
         stub = SimpleNamespace(
             autohide=_autohide(enabled=False),
-            placement=SimpleNamespace(update_struts=MagicMock()),
+            placement=SimpleNamespace(
+                update_struts=MagicMock(), position_dock=MagicMock()
+            ),
             update_input_region=MagicMock(),
             queue_redraw=MagicMock(),
             dodge_monitor=MagicMock(),
@@ -1474,6 +1479,7 @@ class TestDockWindowDrawAndHelpers:
         stub.autohide.reset.assert_called_once_with()
         stub.autohide.set_hovered.assert_not_called()
         stub.placement.update_struts.assert_called_once_with()
+        stub.placement.position_dock.assert_called_once_with()
         stub.update_input_region.assert_called_once_with()
         stub.queue_redraw.assert_called_once_with()
         stub.dodge_monitor.evaluate_now.assert_called_once_with()
@@ -1481,7 +1487,9 @@ class TestDockWindowDrawAndHelpers:
     def test_on_hide_mode_changed_reconciles_pointer_inside_when_enabled(self):
         stub = SimpleNamespace(
             autohide=_autohide(enabled=True),
-            placement=SimpleNamespace(update_struts=MagicMock()),
+            placement=SimpleNamespace(
+                update_struts=MagicMock(), position_dock=MagicMock()
+            ),
             update_input_region=MagicMock(),
             queue_redraw=MagicMock(),
             dodge_monitor=MagicMock(),
@@ -1498,7 +1506,9 @@ class TestDockWindowDrawAndHelpers:
     def test_on_hide_mode_changed_is_safe_without_dodge_monitor(self):
         stub = SimpleNamespace(
             autohide=_autohide(enabled=True),
-            placement=SimpleNamespace(update_struts=MagicMock()),
+            placement=SimpleNamespace(
+                update_struts=MagicMock(), position_dock=MagicMock()
+            ),
             update_input_region=MagicMock(),
             queue_redraw=MagicMock(),
             dodge_monitor=None,
