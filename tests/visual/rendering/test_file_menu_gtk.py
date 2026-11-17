@@ -300,10 +300,14 @@ def test_portal_receives_selected_fd_even_when_response_precedes_method_reply(
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Native Windows chooser")
-@pytest.mark.parametrize("close_owner", [False, True])
+@pytest.mark.parametrize(
+    "close_owner,unowned", [(False, False), (True, False), (False, True)]
+)
 def test_windows_native_chooser_can_be_cancelled_without_launching(
-    owner_window, tmp_path, close_owner
+    owner_window, tmp_path, close_owner, unowned, monkeypatch
 ):
+    from docking.platform.desktop.implementations.windows import file_actions as windows
+    from docking.platform.native.windows import shell
     from docking.platform.native.windows.ffi import bind, window_handle
     from docking.platform.native.windows.process import read_process_metadata
     from docking.platform.targets import TargetService
@@ -352,12 +356,37 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
     )
     target = tmp_path / "owned file.txt"
     target.write_text("owned fixture")
+    calls = []
+    open_dialog = shell.open_with_dialog
+
+    def observe(path, hwnd):
+        facts = {
+            "owner": hwnd,
+            "target_matches": Path(path) == target,
+            "target_exists": Path(path).is_file(),
+            "extended_path": path.startswith("\\\\?\\"),
+            "path_length": len(path),
+        }
+        calls.append(facts)
+        result = open_dialog(path, hwnd)
+        facts["result"] = result.name
+        return result
+
+    monkeypatch.setattr(shell, "open_with_dialog", observe)
+    if unowned:
+        monkeypatch.setattr(windows, "window_handle", lambda _window: 0)
     service = TargetService(icon_loader=MagicMock(), application_registry=MagicMock())
     controller = FileActionsController(parent=window, target_service=service)
     chooser = None
     report = Path("artifacts/windows/file-actions")
     report.mkdir(parents=True, exist_ok=True)
-    name = "chooser-owner" if close_owner else "chooser-escape"
+    name = (
+        "chooser-unowned"
+        if unowned
+        else "chooser-owner"
+        if close_owner
+        else "chooser-escape"
+    )
 
     def capture():
         facts = {
@@ -365,6 +394,7 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
             "pending": controller._pending,
             "foreground": native.user.GetForegroundWindow(),
             "error_dialog": controller._error_dialog is not None,
+            "calls": calls,
             "windows": [
                 {key: row[key] for key in ("hwnd", "pid", "class", "rect")}
                 | {"owner": get_owner(row["hwnd"], 4)}
