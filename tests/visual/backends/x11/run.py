@@ -16,6 +16,7 @@ import html
 import json
 import os
 import platform
+import re
 import shlex
 import shutil
 import signal
@@ -899,6 +900,10 @@ def observe(args):
                     ["xwininfo", "-root", "-tree"],
                 ):
                     subprocess.run(command, stdout=stream, stderr=stream, check=False)
+                tree = subprocess.run(["xwininfo", "-root", "-tree"], capture_output=True, text=True, check=False)
+                for xid in re.findall(r'^\s*(0x[0-9a-fA-F]+) "(?:panel|Desktop|Error)"', tree.stdout, re.MULTILINE):
+                    subprocess.run(["xwininfo", "-id", xid, "-all"], stdout=stream, stderr=stream, check=False)
+                    subprocess.run(["xprop", "-id", xid], stdout=stream, stderr=stream, check=False)
                 for app in ("lxpanel", "pcmanfm", "lxpolkit"):
                     matches = subprocess.run(["pgrep", "-x", app], capture_output=True, text=True, check=False)
                     for pid in matches.stdout.split():
