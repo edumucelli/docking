@@ -42,7 +42,7 @@ const INTROSPECTION_XML = `
       <arg name="height" type="i" direction="in"/>
       <arg name="ok" type="b" direction="out"/>
     </method>
-    <method name="PositionQuietDock">
+    <method name="PositionAlwaysBehindDock">
       <arg name="x" type="i" direction="in"/>
       <arg name="y" type="i" direction="in"/>
       <arg name="width" type="i" direction="in"/>
@@ -242,7 +242,7 @@ export default class DockingBridgeExtension extends Extension {
     return this._positionDock(x, y, width, height, true);
   }
 
-  PositionQuietDock(x, y, width, height) {
+  PositionAlwaysBehindDock(x, y, width, height) {
     return this._positionDock(x, y, width, height, false);
   }
 

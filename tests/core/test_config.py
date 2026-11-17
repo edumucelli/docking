@@ -1535,12 +1535,15 @@ def test_dock_shortcut_round_trips_without_changing_default_hide_mode(tmp_path):
     assert restored.hide_mode == "none"
 
 
-def test_quiet_mode_round_trips_without_changing_other_preferences(tmp_path):
-    config = Config(hide_mode="quiet", pressure_reveal_enabled=True, hide_delay_ms=80)
+def test_always_behind_mode_round_trips_without_changing_other_preferences(tmp_path):
+    config = Config(
+        hide_mode="always-behind", pressure_reveal_enabled=True, hide_delay_ms=80
+    )
     config._path = tmp_path / "dock.json"
     config.save()
+    assert json.loads(config._path.read_text())["hide_mode"] == "always-behind"
     restored = Config.load(path=config._path)
-    assert restored.hide_mode_enum is HideMode.QUIET
+    assert restored.hide_mode_enum is HideMode.ALWAYS_BEHIND
     assert restored.pressure_reveal_enabled
     assert restored.hide_delay_ms == 80
     assert Config().hide_mode_enum is HideMode.NONE

@@ -1232,7 +1232,7 @@ class TestModelChangedFlow:
 
 
 class TestDockWindowSetupAndGeometry:
-    @pytest.mark.parametrize("mode", ["none", "quiet"])
+    @pytest.mark.parametrize("mode", ["none", "always-behind"])
     def test_setup_window_applies_hints_and_connects(self, mode):
         # Given
         screen = SimpleNamespace(
@@ -1276,7 +1276,7 @@ class TestDockWindowSetupAndGeometry:
         stub.set_title.assert_called_once_with("Docking")
         stub.set_visual.assert_called_once_with("sys-visual")
         stub.surface_service.configure_before_realize.assert_called_once_with(
-            stub, keep_above=mode != "quiet"
+            stub, keep_above=mode != "always-behind"
         )
         stub.surface_service.set_workspace_scope.assert_called_once_with(
             current_workspace_only=True

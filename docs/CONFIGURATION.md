@@ -191,11 +191,11 @@ Hide modes:
 - `none` keeps the dock visible and reserves screen space for it.
 - `always-on-top` keeps the dock visible above windows without reserving screen
   space.
-- `quiet` keeps the dock above the desktop and below application windows,
+- `always-behind` keeps the dock above the desktop and below application windows,
   without reserving screen space. Minimize, resize, or shade a covering window
   to use the dock. Edge hover, pointer pressure, and the dock shortcut do not
   bring it forward. Hide delays and pressure settings are retained but inactive.
-  Choose **Quiet (Below Windows)** in **Preferences -> Behavior**. On GNOME
+  Choose **Always behind** in **Preferences -> Behavior**. On GNOME
   Wayland, reinstall the bundled Shell bridge and restart the session after
   upgrading an older bridge. Reduced integration can only request GTK stacking
   hints; the compositor decides whether to honor them.

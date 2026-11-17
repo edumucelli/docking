@@ -1856,7 +1856,7 @@ class TestSettingsWindowController:
         assert config.hide_mode == "none"
         runtime.on_hide_mode_changed.assert_called_once()
 
-    @pytest.mark.parametrize("mode", ["none", "quiet"])
+    @pytest.mark.parametrize("mode", ["none", "always-behind"])
     def test_binding_sync_updates_dependent_sensitivity(self, monkeypatch, mode):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(
@@ -1878,8 +1878,12 @@ class TestSettingsWindowController:
         assert controller._hide_delay_spin.sensitive is False
         assert controller._unhide_delay_spin.sensitive is False
         assert controller._zoom_percent_spin.sensitive is False
-        if mode == "quiet":
-            assert controller._hide_mode_combo.get_active_id() == "quiet"
+        if mode == "always-behind":
+            assert controller._hide_mode_combo.get_active_id() == "always-behind"
+            assert (
+                "always-behind",
+                settings_mod._("Always behind"),
+            ) in controller._hide_mode_combo.items
             assert not controller._pressure_reveal_switch.sensitive
             assert not controller._pressure_threshold_scale.sensitive
 
