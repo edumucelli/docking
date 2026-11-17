@@ -322,7 +322,7 @@ class HideMode(str, Enum):
                     avoid the dock area.
     ALWAYS_ON_TOP   Never hides, but does not reserve struts - maximized
                     windows fill the full screen and the dock floats above.
-    QUIET           Stays above the desktop and below application windows,
+    ALWAYS_BEHIND   Stays above the desktop and below application windows,
                     without hiding, reserving space, or revealing on hover.
     AUTOHIDE        Hides when the mouse leaves the dock area.
     SHORTCUT_ONLY   Reveals by shortcut, then hides after pointer use.
@@ -345,7 +345,7 @@ class HideMode(str, Enum):
 
     NONE = "none"
     ALWAYS_ON_TOP = "always-on-top"
-    QUIET = "quiet"
+    ALWAYS_BEHIND = "always-behind"
     AUTOHIDE = "autohide"
     SHORTCUT_ONLY = "shortcut-only"
     INTELLIGENT = "intelligent"

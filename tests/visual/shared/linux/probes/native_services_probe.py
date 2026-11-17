@@ -68,7 +68,7 @@ def fixture(*, transparent=False):
 
     GLib.set_prgname("lab-scene" if transparent else "lab-native")
     window = Gtk.Window(
-        title="Quiet scene fixture" if transparent else "Native backend fixture"
+        title="Always behind scene fixture" if transparent else "Native backend fixture"
     )
     window.set_decorated(False)
     window.set_default_size(1280, 720)
@@ -201,8 +201,8 @@ class Probe:
 
     async def run(self):
         assert self.backend.name == os.environ["LAB_EXPECTED_BACKEND"]
-        if os.environ.get("LAB_SERVICE_MODE") == "quiet":
-            await self.check_quiet()
+        if os.environ.get("LAB_SERVICE_MODE") == "always-behind":
+            await self.check_always_behind()
             return
         if self.position == "idle":
             assert self.backend.capabilities.supports_idle_time
@@ -396,7 +396,7 @@ class Probe:
         )
         print(json.dumps(result), flush=True)
 
-    async def check_quiet(self):
+    async def check_always_behind(self):
         if os.environ.get("LAB_COMPOSITOR") == "phosh":
             # Keep a clear client alive so Phosh does not reopen Overview.
             self.scene_child = subprocess.Popen(
@@ -404,7 +404,7 @@ class Probe:
             )
             await self.wait(
                 lambda: any(
-                    row.title == "Quiet scene fixture"
+                    row.title == "Always behind scene fixture"
                     for row in self.backend.windows.list_all_windows()
                 ),
                 "Transparent scene fixture did not map",
@@ -412,7 +412,7 @@ class Probe:
             row = next(
                 row
                 for row in self.backend.windows.list_all_windows()
-                if row.title == "Quiet scene fixture"
+                if row.title == "Always behind scene fixture"
             )
             assert self.backend.windows.activate(row.id).succeeded
         if self.backend.name == "gnome-shell-bridge":
@@ -438,13 +438,13 @@ class Probe:
             )
         deadline = time.monotonic() + 8
         while True:
-            initial = await self.capture("quiet-uncovered")
+            initial = await self.capture("always-behind-uncovered")
             points = dock_marker_points(
                 initial, (0, 0, initial.get_width(), initial.get_height())
             )
             if len(points) >= 32 or time.monotonic() >= deadline:
                 break
-        assert len(points) >= 32, "Quiet dock is not visible above the desktop"
+        assert len(points) >= 32, "Always behind dock is not visible above the desktop"
         self.child = subprocess.Popen([sys.executable, __file__, "--fixture"])
         await self.wait(
             lambda: any(
@@ -468,18 +468,21 @@ class Probe:
                 if bounds.x <= x < bounds.right and bounds.y <= y < bounds.bottom
             }
         assert len(points) >= 32, "Fixture does not cover the dock marker"
-        assert self.window.config.hide_mode == "quiet", (
-            "Probe did not start in Quiet mode"
+        assert self.window.config.hide_mode == "always-behind", (
+            "Probe did not start in Always behind mode"
         )
         count, _ = await self.wait_for_marker_pixels(
-            points, phase="quiet-startup-covered", present=True, color=b"\xff\x00\x00"
+            points,
+            phase="always-behind-startup-covered",
+            present=True,
+            color=b"\xff\x00\x00",
         )
         assert count >= len(points) * 0.98, ("startup", count, len(points))
         assert self.window.autohide.hide_offset == 0
         for mode, visible in (
-            ("quiet", False),
+            ("always-behind", False),
             ("always-on-top", True),
-            ("quiet", False),
+            ("always-behind", False),
         ):
             self.window.config.hide_mode = mode
             self.window.on_hide_mode_changed()
@@ -494,13 +497,15 @@ class Probe:
         self.child.terminate()
         await self.wait(lambda: self.child.poll() is not None, "Fixture did not exit")
         count, _ = await self.wait_for_marker_pixels(
-            points, phase="quiet-restored", present=True
+            points, phase="always-behind-restored", present=True
         )
-        assert count >= len(points) * 0.98, "Quiet dock stayed behind the desktop"
+        assert count >= len(points) * 0.98, (
+            "Always behind dock stayed behind the desktop"
+        )
         result = {
             "backend": self.backend.name,
             "position": self.position,
-            "quiet_pixels": True,
+            "always_behind_pixels": True,
         }
         (self.evidence / f"{self.position}-result.json").write_text(json.dumps(result))
         print(json.dumps(result), flush=True)

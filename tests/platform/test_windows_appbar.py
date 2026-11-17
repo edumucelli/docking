@@ -19,7 +19,7 @@ from docking.platform.desktop.implementations.windows.geometry import (
 
 
 @pytest.fixture
-def quiet_stack(monkeypatch):
+def always_behind_stack(monkeypatch):
     monkeypatch.setattr(
         appbar.windows_ctypes, "WINFUNCTYPE", ctypes.CFUNCTYPE, raising=False
     )
@@ -60,10 +60,10 @@ def quiet_stack(monkeypatch):
         ([100, 30], None),
     ],
 )
-def test_quiet_dock_stays_below_applications_and_above_desktop(
-    quiet_stack, handles, sibling
+def test_always_behind_dock_stays_below_applications_and_above_desktop(
+    always_behind_stack, handles, sibling
 ):
-    bar, state = quiet_stack
+    bar, state = always_behind_stack
     state["handles"] = handles
     assert bar.ensure_keep_below(Mock())
     if sibling is None:
@@ -72,8 +72,10 @@ def test_quiet_dock_stays_below_applications_and_above_desktop(
         bar._set_position.assert_called_once_with(100, sibling, 0, 0, 0, 0, 0x13)
 
 
-def test_quiet_stacking_never_inherits_topmost_from_an_application(quiet_stack):
-    bar, state = quiet_stack
+def test_always_behind_stacking_never_inherits_topmost_from_an_application(
+    always_behind_stack,
+):
+    bar, state = always_behind_stack
     state["topmost"] = {20, 100}
     assert bar.ensure_keep_below(Mock())
     assert bar._set_position.call_args_list == [
@@ -82,16 +84,18 @@ def test_quiet_stacking_never_inherits_topmost_from_an_application(quiet_stack):
     ]
 
 
-def test_quiet_stacking_ignores_hidden_applications(quiet_stack):
-    bar, state = quiet_stack
+def test_always_behind_stacking_ignores_hidden_applications(always_behind_stack):
+    bar, state = always_behind_stack
     state["hidden"] = {20}
     assert bar.ensure_keep_below(Mock())
     bar._set_position.assert_not_called()
 
 
 @pytest.mark.parametrize("failure", ["closed", "enumeration", "class-name"])
-def test_quiet_stacking_leaves_unknown_native_state_unchanged(quiet_stack, failure):
-    bar, _state = quiet_stack
+def test_always_behind_stacking_leaves_unknown_native_state_unchanged(
+    always_behind_stack, failure
+):
+    bar, _state = always_behind_stack
     if failure == "closed":
         bar._closed = True
     elif failure == "enumeration":

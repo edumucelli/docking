@@ -1,4 +1,4 @@
-"""Quiet stacking survives realization and reverses when another mode is selected."""
+"""Always behind stacking survives realization and reverses when another mode is selected."""
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call

@@ -373,7 +373,7 @@ class DockWindow(Gtk.Window):
         self.set_app_paintable(True)
         self.set_resizable(False)
         self.surface_service.configure_before_realize(
-            self, keep_above=self.config.hide_mode != "quiet"
+            self, keep_above=self.config.hide_mode != "always-behind"
         )
         self.surface_service.set_workspace_scope(
             current_workspace_only=self.config.current_workspace_only

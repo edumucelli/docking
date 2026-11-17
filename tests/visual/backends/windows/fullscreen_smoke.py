@@ -19,7 +19,7 @@ from pathlib import Path
 
 COLOR = (19, 47, 83)
 TITLE = "Docking fullscreen stacking fixture"
-SCENARIOS = ("transition", "startup", "startup-close", "quiet")
+SCENARIOS = ("transition", "startup", "startup-close", "always-behind")
 
 
 def fixture(*, fullscreen: bool) -> None:
@@ -311,7 +311,7 @@ def run_scenario(output: Path, scenario: str) -> None:
                     ),
                 }
 
-            if scenario == "quiet":
+            if scenario == "always-behind":
                 initial = observe()
                 assert not initial["dock_topmost"]
                 assert not initial["stacking"]["reservation_active"]
@@ -350,15 +350,15 @@ def run_scenario(output: Path, scenario: str) -> None:
                     )
 
                 report["startup_covered"] = native.wait_for(
-                    stacked, "Quiet dock covered the maximized startup fixture"
+                    stacked, "Always behind dock covered the maximized startup fixture"
                 )
                 ImageGrab.grab(all_screens=True).save(
-                    output / "quiet-startup-covered.png"
+                    output / "always-behind-startup-covered.png"
                 )
                 for mode, topmost in (
-                    ("quiet", False),
+                    ("always-behind", False),
                     ("always-on-top", True),
-                    ("quiet", False),
+                    ("always-behind", False),
                 ):
                     call(lambda value=mode: set_mode(value))
 
@@ -371,27 +371,34 @@ def run_scenario(output: Path, scenario: str) -> None:
                     if not topmost:
                         native.click(*point)
                         assert native.window_at(*point) == fixture_window()["hwnd"]
-                        assert stacked(), "Pointer input raised the quiet dock"
-                native.key(0x7A)  # Enter and leave fullscreen while still quiet.
+                        assert stacked(), "Pointer input raised the always-behind dock"
+                # Enter and leave fullscreen in Always behind mode.
+                native.key(0x7A)
                 native.wait_for(
                     lambda: fixture_window()["rect"] == shared["monitor"],
-                    "Quiet fixture did not enter fullscreen",
+                    "Always behind fixture did not enter fullscreen",
                 )
-                native.wait_for(stacked, "Quiet dock covered the fullscreen fixture")
+                native.wait_for(
+                    stacked, "Always behind dock covered the fullscreen fixture"
+                )
                 native.key(0x7A)
                 native.wait_for(
                     lambda: fixture_window()["rect"] != shared["monitor"],
-                    "Quiet fixture did not leave fullscreen",
+                    "Always behind fixture did not leave fullscreen",
                 )
-                native.wait_for(stacked, "Fullscreen recovery raised the quiet dock")
+                native.wait_for(
+                    stacked, "Fullscreen recovery raised the always-behind dock"
+                )
                 native.key(0x73, alt=True)
                 assert child.wait(10) == 0
                 native.wait_for(
                     lambda: native.window_at(*point) == dock["hwnd"],
-                    "Quiet dock did not return above the desktop",
+                    "Always behind dock did not return above the desktop",
                 )
                 assert not observe()["dock_topmost"]
-                ImageGrab.grab(all_screens=True).save(output / "quiet-restored.png")
+                ImageGrab.grab(all_screens=True).save(
+                    output / "always-behind-restored.png"
+                )
                 report["ok"] = True
                 return
 
@@ -620,7 +627,9 @@ def main() -> None:
                         {"kind": "applet", "target": "applet://calculator"},
                     ],
                     "icon_size": 48,
-                    "hide_mode": "quiet" if args.scenario == "quiet" else "none",
+                    "hide_mode": "always-behind"
+                    if args.scenario == "always-behind"
+                    else "none",
                     "show_recent_apps": False,
                     "startup_tips_enabled": False,
                     "update_check_enabled": False,
