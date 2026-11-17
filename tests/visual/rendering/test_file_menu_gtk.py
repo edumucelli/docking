@@ -379,6 +379,11 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
             )
 
     try:
+        window.present()
+        owner_window = next(row for row in native.windows() if row["hwnd"] == owner)
+        left, top, right, bottom = owner_window["rect"]
+        native.click((left + right) // 2, (top + bottom) // 2)
+        _wait(lambda: native.user.GetForegroundWindow() == owner)
         controller.open_with(target.as_uri())
         chooser = _wait(lambda: next(iter(chooser_windows()), None))
         capture()
