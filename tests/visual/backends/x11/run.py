@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import ctypes
 import ctypes.util
+import errno
 import faulthandler
 import html
 import json
@@ -112,6 +113,19 @@ def stop_process_group(child: subprocess.Popen) -> None:
     with suppress(ProcessLookupError):
         os.killpg(child.pid, signal.SIGKILL)
     child.wait(timeout=5)
+
+
+class SessionDirectory(tempfile.TemporaryDirectory):
+    def cleanup(self):
+        # Signalled desktop services can finish writing during the first removal.
+        for attempt in range(10):
+            try:
+                super().cleanup()
+                return
+            except OSError as error:
+                if error.errno != errno.ENOTEMPTY or attempt == 9:
+                    raise
+                time.sleep(0.1)
 
 
 @contextmanager
@@ -1107,7 +1121,7 @@ def main():
         parser.error("--output must be empty; use a new directory for each run")
     # Exclude the host's D-Bus activation directories: desktop portals, keyrings
     # and accessibility daemons belong to the host session, not this fixture.
-    with tempfile.TemporaryDirectory(prefix="docking-test-bus-") as directory:
+    with SessionDirectory(prefix="docking-test-bus-") as directory:
         bus_env = private_environment(Path(directory), args.desktop)
         service_dir = Path(directory) / "services"
         service_dir.mkdir()

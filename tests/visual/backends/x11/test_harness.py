@@ -1,5 +1,6 @@
 """Reject blank, misplaced and incomplete screenshots in the BSD visual lab."""
 
+import errno
 import json
 import signal
 import subprocess
@@ -59,6 +60,40 @@ def test_private_helpers_are_stopped_after_their_launcher_exits(monkeypatch, tim
         (12345, signal.SIGTERM),
         (12345, signal.SIGKILL),
     ]
+
+
+@pytest.mark.parametrize(
+    "error_code,persistent",
+    [(errno.ENOTEMPTY, False), (errno.ENOTEMPTY, True), (errno.EACCES, True)],
+)
+def test_session_cleanup_retries_only_transient_directory_writes(
+    monkeypatch, tmp_path, error_code, persistent
+):
+    cleanup = run.tempfile.TemporaryDirectory.cleanup
+    attempts = []
+
+    def raced_cleanup(directory):
+        attempts.append(directory.name)
+        if persistent or len(attempts) == 1:
+            raise OSError(error_code, "Late desktop write")
+        return cleanup(directory)
+
+    monkeypatch.setattr(run.tempfile.TemporaryDirectory, "cleanup", raced_cleanup)
+    monkeypatch.setattr(run.time, "sleep", lambda _: None)
+    if persistent:
+        with pytest.raises(OSError) as error, run.SessionDirectory(dir=tmp_path):
+            pass
+        assert error.value.errno == error_code
+        if error_code == errno.ENOTEMPTY:
+            assert 1 < len(attempts) < 100
+        else:
+            assert len(attempts) == 1
+    else:
+        with run.SessionDirectory(dir=tmp_path) as directory:
+            path = run.Path(directory)
+            assert path.is_dir()
+        assert len(attempts) == 2
+        assert not path.exists()
 
 
 @pytest.mark.parametrize("channels,padding", [(3, 0), (3, 2), (4, 4)])
