@@ -62,6 +62,7 @@ def test_visibility_wait_requires_the_compositor_pixels_to_change(
 def test_always_behind_probe_waits_for_mapping_and_delayed_pixels(
     monkeypatch, tmp_path, delivered
 ):
+    from docking.platform.backends.base import Rect
     from tests.visual.shared.linux.probes import native_services_probe as native
 
     clock, mapped_at, exit_code = [0.0], [float("inf")], [None]
@@ -78,12 +79,21 @@ def test_always_behind_probe_waits_for_mapping_and_delayed_pixels(
         return child
 
     monkeypatch.setattr(native.subprocess, "Popen", launch)
-    row = SimpleNamespace(title="Native backend fixture", geometry=None)
+
+    def windows():
+        if clock[0] < mapped_at[0]:
+            return []
+        size = 1 if clock[0] < mapped_at[0] + 0.5 else 48
+        return [
+            SimpleNamespace(
+                title="Native backend fixture", geometry=Rect(0, 0, size, size)
+            )
+        ]
+
     backend = SimpleNamespace(
         name="sway",
-        windows=SimpleNamespace(
-            list_all_windows=lambda: [row] if clock[0] >= mapped_at[0] else []
-        ),
+        capabilities=SimpleNamespace(tracks_window_geometry=True),
+        windows=SimpleNamespace(list_all_windows=windows),
     )
     window = SimpleNamespace(
         config=SimpleNamespace(hide_mode="always-behind"),
@@ -101,7 +111,7 @@ def test_always_behind_probe_waits_for_mapping_and_delayed_pixels(
 
     async def capture(phase):
         if phase == "always-behind-startup-covered":
-            assert clock[0] >= mapped_at[0], "Sampled before the fixture mapped"
+            assert clock[0] >= mapped_at[0] + 0.5, "Sampled before fixture coverage"
             assert not modes, "Startup check reapplied the mode"
         captures[phase] = captures.get(phase, 0) + 1
         await probe.settle(0.4)

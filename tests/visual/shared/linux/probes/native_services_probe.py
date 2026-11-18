@@ -122,8 +122,8 @@ class Probe:
     async def wait(self, predicate, message):
         end = time.monotonic() + 8
         while time.monotonic() < end:
-            if predicate():
-                return
+            if value := predicate():
+                return value
             await self.settle(0.05)
         if self.backend.name == "niri":
             for command in ("outputs", "workspaces", "windows"):
@@ -446,28 +446,29 @@ class Probe:
                 break
         assert len(points) >= 32, "Always behind dock is not visible above the desktop"
         self.child = subprocess.Popen([sys.executable, __file__, "--fixture"])
-        await self.wait(
-            lambda: any(
-                row.title == "Native backend fixture"
-                for row in self.backend.windows.list_all_windows()
-            ),
-            "Fixture did not map",
+
+        def covering_points():
+            # A mapped fixture can still be waiting for its maximized geometry.
+            for row in self.backend.windows.list_all_windows():
+                if row.title != "Native backend fixture":
+                    continue
+                bounds = row.geometry
+                if bounds is None:
+                    if not self.backend.capabilities.tracks_window_geometry:
+                        return points
+                    continue
+                covered = {
+                    (x, y)
+                    for x, y in points
+                    if bounds.x <= x < bounds.right and bounds.y <= y < bounds.bottom
+                }
+                if len(covered) >= 32:
+                    return covered
+            return None
+
+        points = await self.wait(
+            covering_points, "Fixture does not cover the dock marker"
         )
-        bounds = next(
-            (
-                row.geometry
-                for row in self.backend.windows.list_all_windows()
-                if row.title == "Native backend fixture" and row.geometry is not None
-            ),
-            None,
-        )
-        if bounds is not None:
-            points = {
-                (x, y)
-                for x, y in points
-                if bounds.x <= x < bounds.right and bounds.y <= y < bounds.bottom
-            }
-        assert len(points) >= 32, "Fixture does not cover the dock marker"
         assert self.window.config.hide_mode == "always-behind", (
             "Probe did not start in Always behind mode"
         )
