@@ -464,7 +464,7 @@ def test_windows_terminal_starts_in_selected_directory(
             f"(Get-Location).Path | Out-File -LiteralPath '{destination}' -Encoding utf8; exit"
         )
         native.key(0x0D)
-        _wait(output.exists)
+        assert started[0].wait(timeout=15) == 0
         assert os.path.normcase(
             output.read_text(encoding="utf-8-sig").strip()
         ) == os.path.normcase(str(tmp_path))
