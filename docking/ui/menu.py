@@ -721,7 +721,10 @@ class MenuHandler:
             submenu = row.get_submenu()
             if not isinstance(submenu, Gtk.Menu) or not submenu.get_mapped():
                 break
-            row = submenu.get_selected_item()
+            child = submenu.get_selected_item()
+            if child is None:
+                break
+            row = child
         if not isinstance(row, _DirectoryMenuRow):
             return False
         self._show_entry_actions(row.target, row.is_dir, event)

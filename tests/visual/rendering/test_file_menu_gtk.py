@@ -146,7 +146,10 @@ def test_system_chooser_cancellation_does_not_launch_or_leave_a_dialog(browser):
         controller.stop()
 
 
-def test_keyboard_event_delivered_to_parent_targets_mapped_nested_entry(browser):
+@pytest.mark.parametrize("select_child", [False, True])
+def test_keyboard_event_delivered_to_parent_targets_selected_entry(
+    browser, select_child
+):
     handler, root, targets, _window = browser
     item = DockItem(
         desktop_id="file:///owned", kind=FOLDER_KIND, target="file:///owned"
@@ -167,14 +170,24 @@ def test_keyboard_event_delivered_to_parent_targets_mapped_nested_entry(browser)
     row = next(
         child for child in nested.get_children() if isinstance(child, _DirectoryMenuRow)
     )
-    nested.select_item(row)
+    if select_child:
+        nested.select_item(row)
+    else:
+        nested.deselect()
+        assert nested.get_selected_item() is None
     event = Gdk.Event.new(Gdk.EventType.KEY_PRESS)
     event.keyval, event.state, event.window = Gdk.KEY_Menu, 0, root.get_window()
     assert root.emit("key-press-event", event)
     settle_gtk()
     commands = next(iter(handler._open_menus))
-    commands.get_children()[1].activate()
-    handler._file_actions.open_with.assert_called_once_with(row.target)
+    next(
+        action
+        for action in commands.get_children()
+        if action.get_label() == "Open With…"
+    ).activate()
+    handler._file_actions.open_with.assert_called_once_with(
+        row.target if select_child else directory.target
+    )
     targets.open_target.assert_not_called()
 
 
