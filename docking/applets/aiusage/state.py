@@ -45,14 +45,12 @@ class DisplayMode(str, Enum):
 
 # Standard short-context API rates in USD per million tokens. Claude
 # cache_write represents the five-minute write rate; the transcript format does
-# not identify one-hour writes. Cache reads are normally billed at 10% of the
-# base input rate; Claude Fable 5.1 is the exception at 2.5%. Ordered
-# most-specific first so versioned matches win.
+# not identify one-hour writes. Ordered most-specific first so versioned
+# matches win.
 #
-# Sources verified 2026-09-10:
+# Sources verified 2026-11-18:
 # https://platform.claude.com/docs/en/about-claude/pricing
-# https://platform.claude.com/docs/en/models/fable-5-1/overview
-# https://developers.openai.com/api/docs/models
+# https://developers.openai.com/api/docs/pricing
 _OPUS46 = {"input": 5.0, "output": 25.0, "cache_write": 6.25, "cache_read": 0.50}
 _OPUS4 = {"input": 15.0, "output": 75.0, "cache_write": 18.75, "cache_read": 1.50}
 _FABLE5 = {"input": 10.0, "output": 50.0, "cache_write": 12.50, "cache_read": 1.0}
@@ -62,12 +60,16 @@ _FABLE51 = {
     "cache_write": 12.50,
     "cache_read": 0.25,
 }
+_FABLE52 = {"input": 8.0, "output": 40.0, "cache_write": 10.0, "cache_read": 0.20}
 
 CLAUDE_PRICING: tuple[tuple[str, dict[str, float]], ...] = (
+    ("fable-5-2", _FABLE52),
+    ("mythos-5-2", _FABLE52),
     ("fable-5-1", _FABLE51),
     ("mythos-5-1", _FABLE51),
     ("fable-5", _FABLE5),
     ("mythos-5", _FABLE5),
+    ("opus-5-5", {"input": 4, "output": 20, "cache_write": 5.0, "cache_read": 0.20}),
     ("opus-5", _OPUS46),
     ("opus-4-8", _OPUS46),
     ("opus-4-7", _OPUS46),
@@ -75,21 +77,29 @@ CLAUDE_PRICING: tuple[tuple[str, dict[str, float]], ...] = (
     ("opus-4-5", _OPUS46),
     ("opus-4-1", _OPUS4),
     ("opus-4", _OPUS4),
+    ("sonnet-5-5", {"input": 2, "output": 10, "cache_write": 2.50, "cache_read": 0.10}),
     # Anthropic made Sonnet 5's introductory rate the standard rate.
     ("sonnet-5", {"input": 2, "output": 10, "cache_write": 2.50, "cache_read": 0.20}),
     ("sonnet-4-6", {"input": 3, "output": 15, "cache_write": 3.75, "cache_read": 0.30}),
     ("sonnet-4-5", {"input": 3, "output": 15, "cache_write": 3.75, "cache_read": 0.30}),
     ("sonnet", {"input": 3, "output": 15, "cache_write": 3.75, "cache_read": 0.30}),
+    # shortcut: use the ≤100k prompt rate until costs are tracked per request.
+    (
+        "haiku-5-5",
+        {"input": 0.10, "output": 0.50, "cache_write": 0.125, "cache_read": 0.01},
+    ),
     ("haiku-4-5", {"input": 1, "output": 5, "cache_write": 1.25, "cache_read": 0.10}),
     ("haiku", {"input": 0.80, "output": 4, "cache_write": 1.0, "cache_read": 0.08}),
 )
 
 # Codex/OpenAI: input, cached input (subtracted from input), output.
-# Standard short-context rates: https://developers.openai.com/api/docs/pricing
 # Models without a cached-input price use their regular input rate as a
 # defensive fallback; their usage records should not contain cached tokens.
 CODEX_PRICING: tuple[tuple[str, dict[str, float]], ...] = (
+    ("gpt-6.2-astra", {"input": 8.00, "cached": 0.40, "output": 40.00}),
+    ("gpt-6.2-sol", {"input": 2.00, "cached": 0.10, "output": 10.00}),
     ("gpt-6-astra", {"input": 10.00, "cached": 1.00, "output": 50.00}),
+    ("gpt-6.1-terra", {"input": 1.00, "cached": 0.05, "output": 5.00}),
     ("gpt-6.1-sol", {"input": 2.00, "cached": 0.10, "output": 10.00}),
     ("gpt-6-sol", {"input": 2.00, "cached": 0.20, "output": 10.00}),
     ("gpt-6-luna", {"input": 0.10, "cached": 0.01, "output": 0.50}),

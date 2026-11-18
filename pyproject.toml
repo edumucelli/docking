@@ -35,7 +35,7 @@ dev = [
     "setuptools>=64.0",
     "wheel>=0.38.2",
     "ruff==0.17.4",
-    "ty==0.0.99",
+    "ty==0.0.100",
     "vulture>=2.16",
 ]
 
@@ -149,7 +149,7 @@ allowed-unresolved-imports = [
 
 [tool.ty.rules]
 import-not-found = "error"
-unresolved-attribute = "error"
+missing-attribute = "error"
 invalid-argument-type = "error"
 no-matching-overload = "error"
 # Rules ty leaves off by default, turned on so the imprecision they describe

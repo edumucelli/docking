@@ -21,7 +21,9 @@ def main() -> None:
     window.add_events(Gdk.EventMask.POINTER_MOTION_MASK)
 
     def motion(widget, event):
-        Path(path).write_text(json.dumps({"x": event.x_root, "y": event.y_root}))
+        temporary = Path(path).with_suffix(".tmp")
+        temporary.write_text(json.dumps({"x": event.x_root, "y": event.y_root}))
+        temporary.replace(path)
         return False
 
     def draw(widget, cr):
