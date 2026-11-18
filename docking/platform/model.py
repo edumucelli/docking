@@ -471,7 +471,7 @@ class DockModel:
                     applet.apply_prefs()
                     self._applets[entry.id] = applet
                     log.bind(applet_id=str(did), action="load_applet").info(
-                        f"Loaded applet {did} (icon={applet.item.icon})"
+                        "Loaded applet %s", did
                     )
                     return applet.item
                 except Exception:

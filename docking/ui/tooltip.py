@@ -396,8 +396,6 @@ class TooltipManager:
         content_changed = not (
             item is self._last_item and display_text == self._last_name
         )
-        if content_changed:
-            log.debug(f"content changed: {display_text}")
 
         item_geometry = geometry.geometry_for_item(item)
         if item_geometry is None:

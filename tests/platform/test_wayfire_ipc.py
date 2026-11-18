@@ -34,6 +34,9 @@ class FakeWayfireSocket:
         return self
 
     def __exit__(self, *_args) -> None:
+        self.close()
+
+    def close(self) -> None:
         self.closed = True
 
     def settimeout(self, _timeout: float) -> None:
@@ -973,6 +976,30 @@ def test_wayfire_watcher_failed_handshake_closes_socket():
     )
     assert watcher.start() is False
     sock.close.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    ("response", "reason"),
+    [
+        (
+            {"error": "No such method found!", "extra": {"unused": True}},
+            "No such method found!",
+        ),
+        ({"error": {"unused": True}}, "no error detail"),
+        ([], "no error detail"),
+    ],
+)
+def test_wayfire_watcher_logs_rejection_reason(caplog, response, reason):
+    sock = FakeWayfireSocket(response)
+    watcher = wayfire_ipc.WayfireEventWatcher(
+        socket_path="unused", on_event=MagicMock(), socket_factory=lambda *_args: sock
+    )
+
+    with caplog.at_level("INFO", logger="docking.wayfire_ipc"):
+        assert watcher.start() is False
+
+    assert caplog.messages == [f"Wayfire event subscription rejected: {reason}"]
+    assert sock.closed
 
 
 def test_wayfire_loader_requires_real_snapshot_even_when_ipc_socket_exists(

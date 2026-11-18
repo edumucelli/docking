@@ -98,7 +98,7 @@ def upload_file(
             payload = response.read().decode("utf-8", errors="replace").strip()
     except urllib.error.HTTPError as exc:
         body_text = exc.read().decode("utf-8", errors="replace").strip()
-        log.debug("tmpfiles.org HTTP error for %s: %s %s", path, exc.code, body_text)
+        log.debug("tmpfiles.org upload failed with HTTP %d", exc.code)
         detail = body_text if body_text else f"HTTP {exc.code}"
         raise UploadError(detail) from exc
     except (OSError, TimeoutError, urllib.error.URLError) as exc:
@@ -138,7 +138,7 @@ def _url_from_response(payload: str) -> str:
     try:
         decoded = json.loads(payload)
     except json.JSONDecodeError as exc:
-        log.debug("Unexpected tmpfiles.org response: %r", payload)
+        log.debug("Unexpected tmpfiles.org response: %s", exc)
         raise UploadError("Upload service returned an invalid response") from exc
 
     if not isinstance(decoded, dict):

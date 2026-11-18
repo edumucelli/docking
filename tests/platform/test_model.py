@@ -1,5 +1,6 @@
 """Tests for the dock data model."""
 
+import logging
 import sys
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -1314,7 +1315,7 @@ class TestAppletLifecycleIntegration:
         finally:
             applet.stop()
 
-    def test_loads_pinned_applet_via_lazy_loader(self, monkeypatch):
+    def test_loads_pinned_applet_via_lazy_loader(self, monkeypatch, caplog):
         config = MagicMock()
         config.pinned = [PinnedEntry(kind="applet", target="applet://session")]
         config.icon_size = 48
@@ -1334,8 +1335,10 @@ class TestAppletLifecycleIntegration:
         monkeypatch.setattr(applets_mod, "load_applet_class", loader)
 
         services = AppletServices()
-        model = _make_model(config, dependencies, services)
+        with caplog.at_level(logging.INFO, logger="docking.model"):
+            model = _make_model(config, dependencies, services)
 
+        assert "Loaded applet session" in caplog.messages
         loader.assert_called_once_with("session")
         fake_applet.set_services.assert_called_once_with(services)
         assert model.pinned_items == [fake_item]

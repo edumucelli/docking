@@ -142,7 +142,7 @@ def handle_turn(json_arg: str) -> None:
     try:
         data = json.loads(json_arg)
     except (json.JSONDecodeError, ValueError) as exc:
-        log.debug("Failed to parse Codex hook payload %r: %s", json_arg, exc)
+        log.debug("Failed to parse Codex hook payload: %s", exc)
         data = {}
 
     if not isinstance(data, dict):

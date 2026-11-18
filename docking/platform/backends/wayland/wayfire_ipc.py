@@ -134,8 +134,12 @@ class WayfireEventWatcher:
             sock.sendall(struct.pack("I", len(payload)) + payload)
             response_text = _read_message(sock).decode("utf-8")
             response = as_json_object(cast(JsonValue, json.loads(response_text)))
-            if not isinstance(response, Mapping) or response.get("result") != "ok":
-                log.info("Wayfire event subscription rejected: %s", response)
+            if response is None or response.get("result") != "ok":
+                error = response.get("error") if response is not None else None
+                log.info(
+                    "Wayfire event subscription rejected: %s",
+                    error if isinstance(error, str) and error else "no error detail",
+                )
                 sock.close()
                 return False
         except (OSError, ValueError, RuntimeError) as exc:

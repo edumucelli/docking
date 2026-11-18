@@ -1477,15 +1477,19 @@ class TestHookCli:
 
         hook.main()
 
-    def test_handle_codex_turn_ignores_invalid_json(self, monkeypatch):
+    def test_handle_codex_turn_ignores_invalid_json(self, monkeypatch, caplog):
         from docking.applets.aiusage import hook
 
         find_session = MagicMock(return_value=None)
         monkeypatch.setattr(hook.sys, "argv", ["hook"])
         monkeypatch.setattr(codex_backend, "find_session", find_session)
 
-        codex_backend.handle_turn(json_arg="{")
+        with caplog.at_level(logging.DEBUG, logger="docking.aiusage.codex"):
+            codex_backend.handle_turn(json_arg="{invalid field")
 
+        assert (
+            "Failed to parse Codex hook payload: Expecting property name" in caplog.text
+        )
         find_session.assert_called_once_with(thread_id=None)
 
 
