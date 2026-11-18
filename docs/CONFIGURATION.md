@@ -300,8 +300,9 @@ and apply throughout its browsing tree.
 Right-click an entry inside a folder menu, or select it and press the Menu key
 or Shift+F10, to open commands for that entry. Files also offer **Open With…** in
 their dock context menus. Linux and BSD use the GTK application chooser; Flatpak
-uses the host desktop portal. Windows uses its native file chooser and omits
-**Open With…** for folders. Terminal opening uses the selected folder as its
+uses the host desktop portal. Windows uses its system application chooser for
+files. The Windows chooser can remain open after Docking exits. Press Escape to
+dismiss it. Terminal opening uses the selected folder as its
 working directory; Windows opens Windows PowerShell in a new console.
 
 ## Per-Applet and Per-Item Preferences

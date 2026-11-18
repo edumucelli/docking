@@ -141,11 +141,11 @@ class WindowsRuntime:
         operation,
         cancelled: threading.Event,
         *,
-        timeout: float | None = 3.0,
+        timeout: float = 3.0,
     ) -> None:
         info = query(stack, operation, _ASYNC_INFO)
         stack.callback(self._close_operation, info)
-        deadline = time.monotonic() + timeout if timeout is not None else None
+        deadline = time.monotonic() + timeout
         while True:
             if cancelled.is_set():
                 raise OSError("Windows operation cancelled")
@@ -159,10 +159,6 @@ class WindowsRuntime:
                 raise OSError("Windows operation cancelled")
             if status != 0:
                 raise OSError("Unknown Windows async operation status")
-            interval = 0.01
-            if deadline is not None:
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    raise TimeoutError("Windows operation timed out")
-                interval = min(interval, remaining)
-            cancelled.wait(interval)
+            if time.monotonic() >= deadline:
+                raise TimeoutError("Windows operation timed out")
+            cancelled.wait(min(0.01, max(0, deadline - time.monotonic())))

@@ -48,6 +48,7 @@ class OpenWithMode(Enum):
 
 class OpenWithResult(Enum):
     ACCEPTED = "accepted"
+    COMPLETED = "completed"
     CANCELLED = "cancelled"
     UNSUPPORTED = "unsupported"
     FAILED = "failed"

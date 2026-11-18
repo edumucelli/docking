@@ -301,10 +301,10 @@ def test_portal_receives_selected_fd_even_when_response_precedes_method_reply(
 
 @pytest.mark.skipif(os.name != "nt", reason="Native Windows chooser")
 @pytest.mark.parametrize("close_owner", [False, True], ids=["escape", "owner-close"])
-def test_windows_native_chooser_can_be_cancelled_without_launching(
+def test_windows_native_chooser_can_be_dismissed_without_choosing_an_app(
     owner_window, tmp_path, close_owner, monkeypatch
 ):
-    from docking.platform.native.windows import open_with
+    from docking.platform.native.windows import shell
     from docking.platform.native.windows.ffi import bind, window_handle
     from docking.platform.native.windows.process import read_process_metadata
     from docking.platform.targets import TargetService
@@ -348,15 +348,15 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
     target = tmp_path / "owned file.txt"
     target.write_text("owned fixture")
     results = []
-    show = open_with.open_with_dialog
+    show = shell.open_with_dialog
 
-    def observe(path, hwnd, cancelled):
+    def observe(path, hwnd):
         assert Path(path) == target and hwnd == owner
-        result = show(path, hwnd, cancelled)
+        result = show(path, hwnd)
         results.append(result)
         return result
 
-    monkeypatch.setattr(open_with, "open_with_dialog", observe)
+    monkeypatch.setattr(shell, "open_with_dialog", observe)
     service = TargetService(icon_loader=MagicMock(), application_registry=MagicMock())
     controller = FileActionsController(parent=window, target_service=service)
     report = Path("artifacts/windows/file-actions")
@@ -392,13 +392,14 @@ def test_windows_native_chooser_can_be_cancelled_without_launching(
         assert controller._pending
         if close_owner:
             window.destroy()
-        else:
-            assert native.user.GetForegroundWindow() == chooser["hwnd"]
+            assert not controller._pending
+        if native.user.IsWindowVisible(chooser["hwnd"]):
+            _wait(lambda: native.user.GetForegroundWindow() == chooser["hwnd"])
             native.key(0x1B)
         _wait(lambda: results)
         _wait(lambda: not controller._pending)
         _wait(lambda: not native.user.IsWindowVisible(chooser["hwnd"]))
-        assert results == [OpenWithResult.CANCELLED]
+        assert results[0] in {OpenWithResult.CANCELLED, OpenWithResult.COMPLETED}
         assert controller._error_dialog is None
     finally:
         capture()
