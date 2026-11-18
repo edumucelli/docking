@@ -188,6 +188,7 @@ from docking.platform import icon_overrides
 from docking.platform.applications.recent_documents import recent_documents_for
 from docking.ui.about import AboutDialogController
 from docking.ui.diagnostics import DiagnosticsDialogController
+from docking.ui.file_actions import FileActionsController
 from docking.ui.folder.browser import FolderRow
 from docking.ui.folder.stack import FolderStackController
 from docking.ui.geometry import DockGeometryFrame
@@ -302,6 +303,13 @@ class _WindowMenuRow(Gtk.MenuItem):
     """Running-window row whose identity survives native GTK ownership."""
 
 
+class _DirectoryMenuRow(Gtk.MenuItem):
+    """Directory entry retaining its target through GTK ownership."""
+
+    target: str
+    is_dir: bool
+
+
 class _WindowRowsSeparator(Gtk.SeparatorMenuItem):
     """Separator removed together with the final running-window row."""
 
@@ -325,6 +333,7 @@ class MenuHandler:
         application_registry: ApplicationRegistry,
         application_launcher: ApplicationLauncher,
         target_service: TargetService,
+        file_actions: FileActionsController,
     ) -> None:
         self._about = about
         self._settings = settings
@@ -339,6 +348,7 @@ class MenuHandler:
         self._application_registry = application_registry
         self._application_launcher = application_launcher
         self._target_service = target_service
+        self._file_actions = file_actions
         self._folder_stack = folder_stack
         self._folder_menu_monitors: dict[int, Gio.FileMonitor] = {}
         self._folder_menu_context: dict[int, tuple[Gtk.Menu, DockItem, str, bool]] = {}
@@ -384,6 +394,7 @@ class MenuHandler:
         self._runtime.menu_popup_opened()
         menu.connect("hide", self._on_menu_popup_closed)
         menu.connect("deactivate", self._on_menu_popup_closed)
+        menu.connect("key-press-event", self._on_directory_menu_key)
         return menu
 
     def _on_menu_popup_closed(self, menu: Gtk.Menu) -> None:
@@ -552,6 +563,7 @@ class MenuHandler:
             open_item = Gtk.MenuItem(label=_("Open"))
             open_item.connect("activate", self._on_open_target, item)
             menu.append(open_item)
+            self._append_file_actions(menu, item.target, is_dir=False)
             if item.is_pinned:
                 menu.append(self._build_icon_menu(item))
             if not locked:
@@ -607,7 +619,41 @@ class MenuHandler:
         self._track_folder_menu(
             menu=menu, folder_item=item, target=item.target, is_root=True
         )
-        self._populate_directory_menu(menu=menu, folder_item=item, target=item.target)
+        self._build_directory_menu(menu, item, item.target)
+
+        if item.is_pinned:
+            menu.append(Gtk.SeparatorMenuItem())
+            menu.append(self._build_icon_menu(item))
+
+        if not self._config.lock_icons:
+            menu.append(Gtk.SeparatorMenuItem())
+            remove = Gtk.MenuItem(label=_("Remove from Dock"))
+            remove.connect(
+                "activate", lambda _: self._model.unpin_item(item.desktop_id)
+            )
+            menu.append(remove)
+
+    def _append_file_actions(
+        self, menu: Gtk.Menu, target: str, *, is_dir: bool
+    ) -> None:
+        if is_dir:
+            terminal = Gtk.MenuItem(label=_("Open in Terminal"))
+            terminal.connect(
+                "activate", lambda _: self._file_actions.open_in_terminal(target)
+            )
+            menu.append(terminal)
+        if self._target_service.open_with_mode(is_dir=is_dir) is not None:
+            chooser = Gtk.MenuItem(label=_("Open With…"))
+            chooser.connect("activate", lambda _: self._file_actions.open_with(target))
+            menu.append(chooser)
+
+    def _build_directory_menu(
+        self, menu: Gtk.Menu, item: DockItem, target: str
+    ) -> None:
+        open_item = Gtk.MenuItem(label=_("Open Folder"))
+        open_item.connect("activate", self._on_open_target, target)
+        menu.append(open_item)
+        self._append_file_actions(menu, target, is_dir=True)
         menu.append(Gtk.SeparatorMenuItem())
         prefs = self._folder_stack.folder_prefs(item)
         menu.append(
@@ -624,17 +670,65 @@ class MenuHandler:
         hidden.set_active(bool(prefs["show_hidden"]))
         hidden.connect("toggled", self._on_folder_hidden_toggled, item)
         menu.append(hidden)
+        menu.append(Gtk.SeparatorMenuItem())
+        self._populate_directory_menu(menu=menu, folder_item=item, target=target)
 
-        if item.is_pinned:
-            menu.append(self._build_icon_menu(item))
-
-        if not self._config.lock_icons:
-            menu.append(Gtk.SeparatorMenuItem())
-            remove = Gtk.MenuItem(label=_("Remove from Dock"))
-            remove.connect(
-                "activate", lambda _: self._model.unpin_item(item.desktop_id)
+    def _show_entry_actions(
+        self,
+        target: str,
+        is_dir: bool,
+        event: Gdk.EventButton | Gdk.EventKey,
+    ) -> None:
+        for opened in list(self._open_menus):
+            opened.popdown()
+        menu = self._new_popup_menu()
+        # The event's menu surface is already hidden; retain a live popup parent.
+        menu.attach_to_widget(self._dock_window, None)
+        open_item = Gtk.MenuItem(label=_("Open Folder") if is_dir else _("Open"))
+        open_item.connect("activate", self._on_open_target, target)
+        menu.append(open_item)
+        self._append_file_actions(menu, target, is_dir=is_dir)
+        menu.show_all()
+        self._runtime.prepare_menu_popup(menu)
+        if event.type == Gdk.EventType.KEY_PRESS:
+            menu.popup_at_widget(
+                self._dock_window, Gdk.Gravity.SOUTH_WEST, Gdk.Gravity.NORTH_WEST, event
             )
-            menu.append(remove)
+        else:
+            menu.popup_at_pointer(event)
+
+    def _on_directory_row_press(
+        self, row: Gtk.MenuItem, event: Gdk.EventButton
+    ) -> bool:
+        return event.button == 3
+
+    def _on_directory_row_release(
+        self, row: _DirectoryMenuRow, event: Gdk.EventButton
+    ) -> bool:
+        if event.button != 3:
+            return False
+        self._show_entry_actions(row.target, row.is_dir, event)
+        return True
+
+    def _on_directory_menu_key(self, menu: Gtk.Menu, event: Gdk.EventKey) -> bool:
+        if event.keyval != Gdk.KEY_Menu and not (
+            event.keyval == Gdk.KEY_F10 and event.state & Gdk.ModifierType.SHIFT_MASK
+        ):
+            return False
+        row = menu.get_selected_item()
+        # A menu grab can deliver keyboard input to an ancestor menu shell.
+        while isinstance(row, _DirectoryMenuRow):
+            submenu = row.get_submenu()
+            if not isinstance(submenu, Gtk.Menu) or not submenu.get_mapped():
+                break
+            child = submenu.get_selected_item()
+            if child is None:
+                break
+            row = child
+        if not isinstance(row, _DirectoryMenuRow):
+            return False
+        self._show_entry_actions(row.target, row.is_dir, event)
+        return True
 
     def _insert_index(
         self,
@@ -992,7 +1086,10 @@ class MenuHandler:
     def _append_directory_row(
         self, menu: Gtk.Menu, folder_item: DockItem, child: FolderRow
     ) -> None:
-        row = Gtk.MenuItem(label=child.name)
+        row = _DirectoryMenuRow(label=child.name)
+        row.target, row.is_dir = child.target, child.is_dir
+        row.connect("button-press-event", self._on_directory_row_press)
+        row.connect("button-release-event", self._on_directory_row_release)
         _set_menu_item_icon(
             item=row,
             label=child.name,
@@ -1001,6 +1098,7 @@ class MenuHandler:
         )
         if child.is_dir and child.has_children:
             submenu = Gtk.Menu()
+            submenu.connect("key-press-event", self._on_directory_menu_key)
             submenu.connect(
                 "show",
                 self._on_folder_submenu_show,
@@ -1020,7 +1118,7 @@ class MenuHandler:
         )
         if menu.get_children():
             return
-        self._populate_directory_menu(menu=menu, folder_item=folder_item, target=target)
+        self._build_directory_menu(menu, folder_item, target)
         menu.show_all()
 
     def _track_folder_menu(
@@ -1082,9 +1180,7 @@ class MenuHandler:
         if is_root:
             self._build_folder_item_menu(menu=menu, item=folder_item)
         else:
-            self._populate_directory_menu(
-                menu=menu, folder_item=folder_item, target=target
-            )
+            self._build_directory_menu(menu, folder_item, target)
         menu.show_all()
         return False
 

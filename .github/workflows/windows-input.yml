@@ -257,6 +257,9 @@ jobs:
       - name: Prepare the hosted desktop and verify the complete input domain
         if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
         run: python -m tests.visual.backends.windows.hosted_desktop --visual-minimum --minimize-runner-terminals --installed-root artifacts/windows/runtime --wheel dist/*.whl --source-sha "$GITHUB_SHA" --output artifacts/windows
+      - name: Verify native application chooser cancellation
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
+        run: python -m pytest tests/visual/rendering/test_file_menu_gtk.py -k windows_native_chooser -o addopts= --junitxml=artifacts/windows/file-actions-junit.xml
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -271,6 +274,8 @@ jobs:
             artifacts/windows/input-domain.json
             artifacts/windows/search-layouts/
             artifacts/windows/input-profiles/
+            artifacts/windows/file-actions/
+            artifacts/windows/file-actions-junit.xml
             dist/*.whl
           if-no-files-found: error
           retention-days: 14

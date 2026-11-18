@@ -30,6 +30,7 @@ def _patch_ui_components(monkeypatch):
         startup_tips=MagicMock(),
         runtime=MagicMock(),
         folder_stack=MagicMock(),
+        file_actions=MagicMock(),
         dnd=MagicMock(),
         settings_actions=MagicMock(),
         menu=MagicMock(),
@@ -90,6 +91,11 @@ def _patch_ui_components(monkeypatch):
     )
     monkeypatch.setattr(
         factory_mod,
+        "FileActionsController",
+        MagicMock(return_value=components.file_actions),
+    )
+    monkeypatch.setattr(
+        factory_mod,
         "FolderStackController",
         MagicMock(return_value=components.folder_stack),
     )
@@ -145,6 +151,7 @@ class TestBuildDockWindow:
             search=search,
             settings=settings,
             dock_shortcuts=MagicMock(),
+            file_actions=MagicMock(),
         )
 
         with pytest.raises(RuntimeError, match="settings failed"):
@@ -292,6 +299,7 @@ class TestBuildDockWindow:
             application_registry=application_registry,
             application_launcher=application_launcher,
             target_service=target_service,
+            file_actions=components.file_actions,
         )
         factory_mod.DockInteractions.assert_called_once_with(
             menu=components.menu,
@@ -545,6 +553,7 @@ def test_start_initializes_autohide_without_a_pointer_crossing_event(pointer_ins
         search=MagicMock(),
         settings=MagicMock(),
         dock_shortcuts=MagicMock(),
+        file_actions=MagicMock(),
     )
     try:
         ui.start()

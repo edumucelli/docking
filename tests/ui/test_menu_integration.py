@@ -310,6 +310,10 @@ class FakeSeparatorMenuItem(FakeMenuItem):
         super().__init__(label="---")
 
 
+class FakeDirectoryMenuRow(FakeMenuItem):
+    pass
+
+
 class FakeWindowMenuRow(FakeMenuItem):
     pass
 
@@ -757,6 +761,7 @@ def _frame(*, item=None, item_index: int = -1, insert_index: int = 0):
 def handler(monkeypatch):
     monkeypatch.setattr(menu_mod, "Gtk", FakeGtk)
     monkeypatch.setattr(menu_mod, "_WindowMenuRow", FakeWindowMenuRow)
+    monkeypatch.setattr(menu_mod, "_DirectoryMenuRow", FakeDirectoryMenuRow)
     monkeypatch.setattr(menu_mod, "_WindowRowsSeparator", FakeWindowRowsSeparator)
     monkeypatch.setattr(menu_mod, "Pango", FakePango)
     monkeypatch.setattr(folder_stack_mod, "Gtk", FakeGtk)
@@ -834,6 +839,7 @@ def handler(monkeypatch):
         application_registry=application_registry,
         application_launcher=application_launcher,
         target_service=target_service,
+        file_actions=MagicMock(),
     )
 
 
@@ -1084,7 +1090,9 @@ class TestItemMenus:
 
         handler._build_item_menu(menu=menu, item=item)
 
-        row = menu.children[0]
+        row = next(
+            row for row in menu.children if row.get_label().startswith("this-is-a-very")
+        )
         assert isinstance(row.get_child(), FakeBox)
         text = row.get_child().children[0]
         assert isinstance(text, FakeLabel)
@@ -2931,6 +2939,117 @@ def test_asynchronous_menu_thumbnail_updates_after_mapping_and_cleans_timer(
     row.emit("unmap")
     row.emit("destroy")
     assert removed == [101]
+
+
+def test_folder_actions_precede_all_entries_and_keep_root_preferences(
+    handler, monkeypatch
+):
+    item = DockItem(
+        desktop_id="file:///owned/root",
+        kind=FOLDER_KIND,
+        target="file:///owned/root",
+        is_pinned=True,
+    )
+    monkeypatch.setattr(
+        handler._folder_stack,
+        "list_directory",
+        lambda **kw: [
+            _folder_row(name=f"Entry {index}", target=f"file:///owned/root/{index}")
+            for index in range(100)
+        ],
+    )
+    menu = FakeMenu()
+    handler._build_folder_item_menu(menu, item)
+    labels = _labels(menu)
+    assert labels[:3] == ["Open Folder", "Open in Terminal", "Open With…"]
+    assert labels.index("Sort By") < labels.index("Entry 0")
+    assert labels.index("Show Hidden Files") < labels.index("Entry 0")
+    assert "Entry 99" in labels
+    menu.children[0].activate()
+    handler._target_service.open_target.assert_called_once_with(item.target)
+    menu.children[1].activate()
+    handler._file_actions.open_in_terminal.assert_called_once_with(item.target)
+    menu.children[2].activate()
+    handler._file_actions.open_with.assert_called_once_with(item.target)
+    nested = FakeMenu()
+    handler._build_directory_menu(nested, item, "file:///owned/root/nested")
+    assert _labels(nested)[:3] == labels[:3]
+    nested.children[0].activate()
+    assert handler._target_service.open_target.call_args.args == (
+        "file:///owned/root/nested",
+    )
+    assert "Remove from Dock" not in _labels(nested)
+
+
+def test_directory_secondary_click_and_primary_activation_are_independent(handler):
+    menu = FakeMenu()
+    item = DockItem(
+        desktop_id="file:///owned/root", kind=FOLDER_KIND, target="file:///owned/root"
+    )
+    handler._append_directory_row(
+        menu, item, _folder_row(name="File", target="file:///owned/root/file")
+    )
+    row = menu.children[0]
+    handler._show_entry_actions = MagicMock()
+    press = SimpleNamespace(button=3)
+    assert row.emit("button-press-event", press)
+    assert row.emit("button-release-event", press)
+    handler._show_entry_actions.assert_called_once_with(
+        "file:///owned/root/file", False, press
+    )
+    handler._target_service.open_target.assert_not_called()
+    assert not row.emit("button-press-event", SimpleNamespace(button=1))
+    row.activate()
+    handler._target_service.open_target.assert_called_once_with(
+        "file:///owned/root/file"
+    )
+
+
+@pytest.mark.parametrize(
+    "key,shift",
+    [
+        (menu_mod.Gdk.KEY_Menu, 0),
+        (menu_mod.Gdk.KEY_F10, menu_mod.Gdk.ModifierType.SHIFT_MASK),
+    ],
+)
+def test_keyboard_commands_target_selected_directory_entry(handler, key, shift):
+    row = FakeDirectoryMenuRow("Selected")
+    row.target, row.is_dir = "file:///owned/selected", True
+    menu = SimpleNamespace(get_selected_item=lambda: row)
+    event = SimpleNamespace(keyval=key, state=shift)
+    handler._show_entry_actions = MagicMock()
+    assert handler._on_directory_menu_key(menu, event)
+    handler._show_entry_actions.assert_called_once_with(row.target, True, event)
+    menu.get_selected_item = lambda: FakeMenuItem("Sort By")
+    assert not handler._on_directory_menu_key(menu, event)
+
+
+def test_windows_folder_menu_omits_unsupported_chooser(handler, monkeypatch):
+    handler._target_service.open_with_mode.side_effect = lambda *, is_dir: (
+        None if is_dir else "native"
+    )
+    menu = FakeMenu()
+    handler._append_file_actions(menu, "file:///owned/folder", is_dir=True)
+    assert _labels(menu) == ["Open in Terminal"]
+    menu = FakeMenu()
+    handler._append_file_actions(menu, "file:///owned/file", is_dir=False)
+    assert _labels(menu) == ["Open With…"]
+
+
+def test_keyboard_commands_follow_mapped_submenu_selection(handler):
+    parent = FakeDirectoryMenuRow("Parent")
+    parent.target, parent.is_dir = "file:///owned/parent", True
+    child = FakeDirectoryMenuRow("Child")
+    child.target, child.is_dir = "file:///owned/parent/child", False
+    submenu = FakeMenu()
+    submenu.get_mapped = lambda: True
+    submenu.get_selected_item = lambda: child
+    parent.set_submenu(submenu)
+    root = SimpleNamespace(get_selected_item=lambda: parent)
+    event = SimpleNamespace(keyval=menu_mod.Gdk.KEY_Menu, state=0)
+    handler._show_entry_actions = MagicMock()
+    assert handler._on_directory_menu_key(root, event)
+    handler._show_entry_actions.assert_called_once_with(child.target, False, event)
 
 
 @pytest.mark.skipif(not menu_mod.Gtk.init_check()[0], reason="GTK display required")

@@ -389,6 +389,7 @@ def _folder_stack_handler() -> MenuHandler:
         application_registry=MagicMock(),
         application_launcher=MagicMock(),
         target_service=target_service,
+        file_actions=MagicMock(),
     )
     handler._folder_stack._folder_stack_position_value = "bottom"
     handler._folder_stack._browser.target_state = lambda _target: "ok"

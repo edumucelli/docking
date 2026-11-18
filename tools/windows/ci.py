@@ -25,6 +25,9 @@ from tools.windows.input_acceptance import (
 from tools.windows.release import validate_applications_report, validate_tray_report
 
 _SHARED_TESTS = (
+    "tests/platform/test_file_actions.py",
+    "tests/ui/test_file_actions.py",
+    "tests/ui/test_menu_integration.py",
     "tests/core",
     "tests/platform/applications/test_windows.py",
     "tests/platform/applications/test_visibility.py",
@@ -386,6 +389,7 @@ def main() -> None:
     if args.stage == "gtk":
         command += [
             "tests/visual/rendering/test_preview_gtk.py",
+            "tests/visual/rendering/test_file_menu_gtk.py",
             "tests/search/ui/test_window.py",
             "tests/search/ui/test_shortcut_capture.py",
             "-o",

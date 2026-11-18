@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-11-17 18:32+0100\n"
+"POT-Creation-Date: 2026-11-17 22:47+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -124,7 +124,7 @@ msgstr ""
 #: docking/applets/runcommand/applet.py:371 docking/applets/trash/applet.py:200
 #: docking/applets/webapp/applet.py:179
 #: docking/applets/webapp/implementations/windows/companion/downloads.py:97
-#: docking/ui/diagnostics.py:391 docking/ui/menu.py:465
+#: docking/ui/diagnostics.py:391 docking/ui/menu.py:476
 msgid "Cancel"
 msgstr ""
 
@@ -2935,7 +2935,7 @@ msgstr[1] ""
 #: docking/applets/plantcare/applet.py:244
 #: docking/applets/webapp/implementations/windows/companion/downloads.py:97
 #: docking/search/providers/applications.py:193 docking/ui/diagnostics.py:137
-#: docking/ui/menu.py:598 docking/ui/startup_tips.py:209
+#: docking/ui/menu.py:610 docking/ui/startup_tips.py:209
 msgid "Close"
 msgstr ""
 
@@ -3362,7 +3362,7 @@ msgstr ""
 #: docking/search/providers/applications.py:159
 #: docking/search/providers/dock.py:80 docking/search/providers/recent.py:70
 #: docking/search/providers/web.py:93 docking/search/ui/window.py:816
-#: docking/ui/menu.py:467 docking/ui/menu.py:552
+#: docking/ui/menu.py:478 docking/ui/menu.py:563 docking/ui/menu.py:687
 msgid "Open"
 msgstr ""
 
@@ -4754,7 +4754,7 @@ msgstr ""
 msgid "Assigned by desktop"
 msgstr ""
 
-#: docking/platform/shortcuts.py:133 docking/ui/menu.py:694
+#: docking/platform/shortcuts.py:133 docking/ui/menu.py:785
 #: docking/ui/settings.py:1803
 msgid "Unavailable on this desktop"
 msgstr ""
@@ -4825,16 +4825,16 @@ msgid "Open New Window"
 msgstr ""
 
 #: docking/search/providers/applications.py:184
-#: docking/search/providers/dock.py:96 docking/ui/menu.py:539
-#: docking/ui/menu.py:559 docking/ui/menu.py:582 docking/ui/menu.py:633
+#: docking/search/providers/dock.py:96 docking/ui/menu.py:550
+#: docking/ui/menu.py:571 docking/ui/menu.py:594 docking/ui/menu.py:630
 msgid "Remove from Dock"
 msgstr ""
 
-#: docking/search/providers/applications.py:184 docking/ui/menu.py:589
+#: docking/search/providers/applications.py:184 docking/ui/menu.py:601
 msgid "Keep in Dock"
 msgstr ""
 
-#: docking/search/providers/applications.py:193 docking/ui/menu.py:598
+#: docking/search/providers/applications.py:193 docking/ui/menu.py:610
 msgid "Close All"
 msgstr ""
 
@@ -4875,7 +4875,7 @@ msgstr ""
 #: docking/search/providers/applications.py:262
 #: docking/search/providers/applications.py:295
 #: docking/search/providers/windows.py:105
-#: docking/search/providers/windows.py:117 docking/ui/menu.py:836
+#: docking/search/providers/windows.py:117 docking/ui/menu.py:927
 msgid "Window"
 msgstr ""
 
@@ -4884,7 +4884,7 @@ msgstr ""
 msgid "Actions"
 msgstr ""
 
-#: docking/search/providers/applications.py:267 docking/ui/menu.py:818
+#: docking/search/providers/applications.py:267 docking/ui/menu.py:909
 #: docking/ui/settings.py:1044
 msgid "Recent Documents"
 msgstr ""
@@ -4963,7 +4963,7 @@ msgid "Retry"
 msgstr ""
 
 #: docking/search/providers/dock.py:82 docking/search/providers/path.py:75
-#: docking/ui/folder/stack.py:396
+#: docking/ui/folder/stack.py:396 docking/ui/menu.py:653 docking/ui/menu.py:687
 msgid "Open Folder"
 msgstr ""
 
@@ -5143,7 +5143,7 @@ msgstr ""
 msgid "Website"
 msgstr ""
 
-#: docking/ui/diagnostics.py:86 docking/ui/menu.py:726
+#: docking/ui/diagnostics.py:86 docking/ui/menu.py:817
 msgid "Diagnostics"
 msgstr ""
 
@@ -5311,6 +5311,14 @@ msgstr ""
 msgid "Mode not enabled: {reason}"
 msgstr ""
 
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr ""
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr ""
+
 #: docking/ui/folder/browser.py:39
 msgid "Kind"
 msgstr ""
@@ -5350,83 +5358,91 @@ msgstr ""
 msgid "%d More in Folder"
 msgstr ""
 
-#: docking/ui/menu.py:412
+#: docking/ui/menu.py:423
 msgid "Docking Icon"
 msgstr ""
 
-#: docking/ui/menu.py:413
+#: docking/ui/menu.py:424
 msgid "System Icon"
 msgstr ""
 
-#: docking/ui/menu.py:421 docking/ui/menu.py:430
+#: docking/ui/menu.py:432 docking/ui/menu.py:441
 msgid "Icon"
 msgstr ""
 
-#: docking/ui/menu.py:433
+#: docking/ui/menu.py:444
 msgid "Default Icon"
 msgstr ""
 
-#: docking/ui/menu.py:437
+#: docking/ui/menu.py:448
 msgid "Choose From File..."
 msgstr ""
 
-#: docking/ui/menu.py:441
+#: docking/ui/menu.py:452
 msgid "Reset Custom Icon"
 msgstr ""
 
-#: docking/ui/menu.py:460
+#: docking/ui/menu.py:471
 msgid "Choose Icon"
 msgstr ""
 
-#: docking/ui/menu.py:483
+#: docking/ui/menu.py:494
 msgid "Images"
 msgstr ""
 
-#: docking/ui/menu.py:496
+#: docking/ui/menu.py:507
 msgid "Could not use selected icon"
 msgstr ""
 
-#: docking/ui/menu.py:615
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr ""
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr ""
+
+#: docking/ui/menu.py:661
 msgid "Sort By"
 msgstr ""
 
-#: docking/ui/menu.py:623
+#: docking/ui/menu.py:669
 msgid "Show Hidden Files"
 msgstr ""
 
-#: docking/ui/menu.py:652
+#: docking/ui/menu.py:743
 msgid "Search..."
 msgstr ""
 
-#: docking/ui/menu.py:668
+#: docking/ui/menu.py:759
 msgid "Add Applet"
 msgstr ""
 
-#: docking/ui/menu.py:710
+#: docking/ui/menu.py:801
 msgid "No Applets Available"
 msgstr ""
 
-#: docking/ui/menu.py:717
+#: docking/ui/menu.py:808
 msgid "Add Separator"
 msgstr ""
 
-#: docking/ui/menu.py:731 docking/ui/settings.py:397
+#: docking/ui/menu.py:822 docking/ui/settings.py:397
 msgid "Preferences"
 msgstr ""
 
-#: docking/ui/menu.py:736
+#: docking/ui/menu.py:827
 msgid "About"
 msgstr ""
 
-#: docking/ui/menu.py:741
+#: docking/ui/menu.py:832
 msgid "Get Support"
 msgstr ""
 
-#: docking/ui/menu.py:746
+#: docking/ui/menu.py:837
 msgid "Quit"
 msgstr ""
 
-#: docking/ui/menu.py:808
+#: docking/ui/menu.py:899
 msgid "Clear Recent Documents"
 msgstr ""
 

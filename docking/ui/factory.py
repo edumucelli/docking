@@ -59,6 +59,7 @@ from docking.ui.dnd import DnDHandler
 from docking.ui.dock_interactions import DockInteractions
 from docking.ui.dock_shortcut import DockShortcutController
 from docking.ui.dock_window import DockWindow
+from docking.ui.file_actions import FileActionsController
 from docking.ui.folder.stack import FolderStackController
 from docking.ui.input_controller import DockInputController
 from docking.ui.menu import MenuHandler
@@ -93,6 +94,7 @@ class DockUi:
     search: GlobalSearchController
     settings: SettingsWindowController
     dock_shortcuts: DockShortcutController
+    file_actions: FileActionsController
 
     def start(self) -> None:
         """Start the composed dock UI lifecycle."""
@@ -112,6 +114,7 @@ class DockUi:
             cleanup.callback(self.dock_shortcuts.stop)
             cleanup.callback(self.settings.close)
             cleanup.callback(self.startup_popups.stop)
+            cleanup.callback(self.file_actions.stop)
 
 
 def build_dock_window(
@@ -206,6 +209,7 @@ def build_dock_window(
         config=config,
         window_outline_supported=(session_backend.capabilities.supports_window_outline),
     )
+    file_actions = FileActionsController(parent=window, target_service=target_service)
     menu = MenuHandler(
         about=about,
         settings=settings,
@@ -221,6 +225,7 @@ def build_dock_window(
         application_registry=application_registry,
         application_launcher=application_launcher,
         target_service=target_service,
+        file_actions=file_actions,
     )
     interactions = DockInteractions(
         menu=menu,
@@ -274,4 +279,5 @@ def build_dock_window(
         search=search,
         settings=settings,
         dock_shortcuts=dock_shortcuts,
+        file_actions=file_actions,
     )

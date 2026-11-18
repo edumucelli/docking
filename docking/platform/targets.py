@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import stat
+from collections.abc import Callable
 from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import unquote, urlparse
@@ -15,6 +17,7 @@ from docking.core.paths import local_path_from_uri_or_path
 from docking.log import get_logger, with_context
 from docking.platform.applications.associations import AssociationStatus
 from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.desktop.base import OpenWithMode, OpenWithResult
 from docking.platform.desktop.selection import desktop_services
 from docking.platform.files import file_for_uri
 from docking.platform.icons import IconLoader, fallback_file_icon_name
@@ -105,6 +108,71 @@ class TargetService:
     def open_target(self, target: str) -> bool:
         """Delegate default-handler opening to the canonical module function."""
         return open_target(target)
+
+    def open_in_terminal(self, target: str) -> bool:
+        """Validate and launch a directory on a worker, without shell text."""
+        uri = normalize_file_target(target)
+        path = local_path_from_uri_or_path(uri) if uri is not None else None
+        return bool(
+            path is not None
+            and path.is_dir()
+            and desktop_services().open_in_terminal(path)
+        )
+
+    def open_with_mode(self, *, is_dir: bool) -> OpenWithMode | None:
+        return desktop_services().open_with_mode(is_dir=is_dir)
+
+    def prepare_open_with(self, target: str) -> tuple[str, str]:
+        """Resolve chooser metadata off the GTK thread, without loading icons."""
+        uri = normalize_file_target(target)
+        path = local_path_from_uri_or_path(uri) if uri is not None else None
+        if path is None:
+            raise ValueError("Invalid filesystem target")
+        mode = path.stat().st_mode
+        if not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)):
+            raise ValueError("Unsupported filesystem target")
+        if stat.S_ISDIR(mode):
+            return path.as_uri(), "inode/directory"
+        info = file_for_uri(path.as_uri()).query_info(
+            "standard::content-type", Gio.FileQueryInfoFlags.NONE, None
+        )
+        return path.as_uri(), info.get_content_type() or "application/octet-stream"
+
+    def request_open_with(
+        self,
+        uri: str,
+        *,
+        parent: object,
+        on_result: Callable[[OpenWithResult], None],
+    ) -> Callable[[], None]:
+        return desktop_services().request_open_with(
+            uri, parent=parent, on_result=on_result
+        )
+
+    def launch_with_handler(
+        self,
+        uri: str,
+        handler: Gio.AppInfo,
+        *,
+        on_result: Callable[[OpenWithResult], None],
+    ) -> Gio.Cancellable:
+        """Launch the chooser's selected handler without changing associations."""
+        cancellable = Gio.Cancellable()
+
+        def finished(app: Gio.AppInfo, result: Gio.AsyncResult) -> None:
+            try:
+                app.launch_uris_finish(result)
+            except GLib.Error as exc:
+                if exc.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
+                    on_result(OpenWithResult.CANCELLED)
+                else:
+                    log.warning("Selected application could not open target: %s", exc)
+                    on_result(OpenWithResult.FAILED)
+            else:
+                on_result(OpenWithResult.ACCEPTED)
+
+        handler.launch_uris_async([uri], None, cancellable, finished)
+        return cancellable
 
     def resolve_file(
         self, target: str, size: int, *, thumbnail_size: int | None = None
