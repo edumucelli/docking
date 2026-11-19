@@ -105,6 +105,7 @@ class FakeBox:
         self.margin_start = 0
         self.margin_end = 0
         self.tooltip_text = None
+        self.show_count = 0
 
     def set_sensitive(self, value: bool) -> None:
         self.sensitive = value
@@ -142,6 +143,9 @@ class FakeBox:
     def remove(self, child) -> None:
         if child in self.children:
             self.children.remove(child)
+
+    def show_all(self) -> None:
+        self.show_count += 1
 
 
 class FakeGrid:
@@ -2368,6 +2372,9 @@ class TestSettingsWindowController:
         assert any(
             isinstance(child, FakeGrid) for child in controller._applets_box.children
         )
+        previous_show_count = controller._applets_box.show_count
+        controller._rebuild_applet_tab()
+        assert controller._applets_box.show_count == previous_show_count + 1
         applets_mod.get_applet_catalog.cache_clear()
 
 

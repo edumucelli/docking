@@ -38,7 +38,7 @@ settings a persistent, easier-to-scan home.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import gi
@@ -1167,21 +1167,31 @@ class SettingsWindowController:
         try:
             self._config.save_replacement(imported.config)
         except OSError:
-            error = Gtk.MessageDialog(
-                transient_for=parent,
-                modal=True,
-                destroy_with_parent=True,
-                message_type=Gtk.MessageType.ERROR,
-                buttons=Gtk.ButtonsType.CLOSE,
-                text=_("Could not save the imported dock."),
+            self._show_import_message(
+                parent, Gtk.MessageType.ERROR, _("Could not save the imported dock.")
             )
-            try:
-                error.run()
-            finally:
-                error.destroy()
             return
 
-        self._model.append_imported_pins(imported.added)
+        failed_ids = {
+            entry.id for entry in self._model.append_imported_pins(imported.added)
+        }
+        cleanup_failed = False
+        if failed_ids:
+            try:
+                self._config.save_replacement(
+                    replace(
+                        self._config,
+                        pinned=[
+                            entry
+                            for entry in self._config.pinned
+                            if entry.id not in failed_ids
+                        ],
+                    ),
+                    preserve_backup=True,
+                )
+            except OSError:
+                cleanup_failed = True
+
         changed = imported.changes.keys()
         for binding in self._bindings:
             if binding.config_attr in changed and binding.on_change is not None:
@@ -1195,6 +1205,41 @@ class SettingsWindowController:
             self._actions.on_hide_mode_changed()
         self._sync_widgets()
         self._rebuild_applet_tab()
+        if failed_ids:
+            labels = [
+                label
+                for entry, label in zip(imported.added, imported.labels, strict=True)
+                if entry.id in failed_ids
+            ]
+            if cleanup_failed:
+                labels.append(
+                    _("Could not remove these pins from the saved configuration.")
+                )
+            self._show_import_message(
+                parent,
+                Gtk.MessageType.WARNING,
+                _("Some imported pins could not be loaded."),
+                "\n".join(labels),
+            )
+
+    @staticmethod
+    def _show_import_message(
+        parent: Gtk.Window, message_type: Gtk.MessageType, text: str, details: str = ""
+    ) -> None:
+        dialog = Gtk.MessageDialog(
+            transient_for=parent,
+            modal=True,
+            destroy_with_parent=True,
+            message_type=message_type,
+            buttons=Gtk.ButtonsType.CLOSE,
+            text=text,
+        )
+        if details:
+            dialog.format_secondary_text(details)
+        try:
+            dialog.run()
+        finally:
+            dialog.destroy()
 
     def _new_info_icon(self, tooltip: str = "") -> _InfoIcon:
         icon = _InfoIcon()
@@ -1893,7 +1938,7 @@ class SettingsWindowController:
                 active_ids=active_ids,
             )
             box.pack_start(applet_grid, False, False, 0)
-        return
+        box.show_all()
 
     def _build_applet_grid(
         self,

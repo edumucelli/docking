@@ -139,7 +139,7 @@ def test_plank_selects_primary_and_preserves_pins_and_placement(tmp_path, monkey
     monkeypatch.setattr(
         dock_import,
         "_read_plank_settings",
-        lambda: lambda group, key, _signature: settings.get((group, key)),
+        lambda: lambda group, key, _signature, _effective: settings.get((group, key)),
     )
     _write(
         tmp_path,
@@ -204,6 +204,47 @@ def test_plank_dconf_fallback_and_empty_dock(tmp_path, monkeypatch):
     assert "zoom_enabled" not in result.changes
 
 
+def test_plank_uses_schema_defaults_only_after_profile_detection(tmp_path, monkeypatch):
+    defaults = {
+        "enabled-docks": GLib.Variant("as", ["dock1"]),
+        "hide-mode": GLib.Variant("s", "intelligent"),
+        "zoom-enabled": GLib.Variant("b", False),
+    }
+    schema = SimpleNamespace(has_key=defaults.__contains__)
+    schemas = SimpleNamespace(lookup=lambda _schema_id, _recursive: schema)
+    gio_settings = SimpleNamespace(
+        get_user_value=lambda _key: None,
+        get_value=defaults.__getitem__,
+    )
+    monkeypatch.setattr(
+        dock_import,
+        "Gio",
+        SimpleNamespace(
+            SettingsSchemaSource=SimpleNamespace(get_default=lambda: schemas),
+            Settings=SimpleNamespace(new_full=lambda *_args: gio_settings),
+        ),
+    )
+    assert not dock_import._read_plank(tmp_path).available
+    _write(
+        tmp_path,
+        "dock1/launchers/browser.dockitem",
+        "[PlankDockItemPreferences]\nLauncher=browser.desktop\n",
+    )
+
+    result = _prepare(dock_import._read_plank(tmp_path))
+    assert result.config.hide_mode == "intelligent"
+    assert result.config.zoom_enabled is False
+    assert result.config.pinned == ["browser.desktop"]
+
+
+def test_review_explains_gap_clamping_even_when_current_gap_is_the_same():
+    source = dock_import.DockImportSource("Plank", edge_gap=160)
+    result = _prepare(source, Config(additional_distance_from_edge=100))
+
+    assert not result.changes
+    assert result.notes == ["Adjusted the screen edge gap from 160 px to 104 px."]
+
+
 def test_plank_detects_a_single_unlisted_profile_with_only_preferences(
     tmp_path, monkeypatch
 ):
@@ -211,7 +252,7 @@ def test_plank_detects_a_single_unlisted_profile_with_only_preferences(
         dock_import,
         "_read_plank_settings",
         lambda: (
-            lambda group, key, _signature: (
+            lambda group, key, _signature, _effective: (
                 GLib.Variant("i", 64)
                 if (group, key) == ("docks/work", "icon-size")
                 else None

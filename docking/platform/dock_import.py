@@ -130,7 +130,7 @@ _CAIRO_HIDE_MODES = {
 
 DockImportKind = Literal["plank", "cairo-dock"]
 Scalar = bool | int | float | str
-ReadPlank = Callable[[str, str, str], "GLib.Variant | None"]
+ReadPlank = Callable[[str, str, str, bool], "GLib.Variant | None"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -326,7 +326,9 @@ def _read_plank_settings() -> ReadPlank | None:
         global_settings = Gio.Settings.new_full(global_schema, None, None)
         docks: dict[str, Gio.Settings] = {}
 
-        def read(group: str, key: str, signature: str) -> GLib.Variant | None:
+        def read(
+            group: str, key: str, signature: str, effective: bool
+        ) -> GLib.Variant | None:
             if group == "/":
                 settings, schema = global_settings, global_schema
             else:
@@ -337,7 +339,11 @@ def _read_plank_settings() -> ReadPlank | None:
                     )
                 settings = docks[group]
             if schema.has_key(key):
-                value = settings.get_user_value(key)
+                value = (
+                    settings.get_value(key)
+                    if effective
+                    else settings.get_user_value(key)
+                )
                 if value is not None and value.get_type_string() == signature:
                     return value
             return None
@@ -360,7 +366,9 @@ def _read_plank_settings() -> ReadPlank | None:
     except (OSError, subprocess.SubprocessError, UnicodeError, GLib.Error):
         return None
 
-    def read_dump(group: str, key: str, signature: str) -> GLib.Variant | None:
+    def read_dump(
+        group: str, key: str, signature: str, _effective: bool
+    ) -> GLib.Variant | None:
         try:
             value = key_file.get_value(group, key)
             return GLib.Variant.parse(
@@ -386,8 +394,10 @@ def _read_plank(root: Path) -> DockImportSource:
         return source
     read = _read_plank_settings()
 
-    def value(group: str, key: str, signature: str) -> object:
-        variant = read(group, key, signature) if read is not None else None
+    def value(
+        group: str, key: str, signature: str, *, effective: bool = False
+    ) -> object:
+        variant = read(group, key, signature, effective) if read is not None else None
         return None if variant is None else variant.unpack()
 
     def has_saved_settings(name: str) -> bool:
@@ -423,7 +433,8 @@ def _read_plank(root: Path) -> DockImportSource:
             (
                 name
                 for name in names
-                if value(f"docks/{name}", "pinned-only", "b") is not True
+                if value(f"docks/{name}", "pinned-only", "b", effective=True)
+                is not True
             ),
             names[0],
         )
@@ -451,19 +462,23 @@ def _read_plank(root: Path) -> DockImportSource:
 
     source.profile = name
     group = f"docks/{name}"
+
+    def preference(key: str, signature: str) -> object:
+        return value(group, key, signature, effective=True)
+
     for key, (field_name, signature) in _PLANK_PREFERENCES.items():
-        stored = value(group, key, signature)
+        stored = preference(key, signature)
         if isinstance(stored, (str, int, bool)) and (
             key != "position" or stored in _CAIRO_POSITIONS.values()
         ):
             source.settings[field_name] = stored
-    if isinstance(zoom := value(group, "zoom-percent", "i"), int):
+    if isinstance(zoom := preference("zoom-percent", "i"), int):
         source.settings["zoom_percent"] = zoom / 100
-    if isinstance(gap := value(group, "gap-size", "i"), int):
+    if isinstance(gap := preference("gap-size", "i"), int):
         source.edge_gap = gap
-    if isinstance(monitor := value(group, "monitor", "s"), str):
+    if isinstance(monitor := preference("monitor", "s"), str):
         source.monitor = monitor
-    hide_mode = value(group, "hide-mode", "s")
+    hide_mode = preference("hide-mode", "s")
     if isinstance(hide_mode, str) and hide_mode in (
         "none",
         "intelligent",
@@ -473,8 +488,8 @@ def _read_plank(root: Path) -> DockImportSource:
         "dodge-maximized",
     ):
         source.settings["hide_mode"] = "autohide" if hide_mode == "auto" else hide_mode
-    alignment = value(group, "alignment", "s")
-    offset = value(group, "offset", "i")
+    alignment = preference("alignment", "s")
+    offset = preference("offset", "i")
     if alignment in ("start", "end"):
         source.settings["dock_alignment"] = 0.0 if alignment == "start" else 1.0
     elif alignment == "center" or (alignment is None and isinstance(offset, int)):
@@ -887,6 +902,14 @@ def prepare_dock_import(
         ],
         **settings,
     )
+    if source.edge_gap is not None:
+        gap = max(0, theme_gap + candidate.additional_distance_from_edge)
+        if gap != source.edge_gap:
+            notes.append(
+                _(
+                    "Adjusted the screen edge gap from {requested} px to {applied} px."
+                ).format(requested=source.edge_gap, applied=gap)
+            )
     before, after = base.to_dict(), candidate.to_dict()
     changes = {key: after[key] for key in settings if before[key] != after[key]}
     return DockImport(candidate, additions, labels, changes, notes, source.empty_layout)

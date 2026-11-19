@@ -1160,39 +1160,53 @@ class Config:
             # Older versions kept the backup beside the symlink.
             backup_paths.append(_backup_path_for(original_path))
         if not path.exists():
-            for backup_path in backup_paths:
-                if backup_path.exists():
-                    try:
-                        config = cls._load_existing_file(path=backup_path)
-                    except (ValueError, OSError):
-                        continue
-                    config._path = path
-                    return config
+            found_backups = [backup for backup in backup_paths if backup.exists()]
+            for backup_path in found_backups:
+                try:
+                    config = cls._load_existing_file(path=backup_path)
+                except (ValueError, OSError, RecursionError):
+                    continue
+                config._path = path
+                return config
             imported = None
             if (
                 first_run_import is not None
                 and not original_path.is_symlink()
-                and not any(backup.exists() for backup in backup_paths)
+                and not found_backups
             ):
                 imported = first_run_import()
-                # The review dialog may have been open while another launch saved.
-                if (
-                    original_path.exists()
-                    or original_path.is_symlink()
-                    or any(backup.exists() for backup in backup_paths)
-                ):
-                    return cls.load(
-                        original_path, initial_pinned_factory=initial_pinned_factory
+            ensure_parent_dir(path)
+            lock_path = path.with_name(f".{path.name}.lock")
+            # Serialize publication without holding a lock during the review dialog.
+            with (
+                lock_path.open("a+b") as lock_file,
+                host_services().writer_lock(lock_file.fileno(), path=lock_path),
+            ):
+                if not (
+                    path.exists()
+                    or (original_path == path and path.is_symlink())
+                    or any(
+                        backup.exists()
+                        for backup in backup_paths
+                        if backup not in found_backups
                     )
-            factory = (
-                build_initial_pinned
-                if initial_pinned_factory is None
-                else initial_pinned_factory
+                ):
+                    factory = (
+                        build_initial_pinned
+                        if initial_pinned_factory is None
+                        else initial_pinned_factory
+                    )
+                    config = (
+                        imported
+                        if imported is not None
+                        else cls(pinned=list(factory()))
+                    )
+                    config._path = path
+                    config.save(path=path)
+                    return config
+            return cls.load(
+                original_path, initial_pinned_factory=initial_pinned_factory
             )
-            config = imported if imported is not None else cls(pinned=list(factory()))
-            config._path = path
-            config.save(path=path)
-            return config
 
         try:
             config = cls._load_existing_file(path=path)
@@ -1230,7 +1244,9 @@ class Config:
         config._path = path
         return config
 
-    def save(self, path: Path | str | None = None) -> None:
+    def save(
+        self, path: Path | str | None = None, *, preserve_backup: bool = False
+    ) -> None:
         """Save config to JSON file."""
         path = Path(path) if path else self._path
         # Dotfiles setups symlink the config into a repository, and replacing
@@ -1246,7 +1262,7 @@ class Config:
             try:
                 _write_json_atomic_candidate(path=tmp_path, payload=self.to_dict())
                 self._load_existing_file(path=tmp_path)
-                if path.exists():
+                if not preserve_backup and path.exists():
                     if _is_valid_config_file(path=path):
                         _write_backup_copy(source=path, backup_path=backup_path)
                     else:
@@ -1268,11 +1284,13 @@ class Config:
                     )
                 raise
 
-    def save_replacement(self, candidate: Config) -> None:
+    def save_replacement(
+        self, candidate: Config, *, preserve_backup: bool = False
+    ) -> None:
         """Save a prepared replacement before updating this shared config."""
         candidate._path = self._path
         try:
-            candidate.save()
+            candidate.save(preserve_backup=preserve_backup)
         except OSError as exc:
             # The replace may have committed before the directory flush failed.
             try:

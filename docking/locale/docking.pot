@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-11-19 16:45+0100\n"
+"POT-Creation-Date: 2026-11-19 22:28+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -125,7 +125,7 @@ msgstr ""
 #: docking/applets/webapp/applet.py:179
 #: docking/applets/webapp/implementations/windows/companion/downloads.py:97
 #: docking/ui/diagnostics.py:391 docking/ui/dock_import.py:38
-#: docking/ui/dock_import.py:237 docking/ui/menu.py:476
+#: docking/ui/dock_import.py:235 docking/ui/menu.py:476
 msgid "Cancel"
 msgstr ""
 
@@ -765,8 +765,8 @@ msgstr ""
 #: docking/applets/caffeine/applet.py:98 docking/applets/caffeine/applet.py:125
 #: docking/applets/live_state.py:90 docking/applets/music/applet.py:131
 #: docking/applets/notifications/applet.py:108
-#: docking/applets/screenshot/applet.py:123 docking/platform/model.py:468
-#: docking/platform/model.py:521
+#: docking/applets/screenshot/applet.py:123 docking/platform/model.py:474
+#: docking/platform/model.py:527
 msgid "Loading..."
 msgstr ""
 
@@ -3273,7 +3273,7 @@ msgid "Hot"
 msgstr ""
 
 #: docking/applets/reddit/state.py:165 docking/ui/dock_import.py:131
-#: docking/ui/settings.py:2064
+#: docking/ui/settings.py:2109
 msgid "Top"
 msgstr ""
 
@@ -4702,7 +4702,7 @@ msgstr ""
 msgid "The source theme is unavailable."
 msgstr ""
 
-#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:790
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
 msgid "Set up the dock reveal shortcut in Docking Preferences."
 msgstr ""
 
@@ -4710,78 +4710,83 @@ msgstr ""
 msgid "Skipped an invalid pinned item."
 msgstr ""
 
-#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:523
-#: docking/platform/dock_import.py:620 docking/platform/dock_import.py:664
-#: docking/platform/dock_import.py:848
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
 #, python-brace-format
 msgid "Skipped {item}."
 msgstr ""
 
-#: docking/platform/dock_import.py:382
+#: docking/platform/dock_import.py:390
 msgid "Plank / Plank Reloaded"
 msgstr ""
 
-#: docking/platform/dock_import.py:449
+#: docking/platform/dock_import.py:460
 msgid "Plank’s primary dock could not be determined."
 msgstr ""
 
-#: docking/platform/dock_import.py:485
+#: docking/platform/dock_import.py:500
 msgid "Skipped Plank’s full-edge layout."
 msgstr ""
 
-#: docking/platform/dock_import.py:493
+#: docking/platform/dock_import.py:508
 msgid "Plank settings were unavailable. Launcher files are listed by filename."
 msgstr ""
 
-#: docking/platform/dock_import.py:562 docking/ui/settings.py:1110
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1110
 msgid "Cairo-Dock"
 msgstr ""
 
-#: docking/platform/dock_import.py:562
+#: docking/platform/dock_import.py:577
 msgid "Main dock"
 msgstr ""
 
-#: docking/platform/dock_import.py:596
+#: docking/platform/dock_import.py:611
 #, python-brace-format
 msgid "Skipped repeated sub-dock {item}."
 msgstr ""
 
-#: docking/platform/dock_import.py:602
+#: docking/platform/dock_import.py:617
 #, python-brace-format
 msgid "Skipped separate dock {item}."
 msgstr ""
 
-#: docking/platform/dock_import.py:647
+#: docking/platform/dock_import.py:662
 #, python-brace-format
 msgid "Skipped custom launcher {item}."
 msgstr ""
 
-#: docking/platform/dock_import.py:683 docking/platform/dock_import.py:705
-#: docking/platform/dock_import.py:710 docking/platform/dock_import.py:726
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
 #, python-brace-format
 msgid "Skipped plug-in {item}."
 msgstr ""
 
-#: docking/platform/dock_import.py:714
+#: docking/platform/dock_import.py:729
 #, python-brace-format
 msgid "Skipped detached desklet {item}."
 msgstr ""
 
-#: docking/platform/dock_import.py:754
+#: docking/platform/dock_import.py:769
 msgid "Skipped Cairo-Dock’s numeric display selection."
 msgstr ""
 
-#: docking/platform/dock_import.py:786
+#: docking/platform/dock_import.py:801
 msgid "Always Behind does not reveal the dock on edge hover."
 msgstr ""
 
-#: docking/platform/dock_import.py:841
+#: docking/platform/dock_import.py:856
 #, python-brace-format
 msgid "Application unavailable for {item}."
 msgstr ""
 
-#: docking/platform/dock_import.py:877
+#: docking/platform/dock_import.py:892
 msgid "The source display is unavailable."
+msgstr ""
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
 msgstr ""
 
 #: docking/platform/shortcuts.py:26
@@ -4859,7 +4864,7 @@ msgid "Assigned by desktop"
 msgstr ""
 
 #: docking/platform/shortcuts.py:133 docking/ui/menu.py:788
-#: docking/ui/settings.py:1914
+#: docking/ui/settings.py:1959
 msgid "Unavailable on this desktop"
 msgstr ""
 
@@ -4984,7 +4989,7 @@ msgid "Window"
 msgstr ""
 
 #: docking/search/providers/applications.py:264 docking/search/ui/window.py:269
-#: docking/ui/settings.py:1283
+#: docking/ui/settings.py:1328
 msgid "Actions"
 msgstr ""
 
@@ -5569,15 +5574,15 @@ msgstr ""
 msgid "Dodge Maximized"
 msgstr ""
 
-#: docking/ui/dock_import.py:132 docking/ui/settings.py:2064
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2109
 msgid "Bottom"
 msgstr ""
 
-#: docking/ui/dock_import.py:133 docking/ui/settings.py:2062
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2107
 msgid "Left"
 msgstr ""
 
-#: docking/ui/dock_import.py:134 docking/ui/settings.py:2062
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2107
 msgid "Right"
 msgstr ""
 
@@ -5591,7 +5596,7 @@ msgstr ""
 msgid "{value} px"
 msgstr ""
 
-#: docking/ui/dock_import.py:151 docking/ui/settings.py:1809
+#: docking/ui/dock_import.py:151 docking/ui/settings.py:1854
 msgid "Primary Display"
 msgstr ""
 
@@ -5616,52 +5621,52 @@ msgstr ""
 msgid "There are no changes to import."
 msgstr ""
 
-#: docking/ui/dock_import.py:228
+#: docking/ui/dock_import.py:226
 msgid "Import a Docking file"
 msgstr ""
 
-#: docking/ui/dock_import.py:230
+#: docking/ui/dock_import.py:228
 msgid "Import from Another Dock"
 msgstr ""
 
-#: docking/ui/dock_import.py:237
+#: docking/ui/dock_import.py:235
 msgid "Skip"
 msgstr ""
 
-#: docking/ui/dock_import.py:238 docking/ui/settings.py:432
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:432
 msgid "Import"
 msgstr ""
 
-#: docking/ui/dock_import.py:244
+#: docking/ui/dock_import.py:242
 #, python-brace-format
 msgid "{source} ({profile})"
 msgstr ""
 
-#: docking/ui/dock_import.py:254
+#: docking/ui/dock_import.py:252
 msgid "Choose a dock to import."
 msgstr ""
 
-#: docking/ui/dock_import.py:277
+#: docking/ui/dock_import.py:275
 msgid "Choose a dock to review its pins and preferences."
 msgstr ""
 
-#: docking/ui/dock_import.py:279
+#: docking/ui/dock_import.py:277
 msgid "Choose a valid Docking JSON configuration file."
 msgstr ""
 
-#: docking/ui/dock_import.py:281
+#: docking/ui/dock_import.py:279
 msgid "Could not read the source dock settings."
 msgstr ""
 
-#: docking/ui/dock_import.py:283
+#: docking/ui/dock_import.py:281
 msgid "No Plank or Plank Reloaded setup was found."
 msgstr ""
 
-#: docking/ui/dock_import.py:285
+#: docking/ui/dock_import.py:283
 msgid "No Cairo-Dock setup was found."
 msgstr ""
 
-#: docking/ui/dock_import.py:287
+#: docking/ui/dock_import.py:285
 msgid "No Plank or Cairo-Dock setup was found."
 msgstr ""
 
@@ -6243,95 +6248,103 @@ msgstr ""
 msgid "Import from"
 msgstr ""
 
-#: docking/ui/settings.py:1176
+#: docking/ui/settings.py:1171
 msgid "Could not save the imported dock."
 msgstr ""
 
-#: docking/ui/settings.py:1264
+#: docking/ui/settings.py:1216
+msgid "Could not remove these pins from the saved configuration."
+msgstr ""
+
+#: docking/ui/settings.py:1221
+msgid "Some imported pins could not be loaded."
+msgstr ""
+
+#: docking/ui/settings.py:1309
 msgid "Check Now"
 msgstr ""
 
-#: docking/ui/settings.py:1266
+#: docking/ui/settings.py:1311
 msgid "View Releases"
 msgstr ""
 
-#: docking/ui/settings.py:1278
+#: docking/ui/settings.py:1323
 msgid "Update Checks"
 msgstr ""
 
-#: docking/ui/settings.py:1280
+#: docking/ui/settings.py:1325
 msgid "Check Automatically"
 msgstr ""
 
-#: docking/ui/settings.py:1281
+#: docking/ui/settings.py:1326
 msgid "Frequency"
 msgstr ""
 
-#: docking/ui/settings.py:1282
+#: docking/ui/settings.py:1327
 msgid "Status"
 msgstr ""
 
-#: docking/ui/settings.py:1844
+#: docking/ui/settings.py:1889
 #, python-brace-format
 msgid "Shortcut Status: {status}"
 msgstr ""
 
-#: docking/ui/settings.py:1992
+#: docking/ui/settings.py:2037
 #, python-brace-format
 msgid "Last seen version: {version}"
 msgstr ""
 
-#: docking/ui/settings.py:1996
+#: docking/ui/settings.py:2041
 msgid "No update found yet"
 msgstr ""
 
-#: docking/ui/settings.py:1998
+#: docking/ui/settings.py:2043
 msgid "Not checked yet"
 msgstr ""
 
-#: docking/ui/settings.py:2062 docking/ui/settings.py:2064
+#: docking/ui/settings.py:2107 docking/ui/settings.py:2109
 msgid "Center"
 msgstr ""
 
-#: docking/ui/settings.py:2090
+#: docking/ui/settings.py:2135
 msgid "The dock is always visible and reserves screen space."
 msgstr ""
 
-#: docking/ui/settings.py:2092
+#: docking/ui/settings.py:2137
 msgid ""
 "Always visible and floats above all windows without reserving screen space."
 msgstr ""
 
-#: docking/ui/settings.py:2096
+#: docking/ui/settings.py:2141
 msgid ""
 "Stays above the desktop and below application windows, without reserving "
 "screen space. Uncover the dock to use it; hovering does not bring it forward."
 msgstr ""
 
-#: docking/ui/settings.py:2100
+#: docking/ui/settings.py:2145
 msgid "Hides when the mouse cursor leaves the dock."
 msgstr ""
 
-#: docking/ui/settings.py:2102
+#: docking/ui/settings.py:2147
 msgid ""
 "Shows only with its shortcut, then hides after the pointer enters and "
 "leaves. Press the shortcut again to hide it."
 msgstr ""
 
-#: docking/ui/settings.py:2106
+#: docking/ui/settings.py:2151
 msgid ""
 "Hides when a window from the focused application overlaps the dock area."
 msgstr ""
 
-#: docking/ui/settings.py:2108
+#: docking/ui/settings.py:2153
 msgid "Hides when the focused window overlaps the dock area."
 msgstr ""
 
-#: docking/ui/settings.py:2110
+#: docking/ui/settings.py:2155
 msgid "Hides when any window on the current workspace overlaps the dock area."
 msgstr ""
 
-#: docking/ui/settings.py:2113
+#: docking/ui/settings.py:2158
 msgid ""
 "Hides when the focused window is maximized or a dialog overlaps the dock."
 msgstr ""

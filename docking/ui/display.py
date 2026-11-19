@@ -36,12 +36,14 @@ class ScreenPosition(NamedTuple):
     y: int
 
 
-def monitor_connector(monitor: Gdk.Monitor) -> str | None:
-    # GTK 3 exposes the connector only on some builds.
-    getter = getattr(monitor, "get_connector", None)
-    if not callable(getter):
+def monitor_connector(display: Gdk.Display | None, index: int) -> str | None:
+    if display is None or index < 0:
         return None
-    return str(getter() or "").strip() or None
+    # GTK 3 exposes output names through Screen using the display's monitor index.
+    screen = display.get_default_screen()
+    if screen is None:
+        return None
+    return (screen.get_monitor_plug_name(index) or "").strip() or None
 
 
 def scrolled_popup_size(content: Size, available: Size, scrollbar: Size) -> Size:

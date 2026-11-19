@@ -1304,7 +1304,7 @@ class TestAppletLifecycleIntegration:
         monkeypatch.setattr(model, "_start_applet", start)
         monkeypatch.setattr(config, "save", MagicMock())
 
-        model.append_imported_pins(additions)
+        assert model.append_imported_pins(additions) == []
 
         assert model.pinned_items[0] is first_item
         assert [item.desktop_id for item in model.pinned_items] == [
@@ -1317,6 +1317,36 @@ class TestAppletLifecycleIntegration:
             applet=model.get_applet("applet://separator#1"),
         )
         config.save.assert_not_called()
+
+    @pytest.mark.parametrize("construction_fails", [False, True])
+    def test_failed_applet_import_is_reported_and_can_be_retried(
+        self, monkeypatch, construction_fails
+    ):
+        config = Config(pinned=[])
+        model = _make_model(config, _make_dependencies())
+        entry = PinnedEntry("applet", "applet://separator#0")
+        instantiate = model._instantiate_applet
+        stop = MagicMock()
+
+        def fail_to_construct(**_kwargs):
+            raise RuntimeError("Applet constructor failed")
+
+        if construction_fails:
+            monkeypatch.setattr(model, "_instantiate_applet", fail_to_construct)
+        monkeypatch.setattr(
+            model, "_start_applet", MagicMock(return_value=construction_fails)
+        )
+        monkeypatch.setattr(model, "_stop_applet", stop)
+
+        assert model.append_imported_pins([entry]) == [entry]
+        assert model.get_applet(entry.id) is None
+        assert not model.pinned_items
+        assert stop.call_count == int(not construction_fails)
+
+        monkeypatch.setattr(model, "_instantiate_applet", instantiate)
+        monkeypatch.setattr(model, "_start_applet", MagicMock(return_value=True))
+        assert model.append_imported_pins([entry]) == []
+        assert [item.desktop_id for item in model.pinned_items] == [entry.id]
 
     @pytest.mark.parametrize("applet_id", ["applications", "runcommand", "music"])
     def test_constructs_application_applets_with_application_and_platform_services(

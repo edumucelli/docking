@@ -199,14 +199,12 @@ def review_dock_import(
     if (first_run and not sources) or (parent is not None and not parent.get_visible()):
         return None
 
-    connectors = {
-        connector
-        for index in range(display.get_n_monitors())
-        if (monitor := display.get_monitor(index)) is not None
-        and (connector := monitor_connector(monitor)) is not None
-    }
-
     def prepare(source: DockImportSource) -> DockImport:
+        connectors = {
+            connector
+            for index in range(display.get_n_monitors())
+            if (connector := monitor_connector(display, index)) is not None
+        }
         return prepare_dock_import(
             source,
             base,

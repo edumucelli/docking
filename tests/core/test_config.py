@@ -2,6 +2,7 @@
 
 import json
 import os
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -1559,12 +1560,9 @@ def test_first_run_import_saves_empty_layout_and_is_never_offered_again(tmp_path
         Config.load(path, initial_pinned_factory=seed, first_run_import=migrate).pinned
         == []
     )
-    assert (
-        Config.load(
-            path, initial_pinned_factory=seed, first_run_import=migrate
-        ).icon_size
-        == 80
-    )
+    reloaded = Config.load(path, initial_pinned_factory=seed, first_run_import=migrate)
+    assert reloaded.icon_size == 80
+    assert reloaded.pinned == []
     migrate.assert_called_once_with()
     seed.assert_not_called()
 
@@ -1586,6 +1584,46 @@ def test_first_run_import_protects_backup_and_config_created_during_review(tmp_p
     config = Config.load(path, first_run_import=create_config_during_review)
     assert config.icon_size == 96
     assert Config.load(path).icon_size == 96
+
+
+def test_missing_primary_ignores_backup_that_exceeds_json_recursion_limit(tmp_path):
+    path = tmp_path / "dock.json"
+    backup = tmp_path / "dock.json.bak"
+    backup.write_text("[" * 3000 + "]" * 3000, encoding="utf-8")
+    seed = [PinnedEntry("applet", "applet://clock")]
+    migrate = MagicMock()
+    config = Config.load(
+        path, initial_pinned_factory=lambda: seed, first_run_import=migrate
+    )
+
+    assert config.pinned == Config.load(path).pinned == seed
+    migrate.assert_not_called()
+
+
+def test_first_run_reloads_a_config_published_before_it_acquires_the_lock(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "dock.json"
+    host = config_mod.host_services()
+    migrate = MagicMock(return_value=Config(icon_size=64))
+
+    @contextmanager
+    def writer_lock(fd, *, path):
+        with host.writer_lock(fd, path=path):
+            Config(icon_size=96).save(tmp_path / "dock.json")
+            yield
+
+    monkeypatch.setattr(
+        config_mod,
+        "host_services",
+        lambda: SimpleNamespace(
+            writer_lock=writer_lock, flush_directory=host.flush_directory
+        ),
+    )
+
+    assert Config.load(path, first_run_import=migrate).icon_size == 96
+    assert Config.load(path).icon_size == 96
+    migrate.assert_called_once_with()
 
 
 def test_save_replacement_updates_live_config_only_after_commit(tmp_path, monkeypatch):

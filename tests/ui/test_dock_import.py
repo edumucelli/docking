@@ -61,6 +61,42 @@ def test_review_requires_source_selection_and_respects_cancel(monkeypatch, accep
 
 
 @pytest.mark.skipif(not Gtk.init_check()[0], reason="GTK display required")
+def test_review_rechecks_monitors_when_user_confirms(monkeypatch):
+    source = DockImportSource("Plank", monitor="DP-1", settings={"icon_size": 64})
+    monkeypatch.setattr(dock_import, "_read_sources", lambda _kind, _path: [source])
+    connected = True
+    monkeypatch.setattr(
+        dock_import,
+        "monitor_connector",
+        lambda _display, index: "DP-1" if connected and index == 0 else None,
+    )
+    reviews = []
+
+    def respond(dialog):
+        nonlocal connected
+        area = dialog.get_content_area()
+        scroller = next(
+            w for w in area.get_children() if isinstance(w, Gtk.ScrolledWindow)
+        )
+        buffer = scroller.get_child().get_buffer()
+        reviews.append(buffer.get_text(*buffer.get_bounds(), False))
+        connected = False
+        return Gtk.ResponseType.OK
+
+    monkeypatch.setattr(Gtk.Dialog, "run", respond)
+    review = dock_import.review_dock_import(
+        None, Config(), MagicMock(), first_run=False, kind="plank"
+    )
+
+    assert len(reviews) == 2
+    assert "Display: DP-1" in reviews[0]
+    assert "The source display is unavailable." in reviews[1]
+    assert review is not None
+    assert review.config.monitor_connector is None
+    assert review.config.icon_size == 64
+
+
+@pytest.mark.skipif(not Gtk.init_check()[0], reason="GTK display required")
 @pytest.mark.parametrize(
     ("kind", "source_name", "missing_message"),
     [
@@ -126,7 +162,10 @@ def test_preferences_review_opens_selected_dock(
         assert review is None
 
 
-def test_preferences_import_saves_then_refreshes_live_config(tmp_path, monkeypatch):
+@pytest.mark.parametrize("pin_fails", [False, True])
+def test_preferences_import_saves_then_refreshes_live_config(
+    tmp_path, monkeypatch, pin_fails
+):
     path = tmp_path / "dock.json"
     shared = tmp_path / "shared.json"
     shared.write_text(
@@ -134,6 +173,7 @@ def test_preferences_import_saves_then_refreshes_live_config(tmp_path, monkeypat
         encoding="utf-8",
     )
     existing = PinnedEntry("applet", "applet://clock")
+    imported = PinnedEntry("applet", "applet://trash")
     Config(pinned=[existing]).save(path)
     config = Config.load(path)
     actions, model, tab, registry = (MagicMock() for _ in range(4))
@@ -149,6 +189,8 @@ def test_preferences_import_saves_then_refreshes_live_config(tmp_path, monkeypat
     controller._bindings = [SimpleNamespace(config_attr="position", on_change=changed)]
     monkeypatch.setattr(controller, "_sync_widgets", MagicMock())
     monkeypatch.setattr(controller, "_rebuild_applet_tab", MagicMock())
+    show_message = MagicMock()
+    monkeypatch.setattr(controller, "_show_import_message", show_message)
     monkeypatch.setattr(settings, "choose_docking_config_file", lambda _parent: shared)
     monkeypatch.setattr(
         settings,
@@ -162,17 +204,29 @@ def test_preferences_import_saves_then_refreshes_live_config(tmp_path, monkeypat
             first_run=False,
         ),
     )
-    model.append_imported_pins.side_effect = lambda _pins: (
-        Config.load(path).position == config.position == "left"
-        or pytest.fail("Config was not committed before the model was updated")
-    )
+
+    def append(_pins):
+        assert Config.load(path).position == config.position == "left"
+        return [imported] if pin_fails else []
+
+    model.append_imported_pins.side_effect = append
 
     controller._import_dock(tab, None)
 
-    assert Config.load(path).pinned == [existing, "applet://trash"]
-    assert Config.load(tmp_path / "dock.json.bak").pinned == [existing]
-    model.append_imported_pins.assert_called_once_with(
-        [PinnedEntry("applet", "applet://trash")]
-    )
+    expected_pins = [existing] if pin_fails else [existing, imported]
+    assert Config.load(path).pinned == config.pinned == expected_pins
+    backup = Config.load(tmp_path / "dock.json.bak")
+    assert backup.pinned == [existing]
+    assert backup.position == "bottom"
+    model.append_imported_pins.assert_called_once_with([imported])
+    if pin_fails:
+        show_message.assert_called_once_with(
+            controller._window,
+            Gtk.MessageType.WARNING,
+            "Some imported pins could not be loaded.",
+            "Trash",
+        )
+    else:
+        show_message.assert_not_called()
     changed.assert_called_once_with()
     actions.on_hide_mode_changed.assert_called_once_with()
