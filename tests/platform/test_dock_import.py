@@ -302,6 +302,8 @@ def test_read_sources_detects_both_families_and_distinguishes_empty_from_malform
     launchers.mkdir()
     plank, cairo = dock_import.read_dock_import_sources()
     assert plank.pins and cairo.empty_layout
+    assert dock_import.read_dock_import_sources("plank") == [plank]
+    assert dock_import.read_dock_import_sources("cairo-dock") == [cairo]
     _write(launchers, "invalid.desktop", "not a key file")
     _write(launchers, "empty.desktop", "[Desktop Entry]\n")
     _, cairo = dock_import.read_dock_import_sources()

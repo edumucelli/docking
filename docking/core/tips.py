@@ -27,6 +27,8 @@ from docking.core.paths import ensure_parent_dir
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.environment import docking_state_dir
+from docking.platform.host.base import HostFamily
+from docking.platform.host.selection import host_services
 
 logger = get_logger("tips")
 
@@ -42,6 +44,7 @@ class StartupTip:
     id: str
     title: str
     body: str
+    host_families: tuple[HostFamily, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +73,15 @@ STARTUP_TIPS: tuple[StartupTip, ...] = (
             "zoom, hiding, themes, previews, tooltips, and click actions. It "
             "is the best first stop when the dock does not feel quite right."
         ),
+    ),
+    StartupTip(
+        "import-dock-layout",
+        _("Import an existing dock layout"),
+        _(
+            "Open Preferences -> Import to review pins and settings from Plank, "
+            "Plank Reloaded, or Cairo-Dock before bringing them into Docking."
+        ),
+        host_families=(HostFamily.LINUX, HostFamily.BSD),
     ),
     StartupTip(
         "add-applets",
@@ -339,7 +351,12 @@ def select_startup_tip(
         return None
 
     state = load_state(path=path)
-    tip_by_id = {tip.id: tip for tip in STARTUP_TIPS}
+    host_family = host_services().family
+    tip_by_id = {
+        tip.id: tip
+        for tip in STARTUP_TIPS
+        if not tip.host_families or host_family in tip.host_families
+    }
     shown = tuple(tip_id for tip_id in state.shown_tip_ids if tip_id in tip_by_id)
     shown_set = set(shown)
 
@@ -347,9 +364,9 @@ def select_startup_tip(
         selected = tip_by_id[FIRST_TIP_ID]
         next_shown = (*shown, selected.id)
     else:
-        available = [tip for tip in STARTUP_TIPS if tip.id not in shown_set]
+        available = [tip for tip in tip_by_id.values() if tip.id not in shown_set]
         if not available:
-            available = [tip for tip in STARTUP_TIPS if tip.id != FIRST_TIP_ID]
+            available = [tip for tip in tip_by_id.values() if tip.id != FIRST_TIP_ID]
             shown = (FIRST_TIP_ID,)
         selected = (chooser or random.choice)(available)
         next_shown = (*shown, selected.id)

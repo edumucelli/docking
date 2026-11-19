@@ -85,8 +85,9 @@ that should use their defaults.
 On Linux and BSD, Docking offers an import on first launch when it finds a
 compatible setup in your XDG configuration directory. Choose a source if both
 are present, then review the pins, preferences, and skipped items before
-importing. To import later, open **Preferences → Import** and select
-**Import from Another Dock…**.
+importing. To import later, open **Preferences → Import** and choose
+**Import from Plank** or **Import from Cairo-Dock**. The Plank button also
+supports Plank Reloaded.
 
 - **Plank and Plank Reloaded** import the primary dock, including compatible
   launchers, files, folders, docklets, and preferences. With neither its

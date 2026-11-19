@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
+from types import SimpleNamespace
+
+import pytest
 
 import docking.core.tips as tips_mod
 from docking.core.tips import (
@@ -14,6 +17,7 @@ from docking.core.tips import (
     save_state,
     select_startup_tip,
 )
+from docking.platform.host.base import HostFamily
 
 
 class TestStartupTipsState:
@@ -115,10 +119,33 @@ class TestSelectStartupTip:
         assert tip.id != FIRST_TIP_ID
         assert load_state(path=path).shown_tip_ids == (FIRST_TIP_ID, tip.id)
 
-    def test_catalog_has_exactly_twenty_five_unique_tips(self):
+    @pytest.mark.parametrize(
+        ("host_family", "offered"),
+        [(HostFamily.LINUX, True), (HostFamily.BSD, True), (HostFamily.WINDOWS, False)],
+    )
+    def test_import_tip_is_offered_where_import_is_available(
+        self, tmp_path, monkeypatch, host_family, offered
+    ):
+        monkeypatch.setattr(
+            tips_mod, "host_services", lambda: SimpleNamespace(family=host_family)
+        )
+        path = tmp_path / "tips.json"
+        save_state(StartupTipsState(shown_tip_ids=(FIRST_TIP_ID,)), path=path)
+
+        def choose(candidates):
+            matching = [tip for tip in candidates if tip.id == "import-dock-layout"]
+            assert bool(matching) is offered
+            return matching[0] if matching else candidates[0]
+
+        tip = select_startup_tip(enabled=True, path=path, chooser=choose)
+
+        assert tip is not None
+        assert (tip.id == "import-dock-layout") is offered
+
+    def test_catalog_has_unique_tips(self):
         ids = [tip.id for tip in STARTUP_TIPS]
 
-        assert len(STARTUP_TIPS) == 25
+        assert len(STARTUP_TIPS) == 26
         assert len(ids) == len(set(ids))
         assert ids[0] == tips_mod.FIRST_TIP_ID
         assert {

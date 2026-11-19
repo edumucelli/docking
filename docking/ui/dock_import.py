@@ -25,9 +25,10 @@ from docking.ui.display import monitor_connector
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.platform.applications.registry import ApplicationRegistry
+    from docking.platform.dock_import import DockImportKind
 
 
-def _read_sources() -> list[DockImportSource] | None:
+def _read_sources(kind: DockImportKind | None) -> list[DockImportSource] | None:
     loop = GLib.MainLoop()
     result: list[DockImportSource] | None = None
 
@@ -39,7 +40,7 @@ def _read_sources() -> list[DockImportSource] | None:
     BackgroundWorker().run_guarded(
         key="dock-import",
         name="read_dock_import_sources",
-        fn=read_dock_import_sources,
+        fn=lambda: read_dock_import_sources(kind),
         on_result=finished,
         on_error=lambda _error: loop.quit(),
     )
@@ -144,11 +145,12 @@ def review_dock_import(
     registry: ApplicationRegistry,
     *,
     first_run: bool,
+    kind: DockImportKind | None = None,
 ) -> DockImport | None:
     display = Gdk.Display.get_default()
     if display is None:
         return None
-    sources = _read_sources()
+    sources = _read_sources(kind)
     if (first_run and not sources) or (parent is not None and not parent.get_visible()):
         return None
 
@@ -189,15 +191,17 @@ def review_dock_import(
     area = dialog.get_content_area()
     area.set_border_width(12)
     area.set_spacing(8)
+    source_labels = [
+        _("{source} ({profile})").format(source=source.name, profile=source.profile)
+        if source.profile
+        else source.name
+        for source, _candidate in reviews
+    ]
     combo = Gtk.ComboBoxText()
-    for source, _candidate in reviews:
-        combo.append_text(
-            _("{source} ({profile})").format(source=source.name, profile=source.profile)
-            if source.profile
-            else source.name
-        )
-    combo.set_tooltip_text(_("Choose a dock to import."))
-    if reviews:
+    for label in source_labels:
+        combo.append_text(label)
+    if kind is None and reviews:
+        combo.set_tooltip_text(_("Choose a dock to import."))
         area.pack_start(combo, False, False, 0)
     scroller = Gtk.ScrolledWindow()
     scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -217,10 +221,16 @@ def review_dock_import(
             empty = first_run and source.empty_layout
             can_import = bool(candidate.added or candidate.changes or empty)
             message = _review_text(candidate, empty=empty)
+            if kind is not None:
+                message = f"{source_labels[index]}\n\n{message}"
         elif reviews:
             message = _("Choose a dock to review its pins and preferences.")
         elif sources is None:
             message = _("Could not read the source dock settings.")
+        elif kind == "plank":
+            message = _("No Plank or Plank Reloaded setup was found.")
+        elif kind == "cairo-dock":
+            message = _("No Cairo-Dock setup was found.")
         else:
             message = _("No Plank or Cairo-Dock setup was found.")
         overview.get_buffer().set_text(message)

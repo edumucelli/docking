@@ -96,12 +96,16 @@ class FakeLabel:
 class FakeBox:
     def __init__(self, **_kwargs) -> None:
         self.children: list[object] = []
+        self.sensitive = True
         self.border_width = 0
         self.hexpand = False
         self.size_request = None
         self.margin_start = 0
         self.margin_end = 0
         self.tooltip_text = None
+
+    def set_sensitive(self, value: bool) -> None:
+        self.sensitive = value
 
     def set_visible(self, value: bool) -> None:
         self.visible = value
@@ -868,13 +872,17 @@ class TestSettingsWindowController:
             expected_tabs.append("Import")
         assert [title for _, _, title in stack.pages] == expected_tabs
         if import_supported:
-            _, import_button = _stack_page_child(stack, 4).children
-            assert import_button.label == "Import from Another Dock…"
-            import_button.click()
-            review.assert_called_once_with(
-                window, controller._config, registry, first_run=False
-            )
-            assert import_button.sensitive
+            tab = _stack_page_child(stack, 4)
+            _, plank_button, cairo_button = tab.children
+            assert plank_button.label == "Import from Plank"
+            assert cairo_button.label == "Import from Cairo-Dock"
+            for button, kind in ((plank_button, "plank"), (cairo_button, "cairo-dock")):
+                button.click()
+                review.assert_called_once_with(
+                    window, controller._config, registry, first_run=False, kind=kind
+                )
+                review.reset_mock()
+                assert tab.sensitive
         assert window.default_size == (
             settings_mod.PREFERENCES_WINDOW_WIDTH_PX,
             settings_mod.PREFERENCES_WINDOW_HEIGHT_PX,

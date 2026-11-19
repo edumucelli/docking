@@ -9,7 +9,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from gi.repository import Gio, GLib
 
@@ -91,6 +91,7 @@ _CAIRO_HIDE_MODES = {
     5: "autohide",
 }
 
+DockImportKind = Literal["plank", "cairo-dock"]
 Scalar = bool | int | float | str
 ReadPlank = Callable[[str, str, str], "GLib.Variant | None"]
 
@@ -138,11 +139,15 @@ def dock_import_supported() -> bool:
     return host_services().family in (HostFamily.LINUX, HostFamily.BSD)
 
 
-def read_dock_import_sources() -> list[DockImportSource]:
+def read_dock_import_sources(
+    kind: DockImportKind | None = None,
+) -> list[DockImportSource]:
     root = host_services().config_home()
-    plank_root = root / "plank"
-    cairo_root = root / "cairo-dock" / "current_theme"
-    sources = (_read_plank(plank_root), _read_cairo(cairo_root))
+    sources = []
+    if kind in (None, "plank"):
+        sources.append(_read_plank(root / "plank"))
+    if kind in (None, "cairo-dock"):
+        sources.append(_read_cairo(root / "cairo-dock" / "current_theme"))
     return [source for source in sources if source.available or source.notes]
 
 

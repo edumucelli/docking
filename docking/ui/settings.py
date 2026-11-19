@@ -96,6 +96,7 @@ from docking.ui.dock_shortcut import DockShortcutController
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.platform.applications.registry import ApplicationRegistry
+    from docking.platform.dock_import import DockImportKind
     from docking.platform.model import DockModel
     from docking.search.controller import GlobalSearchController
     from docking.ui.dnd import DnDHandler
@@ -1100,33 +1101,38 @@ class SettingsWindowController:
         outer.set_border_width(APPEARANCE_TAB_BORDER_PX)
 
         description = Gtk.Label(
-            label=_(
-                "Import pins and preferences from Plank, Plank Reloaded, or Cairo-Dock."
-            )
+            label=_("The Plank importer also supports Plank Reloaded.")
         )
         description.set_xalign(0.0)
         description.set_line_wrap(True)
         description.set_max_width_chars(48)
         outer.pack_start(description, False, False, 0)
 
-        import_button = Gtk.Button(label=_("Import from Another Dock…"))
-        import_button.set_halign(Gtk.Align.START)
-        import_button.connect("clicked", self._import_dock)
-        outer.pack_start(import_button, False, False, 0)
+        buttons: tuple[tuple[DockImportKind, str], ...] = (
+            ("plank", _("Import from Plank")),
+            ("cairo-dock", _("Import from Cairo-Dock")),
+        )
+        for kind, label in buttons:
+            button = Gtk.Button(label=label)
+            button.set_halign(Gtk.Align.START)
+            button.connect(
+                "clicked", lambda _button, kind=kind: self._import_dock(outer, kind)
+            )
+            outer.pack_start(button, False, False, 0)
         return self._new_tab_scroller(outer, propagate_natural_width=True)
 
-    def _import_dock(self, button: Gtk.Button) -> None:
+    def _import_dock(self, tab: Gtk.Box, kind: DockImportKind) -> None:
         parent, registry = self._window, self._application_registry
         if parent is None or registry is None:
             return
-        button.set_sensitive(False)
+        tab.set_sensitive(False)
         try:
             imported = review_dock_import(
-                parent, self._config, registry, first_run=False
+                parent, self._config, registry, first_run=False, kind=kind
             )
         finally:
             if self._window is parent:
-                button.set_sensitive(True)
+                tab.set_sensitive(True)
         if imported is None or self._window is not parent:
             return
         try:
