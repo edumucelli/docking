@@ -94,7 +94,8 @@ class FakeLabel:
 
 
 class FakeBox:
-    def __init__(self, **_kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
+        self.orientation = kwargs.get("orientation")
         self.children: list[object] = []
         self.sensitive = True
         self.border_width = 0
@@ -419,9 +420,6 @@ class FakeButton:
     def set_sensitive(self, value: bool) -> None:
         self.sensitive = value
 
-    def set_halign(self, value: int) -> None:
-        self.halign = value
-
     def set_label(self, value: str) -> None:
         self.label = value
 
@@ -637,7 +635,6 @@ class FakePolicyType:
 
 
 class FakeAlign:
-    START = 1
     CENTER = 0
 
 
@@ -873,9 +870,19 @@ class TestSettingsWindowController:
         assert [title for _, _, title in stack.pages] == expected_tabs
         if import_supported:
             tab = _stack_page_child(stack, 4)
-            _, plank_button, cairo_button = tab.children
-            assert plank_button.label == "Import from Plank"
-            assert cairo_button.label == "Import from Cairo-Dock"
+            (section,) = tab.children
+            header, content = section.children
+            assert header.markup == "<b>Import from</b>"
+            (row,) = content.children
+            label, actions = row.children
+            assert label.get_label() == "Another dock"
+            assert actions.orientation == FakeOrientation.HORIZONTAL
+            plank_button, cairo_button, help_icon = actions.children
+            assert plank_button.label == "Plank"
+            assert cairo_button.label == "Cairo-Dock"
+            assert help_icon.child.get_label() == "💡"
+            assert "Plank Reloaded" in help_icon._docking_info_text
+            assert "skipped items" in help_icon._docking_info_text
             for button, kind in ((plank_button, "plank"), (cairo_button, "cairo-dock")):
                 button.click()
                 review.assert_called_once_with(

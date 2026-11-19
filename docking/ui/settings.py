@@ -1096,29 +1096,36 @@ class SettingsWindowController:
     def _build_import_tab(self) -> Gtk.Widget:
         outer = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
-            spacing=ROW_SPACING_PX,
+            spacing=APPEARANCE_TAB_SPACING_PX,
         )
         outer.set_border_width(APPEARANCE_TAB_BORDER_PX)
-
-        description = Gtk.Label(
-            label=_("The Plank importer also supports Plank Reloaded.")
+        actions = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=ROW_SPACING_PX,
         )
-        description.set_xalign(0.0)
-        description.set_line_wrap(True)
-        description.set_max_width_chars(48)
-        outer.pack_start(description, False, False, 0)
-
         buttons: tuple[tuple[DockImportKind, str], ...] = (
-            ("plank", _("Import from Plank")),
-            ("cairo-dock", _("Import from Cairo-Dock")),
+            ("plank", _("Plank")),
+            ("cairo-dock", _("Cairo-Dock")),
         )
         for kind, label in buttons:
             button = Gtk.Button(label=label)
-            button.set_halign(Gtk.Align.START)
             button.connect(
                 "clicked", lambda _button, kind=kind: self._import_dock(outer, kind)
             )
-            outer.pack_start(button, False, False, 0)
+            actions.pack_start(button, False, False, 0)
+        help_icon = self._new_info_icon(
+            _(
+                "The Plank button also supports Plank Reloaded. Review the "
+                "pins, preferences, and skipped items before importing."
+            ),
+            icon_widget=Gtk.Label(label="💡"),
+        )
+        actions.pack_start(help_icon, False, False, 0)
+        self._append_section(
+            outer=outer,
+            title=_("Import from"),
+            rows=[(_("Another dock"), actions, None)],
+        )
         return self._new_tab_scroller(outer, propagate_natural_width=True)
 
     def _import_dock(self, tab: Gtk.Box, kind: DockImportKind) -> None:
@@ -1167,19 +1174,21 @@ class SettingsWindowController:
         self._sync_widgets()
         self._rebuild_applet_tab()
 
-    def _new_info_icon(self, tooltip: str = "") -> _InfoIcon:
+    def _new_info_icon(
+        self, tooltip: str = "", *, icon_widget: Gtk.Widget | None = None
+    ) -> _InfoIcon:
         icon = _InfoIcon()
         icon.set_visible_window(False)
         icon.set_size_request(HIDE_MODE_INFO_ICON_WIDTH_PX, -1)
         icon.add_events(
             Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK
         )
-        icon.add(
-            Gtk.Image.new_from_icon_name(
+        if icon_widget is None:
+            icon_widget = Gtk.Image.new_from_icon_name(
                 "dialog-information-symbolic",
                 Gtk.IconSize.MENU,
             )
-        )
+        icon.add(icon_widget)
 
         popover = Gtk.Popover.new(icon)
         popover.set_modal(False)
