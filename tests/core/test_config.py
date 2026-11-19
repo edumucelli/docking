@@ -1547,3 +1547,70 @@ def test_always_behind_mode_round_trips_without_changing_other_preferences(tmp_p
     assert restored.pressure_reveal_enabled
     assert restored.hide_delay_ms == 80
     assert Config().hide_mode_enum is HideMode.NONE
+
+
+def test_first_run_import_saves_empty_layout_and_is_never_offered_again(tmp_path):
+    path = tmp_path / "dock.json"
+    migrate = MagicMock(return_value=Config(icon_size=80))
+    seed = MagicMock(
+        side_effect=AssertionError("An empty imported layout must stay empty")
+    )
+    assert (
+        Config.load(path, initial_pinned_factory=seed, first_run_import=migrate).pinned
+        == []
+    )
+    assert (
+        Config.load(
+            path, initial_pinned_factory=seed, first_run_import=migrate
+        ).icon_size
+        == 80
+    )
+    migrate.assert_called_once_with()
+    seed.assert_not_called()
+
+
+def test_first_run_import_protects_backup_and_config_created_during_review(tmp_path):
+    path = tmp_path / "dock.json"
+    backup = tmp_path / "dock.json.bak"
+    Config(icon_size=72).save(backup)
+    migrate = MagicMock()
+    assert Config.load(path, first_run_import=migrate).icon_size == 72
+    migrate.assert_not_called()
+
+    backup.unlink()
+
+    def create_config_during_review():
+        Config(icon_size=96).save(path)
+        return Config(icon_size=64)
+
+    config = Config.load(path, first_run_import=create_config_during_review)
+    assert config.icon_size == 96
+    assert Config.load(path).icon_size == 96
+
+
+def test_save_replacement_updates_live_config_only_after_commit(tmp_path, monkeypatch):
+    path = tmp_path / "dock.json"
+    Config(icon_size=64).save(path)
+    base = Config.load(path)
+    candidate = Config(icon_size=96)
+
+    def fail(*_args, **_kwargs):
+        raise OSError("Simulated storage error")
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(config_mod, "_write_json_atomic_candidate", fail)
+        with pytest.raises(OSError, match="Simulated storage error"):
+            base.save_replacement(candidate)
+    assert base.icon_size == 64
+    assert Config.load(path).icon_size == 64
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            config_mod,
+            "_fsync_directory",
+            MagicMock(side_effect=[None, OSError("Simulated storage error")]),
+        )
+        base.save_replacement(candidate)
+    assert base.icon_size == 96
+    assert Config.load(path).icon_size == 96
+    assert Config.load(tmp_path / "dock.json.bak").icon_size == 64

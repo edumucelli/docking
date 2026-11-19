@@ -280,6 +280,7 @@ class TestBuildDockWindow:
             actions=components.settings_actions,
             model=model,
             config=config,
+            application_registry=application_registry,
             window_outline_supported=(
                 session_backend.capabilities.supports_window_outline
             ),

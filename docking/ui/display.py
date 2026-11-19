@@ -36,6 +36,14 @@ class ScreenPosition(NamedTuple):
     y: int
 
 
+def monitor_connector(monitor: Gdk.Monitor) -> str | None:
+    # GTK 3 exposes the connector only on some builds.
+    getter = getattr(monitor, "get_connector", None)
+    if not callable(getter):
+        return None
+    return str(getter() or "").strip() or None
+
+
 def scrolled_popup_size(content: Size, available: Size, scrollbar: Size) -> Size:
     """Fit content and non-overlay scrollbars, including their mutual overflow."""
     horizontal = content.width > available.width

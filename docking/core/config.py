@@ -1146,6 +1146,7 @@ class Config:
         path: Path | str | None = None,
         *,
         initial_pinned_factory: Callable[[], Iterable[PinnedEntry]] | None = None,
+        first_run_import: Callable[[], Config | None] | None = None,
     ) -> Config:
         """Load config from JSON file, falling back to defaults for missing keys."""
         path = Path(path) if path else DEFAULT_CONFIG_FILE
@@ -1154,13 +1155,41 @@ class Config:
         # while recovery looks for one beside the link and restores stale values.
         if path.is_symlink():
             path = Path(os.path.realpath(path))
+        backup_paths = [_backup_path_for(path)]
+        if original_path != path:
+            # Older versions kept the backup beside the symlink.
+            backup_paths.append(_backup_path_for(original_path))
         if not path.exists():
+            for backup_path in backup_paths:
+                if backup_path.exists():
+                    try:
+                        config = cls._load_existing_file(path=backup_path)
+                    except (ValueError, OSError):
+                        continue
+                    config._path = path
+                    return config
+            imported = None
+            if (
+                first_run_import is not None
+                and not original_path.is_symlink()
+                and not any(backup.exists() for backup in backup_paths)
+            ):
+                imported = first_run_import()
+                # The review dialog may have been open while another launch saved.
+                if (
+                    original_path.exists()
+                    or original_path.is_symlink()
+                    or any(backup.exists() for backup in backup_paths)
+                ):
+                    return cls.load(
+                        original_path, initial_pinned_factory=initial_pinned_factory
+                    )
             factory = (
                 build_initial_pinned
                 if initial_pinned_factory is None
                 else initial_pinned_factory
             )
-            config = cls(pinned=list(factory()))
+            config = imported if imported is not None else cls(pinned=list(factory()))
             config._path = path
             config.save(path=path)
             return config
@@ -1168,11 +1197,6 @@ class Config:
         try:
             config = cls._load_existing_file(path=path)
         except Exception as exc:
-            backup_paths = [_backup_path_for(path)]
-            if original_path != path:
-                # Older versions kept the backup beside the symlink. Prefer
-                # the target's newer backup, but retain recovery after upgrade.
-                backup_paths.append(_backup_path_for(original_path))
             logger.warning("Failed to load config %s: %s", path, exc)
             for backup_path in backup_paths:
                 if not backup_path.exists():
@@ -1243,6 +1267,24 @@ class Config:
                         cleanup_exc,
                     )
                 raise
+
+    def save_replacement(self, candidate: Config) -> None:
+        """Save a prepared replacement before updating this shared config."""
+        candidate._path = self._path
+        try:
+            candidate.save()
+        except OSError as exc:
+            # The replace may have committed before the directory flush failed.
+            try:
+                saved = self._load_existing_file(self._path)
+            except (OSError, ValueError):
+                raise exc from None
+            if saved.to_dict() != candidate.to_dict():
+                raise
+            logger.warning(
+                "Dock import was saved, but flushing the config directory failed."
+            )
+        self.__dict__.update(candidate.__dict__)
 
     @classmethod
     def _load_existing_file(cls, path: Path) -> Config:

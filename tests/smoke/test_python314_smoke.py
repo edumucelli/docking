@@ -456,7 +456,7 @@ def test_app_main_smoke(monkeypatch, catalog_pending, association_status):
     config_cls = MagicMock()
     initial_application_pins = []
 
-    def load_config(*, initial_pinned_factory):
+    def load_config(*, initial_pinned_factory, first_run_import):
         config.pinned = initial_pinned_factory()
         initial_application_pins.extend(
             entry.target for entry in config.pinned if entry.kind == "app"

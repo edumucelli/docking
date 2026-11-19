@@ -1288,6 +1288,36 @@ class TestCallbacks:
 
 
 class TestAppletLifecycleIntegration:
+    def test_import_starts_only_new_applets_and_reuses_existing_items(
+        self, monkeypatch
+    ):
+        original = PinnedEntry("applet", "applet://separator#0")
+        config = Config(pinned=[original])
+        model = _make_model(config, _make_dependencies("browser.desktop"))
+        first_item = model.pinned_items[0]
+        additions = [
+            PinnedEntry("app", "browser.desktop"),
+            PinnedEntry("applet", "applet://separator#1"),
+        ]
+        config.pinned.extend(additions)
+        start = MagicMock(return_value=True)
+        monkeypatch.setattr(model, "_start_applet", start)
+        monkeypatch.setattr(config, "save", MagicMock())
+
+        model.append_imported_pins(additions)
+
+        assert model.pinned_items[0] is first_item
+        assert [item.desktop_id for item in model.pinned_items] == [
+            "applet://separator#0",
+            "browser.desktop",
+            "applet://separator#1",
+        ]
+        start.assert_called_once_with(
+            desktop_id="applet://separator#1",
+            applet=model.get_applet("applet://separator#1"),
+        )
+        config.save.assert_not_called()
+
     @pytest.mark.parametrize("applet_id", ["applications", "runcommand", "music"])
     def test_constructs_application_applets_with_application_and_platform_services(
         self, monkeypatch, applet_id

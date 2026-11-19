@@ -84,15 +84,18 @@ from docking.core.theme import Theme, list_theme_names
 from docking.core.updates import load_state
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform.dock_import import dock_import_supported
 from docking.search.config import (
     DEFAULT_GLOBAL_SEARCH_WEB_ENGINE,
     GLOBAL_SEARCH_WEB_ENGINES,
 )
 from docking.search.ui.shortcut_capture import ShortcutCaptureButton
+from docking.ui.dock_import import review_dock_import
 from docking.ui.dock_shortcut import DockShortcutController
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
     from docking.search.controller import GlobalSearchController
     from docking.ui.dnd import DnDHandler
@@ -291,11 +294,13 @@ class SettingsWindowController:
         model: DockModel,
         config: Config,
         window_outline_supported: bool = False,
+        application_registry: ApplicationRegistry | None = None,
     ) -> None:
         self._parent = parent
         self._actions = actions
         self._model = model
         self._config = config
+        self._application_registry = application_registry
         self._window_outline_supported = window_outline_supported
         self._window: Gtk.Window | None = None
         self._syncing_widgets = False
@@ -422,6 +427,8 @@ class SettingsWindowController:
         stack.add_titled(self._build_behavior_tab(), "behavior", _("Behavior"))
         stack.add_titled(self._build_applets_tab(), "applets", _("Applets"))
         stack.add_titled(self._build_updates_tab(), "updates", _("Updates"))
+        if self._application_registry is not None and dock_import_supported():
+            stack.add_titled(self._build_import_tab(), "import", _("Import"))
 
         outer.pack_start(switcher, False, False, 0)
         outer.pack_start(stack, True, True, 0)
@@ -1084,6 +1091,75 @@ class SettingsWindowController:
         )
 
         return self._new_tab_scroller(outer, propagate_natural_width=True)
+
+    def _build_import_tab(self) -> Gtk.Widget:
+        outer = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=ROW_SPACING_PX,
+        )
+        outer.set_border_width(APPEARANCE_TAB_BORDER_PX)
+
+        description = Gtk.Label(
+            label=_(
+                "Import pins and preferences from Plank, Plank Reloaded, or Cairo-Dock."
+            )
+        )
+        description.set_xalign(0.0)
+        description.set_line_wrap(True)
+        description.set_max_width_chars(48)
+        outer.pack_start(description, False, False, 0)
+
+        import_button = Gtk.Button(label=_("Import from Another Dock…"))
+        import_button.set_halign(Gtk.Align.START)
+        import_button.connect("clicked", self._import_dock)
+        outer.pack_start(import_button, False, False, 0)
+        return self._new_tab_scroller(outer, propagate_natural_width=True)
+
+    def _import_dock(self, button: Gtk.Button) -> None:
+        parent, registry = self._window, self._application_registry
+        if parent is None or registry is None:
+            return
+        button.set_sensitive(False)
+        try:
+            imported = review_dock_import(
+                parent, self._config, registry, first_run=False
+            )
+        finally:
+            if self._window is parent:
+                button.set_sensitive(True)
+        if imported is None or self._window is not parent:
+            return
+        try:
+            self._config.save_replacement(imported.config)
+        except OSError:
+            error = Gtk.MessageDialog(
+                transient_for=parent,
+                modal=True,
+                destroy_with_parent=True,
+                message_type=Gtk.MessageType.ERROR,
+                buttons=Gtk.ButtonsType.CLOSE,
+                text=_("Could not save the imported dock."),
+            )
+            try:
+                error.run()
+            finally:
+                error.destroy()
+            return
+
+        self._model.append_imported_pins(imported.added)
+        changed = imported.changes.keys()
+        for binding in self._bindings:
+            if binding.config_attr in changed and binding.on_change is not None:
+                binding.on_change()
+        if changed & {"monitor_index", "monitor_connector"}:
+            self._actions.reposition()
+        if "hide_mode" not in changed and changed & {
+            "hide_delay_ms",
+            "unhide_delay_ms",
+        }:
+            self._actions.on_hide_mode_changed()
+        self._sync_widgets()
+        self._rebuild_applet_tab()
 
     def _new_info_icon(self, tooltip: str = "") -> _InfoIcon:
         icon = _InfoIcon()

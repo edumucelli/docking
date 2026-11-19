@@ -80,6 +80,28 @@ that should use their defaults.
 }
 ```
 
+## Import a Plank or Cairo-Dock layout
+
+On Linux and BSD, Docking offers an import on first launch when it finds a
+compatible setup in your XDG configuration directory. Choose a source if both
+are present, then review the pins, preferences, and skipped items before
+importing. To import later, open **Preferences → Import** and select
+**Import from Another Dock…**.
+
+- **Plank and Plank Reloaded** import the primary dock, including compatible
+  launchers, files, folders, docklets, and preferences. With neither its
+  GSettings schema nor the `dconf` command available, Docking reads launcher
+  files in filename order.
+- **Cairo-Dock** imports the main dock in the active theme. It places sub-dock
+  contents where the sub-dock icon appeared and converts supported docked
+  plug-ins to Docking applets. The review reports skipped custom commands,
+  separate docks, and detached desklets.
+
+An import from Preferences appends new pins and applies the reviewed settings
+immediately. Docking keeps the previous configuration in its regular
+`dock.json.bak` backup and reads the source configuration in place. Theme files
+and plug-in-specific preferences need separate setup.
+
 ## Settings Reference
 
 Boolean defaults are shown as `true` or `false`, matching their JSON values.

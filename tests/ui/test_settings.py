@@ -415,6 +415,9 @@ class FakeButton:
     def set_sensitive(self, value: bool) -> None:
         self.sensitive = value
 
+    def set_halign(self, value: int) -> None:
+        self.halign = value
+
     def set_label(self, value: str) -> None:
         self.label = value
 
@@ -630,6 +633,7 @@ class FakePolicyType:
 
 
 class FakeAlign:
+    START = 1
     CENTER = 0
 
 
@@ -822,18 +826,28 @@ def _fake_info_icon(monkeypatch):
 
 
 class TestSettingsWindowController:
-    def test_show_reuses_single_window_and_builds_four_tabs(self, monkeypatch):
+    @pytest.mark.parametrize("import_supported", [False, True])
+    def test_show_reuses_single_window_and_builds_tabs(
+        self, monkeypatch, import_supported
+    ):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        monkeypatch.setattr(
+            settings_mod, "dock_import_supported", lambda: import_supported
+        )
+        review = MagicMock(return_value=None)
+        monkeypatch.setattr(settings_mod, "review_dock_import", review)
+        registry = MagicMock()
         controller = _settings_controller(
             parent=_parent_window(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
+            application_registry=registry,
         )
 
         controller.show()
@@ -849,18 +863,23 @@ class TestSettingsWindowController:
         assert isinstance(switcher, FakeStackSwitcher)
         assert switcher.halign == FakeAlign.CENTER
         assert switcher.stack is stack
-        assert [title for _, _, title in stack.pages] == [
-            "Appearance",
-            "Behavior",
-            "Applets",
-            "Updates",
-        ]
+        expected_tabs = ["Appearance", "Behavior", "Applets", "Updates"]
+        if import_supported:
+            expected_tabs.append("Import")
+        assert [title for _, _, title in stack.pages] == expected_tabs
+        if import_supported:
+            _, import_button = _stack_page_child(stack, 4).children
+            assert import_button.label == "Import from Another Dock…"
+            import_button.click()
+            review.assert_called_once_with(
+                window, controller._config, registry, first_run=False
+            )
+            assert import_button.sensitive
         assert window.default_size == (
             settings_mod.PREFERENCES_WINDOW_WIDTH_PX,
             settings_mod.PREFERENCES_WINDOW_HEIGHT_PX,
         )
-        for index in range(4):
-            page = stack.pages[index][0]
+        for page, _, _ in stack.pages:
             assert isinstance(page, FakeScrolledWindow)
             assert page.policy == (FakePolicyType.NEVER, FakePolicyType.AUTOMATIC)
             assert page.vexpand is True
