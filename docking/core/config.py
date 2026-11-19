@@ -1289,15 +1289,7 @@ class Config:
     @classmethod
     def _load_existing_file(cls, path: Path) -> Config:
         data = _read_config_data(path=path)
-        if "stack_unfold" not in data and "folder_stack_unfold" in data:
-            data["stack_unfold"] = data["folder_stack_unfold"]
-        legacy_window_preview_keys = {
-            "previews_enabled": "window_preview_thumbnails_enabled",
-            "preview_thumbnail_outline": "window_preview_highlight_thumbnails_on_hover",
-        }
-        for old_key, new_key in legacy_window_preview_keys.items():
-            if new_key not in data and old_key in data:
-                data[new_key] = data[old_key]
+        migrate_config_fields(data)
         valid_fields = {f.name for f in cls.__dataclass_fields__.values()}
         filtered = {k: v for k, v in data.items() if k in valid_fields}
         if "pinned" in filtered:
@@ -1312,6 +1304,17 @@ class Config:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+def migrate_config_fields(data: dict[str, Any]) -> None:
+    """Fill renamed settings from older Docking configurations."""
+    for old_key, new_key in {
+        "folder_stack_unfold": "stack_unfold",
+        "previews_enabled": "window_preview_thumbnails_enabled",
+        "preview_thumbnail_outline": "window_preview_highlight_thumbnails_on_hover",
+    }.items():
+        if new_key not in data and old_key in data:
+            data[new_key] = data[old_key]
 
 
 def effective_edge_gap(theme: Theme, config: Config) -> int:

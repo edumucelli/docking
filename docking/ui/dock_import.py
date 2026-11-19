@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import gi
@@ -28,7 +29,33 @@ if TYPE_CHECKING:
     from docking.platform.dock_import import DockImportKind
 
 
-def _read_sources(kind: DockImportKind | None) -> list[DockImportSource] | None:
+def choose_docking_config_file(parent: Gtk.Window) -> Path | None:
+    chooser = Gtk.FileChooserNative(
+        title=_("Choose a Docking configuration file"),
+        transient_for=parent,
+        action=Gtk.FileChooserAction.OPEN,
+        accept_label=_("Open"),
+        cancel_label=_("Cancel"),
+    )
+    chooser.set_modal(True)
+    file_filter = Gtk.FileFilter()
+    file_filter.set_name(_("Docking configuration files"))
+    file_filter.add_pattern("*.json")
+    file_filter.add_pattern("*.json.bak")
+    chooser.add_filter(file_filter)
+    try:
+        if chooser.run() != Gtk.ResponseType.ACCEPT:
+            return None
+        if filename := chooser.get_filename():
+            return Path(filename)
+        return None
+    finally:
+        chooser.destroy()
+
+
+def _read_sources(
+    kind: DockImportKind | None, file_path: Path | None
+) -> list[DockImportSource] | None:
     loop = GLib.MainLoop()
     result: list[DockImportSource] | None = None
 
@@ -40,7 +67,7 @@ def _read_sources(kind: DockImportKind | None) -> list[DockImportSource] | None:
     BackgroundWorker().run_guarded(
         key="dock-import",
         name="read_dock_import_sources",
-        fn=lambda: read_dock_import_sources(kind),
+        fn=lambda: read_dock_import_sources(kind, file_path=file_path),
         on_result=finished,
         on_error=lambda _error: loop.quit(),
     )
@@ -55,21 +82,35 @@ def _setting_label(key: str) -> str:
         "monitor_connector": _("Display"),
         "active_display": _("Follow Active Display"),
         "icon_size": _("Icon Size"),
+        "theme": _("Theme"),
+        "transparency": _("Transparency"),
         "zoom_enabled": _("Enable Zoom"),
         "zoom_percent": _("Zoom Level"),
         "hide_mode": _("Hide Mode"),
         "hide_delay_ms": _("Hide Delay"),
         "unhide_delay_ms": _("Unhide Delay"),
         "pressure_reveal_enabled": _("Pressure Reveal"),
+        "pressure_threshold": _("Pressure Threshold"),
         "lock_icons": _("Lock Icons"),
         "pinned_only": _("Pinned Only"),
         "current_workspace_only": _("Current Workspace Only"),
         "tooltips_enabled": _("Show Tooltips"),
         "window_preview_thumbnails_enabled": _("Show Window Previews"),
         "window_preview_thumbnail_width": _("Preview Width"),
+        "window_preview_highlight_thumbnails_on_hover": _("Outline Thumbnail on Hover"),
+        "window_preview_outline_window_on_hover": _("Outline Window on Preview Hover"),
         "additional_distance_from_edge": _("Additional Distance from Edge"),
         "anchor_applets": _("Anchor Applets"),
         "anchor_files": _("Anchor Files"),
+        "left_click_action": _("Left Click"),
+        "middle_click_action": _("Middle Click"),
+        "dock_item_click_effects_enabled": _("Enable Effects When Clicking Dock Items"),
+        "dock_item_click_effect": _("Click Effect"),
+        "stack_unfold": _("Open Stacks"),
+        "window_list_sort": _("Window List Sort"),
+        "show_window_count_numbers": _("Show Window Counts"),
+        "show_launcher_badges": _("Application Badges"),
+        "show_launcher_progress": _("Application Progress"),
     }[key]
 
 
@@ -92,7 +133,9 @@ def _setting_value(key: str, value: Scalar | None) -> str:
             "left": _("Left"),
             "right": _("Right"),
         }[str(value)]
-    if key in ("zoom_percent", "dock_alignment") and isinstance(value, (int, float)):
+    if key in ("zoom_percent", "dock_alignment", "transparency") and isinstance(
+        value, (int, float)
+    ):
         return f"{value:.0%}"
     if key in ("hide_delay_ms", "unhide_delay_ms"):
         return _("{value} ms").format(value=value)
@@ -100,6 +143,7 @@ def _setting_value(key: str, value: Scalar | None) -> str:
         "icon_size",
         "window_preview_thumbnail_width",
         "additional_distance_from_edge",
+        "pressure_threshold",
     ):
         return _("{value} px").format(value=value)
     if isinstance(value, bool):
@@ -146,11 +190,12 @@ def review_dock_import(
     *,
     first_run: bool,
     kind: DockImportKind | None = None,
+    file_path: Path | None = None,
 ) -> DockImport | None:
     display = Gdk.Display.get_default()
     if display is None:
         return None
-    sources = _read_sources(kind)
+    sources = _read_sources(kind, file_path)
     if (first_run and not sources) or (parent is not None and not parent.get_visible()):
         return None
 
@@ -179,7 +224,11 @@ def review_dock_import(
         return None
 
     dialog = Gtk.Dialog(
-        title=_("Import from Another Dock"),
+        title=(
+            _("Import a Docking file")
+            if file_path is not None
+            else _("Import from Another Dock")
+        ),
         transient_for=parent,
         modal=True,
         destroy_with_parent=True,
@@ -200,7 +249,8 @@ def review_dock_import(
     combo = Gtk.ComboBoxText()
     for label in source_labels:
         combo.append_text(label)
-    if kind is None and reviews:
+    fixed_source = kind is not None or file_path is not None
+    if not fixed_source and reviews:
         combo.set_tooltip_text(_("Choose a dock to import."))
         area.pack_start(combo, False, False, 0)
     scroller = Gtk.ScrolledWindow()
@@ -221,10 +271,12 @@ def review_dock_import(
             empty = first_run and source.empty_layout
             can_import = bool(candidate.added or candidate.changes or empty)
             message = _review_text(candidate, empty=empty)
-            if kind is not None:
+            if fixed_source:
                 message = f"{source_labels[index]}\n\n{message}"
         elif reviews:
             message = _("Choose a dock to review its pins and preferences.")
+        elif file_path is not None:
+            message = _("Choose a valid Docking JSON configuration file.")
         elif sources is None:
             message = _("Could not read the source dock settings.")
         elif kind == "plank":

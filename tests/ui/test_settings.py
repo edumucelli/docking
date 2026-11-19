@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -842,6 +843,9 @@ class TestSettingsWindowController:
         )
         review = MagicMock(return_value=None)
         monkeypatch.setattr(settings_mod, "review_dock_import", review)
+        file_path = Path("shared-dock.json")
+        pick_file = MagicMock(side_effect=[None, file_path])
+        monkeypatch.setattr(settings_mod, "choose_docking_config_file", pick_file)
         registry = MagicMock()
         controller = _settings_controller(
             parent=_parent_window(),
@@ -864,32 +868,57 @@ class TestSettingsWindowController:
         assert isinstance(switcher, FakeStackSwitcher)
         assert switcher.halign == FakeAlign.CENTER
         assert switcher.stack is stack
-        expected_tabs = ["Appearance", "Behavior", "Applets", "Updates"]
-        if import_supported:
-            expected_tabs.append("Import")
+        expected_tabs = ["Appearance", "Behavior", "Applets", "Updates", "Import"]
         assert [title for _, _, title in stack.pages] == expected_tabs
+        tab = _stack_page_child(stack, 4)
+        (section,) = tab.children
+        header, content = section.children
+        assert header.markup == "<b>Import from</b>"
         if import_supported:
-            tab = _stack_page_child(stack, 4)
-            (section,) = tab.children
-            header, content = section.children
-            assert header.markup == "<b>Import from</b>"
-            (row,) = content.children
-            label, actions = row.children
+            dock_row, file_row = content.children
+            label, controls = dock_row.children
             assert label.get_label() == "Another dock"
+            actions, help_icon = controls.children
             assert actions.orientation == FakeOrientation.HORIZONTAL
-            plank_button, cairo_button, help_icon = actions.children
+            plank_button, cairo_button = actions.children
             assert plank_button.label == "Plank"
             assert cairo_button.label == "Cairo-Dock"
-            assert help_icon.child.get_label() == "💡"
+            assert help_icon.child.source == controller._hide_mode_info.child.source
             assert "Plank Reloaded" in help_icon._docking_info_text
             assert "skipped items" in help_icon._docking_info_text
             for button, kind in ((plank_button, "plank"), (cairo_button, "cairo-dock")):
                 button.click()
                 review.assert_called_once_with(
-                    window, controller._config, registry, first_run=False, kind=kind
+                    window,
+                    controller._config,
+                    registry,
+                    first_run=False,
+                    kind=kind,
+                    file_path=None,
                 )
                 review.reset_mock()
                 assert tab.sensitive
+        else:
+            (file_row,) = content.children
+        label, controls = file_row.children
+        browse, help_icon = controls.children
+        assert label.get_label() == "Docking file"
+        assert browse.label == "Browse…"
+        assert help_icon.child.source == controller._hide_mode_info.child.source
+        browse.click()
+        pick_file.assert_called_once_with(window)
+        review.assert_not_called()
+        assert tab.sensitive
+        browse.click()
+        review.assert_called_once_with(
+            window,
+            controller._config,
+            registry,
+            first_run=False,
+            kind=None,
+            file_path=file_path,
+        )
+        assert tab.sensitive
         assert window.default_size == (
             settings_mod.PREFERENCES_WINDOW_WIDTH_PX,
             settings_mod.PREFERENCES_WINDOW_HEIGHT_PX,

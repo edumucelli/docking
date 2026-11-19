@@ -90,7 +90,7 @@ from docking.search.config import (
     GLOBAL_SEARCH_WEB_ENGINES,
 )
 from docking.search.ui.shortcut_capture import ShortcutCaptureButton
-from docking.ui.dock_import import review_dock_import
+from docking.ui.dock_import import choose_docking_config_file, review_dock_import
 from docking.ui.dock_shortcut import DockShortcutController
 
 if TYPE_CHECKING:
@@ -428,7 +428,7 @@ class SettingsWindowController:
         stack.add_titled(self._build_behavior_tab(), "behavior", _("Behavior"))
         stack.add_titled(self._build_applets_tab(), "applets", _("Applets"))
         stack.add_titled(self._build_updates_tab(), "updates", _("Updates"))
-        if self._application_registry is not None and dock_import_supported():
+        if self._application_registry is not None:
             stack.add_titled(self._build_import_tab(), "import", _("Import"))
 
         outer.pack_start(switcher, False, False, 0)
@@ -1099,43 +1099,65 @@ class SettingsWindowController:
             spacing=APPEARANCE_TAB_SPACING_PX,
         )
         outer.set_border_width(APPEARANCE_TAB_BORDER_PX)
-        actions = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL,
-            spacing=ROW_SPACING_PX,
-        )
-        buttons: tuple[tuple[DockImportKind, str], ...] = (
-            ("plank", _("Plank")),
-            ("cairo-dock", _("Cairo-Dock")),
-        )
-        for kind, label in buttons:
-            button = Gtk.Button(label=label)
-            button.connect(
-                "clicked", lambda _button, kind=kind: self._import_dock(outer, kind)
+        rows: list[SettingsRow] = []
+        if dock_import_supported():
+            actions = Gtk.Box(
+                orientation=Gtk.Orientation.HORIZONTAL,
+                spacing=ROW_SPACING_PX,
             )
-            actions.pack_start(button, False, False, 0)
-        help_icon = self._new_info_icon(
-            _(
-                "The Plank button also supports Plank Reloaded. Review the "
-                "pins, preferences, and skipped items before importing."
+            buttons: tuple[tuple[DockImportKind, str], ...] = (
+                ("plank", _("Plank")),
+                ("cairo-dock", _("Cairo-Dock")),
+            )
+            for kind, label in buttons:
+                button = Gtk.Button(label=label)
+                button.connect(
+                    "clicked", lambda _button, kind=kind: self._import_dock(outer, kind)
+                )
+                actions.pack_start(button, False, False, 0)
+            rows.append(
+                (
+                    _("Another dock"),
+                    actions,
+                    _(
+                        "The Plank button also supports Plank Reloaded. Review the "
+                        "pins, preferences, and skipped items before importing."
+                    ),
+                )
+            )
+        browse = Gtk.Button(label=_("Browse…"))
+        browse.connect("clicked", lambda _button: self._import_dock(outer, None))
+        rows.append(
+            (
+                _("Docking file"),
+                browse,
+                _(
+                    "Choose a Docking JSON file to review its pins and "
+                    "layout preferences."
+                ),
             ),
-            icon_widget=Gtk.Label(label="💡"),
         )
-        actions.pack_start(help_icon, False, False, 0)
-        self._append_section(
-            outer=outer,
-            title=_("Import from"),
-            rows=[(_("Another dock"), actions, None)],
-        )
+        self._append_section(outer=outer, title=_("Import from"), rows=rows)
         return self._new_tab_scroller(outer, propagate_natural_width=True)
 
-    def _import_dock(self, tab: Gtk.Box, kind: DockImportKind) -> None:
+    def _import_dock(self, tab: Gtk.Box, kind: DockImportKind | None) -> None:
         parent, registry = self._window, self._application_registry
         if parent is None or registry is None:
             return
         tab.set_sensitive(False)
         try:
+            file_path = None
+            if kind is None:
+                file_path = choose_docking_config_file(parent)
+                if file_path is None or self._window is not parent:
+                    return
             imported = review_dock_import(
-                parent, self._config, registry, first_run=False, kind=kind
+                parent,
+                self._config,
+                registry,
+                first_run=False,
+                kind=kind,
+                file_path=file_path,
             )
         finally:
             if self._window is parent:
@@ -1174,21 +1196,19 @@ class SettingsWindowController:
         self._sync_widgets()
         self._rebuild_applet_tab()
 
-    def _new_info_icon(
-        self, tooltip: str = "", *, icon_widget: Gtk.Widget | None = None
-    ) -> _InfoIcon:
+    def _new_info_icon(self, tooltip: str = "") -> _InfoIcon:
         icon = _InfoIcon()
         icon.set_visible_window(False)
         icon.set_size_request(HIDE_MODE_INFO_ICON_WIDTH_PX, -1)
         icon.add_events(
             Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK
         )
-        if icon_widget is None:
-            icon_widget = Gtk.Image.new_from_icon_name(
+        icon.add(
+            Gtk.Image.new_from_icon_name(
                 "dialog-information-symbolic",
                 Gtk.IconSize.MENU,
             )
-        icon.add(icon_widget)
+        )
 
         popover = Gtk.Popover.new(icon)
         popover.set_modal(False)

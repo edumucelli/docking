@@ -80,7 +80,7 @@ that should use their defaults.
 }
 ```
 
-## Import a Plank or Cairo-Dock layout
+## Import a dock layout
 
 On Linux and BSD, Docking offers an import on first launch when it finds a
 compatible setup in your XDG configuration directory. Choose a source if both
@@ -97,6 +97,13 @@ supports Plank Reloaded.
   contents where the sub-dock icon appeared and converts supported docked
   plug-ins to Docking applets. The review reports skipped custom commands,
   separate docks, and detached desklets.
+
+To import a Docking configuration from another computer or a shared copy, open
+**Preferences → Import** and select **Browse…** under **Docking file**. Choose
+the copied Docking JSON file (usually named `dock.json`) and review the pins
+and layout preferences. Apps and file paths must be available on this computer.
+Per-applet settings, custom item icons, keyboard shortcuts, and recent history
+stay local.
 
 An import from Preferences appends new pins and applies the reviewed settings
 immediately. Docking keeps the previous configuration in its regular

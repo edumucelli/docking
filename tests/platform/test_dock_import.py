@@ -53,6 +53,69 @@ def _prepare(source, base=None, *, first_run=True):
     )
 
 
+def test_docking_file_import_adds_available_pins_and_portable_settings(
+    tmp_path, monkeypatch
+):
+    picture = tmp_path / "picture.png"
+    picture.touch()
+    imported_config = Config(
+        pinned=[
+            PinnedEntry("app", "browser.desktop"),
+            PinnedEntry("app", "missing.desktop"),
+            PinnedEntry("file", picture.as_uri()),
+        ],
+        theme="exported-theme",
+        transparency=0.7,
+        anchor_applets=True,
+        monitor_connector="DP-1",
+        hide_mode="shortcut-only",
+        dock_shortcut="Control+F2",
+        applet_prefs={"clock": {"show_digital": False}},
+        item_prefs={"browser.desktop": {"custom_icon": "icon.png"}},
+    )
+    path = tmp_path / "shared.json"
+    imported_config.save(path)
+    previous = path.read_bytes()
+    monkeypatch.setattr(dock_import, "list_theme_names", lambda: ["default"])
+    base = Config(pinned=[PinnedEntry("applet", "applet://clock")])
+
+    (source,) = dock_import.read_dock_import_sources(file_path=path)
+    result = _prepare(source, base, first_run=False)
+
+    assert result.added == ["browser.desktop", picture.as_uri()]
+    assert result.config.pinned == [*base.pinned, *result.added]
+    assert result.changes["transparency"] == 0.7
+    assert result.changes["anchor_applets"] is True
+    assert result.changes["monitor_connector"] == "DP-1"
+    assert result.config.theme == base.theme
+    assert result.config.hide_mode == base.hide_mode
+    assert result.config.dock_shortcut == base.dock_shortcut
+    assert result.config.applet_prefs == base.applet_prefs
+    assert result.config.item_prefs == base.item_prefs
+    assert any("missing.desktop" in note for note in result.notes)
+    assert "The source theme is unavailable." in result.notes
+    assert "Set up the dock reveal shortcut in Docking Preferences." in result.notes
+    assert path.read_bytes() == previous
+
+
+def test_docking_file_accepts_legacy_pins_and_preference_names(tmp_path):
+    path = tmp_path / "shared.json"
+    path.write_text(
+        '{"pinned": ["editor.desktop"], "folder_stack_unfold": "hover",'
+        ' "previews_enabled": false}',
+        encoding="utf-8",
+    )
+    (source,) = dock_import.read_dock_import_sources(file_path=path)
+    result = _prepare(
+        source,
+        Config(stack_unfold="click", window_preview_thumbnails_enabled=True),
+        first_run=False,
+    )
+    assert result.added == ["editor.desktop"]
+    assert result.changes["stack_unfold"] == "hover"
+    assert result.changes["window_preview_thumbnails_enabled"] is False
+
+
 def test_plank_selects_primary_and_preserves_pins_and_placement(tmp_path, monkeypatch):
     settings = {
         ("/", "enabled-docks"): GLib.Variant("as", ["pinned", "main"]),

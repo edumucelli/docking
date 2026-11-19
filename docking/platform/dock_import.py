@@ -1,7 +1,8 @@
-"""Read Plank and Cairo-Dock settings without changing their source files."""
+"""Read dock settings without changing their source files."""
 
 from __future__ import annotations
 
+import json
 import math
 import stat
 import subprocess
@@ -15,9 +16,10 @@ from gi.repository import Gio, GLib
 
 from docking.applets import get_applet_catalog
 from docking.applets.identity import applet_desktop_id, parse_applet_id
-from docking.core.config import Config, PinnedEntry
+from docking.core.config import Config, HideMode, PinnedEntry, migrate_config_fields
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, ItemKind
 from docking.core.paths import local_path_from_uri_or_path
+from docking.core.theme import list_theme_names
 from docking.i18n import _
 from docking.platform.host.base import HostFamily
 from docking.platform.host.selection import host_services
@@ -81,6 +83,41 @@ _PLANK_PREFERENCES = {
     "anchor-docklets": ("anchor_applets", "b"),
     "anchor-files": ("anchor_files", "b"),
 }
+_DOCKING_LAYOUT_FIELDS = (
+    "position",
+    "dock_alignment",
+    "icon_size",
+    "theme",
+    "transparency",
+    "additional_distance_from_edge",
+    "zoom_enabled",
+    "zoom_percent",
+    "hide_mode",
+    "hide_delay_ms",
+    "unhide_delay_ms",
+    "pressure_reveal_enabled",
+    "pressure_threshold",
+    "active_display",
+    "lock_icons",
+    "pinned_only",
+    "current_workspace_only",
+    "anchor_applets",
+    "anchor_files",
+    "tooltips_enabled",
+    "left_click_action",
+    "middle_click_action",
+    "dock_item_click_effects_enabled",
+    "dock_item_click_effect",
+    "stack_unfold",
+    "window_list_sort",
+    "show_window_count_numbers",
+    "show_launcher_badges",
+    "show_launcher_progress",
+    "window_preview_thumbnails_enabled",
+    "window_preview_thumbnail_width",
+    "window_preview_highlight_thumbnails_on_hover",
+    "window_preview_outline_window_on_hover",
+)
 _CAIRO_POSITIONS = {0: "bottom", 1: "top", 2: "right", 3: "left"}
 _CAIRO_HIDE_MODES = {
     0: "always-on-top",
@@ -113,6 +150,7 @@ class DockImportSource:
     edge_gap: int | None = None
     empty_layout: bool = False
     notes: list[str] = field(default_factory=list)
+    from_docking_file: bool = False
 
     @property
     def available(self) -> bool:
@@ -141,7 +179,12 @@ def dock_import_supported() -> bool:
 
 def read_dock_import_sources(
     kind: DockImportKind | None = None,
+    *,
+    file_path: Path | None = None,
 ) -> list[DockImportSource]:
+    if file_path is not None:
+        source = _read_docking_file(file_path)
+        return [source] if source is not None else []
     root = host_services().config_home()
     sources = []
     if kind in (None, "plank"):
@@ -149,6 +192,78 @@ def read_dock_import_sources(
     if kind in (None, "cairo-dock"):
         sources.append(_read_cairo(root / "cairo-dock" / "current_theme"))
     return [source for source in sources if source.available or source.notes]
+
+
+def _read_docking_file(path: Path) -> DockImportSource | None:
+    try:
+        if not stat.S_ISREG(path.stat().st_mode):
+            return None
+        with path.open("rb") as stream:
+            raw = stream.read(_MAX_CONFIG_BYTES + 1)
+        if len(raw) > _MAX_CONFIG_BYTES:
+            return None
+        data = json.loads(raw)
+    except (OSError, ValueError, RecursionError):
+        return None
+    if not isinstance(data, dict):
+        return None
+
+    migrate_config_fields(data)
+    settings = {
+        key: value
+        for key in _DOCKING_LAYOUT_FIELDS
+        if isinstance(value := data.get(key), (bool, int, float, str))
+        and (not isinstance(value, float) or math.isfinite(value))
+    }
+    pinned = data.get("pinned")
+    if not settings and not isinstance(pinned, list):
+        return None
+    source = DockImportSource(
+        _("Docking file"),
+        path.name,
+        settings=settings,
+        from_docking_file=True,
+        empty_layout=isinstance(pinned, list) and not pinned,
+    )
+    if (theme := settings.get("theme")) is not None and theme not in list_theme_names():
+        settings.pop("theme")
+        source.notes.append(_("The source theme is unavailable."))
+    if settings.get("hide_mode") == HideMode.SHORTCUT_ONLY:
+        settings.pop("hide_mode")
+        source.notes.append(
+            _("Set up the dock reveal shortcut in Docking Preferences.")
+        )
+
+    if (
+        isinstance(connector := data.get("monitor_connector"), str)
+        and connector.strip()
+    ):
+        source.monitor = connector.strip()
+    elif data.get("monitor_index") == -1:
+        source.monitor = ""
+
+    for raw_pin in pinned if isinstance(pinned, list) else ():
+        # Legacy file pins need the same local-path checks as typed file pins.
+        if isinstance(raw_pin, str) and raw_pin.startswith("file://"):
+            entry = PinnedEntry(FILE_KIND, raw_pin)
+        else:
+            entry = PinnedEntry.from_raw(raw_pin)
+        if entry is None or not entry.target.isprintable():
+            source.notes.append(_("Skipped an invalid pinned item."))
+            continue
+        target = entry.target
+        if entry.kind in (FILE_KIND, FOLDER_KIND):
+            pin = _local_pin(target, target)
+        elif entry.kind == APPLET_KIND:
+            applet = parse_applet_id(target)
+            pin = SourcePin(APPLET_KIND, target, (applet,)) if applet else None
+        else:
+            pin = SourcePin(APP_KIND, target, (target,))
+        if pin is not None:
+            source.pins.append(pin)
+        else:
+            source.notes.append(_("Skipped {item}.").format(item=target))
+    return source
 
 
 def _key_file(path: Path, root: Path) -> GLib.KeyFile | None:
@@ -417,10 +532,13 @@ def _launcher_or_file(target: str, label: str) -> SourcePin | None:
 
 def _local_pin(target: str, label: str) -> SourcePin | None:
     path = local_path_from_uri_or_path(target)
-    if path is None or not path.is_absolute():
+    # Reviewing a shared config must not probe a remote Windows share.
+    if path is None or not path.is_absolute() or path.drive.startswith("\\\\"):
         return None
     try:
         path = path.resolve(strict=True)
+        if path.drive.startswith("\\\\"):
+            return None
         mode = path.stat().st_mode
     except (OSError, RuntimeError):
         return None
@@ -707,14 +825,17 @@ def prepare_dock_import(
         target = pin.targets[0]
         label = pin.label
         if pin.kind == APP_KIND:
-            application = next(
-                (
-                    app
-                    for target in pin.targets
-                    if (app := _resolve_application(registry, target)) is not None
-                ),
-                None,
-            )
+            if source.from_docking_file:
+                application = registry.get(target)
+            else:
+                application = next(
+                    (
+                        app
+                        for target in pin.targets
+                        if (app := _resolve_application(registry, target)) is not None
+                    ),
+                    None,
+                )
             if application is None:
                 notes.append(
                     _("Application unavailable for {item}.").format(item=label)
@@ -745,7 +866,7 @@ def prepare_dock_import(
         labels.append(label)
 
     settings = dict(source.settings)
-    if not first_run:
+    if not first_run and not source.from_docking_file:
         settings.pop("anchor_applets", None)
         settings.pop("anchor_files", None)
     if source.monitor is not None:

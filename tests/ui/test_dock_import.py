@@ -12,7 +12,11 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 
 from docking.core.config import Config, PinnedEntry
-from docking.platform.dock_import import DockImportSource, SourcePin
+from docking.platform.dock_import import (
+    DockImportSource,
+    SourcePin,
+    read_dock_import_sources,
+)
 from docking.ui import dock_import, settings
 
 
@@ -44,7 +48,7 @@ def test_review_requires_source_selection_and_respects_cancel(monkeypatch, accep
         assert response.get_sensitive()
         return Gtk.ResponseType.OK if accept else Gtk.ResponseType.CANCEL
 
-    monkeypatch.setattr(dock_import, "_read_sources", lambda _kind: sources)
+    monkeypatch.setattr(dock_import, "_read_sources", lambda _kind, _path: sources)
     # Avoid dispatching GLib sources left pending by other GUI tests.
     monkeypatch.setattr(Gtk.Dialog, "run", respond)
     result = dock_import.review_dock_import(None, Config(), MagicMock(), first_run=True)
@@ -66,14 +70,32 @@ def test_review_requires_source_selection_and_respects_cancel(monkeypatch, accep
             "No Plank or Plank Reloaded setup was found.",
         ),
         ("cairo-dock", "Cairo-Dock", "No Cairo-Dock setup was found."),
+        (
+            None,
+            "Docking file (shared.json)",
+            "Choose a valid Docking JSON configuration file.",
+        ),
     ],
 )
 @pytest.mark.parametrize("available", [True, False])
 def test_preferences_review_opens_selected_dock(
-    monkeypatch, kind, source_name, missing_message, available
+    tmp_path, monkeypatch, kind, source_name, missing_message, available
 ):
-    source = _source(source_name, "trash")
-    read = MagicMock(return_value=[source] if available else [])
+    file_path = None
+    if kind is None:
+        file_path = tmp_path / "shared.json"
+        file_path.write_text(
+            '{"pinned": ["applet://trash"]}' if available else "not JSON",
+            encoding="utf-8",
+        )
+        read = MagicMock(
+            side_effect=lambda kind, path: read_dock_import_sources(
+                kind, file_path=path
+            )
+        )
+    else:
+        source = _source(source_name, "trash")
+        read = MagicMock(return_value=[source] if available else [])
     monkeypatch.setattr(dock_import, "_read_sources", read)
 
     def respond(dialog):
@@ -94,9 +116,9 @@ def test_preferences_review_opens_selected_dock(
 
     monkeypatch.setattr(Gtk.Dialog, "run", respond)
     review = dock_import.review_dock_import(
-        None, Config(), MagicMock(), first_run=False, kind=kind
+        None, Config(), MagicMock(), first_run=False, kind=kind, file_path=file_path
     )
-    read.assert_called_once_with(kind)
+    read.assert_called_once_with(kind, file_path)
     if available:
         assert review is not None
         assert review.config.pinned == ["applet://trash"]
@@ -106,6 +128,11 @@ def test_preferences_review_opens_selected_dock(
 
 def test_preferences_import_saves_then_refreshes_live_config(tmp_path, monkeypatch):
     path = tmp_path / "dock.json"
+    shared = tmp_path / "shared.json"
+    shared.write_text(
+        '{"pinned": ["applet://trash"], "position": "left", "hide_delay_ms": 25}',
+        encoding="utf-8",
+    )
     existing = PinnedEntry("applet", "applet://clock")
     Config(pinned=[existing]).save(path)
     config = Config.load(path)
@@ -122,11 +149,12 @@ def test_preferences_import_saves_then_refreshes_live_config(tmp_path, monkeypat
     controller._bindings = [SimpleNamespace(config_attr="position", on_change=changed)]
     monkeypatch.setattr(controller, "_sync_widgets", MagicMock())
     monkeypatch.setattr(controller, "_rebuild_applet_tab", MagicMock())
+    monkeypatch.setattr(settings, "choose_docking_config_file", lambda _parent: shared)
     monkeypatch.setattr(
         settings,
         "review_dock_import",
-        lambda *_args, **_kwargs: dock_import.prepare_dock_import(
-            _source("Cairo-Dock", "trash", position="left", hide_delay_ms=25),
+        lambda *_args, file_path, **_kwargs: dock_import.prepare_dock_import(
+            read_dock_import_sources(file_path=file_path)[0],
             config,
             registry,
             connectors=set(),
@@ -139,7 +167,7 @@ def test_preferences_import_saves_then_refreshes_live_config(tmp_path, monkeypat
         or pytest.fail("Config was not committed before the model was updated")
     )
 
-    controller._import_dock(tab, "cairo-dock")
+    controller._import_dock(tab, None)
 
     assert Config.load(path).pinned == [existing, "applet://trash"]
     assert Config.load(tmp_path / "dock.json.bak").pinned == [existing]
