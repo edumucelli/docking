@@ -270,8 +270,9 @@ def main() -> None:
             raise ctypes.WinError(ctypes.get_last_error())
 
     def set_icon_size(preferences: dict, size: int) -> None:
-        x1, y1, _x2, _y2 = preferences["rect"]
-        user32.SetCursorPos(x1 + 440, y1 + 194)
+        _x1, y1, x2, _y2 = preferences["rect"]
+        # The right-aligned spin button moves when tabs widen Preferences.
+        user32.SetCursorPos(x2 - 168, y1 + 194)
         events = (Input * 2)(
             Input(type=0, data=InputData(mouse=MouseInput(flags=0x0002))),
             Input(type=0, data=InputData(mouse=MouseInput(flags=0x0004))),
