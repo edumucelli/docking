@@ -122,7 +122,7 @@ def _unpack(value: Any) -> Any:
         try:
             return value.unpack()
         except Exception as exc:
-            log.debug("Failed to unpack GLib value %r: %s", value, exc)
+            log.debug("Failed to unpack GLib value: %s", exc)
             return value
     return value
 

@@ -114,8 +114,8 @@ def _parse_docker_ps(*, output: str) -> list[DockerContainer]:
             continue
         try:
             data = json.loads(line)
-        except json.JSONDecodeError:
-            log.bind(action="parse_docker_ps").debug("Ignoring invalid JSON: %s", line)
+        except json.JSONDecodeError as exc:
+            log.bind(action="parse_docker_ps").debug("Ignoring invalid JSON: %s", exc)
             continue
         container_id = str(data.get("ID") or data.get("ID".lower()) or "").strip()
         if not container_id:
