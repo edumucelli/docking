@@ -5,7 +5,7 @@ import pytest
 from docking.core.items import DockItem
 from docking.core.position import Position
 from docking.platform.backends.reduced.services import ReducedSurfaceService
-from docking.ui.geometry import AlignedZoomCache, build_geometry_frame
+from docking.ui.geometry import build_geometry_frame
 from tests.bdd_support.wayland_geometry import ConfiguredLayerDock
 
 
@@ -80,7 +80,6 @@ def test_fitting_does_not_change_uncrowded_layout(position):
     frame = dock.configure(112)
     width, height = dock.window.get_size()
     control = build_geometry_frame(
-        zoom_cache=AlignedZoomCache(),
         items=dock.items,
         config=dock.config,
         theme=dock.theme,

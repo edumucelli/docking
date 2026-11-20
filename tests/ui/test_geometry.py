@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from itertools import pairwise
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -13,9 +14,10 @@ from docking.core.layout import content_bounds
 from docking.core.position import Position
 from docking.core.theme import Theme
 from docking.platform.model import DockItem
+from docking.ui import geometry as geometry_mod
 from docking.ui.autohide import HideState
 from docking.ui.geometry import (
-    AlignedZoomCache,
+    DockGeometryBuilder,
     Rect,
     build_geometry_frame,
     compute_dock_cross_metrics,
@@ -96,14 +98,10 @@ class TestDockAlignment:
                 "constrain_main_axis": constrained,
                 "drop_insert_index": insertion,
             }
-            resting = build_geometry_frame(
-                zoom_cache=AlignedZoomCache(), cursor_main=-1, **kwargs
-            )
+            resting = build_geometry_frame(cursor_main=-1, **kwargs)
             rect = resting.item_geometries[index].draw_rect
             cursor = rect.x + rect.w / 2 if horizontal else rect.y + rect.h / 2
-            hovered = build_geometry_frame(
-                zoom_cache=AlignedZoomCache(), cursor_main=cursor, **kwargs
-            )
+            hovered = build_geometry_frame(cursor_main=cursor, **kwargs)
             local_cursors.append(hovered.local_cursor_main)
             fitted_scale = (rect.w if horizontal else rect.h) / config.icon_size
             assert fitted_scale < 1
@@ -132,13 +130,9 @@ class TestDockAlignment:
                 "constrain_main_axis": constrained,
                 "drop_insert_index": insertion,
             }
-            resting = build_geometry_frame(
-                zoom_cache=AlignedZoomCache(), cursor_main=-1, **kwargs
-            )
+            resting = build_geometry_frame(cursor_main=-1, **kwargs)
             rect = resting.item_geometries[index].draw_rect
-            hovered = build_geometry_frame(
-                zoom_cache=AlignedZoomCache(), cursor_main=rect.x + rect.w / 2, **kwargs
-            )
+            hovered = build_geometry_frame(cursor_main=rect.x + rect.w / 2, **kwargs)
             local_cursors.append(hovered.local_cursor_main)
         assert local_cursors[0] == pytest.approx(local_cursors[1], abs=1)
 
@@ -156,7 +150,6 @@ class TestDockAlignment:
             for i in range(3)
         ]
         frame = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=items,
             config=config,
             theme=Theme.load(theme_name, 48),
@@ -175,7 +168,6 @@ class TestDockAlignment:
     ):
         horizontal = config.position in ("top", "bottom")
         return build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=items,
             config=config,
             theme=Theme.load("default", 48),
@@ -288,24 +280,41 @@ class TestDockAlignment:
             for before, after in zip(earlier, later, strict=True)
         )
 
-    def test_aligned_zoom_recalculates_limits_when_icon_width_changes(self):
+    def test_live_zoom_reuses_limits_until_icon_width_changes(self, monkeypatch):
         items = [DockItem(desktop_id=f"app-{i}.desktop") for i in range(4)]
         config = Config(dock_alignment=0.0, zoom_percent=4.0)
-        options = {
-            "items": items,
-            "config": config,
-            "theme": Theme.load("default", 48),
-            "window_w": 420,
-            "window_h": 187,
-            "cursor_main": 145,
-            "autohide_state": None,
-        }
-        cache = AlignedZoomCache()
-        original = build_geometry_frame(**options, zoom_cache=cache)
+        theme = Theme.load("default", 48)
+        window = SimpleNamespace(
+            config=config,
+            theme=theme,
+            get_size=lambda: (420, 187),
+            model=SimpleNamespace(visible_items=lambda: items),
+            autohide=SimpleNamespace(enabled=False),
+            zoom_animator=SimpleNamespace(progress=1.0),
+            surface_service=SimpleNamespace(compositor_sizes_main_axis=False),
+        )
+        builder = DockGeometryBuilder(window)
+        build_geometry = Mock(wraps=geometry_mod._build_geometry_frame)
+        monkeypatch.setattr(geometry_mod, "_build_geometry_frame", build_geometry)
+
+        original = builder.build_frame(main_cursor=145)
+        initial_builds = build_geometry.call_count
+        build_geometry.reset_mock()
+        builder.build_frame(main_cursor=146)
+        assert build_geometry.call_count < initial_builds
+
         items[1].main_size = 96
-        resized = build_geometry_frame(**options, zoom_cache=cache)
+        resized = builder.build_frame(main_cursor=145)
         assert resized.layout != original.layout
-        assert resized == build_geometry_frame(zoom_cache=AlignedZoomCache(), **options)
+        assert resized == build_geometry_frame(
+            items=items,
+            config=config,
+            theme=theme,
+            window_w=420,
+            window_h=187,
+            cursor_main=145,
+            autohide_state=None,
+        )
 
     @pytest.mark.parametrize("position", list(Position))
     def test_hidden_reveal_region_moves_with_alignment(self, position):
@@ -396,7 +405,6 @@ class TestDockGeometryFrame:
         collapsed = DockItem(desktop_id="clock.desktop", insert_factor=0.0)
 
         frame = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=[visible, collapsed],
             config=_config(),
             theme=_theme(),
@@ -406,7 +414,6 @@ class TestDockGeometryFrame:
             autohide_state=None,
         )
         control = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=[visible],
             config=_config(),
             theme=_theme(),
@@ -429,7 +436,6 @@ class TestDockGeometryFrame:
         item = DockItem(desktop_id="clock.desktop", insert_factor=0.5)
 
         frame = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=[item],
             config=_config(),
             theme=_theme(),
@@ -453,7 +459,6 @@ class TestDockGeometryFrame:
         item = DockItem(desktop_id="firefox.desktop")
         horizontal = pos in (Position.BOTTOM, Position.TOP)
         frame = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=[item],
             config=_config(pos),
             theme=_theme(distance_from_edge=gap),
@@ -505,7 +510,6 @@ class TestDockGeometryFrame:
         ]
 
         frame = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=items,
             config=_config(),
             theme=_theme(),
@@ -529,7 +533,6 @@ class TestDockGeometryFrame:
         item = DockItem(desktop_id="firefox.desktop")
 
         frame = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=[item],
             config=_config(),
             theme=_theme(distance_from_edge=6),
@@ -550,7 +553,6 @@ class TestDockGeometryFrame:
         ]
 
         frame = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=items,
             config=_config(),
             theme=_theme(),
@@ -579,7 +581,6 @@ class TestDockGeometryFrame:
         ]
 
         frame = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=items,
             config=_config(),
             theme=_theme(),
@@ -611,7 +612,6 @@ class TestDockGeometryFrame:
         ]
 
         frame = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=items,
             config=_config(),
             theme=_theme(),
@@ -644,7 +644,6 @@ class TestDockGeometryFrame:
         ]
 
         frame = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=items,
             config=_config(),
             theme=_theme(),
@@ -672,7 +671,6 @@ class TestDockGeometryFrame:
         left_scales: list[float] = []
         for cursor in range(406, 374, -2):
             frame = build_geometry_frame(
-                zoom_cache=AlignedZoomCache(),
                 items=items,
                 config=_config(),
                 theme=_theme(),
@@ -686,7 +684,6 @@ class TestDockGeometryFrame:
         right_scales: list[float] = []
         for cursor in [1510, 1520, 1530, 1540, 1545, 1550, 1555]:
             frame = build_geometry_frame(
-                zoom_cache=AlignedZoomCache(),
                 items=items,
                 config=_config(),
                 theme=_theme(),
@@ -722,7 +719,6 @@ class TestShelfPosition:
         for hide_pct in range(11):
             hide = hide_pct / 10.0
             frame = build_geometry_frame(
-                zoom_cache=AlignedZoomCache(),
                 items=items,
                 config=_config(Position.BOTTOM),
                 theme=_theme(distance_from_edge=6),
@@ -746,7 +742,6 @@ class TestShelfPosition:
         for hide_pct in range(11):
             hide = hide_pct / 10.0
             frame = build_geometry_frame(
-                zoom_cache=AlignedZoomCache(),
                 items=items,
                 config=_config(Position.LEFT),
                 theme=_theme(distance_from_edge=6),
@@ -767,7 +762,6 @@ class TestShelfPosition:
         items = self._items()
         gap = 6
         frame = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=items,
             config=_config(Position.BOTTOM),
             theme=_theme(distance_from_edge=gap),
@@ -785,7 +779,6 @@ class TestShelfPosition:
         items = self._items()
         gap = 10
         frame = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=items,
             config=_config(Position.BOTTOM),
             theme=_theme(distance_from_edge=gap),
@@ -803,7 +796,6 @@ class TestShelfPosition:
     def test_shelf_fields_match_background_rect_horizontal(self):
         items = self._items()
         frame = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=items,
             config=_config(Position.BOTTOM),
             theme=_theme(distance_from_edge=6),
@@ -821,7 +813,6 @@ class TestShelfPosition:
     def test_shelf_fields_match_background_rect_vertical(self):
         items = self._items()
         frame = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=items,
             config=_config(Position.LEFT),
             theme=_theme(distance_from_edge=6),
@@ -879,7 +870,6 @@ class TestShelfHidesCompletely:
         items = [DockItem(desktop_id="firefox.desktop")]
 
         frame = build_geometry_frame(
-            zoom_cache=AlignedZoomCache(),
             items=items,
             config=SimpleNamespace(
                 pos=pos,

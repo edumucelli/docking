@@ -19,7 +19,6 @@ from docking.core.position import Position
 from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
 from docking.ui.geometry import (
-    AlignedZoomCache,
     DockGeometryBuilder,
     DockGeometryFrame,
     build_geometry_frame,
@@ -64,7 +63,6 @@ def _items() -> list[DockItem]:
 
 def _frame(cursor_main: float) -> DockGeometryFrame:
     return build_geometry_frame(
-        zoom_cache=AlignedZoomCache(),
         items=_items(),
         config=_config(),
         theme=_theme(),

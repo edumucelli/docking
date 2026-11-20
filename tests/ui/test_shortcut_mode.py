@@ -16,7 +16,7 @@ from docking.search.services.global_shortcuts import (
 )
 from docking.ui.autohide import AutoHideController, HideState
 from docking.ui.dock_shortcut import DockShortcutController
-from docking.ui.geometry import AlignedZoomCache, Rect, build_geometry_frame
+from docking.ui.geometry import Rect, build_geometry_frame
 
 
 @pytest.fixture
@@ -110,12 +110,8 @@ def test_hidden_shortcut_mode_has_no_input_strip(position):
         "autohide_state": HideState.HIDDEN,
         "hide_offset": 1,
     }
-    hidden = build_geometry_frame(
-        zoom_cache=AlignedZoomCache(), **kwargs, pointer_reveal_enabled=False
-    )
-    fallback = build_geometry_frame(
-        zoom_cache=AlignedZoomCache(), **kwargs, pointer_reveal_enabled=True
-    )
+    hidden = build_geometry_frame(**kwargs, pointer_reveal_enabled=False)
+    fallback = build_geometry_frame(**kwargs, pointer_reveal_enabled=True)
     assert hidden.cursor_rect == Rect(0, 0, 0, 0)
     assert fallback.cursor_rect.w > 0 and fallback.cursor_rect.h > 0
 

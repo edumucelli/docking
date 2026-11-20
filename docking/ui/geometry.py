@@ -172,12 +172,13 @@ This module separates runtime capture from pure geometry math:
 
 - DockGeometryBuilder
   Lives at the UI boundary and knows how to ask the dock window for live state.
+  Reuses zoom limits across frames as the pointer moves.
 
 - DockGeometryInputs
   An explicit snapshot of those live inputs.
 
 - build_geometry_frame(...)
-  Geometry math with an explicit zoom cache. It can be tested without GTK.
+  Builds a single frame from explicit inputs.
 
 That split prevents geometry code from gradually turning into another
 "everything knows about DockWindow" layer.
@@ -461,7 +462,7 @@ class DockGeometryInputs:
 
 
 @dataclass
-class AlignedZoomCache:
+class _AlignedZoomCache:
     """Reuse clickability probes while only the pointer is moving."""
 
     signature: tuple[object, ...] = ()
@@ -473,7 +474,7 @@ class DockGeometryBuilder:
 
     def __init__(self, window: DockWindow) -> None:
         self._window = window
-        self._zoom_cache = AlignedZoomCache()
+        self._zoom_cache = _AlignedZoomCache()
 
     def build_frame(
         self,
@@ -490,7 +491,7 @@ class DockGeometryBuilder:
             cursor_y=cursor_y,
             drop_insert_index=drop_insert_index,
         )
-        return build_geometry_frame(
+        return _build_cached_geometry_frame(
             items=list(inputs.items),
             config=inputs.config,
             theme=inputs.theme,
@@ -585,8 +586,40 @@ def build_geometry_frame(
     drop_insert_index: int = -1,
     constrain_main_axis: bool = False,
     pointer_reveal_enabled: bool = True,
+) -> DockGeometryFrame:
+    """Build a single frame from explicit inputs."""
+    return _build_cached_geometry_frame(
+        items=items,
+        config=config,
+        theme=theme,
+        window_w=window_w,
+        window_h=window_h,
+        cursor_main=cursor_main,
+        autohide_state=autohide_state,
+        zoom_progress=zoom_progress,
+        hide_offset=hide_offset,
+        drop_insert_index=drop_insert_index,
+        constrain_main_axis=constrain_main_axis,
+        pointer_reveal_enabled=pointer_reveal_enabled,
+        zoom_cache=_AlignedZoomCache(),
+    )
+
+
+def _build_cached_geometry_frame(
     *,
-    zoom_cache: AlignedZoomCache,
+    items: list[DockItem],
+    config: Config,
+    theme: Theme,
+    window_w: int,
+    window_h: int,
+    cursor_main: float,
+    autohide_state: HideState | None,
+    zoom_progress: float,
+    hide_offset: float,
+    drop_insert_index: int,
+    constrain_main_axis: bool,
+    pointer_reveal_enabled: bool,
+    zoom_cache: _AlignedZoomCache,
 ) -> DockGeometryFrame:
     """Build shared geometry with smoothly varying zoom limits on aligned docks."""
     resting_center: float | None = None

@@ -43,12 +43,7 @@ from docking.core.theme import Theme
 from docking.platform.backends.x11.impl.struts import BlurRect, compute_blur_region
 from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
-from docking.ui.geometry import (
-    AlignedZoomCache,
-    DockGeometryBuilder,
-    Rect,
-    build_geometry_frame,
-)
+from docking.ui.geometry import DockGeometryBuilder, Rect, build_geometry_frame
 from docking.ui.hover import HoverManager
 from docking.ui.renderer import DockRenderer
 
@@ -226,7 +221,6 @@ def _surface_context(width: int = WINDOW_W, height: int = WINDOW_H) -> cairo.Con
 
 def _baseline_frame(items: list[DockItem], config: object, theme: Theme) -> object:
     return build_geometry_frame(
-        zoom_cache=AlignedZoomCache(),
         items=items,
         config=config,
         theme=theme,
@@ -321,14 +315,12 @@ def run_benchmarks() -> list[BenchResult]:
         return point
 
     geometry_cursor = 0
-    zoom_cache = AlignedZoomCache()
 
     def geometry_build() -> object:
         nonlocal geometry_cursor
         cursor = 120.0 + (geometry_cursor % 600)
         geometry_cursor += 19
         return build_geometry_frame(
-            zoom_cache=zoom_cache,
             items=items_with_icons,
             config=config,
             theme=theme,
