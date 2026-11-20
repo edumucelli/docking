@@ -177,7 +177,7 @@ This module separates runtime capture from pure geometry math:
   An explicit snapshot of those live inputs.
 
 - build_geometry_frame(...)
-  Pure geometry math that can be tested without GTK.
+  Geometry math with an explicit zoom cache. It can be tested without GTK.
 
 That split prevents geometry code from gradually turning into another
 "everything knows about DockWindow" layer.
@@ -620,6 +620,8 @@ def build_geometry_frame(
     horizontal = is_horizontal(config.pos)
     resting = build(0.0)
     if 0.0 < config.dock_alignment < 1.0:
+        # Measure the painted shelf once at rest. Every zoom probe then uses
+        # the same center, even when the probe uses a different cursor position.
         resting_center = resting.shelf_main_pos + resting.shelf_main_extent / 2
     centers = [
         (_item_main_center(item_geometry=geometry, pos=config.pos), index)
@@ -1057,7 +1059,34 @@ def _main_axis_alignment_shift(
     extent: float,
     resting_center: float | None = None,
 ) -> int:
-    """Align a resting shelf or keep its center during zoom until it hits an edge."""
+    """Place the shelf along its main axis.
+
+    At rest, the alignment fraction divides the space left over after the
+    shelf is placed. A 200 px shelf on a 400 px surface at 25% alignment
+    starts 50 px from the left and leaves 150 px on the right.
+
+    During hover zoom, an intermediate alignment keeps the resting center
+    fixed while there is room to grow. Reapplying the alignment fraction to
+    the reduced free space would move the center on every frame. In the same 25%
+    example, a 40 px increase would then add 10 px on the left and 30 px on
+    the right. Keeping the center gives each side 20 px of growth.
+
+    The bars below mark the surface edges and the plus marks the shelf center.
+    Each column is 10 px. For a vertical dock, read the diagram along the Y axis.
+
+        Resting  |    [=========+=========]              |
+        Zoomed   |  [===========+===========]            |
+        Clamped  [================+================]     |
+
+    The preferred start is the resting center minus half the zoomed extent.
+    Clamp it to the range from zero to the surface length minus the zoomed
+    extent. Once the shelf reaches an edge, further growth goes toward the
+    other edge and the center moves with it. Full left or right alignment
+    keeps the corresponding edge attached throughout zoom.
+
+    The caller applies the resulting shift to the painted shelf, item hit
+    regions, and popup anchors so they move together.
+    """
     alignment = getattr(config, "dock_alignment", 0.5)
     if resting_center is not None:
         desired = clamp(resting_center - extent / 2, 0.0, max(0.0, main_size - extent))
