@@ -6,8 +6,10 @@ import pytest
 
 from docking.core.position import Position
 from docking.core.theme import Theme
+from docking.ui import renderer as renderer_mod
 from docking.ui.renderer import (
     SHELF_SMOOTH_FACTOR,
+    SLIDE_DURATION_US,
     DockRenderer,
     _snap_count_indicator_rect,
     _window_count_dot_height,
@@ -254,25 +256,31 @@ class TestSlideOffsets:
             assert renderer.slide_offsets == {}
             assert renderer.prev_positions == {"firefox.desktop": position}
 
-    def test_same_layout_context_still_animates_item_movement(self):
+    def test_reorder_slide_follows_elapsed_time_and_retargets(self, monkeypatch):
         renderer = DockRenderer()
         item = MagicMock(desktop_id="firefox.desktop")
         context = (Position.BOTTOM, 1280)
-        renderer._update_slide_offsets(
-            [item],
-            [MagicMock(x=466.0, width=48)],
-            0.0,
-            layout_context=context,
-        )
+        now_us = 1_000_000
+        monkeypatch.setattr(renderer_mod.GLib, "get_monotonic_time", lambda: now_us)
 
-        renderer._update_slide_offsets(
-            [item],
-            [MagicMock(x=526.0, width=48)],
-            0.0,
-            layout_context=context,
-        )
+        def draw_at(target):
+            renderer._update_slide_offsets(
+                [item],
+                [MagicMock(x=target, width=48)],
+                0.0,
+                layout_context=context,
+            )
+            return target + renderer.slide_offsets.get(item.desktop_id, 0.0)
 
-        assert renderer.slide_offsets["firefox.desktop"] < 0.0
+        assert draw_at(466.0) == 466.0
+        assert draw_at(526.0) == 466.0
+        now_us += SLIDE_DURATION_US // 2
+        midpoint = draw_at(526.0)
+        assert 466.0 < midpoint < 526.0
+        assert draw_at(466.0) == midpoint
+        now_us += SLIDE_DURATION_US
+        assert draw_at(466.0) == 466.0
+        assert renderer.slide_offsets == {}
 
     def test_item_width_change_snaps_without_sliding(self):
         renderer = DockRenderer()

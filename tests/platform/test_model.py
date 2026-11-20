@@ -41,7 +41,13 @@ from docking.platform.applications.types import (
     ApplicationLocation,
     ApplicationOrigin,
 )
-from docking.platform.model import DockItem, DockModel, LauncherEntryState
+from docking.platform.model import (
+    DockItem,
+    DockModel,
+    LauncherEntryState,
+    LayoutConflictError,
+)
+from docking.platform.targets import FileTargetInfo
 from tests.platform.application_fakes import application
 
 
@@ -1285,6 +1291,239 @@ class TestCallbacks:
         model.notify()
 
         assert calls == ["first", "second", "second"]
+
+
+class TestPinnedOrderPreview:
+    def test_only_retained_positions_are_previewed_and_cancel_restores_order(
+        self, tmp_path
+    ):
+        first, middle, last, added = (
+            PinnedEntry(APP_KIND, f"{name}.desktop")
+            for name in ("first", "middle", "last", "added")
+        )
+        path = tmp_path / "dock.json"
+        Config(pinned=[first, middle, last]).save(path)
+        config = Config.load(path)
+        model = _make_model(
+            config, _make_dependencies(first.id, middle.id, last.id, added.id)
+        )
+        original = tuple(config.pinned)
+        live = model.pinned_items[:]
+        listener = MagicMock()
+        model.add_change_listener(listener)
+
+        model.preview_pinned_order(
+            [last, added, first],
+            expected_pins=original,
+            expected_anchors=(False, False),
+        )
+
+        assert model.visible_items() == [live[2], live[1], live[0]]
+        assert model.pinned_items == model.tracked_items() == live
+        assert tuple(config.pinned) == original
+        assert tuple(Config.load(path).pinned) == original
+        assert listener.call_count == 1
+
+        model.clear_pinned_order_preview()
+        assert model.visible_items() == live
+        assert listener.call_count == 2
+
+    def test_preview_yields_to_changed_anchors_and_committed_pins(self, tmp_path):
+        first, last, external = (
+            PinnedEntry(APP_KIND, f"{name}.desktop")
+            for name in ("first", "last", "external")
+        )
+        path = tmp_path / "dock.json"
+        Config(pinned=[first, last], anchor_applets=True).save(path)
+        config = Config.load(path)
+        model = _make_model(config, _make_dependencies(first.id, last.id, external.id))
+        model.preview_pinned_order(
+            [last, first], expected_pins=(first, last), expected_anchors=(False, True)
+        )
+        assert [item.desktop_id for item in model.visible_items()] == [
+            last.id,
+            first.id,
+        ]
+
+        config.anchor_applets = False
+        assert [item.desktop_id for item in model.visible_items()] == [
+            first.id,
+            last.id,
+        ]
+
+        model.preview_pinned_order(
+            [last, first], expected_pins=(first, last), expected_anchors=(False, False)
+        )
+        assert model.pin_application(external.id)
+        assert [item.desktop_id for item in model.visible_items()] == [
+            first.id,
+            last.id,
+            external.id,
+        ]
+        assert Config.load(path).pinned == [first, last, external]
+
+
+class TestApplyPinnedLayout:
+    def test_applet_initialization_does_not_overwrite_the_previous_layout_backup(
+        self, tmp_path
+    ):
+        clock = PinnedEntry(APPLET_KIND, "applet://clock")
+        path = tmp_path / "dock.json"
+        Config(pinned=[], applet_prefs={"clock": {"alarm_target": 1}}).save(path)
+        config = Config.load(path)
+        model = _make_model(config, _make_dependencies())
+        try:
+            assert (
+                model.apply_pinned_layout(
+                    [clock], expected_pins=(), expected_anchors=(False, False)
+                )
+                == ()
+            )
+            assert config.applet_prefs["clock"]["alarm_target"] is None
+            assert Config.load(path).pinned == [clock]
+            assert Config.load(path.with_suffix(".json.bak")).pinned == []
+            config.save()
+            assert Config.load(path).applet_prefs["clock"]["alarm_target"] is None
+        finally:
+            model.stop_applets()
+
+    def test_adds_typed_files_and_folders_and_rejects_unavailable_new_paths(
+        self, tmp_path
+    ):
+        file = PinnedEntry(FILE_KIND, (tmp_path / "note.txt").as_uri())
+        folder = PinnedEntry(FOLDER_KIND, (tmp_path / "docs").as_uri())
+        missing = PinnedEntry(FILE_KIND, (tmp_path / "missing.txt").as_uri())
+        path = tmp_path / "dock.json"
+        Config(pinned=[]).save(path)
+        config = Config.load(path)
+        deps = _make_dependencies()
+        available = {
+            file.id: FileTargetInfo(
+                file.target, "note.txt", "text-x-generic", None, False
+            ),
+            folder.id: FileTargetInfo(folder.target, "docs", "folder", None, True),
+        }
+        deps.target_service.resolve_file.side_effect = lambda *, target, size: (
+            available.get(target)
+        )
+        model = _make_model(config, deps)
+
+        with pytest.raises(ValueError, match="file or folder is unavailable"):
+            model.apply_pinned_layout(
+                [file, missing], expected_pins=(), expected_anchors=(False, False)
+            )
+
+        assert config.pinned == model.pinned_items == []
+        assert (
+            model.apply_pinned_layout(
+                [folder, file], expected_pins=(), expected_anchors=(False, False)
+            )
+            == ()
+        )
+        assert [item.kind for item in model.pinned_items] == [FOLDER_KIND, FILE_KIND]
+        assert Config.load(path).pinned == [folder, file]
+
+    def test_saves_once_and_preserves_retained_and_running_items(
+        self, tmp_path, monkeypatch
+    ):
+        old = PinnedEntry(APP_KIND, "old.desktop")
+        kept = PinnedEntry(APPLET_KIND, "applet://separator#0")
+        new = PinnedEntry(APP_KIND, "new.desktop")
+        path = tmp_path / "dock.json"
+        Config(pinned=[old, kept]).save(path)
+        config = Config.load(path)
+        model = _make_model(config, _make_dependencies(old.id, new.id))
+        model.update_running({old.id: _running(active=True), new.id: _running()})
+        old_item = model.find_by_desktop_id(old.id)
+        new_item = model.find_by_desktop_id(new.id)
+        kept_applet = model.get_applet(kept.id)
+        save = MagicMock(wraps=config.save_replacement)
+        listener = MagicMock()
+        monkeypatch.setattr(config, "save_replacement", save)
+        model.add_change_listener(listener)
+        config.icon_size = 72
+
+        assert (
+            model.apply_pinned_layout(
+                [new, kept], expected_pins=(old, kept), expected_anchors=(False, False)
+            )
+            == ()
+        )
+
+        save.assert_called_once()
+        listener.assert_called_once_with()
+        assert model.pinned_items[0] is new_item
+        assert model.get_applet(kept.id) is kept_applet
+        assert model.find_by_desktop_id(old.id) is old_item
+        assert old_item is not None and old_item.is_running and not old_item.is_pinned
+        assert old_item.is_active
+        saved = Config.load(path)
+        assert saved.pinned == [new, kept]
+        assert saved.icon_size == 72
+
+    @pytest.mark.parametrize("problem", ["conflict", "anchors", "duplicate", "save"])
+    def test_failed_apply_preserves_live_and_saved_state(
+        self, tmp_path, monkeypatch, problem
+    ):
+        old = PinnedEntry(APP_KIND, "old.desktop")
+        path = tmp_path / "dock.json"
+        Config(pinned=[old]).save(path)
+        config = Config.load(path)
+        model = _make_model(config, _make_dependencies(old.id))
+        original = model.pinned_items[0]
+        listener = MagicMock()
+        model.add_change_listener(listener)
+        save = MagicMock(side_effect=OSError("disk full"))
+        monkeypatch.setattr(config, "save_replacement", save)
+        expected = () if problem == "conflict" else (old,)
+        anchors = (False, problem == "anchors")
+        entries = [old, old] if problem == "duplicate" else []
+        error = {
+            "conflict": LayoutConflictError,
+            "anchors": LayoutConflictError,
+            "duplicate": ValueError,
+            "save": OSError,
+        }[problem]
+
+        with pytest.raises(error):
+            model.apply_pinned_layout(
+                entries, expected_pins=expected, expected_anchors=anchors
+            )
+
+        assert model.pinned_items[0] is original
+        assert config.pinned == [old]
+        assert Config.load(path).pinned == [old]
+        assert save.call_count == int(problem == "save")
+        listener.assert_not_called()
+
+    def test_unavailable_applet_survives_ordinary_edits_and_can_be_removed(
+        self, tmp_path, monkeypatch
+    ):
+        first = PinnedEntry(APP_KIND, "first.desktop")
+        failed = PinnedEntry(APPLET_KIND, "applet://separator#0")
+        second = PinnedEntry(APP_KIND, "second.desktop")
+        path = tmp_path / "dock.json"
+        Config(pinned=[first]).save(path)
+        config = Config.load(path)
+        model = _make_model(config, _make_dependencies(first.id, second.id))
+        monkeypatch.setattr(model, "_start_applet", MagicMock(return_value=False))
+
+        assert model.apply_pinned_layout(
+            [first, failed], expected_pins=(first,), expected_anchors=(False, False)
+        ) == (failed,)
+        assert model.get_applet(failed.id) is None
+        assert model.pin_application(second.id)
+        model.unpin_item(first.id)
+        assert Config.load(path).pinned == [second, failed]
+
+        assert (
+            model.apply_pinned_layout(
+                [], expected_pins=tuple(config.pinned), expected_anchors=(False, False)
+            )
+            == ()
+        )
+        assert model.pinned_items == []
+        assert Config.load(path).pinned == []
 
 
 class TestAppletLifecycleIntegration:

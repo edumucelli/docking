@@ -192,6 +192,7 @@ from docking.ui.effects import (
     average_icon_color,
     click_effect_angle,
     click_effect_scale,
+    ease_out_cubic,
     easing_bounce,
 )
 from docking.ui.geometry import DockGeometryFrame, dock_edge_padding, map_icon_position
@@ -208,7 +209,7 @@ if TYPE_CHECKING:
 
 SHELF_SMOOTH_FACTOR = 0.3
 SLIDE_MOVE_THRESHOLD = 2.0
-SLIDE_DECAY_FACTOR = 0.75
+SLIDE_DURATION_US = 140_000
 SLIDE_CLEAR_THRESHOLD = 0.5
 INDICATOR_SPACING_MULT = 3
 INDICATOR_GLOW_RADIUS_MULT = 4.0  # glow extends N x the solid-dot radius
@@ -688,6 +689,7 @@ class DockRenderer:
 
     def __init__(self) -> None:
         self.slide_offsets: dict[str, float] = {}
+        self._slide_starts: dict[str, tuple[int, float]] = {}
         self.prev_positions: dict[str, float] = {}
         self.prev_widths: dict[str, int] = {}
         self._slide_layout_context: tuple[object, ...] | None = None
@@ -806,6 +808,10 @@ class DockRenderer:
         height = frame.window_rect.h
         items = [item_geometry.item for item_geometry in frame.item_geometries]
         if not items:
+            self.slide_offsets.clear()
+            self._slide_starts.clear()
+            self.prev_positions.clear()
+            self.prev_widths.clear()
             return
         self._cache.prune_icon_surfaces(items=items)
 
@@ -1326,11 +1332,28 @@ class DockRenderer:
             self.prev_widths = new_widths
             return
 
+        # Drag and drop can clear the rendered offsets to snap into place.
+        if not self.slide_offsets:
+            self._slide_starts.clear()
+        now_us = GLib.get_monotonic_time()
+        for desktop_id, (started_us, initial_offset) in list(
+            self._slide_starts.items()
+        ):
+            progress = (now_us - started_us) / SLIDE_DURATION_US
+            offset = initial_offset * (1.0 - ease_out_cubic(progress))
+            if abs(offset) < SLIDE_CLEAR_THRESHOLD:
+                del self.slide_offsets[desktop_id]
+                del self._slide_starts[desktop_id]
+            else:
+                self.slide_offsets[desktop_id] = offset
+
         for desktop_id, new_x in new_positions.items():
             old_x = self.prev_positions.get(desktop_id)
             if old_x is not None and abs(old_x - new_x) > SLIDE_MOVE_THRESHOLD:
                 current_slide = self.slide_offsets.get(desktop_id, 0.0)
-                self.slide_offsets[desktop_id] = current_slide + (old_x - new_x)
+                offset = current_slide + (old_x - new_x)
+                self.slide_offsets[desktop_id] = offset
+                self._slide_starts[desktop_id] = (now_us, offset)
                 log.debug(
                     "slide offset updated: id=%s old=%.2f new=%.2f offset=%.2f",
                     desktop_id,
@@ -1338,15 +1361,6 @@ class DockRenderer:
                     new_x,
                     self.slide_offsets[desktop_id],
                 )
-
-        decay = SLIDE_DECAY_FACTOR
-        dead = []
-        for desktop_id in self.slide_offsets:
-            self.slide_offsets[desktop_id] *= decay
-            if abs(self.slide_offsets[desktop_id]) < SLIDE_CLEAR_THRESHOLD:
-                dead.append(desktop_id)
-        for d in dead:
-            del self.slide_offsets[d]
 
         if self.slide_offsets:
             summary = ", ".join(
