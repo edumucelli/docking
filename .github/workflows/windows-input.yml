@@ -254,6 +254,10 @@ jobs:
       - name: Verify GTK and native input dependencies
         if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
         run: python -m tools.windows.ci --stage preflight
+      - name: Clear the hosted desktop before native input acceptance
+        if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
+        shell: powershell
+        run: (New-Object -ComObject Shell.Application).MinimizeAll()
       - name: Prepare the hosted desktop and verify the complete input domain
         if: ${{ !cancelled() && steps.wheel.outcome == 'success' }}
         run: python -m tests.visual.backends.windows.hosted_desktop --visual-minimum --minimize-runner-terminals --installed-root artifacts/windows/runtime --wheel dist/*.whl --source-sha "$GITHUB_SHA" --output artifacts/windows

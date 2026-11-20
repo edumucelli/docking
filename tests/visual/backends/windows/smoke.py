@@ -284,14 +284,15 @@ def main() -> None:
         # row centers were checked against the captured native menu. This is a
         # desktop acceptance test, not an arbitrary-theme menu geometry test.
         x1, _y1, x2, y2 = menu_window["rect"]
-        user32.SetCursorPos((x1 + x2) // 2, y2 - 24 - 25 * rows_from_bottom)
-        time.sleep(0.25)
-        events = (Input * 2)(
-            Input(type=0, data=InputData(mouse=MouseInput(flags=0x0002))),
-            Input(type=0, data=InputData(mouse=MouseInput(flags=0x0004))),
-        )
-        if user32.SendInput(2, events, ctypes.sizeof(Input)) != 2:
-            raise ctypes.WinError(ctypes.get_last_error())
+        x, y = (x1 + x2) // 2, y2 - 24 - 25 * rows_from_bottom
+
+        def wait_for_menu_input():
+            native.wait_for(
+                lambda: native.window_at(x, y) == menu_window["hwnd"],
+                "Native context menu row was covered before input",
+            )
+
+        native.click(x, y, before_press=wait_for_menu_input)
 
     def set_icon_size(preferences: dict, size: int) -> None:
         _x1, y1, x2, _y2 = preferences["rect"]
@@ -522,11 +523,20 @@ def main() -> None:
             native, dock, lambda: windows(application_pid)
         )
         report["windows_after_menu"] = windows(application_pid)
+        vx, vy = user32.GetSystemMetrics(76), user32.GetSystemMetrics(77)
+        x1, y1, x2, y2 = context_menu["rect"]
+        # The menu's upper half is away from the dock's hover repaint.
+        menu_center = ((x1 + x2) // 2, (y1 + y2) // 2)
+        menu_bounds = (x1 - vx, y1 - vy, x2 - vx, menu_center[1] - vy)
+        before_menu = hover.crop(menu_bounds).convert("RGB")
 
         def painted_menu():
+            report["menu_hit_test"] = native.window_at(*menu_center)
+            if report["menu_hit_test"] != context_menu["hwnd"]:
+                return None
             frame = ImageGrab.grab(all_screens=True)
             difference = ImageChops.difference(
-                hover.convert("RGB"), frame.convert("RGB")
+                before_menu, frame.crop(menu_bounds).convert("RGB")
             )
             changed = (
                 difference.convert("L").point(lambda value: bool(value)).histogram()[1]
