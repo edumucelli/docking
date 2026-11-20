@@ -116,7 +116,7 @@ class ColorPickerApplet(Applet):
         show.set_active(self._show_hex)
         show.connect("toggled", self._on_toggle_hex)
 
-        return menu_sections(primary=primary, display=[show], gtk=Gtk)
+        return menu_sections(primary=primary, display=[show])
 
     def _on_toggle_hex(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_hex = widget.get_active()

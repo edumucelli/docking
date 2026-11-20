@@ -46,18 +46,14 @@ class TestStateHelpers:
         assert state.cards_enabled is False
 
     def test_trigger_reminder_sets_due_and_card(self):
-        state = trigger_reminder(
-            StretchCoachState(),
-            cards=[CARD],
-            chooser=lambda cards: cards[0],
-        )
+        state = trigger_reminder(StretchCoachState(), cards=[CARD])
         assert state.due is True
         assert state.remaining == 0
         assert state.active_card == CARD
 
     def test_trigger_reminder_omits_card_when_disabled(self):
         state = set_cards_enabled(StretchCoachState(), False)
-        state = trigger_reminder(state, cards=[CARD], chooser=lambda cards: cards[0])
+        state = trigger_reminder(state, cards=[CARD])
         assert state.active_card is None
 
     def test_acknowledge_resets_interval(self):
@@ -69,11 +65,7 @@ class TestStateHelpers:
 
     def test_show_preview_card_keeps_timer_running(self):
         state = StretchCoachState(remaining=600)
-        previewed = show_preview_card(
-            state,
-            cards=[CARD],
-            chooser=lambda cards: cards[0],
-        )
+        previewed = show_preview_card(state, cards=[CARD])
         assert previewed.remaining == 600
         assert previewed.preview_card == CARD
 
@@ -84,11 +76,7 @@ class TestStateHelpers:
         assert updated.remaining == 60 * 60
 
     def test_tick_becomes_due(self):
-        result = tick(
-            StretchCoachState(remaining=1),
-            cards=[CARD],
-            chooser=lambda cards: cards[0],
-        )
+        result = tick(StretchCoachState(remaining=1), cards=[CARD])
         assert result.became_due is True
         assert result.should_refresh is True
         assert result.state.due is True
@@ -227,11 +215,7 @@ class TestStretchCoachApplet:
     def test_due_menu_uses_acknowledge_label(self, monkeypatch):
         monkeypatch.setattr(stretchcoach_applet_mod, "load_cards", lambda: [CARD])
         applet = StretchCoachApplet(48, config=Config())
-        applet._state = trigger_reminder(
-            applet._state,
-            cards=[CARD],
-            chooser=lambda cards: cards[0],
-        )
+        applet._state = trigger_reminder(applet._state, cards=[CARD])
         labels = [
             item.get_label() for item in applet.get_menu_items() if item.get_label()
         ]

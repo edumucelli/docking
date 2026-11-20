@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from docking.core.config import Config
 from docking.core.position import Position
 from docking.platform.backends import selection
 from docking.platform.backends.base import (
@@ -267,7 +268,7 @@ def test_surface_retries_reservation_after_mapping_and_clears_on_stop(monkeypatc
         clear_reservation=MagicMock(),
     )
     surface = shell.CinnamonShellSurfaceService(client=client)
-    surface.configure_before_realize(MagicMock())
+    surface.configure_before_realize(MagicMock(), keep_above=True)
     surface.position_or_anchor(_request())
     request = ReservationRequest(_request().monitor, Position.BOTTOM, 53)
     surface.set_reservation(request)
@@ -289,7 +290,7 @@ def test_x11_reservation_retries_mapping_without_native_placement(monkeypatch, c
     client.reserve_dock.side_effect = [False, True]
     surface = shell.CinnamonX11SurfaceService(client=client)
     window = MagicMock()
-    surface.configure_before_realize(window)
+    surface.configure_before_realize(window, keep_above=True)
     request = ReservationRequest(_request().monitor, Position.BOTTOM, 53)
     surface.set_reservation(request)
     callback = schedule.call_args.args[1]
@@ -321,7 +322,7 @@ def test_surface_retries_mapping_and_uses_latest_placement(monkeypatch):
     )
     surface = shell.CinnamonShellSurfaceService(client=client)
     window = MagicMock()
-    surface.configure_before_realize(window)
+    surface.configure_before_realize(window, keep_above=True)
     surface.position_or_anchor(_request())
     assert surface.get_surface_position() is None
     assert surface._retry_position() is True
@@ -345,7 +346,7 @@ def test_surface_bounds_retries_and_cancels_after_stop(monkeypatch):
         position_dock=MagicMock(return_value=None), clear_dock_visibility=MagicMock()
     )
     surface = shell.CinnamonShellSurfaceService(client=client)
-    surface.configure_before_realize(MagicMock())
+    surface.configure_before_realize(MagicMock(), keep_above=True)
     surface.position_or_anchor(_request())
     for _ in range(19):
         assert surface._retry_position() is True
@@ -365,7 +366,7 @@ def test_surface_keeps_workspace_scope_and_popup_coordinates(monkeypatch):
         rows=(),
     )
     surface = shell.CinnamonShellSurfaceService(client=client)
-    surface.configure_before_realize(MagicMock())
+    surface.configure_before_realize(MagicMock(), keep_above=True)
     surface.position_or_anchor(_request())
     surface.set_workspace_scope(current_workspace_only=True)
     assert client.position_dock.call_args.kwargs["current_workspace_only"] is True
@@ -381,7 +382,10 @@ def test_selection_uses_shell_when_layer_shell_is_unsupported(monkeypatch):
     client.features = shell.NATIVE_FEATURES
     monkeypatch.setattr(shell.CinnamonShellClient, "connect", lambda: client)
     backend = selection._create_cinnamon_wayland_backend(
-        model=MagicMock(), reason="native Wayland", **identity_services()
+        config=Config(),
+        model=MagicMock(),
+        reason="native Wayland",
+        **identity_services(),
     )
     assert isinstance(backend, CinnamonShellSessionBackend)
     assert backend.name == "cinnamon-shell"
@@ -419,7 +423,10 @@ def test_xwayland_surface_retains_native_cinnamon_services(monkeypatch):
     client = MagicMock(features=shell.NATIVE_FEATURES)
     monkeypatch.setattr(shell.CinnamonShellClient, "connect", lambda: client)
     backend = selection._create_cinnamon_wayland_backend(
-        model=MagicMock(), reason="Cinnamon XWayland", **identity_services()
+        config=Config(),
+        model=MagicMock(),
+        reason="Cinnamon XWayland",
+        **identity_services(),
     )
     assert isinstance(backend, CinnamonXWaylandSessionBackend)
     assert isinstance(backend.surface, shell.CinnamonXWaylandSurfaceService)
@@ -483,7 +490,10 @@ def test_selection_retains_fallback_when_cinnamon_api_is_unavailable(monkeypatch
     monkeypatch.setattr(shell.CinnamonShellClient, "connect", lambda: None)
     assert (
         selection._create_cinnamon_wayland_backend(
-            model=MagicMock(), reason="native Wayland", **identity_services()
+            config=Config(),
+            model=MagicMock(),
+            reason="native Wayland",
+            **identity_services(),
         )
         is None
     )
@@ -512,7 +522,10 @@ def test_selection_uses_shell_windows_with_layer_shell_on_newer_muffin(monkeypat
 
     monkeypatch.setattr(MuffinDebugClient, "connect", lambda: None)
     backend = selection._create_cinnamon_wayland_backend(
-        model=MagicMock(), reason="native Wayland", **identity_services()
+        config=Config(),
+        model=MagicMock(),
+        reason="native Wayland",
+        **identity_services(),
     )
     assert backend is not None
     assert backend.name == "cinnamon-wayland"
@@ -542,7 +555,10 @@ def test_selection_retains_read_only_muffin_when_shell_is_unavailable(monkeypatc
     monkeypatch.setattr(shell.CinnamonShellClient, "connect", lambda: None)
     monkeypatch.setattr(MuffinDebugClient, "connect", lambda: MagicMock())
     backend = selection._create_cinnamon_wayland_backend(
-        model=MagicMock(), reason="native Wayland", **identity_services()
+        config=Config(),
+        model=MagicMock(),
+        reason="native Wayland",
+        **identity_services(),
     )
     assert backend is not None
     assert type(backend.windows) is MuffinWindowService

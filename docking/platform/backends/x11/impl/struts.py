@@ -331,10 +331,11 @@ def set_dock_struts(
     dock_height: int,
     monitor_geom: Gdk.Rectangle,
     screen: Gdk.Screen,
-    position: Position = Position.BOTTOM,
-    edge_offset: int = 0,
-    span_start: int | None = None,
-    span_end: int | None = None,
+    *,
+    position: Position,
+    edge_offset: int,
+    span_start: int | None,
+    span_end: int | None,
 ) -> None:
     """Compute and set struts for the dock at the given screen edge."""
     struts = compute_struts(

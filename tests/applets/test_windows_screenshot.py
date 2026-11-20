@@ -90,7 +90,7 @@ def test_backend_rejects_stopped_or_missing_selection_without_native_libraries(
 
 def test_stop_during_native_capture_discards_completed_pixels():
     api = Mock()
-    backend = mod.WindowsScreenshotBackend(api_factory=Mock(), api=api)
+    backend = mod.WindowsScreenshotBackend(api_factory=lambda: api)
     image = ScreenshotImage(bytes((1, 2, 3)), 1, 1)
     api.desktop.side_effect = lambda _region: backend.stop() or image
     assert not backend.capture("full").accepted

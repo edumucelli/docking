@@ -161,7 +161,7 @@ class AmbientApplet(Applet):
                 lambda _w, s=sound.name: self._select_sound(name=s),
             )
             display.append(menu_item)
-        return menu_sections(display=display, gtk=Gtk)
+        return menu_sections(display=display)
 
     def _select_sound(self, name: str) -> None:
         was_playing = self._state.playing

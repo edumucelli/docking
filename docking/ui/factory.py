@@ -38,7 +38,7 @@ from contextlib import ExitStack
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from docking.core.config import Config, effective_edge_gap
+from docking.core.config import Config
 from docking.core.theme import Theme
 from docking.platform.application_icons import ApplicationIcons
 from docking.platform.backends.base import (
@@ -158,8 +158,6 @@ def build_dock_window(
     diagnostics = DiagnosticsDialogController(
         parent=window,
         backend=session_backend,
-        config=config,
-        edge_gap_provider=lambda: effective_edge_gap(window.theme, config),
         application_registry=application_registry,
     )
     search = GlobalSearchController(

@@ -216,7 +216,6 @@ class UnityLauncherListener:
         normalized_props = {str(key): value for key, value in props.items()}
         return LauncherEntryState(
             sender_name=sender_name,
-            app_uri=app_uri,
             desktop_id=desktop_id,
             badge_count=max(0, _as_int(normalized_props.get("count"), default=0)),
             badge_visible=_as_bool(
@@ -239,8 +238,6 @@ class UnityLauncherListener:
         if entry is None or entry.state is None:
             return
         applied = self._model.apply_launcher_entry(
-            sender_name=sender_name,
-            app_uri=entry.state.app_uri,
             state=entry.state,
             create_transient=False,
         )
@@ -260,8 +257,6 @@ class UnityLauncherListener:
         if entry.state is None:
             return False
         self._model.apply_launcher_entry(
-            sender_name=sender_name,
-            app_uri=entry.state.app_uri,
             state=entry.state,
             create_transient=True,
         )

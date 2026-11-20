@@ -130,27 +130,23 @@ class MicShieldApplet(PlatformServicesApplet):
                     _("Microphone state unavailable")
                     if self._state.error
                     else _("No microphone source found"),
-                    gtk=Gtk,
                 )
             )
         else:
             status.append(
                 disabled_menu_item(
                     mute_status(self._state),
-                    gtk=Gtk,
                 )
             )
 
             if self._state.active:
-                status.append(disabled_menu_item(_("Microphone active"), gtk=Gtk))
+                status.append(disabled_menu_item(_("Microphone active")))
                 for stream in self._state.streams:
-                    status.append(disabled_menu_item(stream_label(stream), gtk=Gtk))
+                    status.append(disabled_menu_item(stream_label(stream)))
             elif self._state.active is None:
-                status.append(
-                    disabled_menu_item(_("Microphone activity unknown"), gtk=Gtk)
-                )
+                status.append(disabled_menu_item(_("Microphone activity unknown")))
             else:
-                status.append(disabled_menu_item(_("Microphone idle"), gtk=Gtk))
+                status.append(disabled_menu_item(_("Microphone idle")))
 
         mute_label = (
             _("Unmute Microphone") if self._state.muted else _("Mute Microphone")
@@ -173,7 +169,6 @@ class MicShieldApplet(PlatformServicesApplet):
             primary=[mute],
             refresh=[refresh],
             settings=settings,
-            gtk=Gtk,
         )
 
     def _refresh_once(self) -> bool:

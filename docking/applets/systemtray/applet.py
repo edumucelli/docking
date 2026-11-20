@@ -185,7 +185,7 @@ class SystemTrayApplet(PlatformServicesApplet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         status: list[Gtk.MenuItem] = [
-            disabled_menu_item(self._menu_header(), gtk=Gtk),
+            disabled_menu_item(self._menu_header()),
         ]
         legacy = (
             self._presentation.menu_items() if self._presentation is not None else []

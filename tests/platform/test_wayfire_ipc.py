@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import docking.platform.backends.wayland.wayfire_ipc as wayfire_ipc
+from docking.core.config import Config
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.backends.wayland.wayfire_ipc import (
     WayfireIpcClient,
@@ -1012,7 +1013,9 @@ def test_wayfire_loader_requires_real_snapshot_even_when_ipc_socket_exists(
         WayfireIpcClient, "request", lambda *_args: {"error": "No such method found!"}
     )
     assert (
-        wayfire_ipc.load_wayfire_window_service(model=_model(), **identity_services())
+        wayfire_ipc.load_wayfire_window_service(
+            model=_model(), config=Config(), **identity_services()
+        )
         is None
     )
     assert wayfire_ipc.load_wayfire_window_pick_service() is None

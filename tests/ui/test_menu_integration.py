@@ -634,6 +634,10 @@ class FakeDrawingArea:
         self.shown = False
         self.draw_queued = False
 
+    def destroy(self) -> None:
+        if self.parent is not None:
+            self.parent.remove(self)
+
     def set_size_request(self, width: int, height: int) -> None:
         self.size_request = (width, height)
 
@@ -1977,7 +1981,8 @@ class TestMenuCallbacks:
         monkeypatch.setattr(
             handler._folder_stack._browser, "target_state", lambda _target: "ok"
         )
-        handler._target_service.default_directory_app_name.return_value = None
+        app_name = handler._target_service.default_directory_app_name
+        app_name.side_effect = [None, "Caja"]
         monkeypatch.setattr(
             handler._folder_stack,
             "_list_directory_rows",
@@ -1997,6 +2002,12 @@ class TestMenuCallbacks:
         )
 
         assert cards[0].label == "5 More in Folder"
+        app_name.assert_called_once_with()
+        cards, _popup_w, _popup_h = handler._folder_stack._folder_stack_cards_for_item(
+            item
+        )
+        assert cards[0].label == "5 More in Caja"
+        assert app_name.call_count == 2
 
     def test_folder_stack_short_labels_fit_chip_width(self, handler, monkeypatch):
         item = DockItem(
@@ -2193,27 +2204,30 @@ class TestMenuCallbacks:
         )
         window = FakeWindow()
         revealer = FakeRevealer()
-        old_child = object()
-        revealer.add(old_child)
-        built: list[object] = []
+        stack = handler._folder_stack
         monkeypatch.setattr(
-            handler._folder_stack,
-            "_replace_folder_stack_content",
-            lambda item: built.append(object()),
+            stack,
+            "_stack_content_for_item",
+            MagicMock(
+                side_effect=[
+                    stack_mod.StackContent(empty_label="Before refresh"),
+                    stack_mod.StackContent(empty_label="After refresh"),
+                ]
+            ),
         )
-        monkeypatch.setattr(
-            handler._folder_stack,
-            "_position_stack_window",
-            lambda: built.append(object()) or built[-1],
-        )
-        handler._folder_stack._folder_stack_window = window
-        handler._folder_stack._folder_stack_revealer = revealer
-        handler._folder_stack._folder_stack_item = item
+        monkeypatch.setattr(stack, "_track_folder_stack", MagicMock())
+        stack._folder_stack_window = window
+        stack._folder_stack_revealer = revealer
+        stack.show(item=item, anchor_x=100, anchor_y=200, icon_w=48, position="bottom")
+        previous_child = revealer.get_child()
 
-        result = handler._folder_stack._refresh_folder_stack()
+        result = stack._refresh_folder_stack()
 
         assert result is False
         assert window.visible is True
+        assert revealer.get_child() is not previous_child
+        assert revealer.get_child().shown is True
+        stack.close()
 
     def test_schedule_folder_stack_prewarm_deduplicates_target(
         self, handler, monkeypatch, tmp_path
@@ -2256,22 +2270,6 @@ class TestMenuCallbacks:
             handler._folder_stack._stack_transition_type()
             == menu_mod.Gtk.RevealerTransitionType.SLIDE_LEFT
         )
-
-    def test_replace_folder_stack_content_replaces_existing_child(self, handler):
-        item = DockItem(
-            desktop_id="file:///tmp/docs",
-            kind=FOLDER_KIND,
-            target="file:///tmp/docs",
-        )
-        revealer = FakeRevealer()
-        stale = FakeBox()
-        revealer.add(stale)
-        handler._folder_stack._folder_stack_revealer = revealer
-
-        handler._folder_stack._replace_folder_stack_content(item=item)
-
-        assert revealer.get_child() is not stale
-        assert revealer.get_child().shown is True
 
     def test_position_folder_stack_window_supports_all_edges(self, handler):
         child = FakeBox()

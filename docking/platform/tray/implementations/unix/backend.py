@@ -42,7 +42,7 @@ class UnixTrayMenu(TrayMenuClient):
     def __init__(self, client: DBusMenuClient) -> None:
         self._client = client
 
-    def about_to_show(self, item_id: int = 0) -> bool:
+    def about_to_show(self, item_id: int) -> bool:
         return self._client.about_to_show(item_id)
 
     def get_layout(self) -> TrayMenuLayout | None:

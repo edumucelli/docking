@@ -29,11 +29,7 @@ from gi.repository import GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import PlatformServicesApplet
 from docking.applets.caffeine import meta
-from docking.applets.caffeine.inhibit import (
-    InhibitionResult,
-    InhibitionSession,
-    Inhibitor,
-)
+from docking.applets.caffeine.inhibit import InhibitionResult, InhibitionSession
 from docking.applets.caffeine.render import render_icon
 from docking.applets.caffeine.state import (
     DURATION_PRESETS,
@@ -69,17 +65,14 @@ class CaffeineApplet(PlatformServicesApplet):
         self,
         icon_size: int,
         config: Config,
-        inhibitor: Inhibitor | None = None,
         *,
         platform_services: AppletPlatformServices,
     ) -> None:
-        self._platform = platform_services
         prefs = config.applet_prefs.get(meta.id, {})
         self._data = state_from_prefs(prefs=prefs)
-        self._inhibitor = (
-            inhibitor if inhibitor is not None else self._platform.backends.caffeine()
+        self._session = InhibitionSession(
+            platform_services.backends.caffeine(), self._on_inhibition_done
         )
-        self._session = InhibitionSession(self._inhibitor, self._on_inhibition_done)
         self._requested = False
         self._request_pending = False
         self._error = False
@@ -134,10 +127,9 @@ class CaffeineApplet(PlatformServicesApplet):
                 ),
                 active_value=self._data.duration_min,
                 on_selected=lambda _widget, value: self._set_duration(minutes=value),
-                gtk=Gtk,
             )
         )
-        return menu_sections(status=status, display=display, gtk=Gtk)
+        return menu_sections(status=status, display=display)
 
     # -- Internals -----------------------------------------------------------
 

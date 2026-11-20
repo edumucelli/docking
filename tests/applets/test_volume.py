@@ -275,7 +275,9 @@ class TestVolumeApplet:
             applet.on_clicked()
         assert not applet._available
         assert applet.item.name == "Volume\nUnavailable"
-        applet._on_poll_result(VolumeState(75, False))
+        applet._on_poll_result(
+            VolumeState(75, False), generation=applet._poll_generation
+        )
         assert applet._available and applet.item.name == "Volume: 75%"
 
     def test_native_commands_are_deferred_and_old_scroll_results_do_not_rewind(self):
@@ -503,14 +505,23 @@ class TestVolumeAppletInternals:
 
     def test_on_poll_result_handles_none_and_no_change(self):
         applet = _make_applet()
-        assert applet._on_poll_result(None) is False
+        generation = applet._poll_generation
+        assert applet._on_poll_result(None, generation=generation) is False
         assert not applet._available
-        assert applet._on_poll_result(VolumeState(45, False)) is False
+        assert (
+            applet._on_poll_result(VolumeState(45, False), generation=generation)
+            is False
+        )
         assert applet._available
         applet._volume = 45
         applet._muted = False
         applet.present = MagicMock()
-        assert applet._on_poll_result(VolumeState(volume=45, muted=False)) is False
+        assert (
+            applet._on_poll_result(
+                VolumeState(volume=45, muted=False), generation=generation
+            )
+            is False
+        )
         applet.present.assert_not_called()
 
     def test_on_poll_result_updates_when_changed(self):
@@ -518,7 +529,12 @@ class TestVolumeAppletInternals:
         applet._volume = 10
         applet._muted = False
         applet.present = MagicMock()
-        assert applet._on_poll_result(VolumeState(volume=60, muted=True)) is False
+        assert (
+            applet._on_poll_result(
+                VolumeState(volume=60, muted=True), generation=applet._poll_generation
+            )
+            is False
+        )
         assert applet._volume == 60
         assert applet._muted is True
         applet.present.assert_called_once()

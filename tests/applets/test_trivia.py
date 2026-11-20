@@ -58,7 +58,7 @@ class TestTriviaHelpers:
 
 class TestFetchTrivia:
     @patch("docking.applets.trivia.state.http_get_json")
-    def test_fetches_entries_from_api(self, mock_get):
+    def test_fetches_entries_from_api(self, mock_get, monkeypatch):
         mock_get.return_value = {
             "response_code": 0,
             "results": [
@@ -72,10 +72,8 @@ class TestFetchTrivia:
             ],
         }
 
-        entries = fetch_trivia(
-            limit=5,
-            shuffle_answers=lambda answers: answers.reverse(),
-        )
+        monkeypatch.setattr("docking.applets.trivia.state.random.shuffle", list.reverse)
+        entries = fetch_trivia(limit=5)
 
         assert len(entries) == 1
         assert entries[0].category == "Science"

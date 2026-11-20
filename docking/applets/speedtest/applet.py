@@ -86,9 +86,9 @@ class SpeedtestApplet(Applet):
         status: list[Gtk.MenuItem] = []
         header = self._menu_header_label()
         if header:
-            status.append(disabled_menu_item(header, gtk=Gtk))
+            status.append(disabled_menu_item(header))
 
-        status.append(disabled_menu_item(on_demand_label(verb=_("Runs")), gtk=Gtk))
+        status.append(disabled_menu_item(on_demand_label(verb=_("Runs"))))
 
         run_item = Gtk.MenuItem(
             label=_("Running...") if self._running else _("Run Test")
@@ -102,7 +102,7 @@ class SpeedtestApplet(Applet):
             copy_item.connect("activate", lambda _w: self._copy_last_result())
             primary.append(copy_item)
 
-        return menu_sections(status=status, primary=primary, gtk=Gtk)
+        return menu_sections(status=status, primary=primary)
 
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)

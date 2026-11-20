@@ -1,8 +1,9 @@
 """Neutral tray and menu projection preserves the Linux provider contract."""
 
-from unittest.mock import Mock, call
+from unittest.mock import Mock
 
 import pytest
+from gi.repository import GLib
 
 from docking.platform.backends.base import Rect
 from docking.platform.tray.implementations.unix.backend import UnixTrayBackend
@@ -32,8 +33,10 @@ def test_linux_actions_preserve_status_notifier_default_coordinates(
     )
     provider = StatusNotifierBackend()
     provider._last_items[item.identifier] = item
-    send = Mock(return_value=accepted)
-    monkeypatch.setattr(provider, "_call_item_method", send)
+    bus = Mock()
+    if not accepted:
+        bus.call_sync.side_effect = GLib.Error("Item rejected action")
+    monkeypatch.setattr(provider, "_connection", lambda: bus)
     adapter = UnixTrayBackend(backend=provider)
     assert (
         adapter.activate(item.identifier, anchor=anchor, keyboard=keyboard) is accepted
@@ -42,9 +45,12 @@ def test_linux_actions_preserve_status_notifier_default_coordinates(
         adapter.context_menu(item.identifier, anchor=anchor, keyboard=keyboard)
         is accepted
     )
-    assert send.call_args_list == [
-        call(item=item, method="ContextMenu" if item_is_menu else "Activate", x=0, y=0),
-        call(item=item, method="ContextMenu", x=0, y=0),
+    assert [
+        (request.args[3], request.args[4].unpack())
+        for request in bus.call_sync.call_args_list
+    ] == [
+        ("ContextMenu" if item_is_menu else "Activate", (0, 0)),
+        ("ContextMenu", (0, 0)),
     ]
 
 

@@ -11,6 +11,32 @@ ROOT = Path(__file__).resolve().parents[4]
 
 
 @pytest.mark.parametrize(
+    "before,expected", [("wayland-0", "wayland-1"), ("wayland-0\nwayland-1", "")]
+)
+def test_find_new_wayland_socket_probes_one_snapshot(before, expected):
+    script = """
+        source "$1"
+        _wayland_sockets() { printf '%s\\n' wayland-0 wayland-1; }
+        find_new_wayland_socket "$2"
+    """
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            script,
+            "test",
+            str(ROOT / "tests/visual/shared/linux/adapters/common.sh"),
+            before,
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == (0 if expected else 1)
+    assert result.stdout.strip() == expected
+
+
+@pytest.mark.parametrize(
     "script,args",
     [
         ("shared/linux/native_services.sh", ["phoc", "foreign"]),

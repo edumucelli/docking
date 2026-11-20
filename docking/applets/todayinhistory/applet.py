@@ -93,7 +93,7 @@ class TodayInHistoryApplet(Applet):
         self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        status = [disabled_menu_item(self._source_label(), gtk=Gtk)]
+        status = [disabled_menu_item(self._source_label())]
 
         primary: list[Gtk.MenuItem] = []
         if self._current is not None and self._current.article_url:
@@ -112,7 +112,6 @@ class TodayInHistoryApplet(Applet):
             primary=primary,
             navigation=[next_item],
             refresh=[refresh_item],
-            gtk=Gtk,
         )
 
     def refresh_tooltip(self) -> None:

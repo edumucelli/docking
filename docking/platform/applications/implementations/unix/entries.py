@@ -329,7 +329,7 @@ def _generated_desktop_entry_content(
     name: str,
     exec_path: Path,
     icon_name: str,
-    startup_wm_class: str = "",
+    startup_wm_class: str,
 ) -> str:
     exec_argv = (str(exec_path),)
     # Gio rejects escaped percents in the executable token; pass the path as data.

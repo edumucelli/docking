@@ -24,8 +24,6 @@ from typing import NamedTuple
 
 from docking.applets.speedtest import meta
 from docking.applets.speedtest.librespeed import (
-    DEFAULT_CONCURRENCY,
-    DEFAULT_DURATION_S,
     LibrespeedError,
     run_speedtest,
 )
@@ -41,18 +39,14 @@ class SpeedtestError(NamedTuple):
     message: str
 
 
-def run_librespeed(
-    *,
-    duration: float = DEFAULT_DURATION_S,
-    concurrency: int = DEFAULT_CONCURRENCY,
-) -> SpeedtestResult | SpeedtestError:
+def run_librespeed() -> SpeedtestResult | SpeedtestError:
     """Run one full speed test against the LibreSpeed fleet.
 
     Returns a :class:`SpeedtestResult` on success, or a
     :class:`SpeedtestError` with a user-facing message on failure.
     """
     try:
-        raw = run_speedtest(duration=duration, concurrency=concurrency)
+        raw = run_speedtest()
     except LibrespeedError as exc:
         return SpeedtestError(message=str(exc))
     except (OSError, ValueError) as exc:

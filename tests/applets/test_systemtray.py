@@ -36,7 +36,10 @@ from docking.platform.tray.state import (
     TrayState as StatusTrayState,
 )
 from tests.applets.inline_worker import ImmediateWorker
-from tests.platform_factories import make_applet_platform
+from tests.platform_factories import (
+    make_applet_platform,
+    make_windows_surface,
+)
 
 
 class TestRegisteredItemParsing:
@@ -389,10 +392,9 @@ def tray(monkeypatch):
 @pytest.mark.parametrize("managed", [False, True])
 def test_tray_uses_its_surface_policy_for_keyboard_focus(tray, monkeypatch, managed):
     from docking.platform.backends.reduced.services import ReducedSurfaceService
-    from docking.platform.backends.windows.surface import WindowsSurfaceService
 
     applet = tray.applet
-    applet._surface = WindowsSurfaceService() if managed else ReducedSurfaceService()
+    applet._surface = make_windows_surface() if managed else ReducedSurfaceService()
     window = MagicMock()
     create = MagicMock(return_value=window)
     monkeypatch.setattr(applet_mod, "create_popup_window", create)

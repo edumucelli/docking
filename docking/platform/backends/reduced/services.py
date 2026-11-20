@@ -117,9 +117,7 @@ class ReducedSurfaceService(SurfaceService):
     def stop(self) -> None:
         """No resources are held."""
 
-    def configure_before_realize(
-        self, window: object, *, keep_above: bool = True
-    ) -> None:
+    def configure_before_realize(self, window: object, *, keep_above: bool) -> None:
         """Apply generic dock-window hints and remember the window."""
         self._window = window
         self._keep_above = keep_above

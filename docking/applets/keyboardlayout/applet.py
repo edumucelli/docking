@@ -173,11 +173,8 @@ class KeyboardLayoutApplet(PlatformServicesApplet):
             on_selected=lambda _widget, code: self._select_layout(
                 code, context=context
             ),
-            gtk=Gtk,
         )
-        return menu_sections(
-            primary=primary, display=display, settings=settings, gtk=Gtk
-        )
+        return menu_sections(primary=primary, display=display, settings=settings)
 
     def _open_settings(self) -> None:
         if not self._stopped:
@@ -194,14 +191,11 @@ class KeyboardLayoutApplet(PlatformServicesApplet):
                 fn=lambda: False if self._stopped else self._backend.show_layout(code),
             )
 
-    def _select_layout(self, code: str, *, context: str | None = None) -> None:
+    def _select_layout(self, code: str, *, context: str) -> None:
         if self._stopped or code not in self._available:
             return
         self._generation += 1
-        self._pending_layout = (
-            code,
-            self._layout.context if context is None else context,
-        )
+        self._pending_layout = (code, context)
         self._layout = self._layout._replace(active=code)
         self.present()
         self._start_pending()

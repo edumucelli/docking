@@ -101,32 +101,28 @@ class NetworkApplet(PlatformServicesApplet):
                     _("WiFi: {ssid} ({pct}%)").format(
                         ssid=state.ssid, pct=state.signal_strength
                     ),
-                    gtk=Gtk,
                 )
             )
         elif state.ssid:
-            status.append(disabled_menu_item(f"{_('Network')}: {state.ssid}", gtk=Gtk))
+            status.append(disabled_menu_item(f"{_('Network')}: {state.ssid}"))
         elif state.is_connected:
             status.append(
                 disabled_menu_item(
                     f"{_('Network')}: {state.iface}"
                     if state.is_wifi
                     else _("Ethernet: {iface}").format(iface=state.iface),
-                    gtk=Gtk,
                 )
             )
         else:
-            status.append(disabled_menu_item(_("Not connected"), gtk=Gtk))
+            status.append(disabled_menu_item(_("Not connected")))
 
         if state.ip_address:
-            status.append(
-                disabled_menu_item(_("IP: {ip}").format(ip=state.ip_address), gtk=Gtk)
-            )
+            status.append(disabled_menu_item(_("IP: {ip}").format(ip=state.ip_address)))
 
         if state.is_connected:
             down = format_speed(bps=state.rx_speed)
             up = format_speed(bps=state.tx_speed)
-            status.append(disabled_menu_item(f"\u2193 {down}  \u2191 {up}", gtk=Gtk))
+            status.append(disabled_menu_item(f"\u2193 {down}  \u2191 {up}"))
 
         settings: list[Gtk.MenuItem] = []
         platform_settings = self._backend.settings
@@ -156,7 +152,6 @@ class NetworkApplet(PlatformServicesApplet):
                 choices=choices,
                 active_value=active_interface,
                 on_selected=lambda _widget, value: self._set_interface(value),
-                gtk=Gtk,
             )
         )
         manager = self._backend.connection_manager
@@ -211,7 +206,6 @@ class NetworkApplet(PlatformServicesApplet):
             ),
             active_value=self._speed_overlay,
             on_selected=lambda _widget, value: self._set_speed_overlay(mode=value),
-            gtk=Gtk,
         )
 
         return menu_sections(
@@ -219,7 +213,6 @@ class NetworkApplet(PlatformServicesApplet):
             display=display,
             manage=manage,
             settings=settings,
-            gtk=Gtk,
         )
 
     def _save_preferences(self) -> None:

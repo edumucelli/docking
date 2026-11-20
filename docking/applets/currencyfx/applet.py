@@ -185,23 +185,20 @@ class CurrencyFxApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Build the right-click menu for all Currency FX controls."""
-        status: list[Gtk.MenuItem] = [disabled_menu_item(self._menu_header(), gtk=Gtk)]
+        status: list[Gtk.MenuItem] = [disabled_menu_item(self._menu_header())]
         verb = _("Day samples") if self._chart_interval == ChartInterval.DAY else None
         status.append(
             disabled_menu_item(
                 cadence_label(seconds=REFRESH_INTERVAL_S, verb=verb),
-                gtk=Gtk,
             )
         )
         state_status = self._live_status()
         state_label = live_state_label(state_status)
         if state_label:
-            status.append(disabled_menu_item(state_label, gtk=Gtk))
+            status.append(disabled_menu_item(state_label))
         error = live_state_error(status=state_status, error=self._fetch_error)
         if error:
-            status.append(
-                disabled_menu_item(_("Error: {msg}").format(msg=error), gtk=Gtk)
-            )
+            status.append(disabled_menu_item(_("Error: {msg}").format(msg=error)))
 
         navigation: list[Gtk.MenuItem] = []
         swap = Gtk.MenuItem(label=_("Swap Pair"))
@@ -225,7 +222,6 @@ class CurrencyFxApplet(Applet):
                     widget=widget,
                     interval=value,
                 ),
-                gtk=Gtk,
             )
         ]
 
@@ -240,7 +236,6 @@ class CurrencyFxApplet(Applet):
                     ),
                     active_value=self._active_index,
                     on_selected=lambda _widget, value: self._activate_pair_index(value),
-                    gtk=Gtk,
                 )
             )
             remove = Gtk.MenuItem(label=_("Remove Current Pair"))
@@ -260,7 +255,6 @@ class CurrencyFxApplet(Applet):
             display=display,
             manage=[choose],
             destructive=destructive,
-            gtk=Gtk,
         )
 
     def start(self, notify: Callable[[], None]) -> None:

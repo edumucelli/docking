@@ -382,10 +382,8 @@ class FolderStackController(StackPopupController):
         return content
 
     def _folder_stack_action_label(
-        self, *, hidden_count: int, app_name: str | None = None
+        self, *, hidden_count: int, app_name: str | None
     ) -> str:
-        if app_name is None:
-            app_name = self._target_service.default_directory_app_name()
         if app_name:
             return (
                 _("Open in %s") % app_name
@@ -418,22 +416,6 @@ class FolderStackController(StackPopupController):
             icon_px=max(int(self._config.icon_size), 1),
         )
         return self._stack_layout(owner_id=item.desktop_id, content=content)
-
-    def _replace_folder_stack_content(
-        self,
-        item: DockItem | None = None,
-        *,
-        content: StackContent | None = None,
-    ) -> None:
-        if content is None:
-            if item is None:
-                return
-            content = self._stack_content_for_item(
-                item=item,
-                icon_px=max(int(self._config.icon_size), 1),
-            )
-        self._stack_content = content
-        super()._replace_stack_content(content=content)
 
     def _drain_folder_stack_prewarm(self) -> bool:
         item = self._folder_stack_cache.pop_next_prewarm()
@@ -480,18 +462,8 @@ class FolderStackController(StackPopupController):
     def _refresh_folder_stack(self) -> bool:
         self._folder_stack_refresh_source = 0
         item = self._folder_stack_item
-        if item is None:
-            return False
-        if self._stack_provider is None:
-            window = self._folder_stack_window
-            if window is None:
-                return False
-            self._replace_folder_stack_content(item)
-            self._restart_stack_animation()
-            self._position_stack_window()
-            window.show_all()
-            return False
-        self.refresh(owner_id=item.desktop_id)
+        if item is not None:
+            self.refresh(owner_id=item.desktop_id)
         return False
 
     def _cleanup_folder_state(self) -> None:

@@ -10,6 +10,7 @@ import pytest
 import docking.ui.placement as placement_mod
 from docking.core.items import DockItem
 from docking.core.position import Position
+from tests.platform_factories import make_windows_surface
 
 
 class FakeDisplay(SimpleNamespace):
@@ -290,7 +291,6 @@ class TestPlacementControllerGeometry:
     @pytest.mark.parametrize("position", list(Position))
     @pytest.mark.parametrize("icon_size", [48, 64])
     def test_windows_resize_stays_above_explorer_taskbar(self, position, icon_size):
-        from docking.platform.backends.windows.surface import WindowsSurfaceService
 
         geometry = SimpleNamespace(x=0, y=0, width=1280, height=800)
         workarea = SimpleNamespace(x=0, y=0, width=1280, height=752)
@@ -304,7 +304,7 @@ class TestPlacementControllerGeometry:
         window.config.pos = position
         window.config.icon_size = icon_size
         window.surface_service.external_workarea.side_effect = (
-            WindowsSurfaceService().external_workarea
+            make_windows_surface().external_workarea
         )
         controller = _make_controller(window)
         controller.update_barrier = MagicMock()

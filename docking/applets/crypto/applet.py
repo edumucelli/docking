@@ -139,19 +139,15 @@ class CryptoApplet(Applet):
         self._activate_asset_index((self._active_index + step) % len(self._assets))
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        status = [disabled_menu_item(self._menu_header(), gtk=Gtk)]
-        status.append(
-            disabled_menu_item(cadence_label(seconds=REFRESH_INTERVAL_S), gtk=Gtk)
-        )
+        status = [disabled_menu_item(self._menu_header())]
+        status.append(disabled_menu_item(cadence_label(seconds=REFRESH_INTERVAL_S)))
         state_status = self._live_status()
         state_label = live_state_label(state_status)
         if state_label:
-            status.append(disabled_menu_item(state_label, gtk=Gtk))
+            status.append(disabled_menu_item(state_label))
         error = live_state_error(status=state_status, error=self._fetch_error)
         if error:
-            status.append(
-                disabled_menu_item(_("Error: {msg}").format(msg=error), gtk=Gtk)
-            )
+            status.append(disabled_menu_item(_("Error: {msg}").format(msg=error)))
 
         refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _w: self._fetch_async())
@@ -169,7 +165,6 @@ class CryptoApplet(Applet):
                     widget=widget,
                     interval=value,
                 ),
-                gtk=Gtk,
             )
         ]
         if len(self._assets) > 1:
@@ -184,7 +179,6 @@ class CryptoApplet(Applet):
                     on_selected=lambda _widget, value: self._activate_asset_index(
                         value
                     ),
-                    gtk=Gtk,
                 )
             )
 
@@ -203,7 +197,6 @@ class CryptoApplet(Applet):
             display=display,
             manage=[add],
             destructive=destructive,
-            gtk=Gtk,
         )
 
     def start(self, notify: Callable[[], None]) -> None:

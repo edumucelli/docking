@@ -168,20 +168,16 @@ def decide_update_popup(
     return UpdateDecision(True, "newer", release)
 
 
-def fetch_latest_release(
-    *,
-    url: str = GITHUB_LATEST_RELEASE_URL,
-    timeout: int = DEFAULT_UPDATE_TIMEOUT_S,
-) -> ReleaseInfo:
+def fetch_latest_release() -> ReleaseInfo:
     """Fetch latest GitHub release metadata."""
     request = urllib.request.Request(
-        url,
+        GITHUB_LATEST_RELEASE_URL,
         headers={
             "Accept": "application/vnd.github+json",
             "User-Agent": UPDATE_USER_AGENT,
         },
     )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    with urllib.request.urlopen(request, timeout=DEFAULT_UPDATE_TIMEOUT_S) as response:
         payload = response.read()
     data = json.loads(payload.decode("utf-8"))
     return parse_github_release(data)

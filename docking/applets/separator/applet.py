@@ -138,7 +138,6 @@ class SeparatorApplet(Applet):
             ),
             active_value=self._style,
             on_selected=lambda _widget, value: self._set_style(value),
-            gtk=Gtk,
         )
 
         invert = Gtk.CheckMenuItem(label=_("Invert Color"))
@@ -150,7 +149,6 @@ class SeparatorApplet(Applet):
         return menu_sections(
             primary=[increase, decrease],
             display=[style, invert],
-            gtk=Gtk,
         )
 
 

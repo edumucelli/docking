@@ -60,9 +60,8 @@ class WindowsSurfaceService(SurfaceService):
     def __init__(
         self,
         *,
-        workspaces: WindowsWorkspaceService | None = None,
-        file_drag_source_factory: Callable[[object], ApplicationDragSource]
-        | None = None,
+        workspaces: WindowsWorkspaceService,
+        file_drag_source_factory: Callable[[object], ApplicationDragSource],
     ) -> None:
         self._window: Gtk.Window | None = None
         self._workspaces = workspaces
@@ -124,9 +123,7 @@ class WindowsSurfaceService(SurfaceService):
     def start(self) -> None:
         """Native surface resources are attached when the window is realized."""
 
-    def configure_before_realize(
-        self, window: object, *, keep_above: bool = True
-    ) -> None:
+    def configure_before_realize(self, window: object, *, keep_above: bool) -> None:
         window = cast("Gtk.Window", window)
         self._window = window
         self._keep_above = keep_above
@@ -254,8 +251,6 @@ class WindowsSurfaceService(SurfaceService):
         if self._window is None or not data:
             return False
         if self._file_drags is None:
-            if self._file_drag_source_factory is None:
-                return False
             self._file_drags = self._file_drag_source_factory(self._window)
         self._file_drags.prepare(widget, application_id=application_id, data=data)
         return True
@@ -384,11 +379,7 @@ class WindowsSurfaceService(SurfaceService):
 
     def set_workspace_scope(self, *, current_workspace_only: bool) -> None:
         self._current_workspace_only = current_workspace_only
-        if (
-            self._workspaces is None
-            or not self._workspaces.supported
-            or self._window is None
-        ):
+        if not self._workspaces.supported or self._window is None:
             return
         native = self._window.get_window()
         if native is not None:

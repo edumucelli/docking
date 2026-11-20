@@ -494,7 +494,7 @@ public static class InputFixture {
 
 
 def _editor_command(
-    compiler: Path, source: Path, executable: Path, *, bits: int = 32
+    compiler: Path, source: Path, executable: Path, *, bits: int
 ) -> list[str]:
     if bits not in (32, 64):
         raise ValueError("Input editor architecture must be 32 or 64")

@@ -123,7 +123,7 @@ def _draw_outlined_text(
     x: float,
     y: float,
     stroke_width: float,
-    fill_rgba: tuple[float, ...] = (1, 1, 1, 1),
+    fill_rgba: tuple[float, ...],
 ) -> None:
     """Draw Pango text with a black outline and colored fill."""
     cr.save()

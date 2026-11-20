@@ -505,7 +505,6 @@ def test_cosmic_unknown_workspace_never_hides_dock_and_cannot_cross_gtk_connecti
         )
         monitor.evaluate_now()
         assert changes == []
-        assert backend.surface._on_layer_surface_ready is None
     finally:
         backend.stop()
 
@@ -521,7 +520,6 @@ def test_cosmic_raw_overlap_global_does_not_claim_gtk_dodge_without_window_geome
         screen_capture=MagicMock(),
     )
     assert backend.capabilities.supports_any_overlap is False
-    assert backend.surface._on_layer_surface_ready is None
     backend.stop()
 
 

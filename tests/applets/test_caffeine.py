@@ -29,7 +29,7 @@ from docking.applets.caffeine.state import (
     tooltip_text,
 )
 from docking.core.config import Config
-from tests.platform_factories import make_applet_platform
+from tests.platform_factories import TestAppletBackendFactories, make_applet_platform
 
 
 class FakeInhibitor(Inhibitor):
@@ -240,15 +240,19 @@ class TestCompositeInhibitor:
 
 class TestApplet:
     @pytest.fixture(autouse=True)
-    def inline_requests(self, monkeypatch):
+    def inhibitor(self, monkeypatch) -> FakeInhibitor:
         from tests.applets.test_brightness import _ImmediateWorker
 
         monkeypatch.setattr("docking.applets.worker.BackgroundWorker", _ImmediateWorker)
+        inhibitor = FakeInhibitor()
+        monkeypatch.setattr(
+            TestAppletBackendFactories, "caffeine", lambda _self: inhibitor
+        )
+        return inhibitor
 
     def test_creates_with_icon(self):
         applet = CaffeineApplet(
             48,
-            inhibitor=FakeInhibitor(),
             config=Config(),
             platform_services=make_applet_platform(),
         )
@@ -258,7 +262,6 @@ class TestApplet:
         for size in [32, 48, 64]:
             applet = CaffeineApplet(
                 size,
-                inhibitor=FakeInhibitor(),
                 config=Config(),
                 platform_services=make_applet_platform(),
             )
@@ -269,18 +272,15 @@ class TestApplet:
     def test_starts_off(self):
         applet = CaffeineApplet(
             48,
-            inhibitor=FakeInhibitor(),
             config=Config(),
             platform_services=make_applet_platform(),
         )
         assert applet._data.active is False
         assert applet.item.name == "Caffeine: off"
 
-    def test_click_toggles_and_acquires(self):
-        inhibitor = FakeInhibitor()
+    def test_click_toggles_and_acquires(self, inhibitor):
         applet = CaffeineApplet(
             48,
-            inhibitor=inhibitor,
             config=Config(),
             platform_services=make_applet_platform(),
         )
@@ -291,11 +291,9 @@ class TestApplet:
         assert inhibitor.active is True
         assert inhibitor.acquire_calls == 1
 
-    def test_second_click_releases(self):
-        inhibitor = FakeInhibitor()
+    def test_second_click_releases(self, inhibitor):
         applet = CaffeineApplet(
             48,
-            inhibitor=inhibitor,
             config=Config(),
             platform_services=make_applet_platform(),
         )
@@ -307,11 +305,9 @@ class TestApplet:
         assert inhibitor.active is False
         assert inhibitor.release_calls >= 1
 
-    def test_timed_tick_to_zero_releases(self):
-        inhibitor = FakeInhibitor()
+    def test_timed_tick_to_zero_releases(self, inhibitor):
         applet = CaffeineApplet(
             48,
-            inhibitor=inhibitor,
             config=Config(),
             platform_services=make_applet_platform(),
         )
@@ -324,11 +320,9 @@ class TestApplet:
         assert applet._data.active is False
         assert inhibitor.active is False
 
-    def test_stop_releases(self):
-        inhibitor = FakeInhibitor()
+    def test_stop_releases(self, inhibitor):
         applet = CaffeineApplet(
             48,
-            inhibitor=inhibitor,
             config=Config(),
             platform_services=make_applet_platform(),
         )
@@ -341,7 +335,6 @@ class TestApplet:
     def test_menu_lists_duration_choices(self):
         applet = CaffeineApplet(
             48,
-            inhibitor=FakeInhibitor(),
             config=Config(),
             platform_services=make_applet_platform(),
         )
@@ -354,7 +347,6 @@ class TestApplet:
     def test_menu_shows_status_header(self):
         applet = CaffeineApplet(
             48,
-            inhibitor=FakeInhibitor(),
             config=Config(),
             platform_services=make_applet_platform(),
         )

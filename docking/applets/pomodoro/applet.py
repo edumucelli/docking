@@ -180,7 +180,6 @@ class PomodoroApplet(Applet):
                 ),
                 active_value=self._data.work_min,
                 on_selected=lambda _widget, value: self._set_work(minutes=value),
-                gtk=Gtk,
             )
         )
 
@@ -193,7 +192,6 @@ class PomodoroApplet(Applet):
                 ),
                 active_value=self._data.break_min,
                 on_selected=lambda _widget, value: self._set_break(minutes=value),
-                gtk=Gtk,
             )
         )
 
@@ -207,11 +205,10 @@ class PomodoroApplet(Applet):
                 ),
                 active_value=self._data.long_break_min,
                 on_selected=lambda _widget, value: self._set_long_break(minutes=value),
-                gtk=Gtk,
             )
         )
 
-        return menu_sections(display=display, destructive=[reset_item], gtk=Gtk)
+        return menu_sections(display=display, destructive=[reset_item])
 
     # -- Internals -----------------------------------------------------------
 

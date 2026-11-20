@@ -4,10 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from docking.applets.devices.unix_mounts import (
-    get_mount_monitor,
-    read_network_mounts,
-)
+from docking.applets.devices import unix_mounts
 
 
 class _Entry:
@@ -59,7 +56,7 @@ def _new_api(entries: list[_Entry]):
     )
 
 
-def test_legacy_gio_api_returns_only_supported_network_filesystems():
+def test_legacy_gio_api_returns_only_supported_network_filesystems(monkeypatch):
     icon = object()
     api = _old_api(
         [
@@ -75,7 +72,8 @@ def test_legacy_gio_api_returns_only_supported_network_filesystems():
         ]
     )
 
-    mounts = read_network_mounts(api=api)
+    monkeypatch.setattr(unix_mounts, "_default_api", lambda: api)
+    mounts = unix_mounts.read_network_mounts()
 
     assert len(mounts) == 1
     assert mounts[0].mount_path == "/mnt/team"
@@ -83,10 +81,10 @@ def test_legacy_gio_api_returns_only_supported_network_filesystems():
     assert mounts[0].fs_type == "cifs"
     assert mounts[0].name == "Team Share"
     assert mounts[0].icon is icon
-    assert get_mount_monitor(api=api) is _MonitorType.monitor
+    assert unix_mounts.get_mount_monitor() is _MonitorType.monitor
 
 
-def test_glib_284_api_supports_nfs_sshfs_webdav_and_rclone():
+def test_glib_284_api_supports_nfs_sshfs_webdav_and_rclone(monkeypatch):
     api = _new_api(
         [
             _Entry(path="/mnt/nfs", source="server:/data", fs_type="nfs4"),
@@ -96,7 +94,8 @@ def test_glib_284_api_supports_nfs_sshfs_webdav_and_rclone():
         ]
     )
 
-    mounts = read_network_mounts(api=api)
+    monkeypatch.setattr(unix_mounts, "_default_api", lambda: api)
+    mounts = unix_mounts.read_network_mounts()
 
     assert [mount.fs_type for mount in mounts] == [
         "nfs4",
@@ -104,10 +103,10 @@ def test_glib_284_api_supports_nfs_sshfs_webdav_and_rclone():
         "davfs2",
         "fuse.rclone",
     ]
-    assert get_mount_monitor(api=api) is _MonitorType.monitor
+    assert unix_mounts.get_mount_monitor() is _MonitorType.monitor
 
 
-def test_invalid_entries_and_unavailable_apis_are_ignored():
+def test_invalid_entries_and_unavailable_apis_are_ignored(monkeypatch):
     invalid_path = _Entry(path="relative/share", source="server:/", fs_type="nfs")
     broken_api = SimpleNamespace(
         mount_entries_get=lambda: [invalid_path],
@@ -116,6 +115,8 @@ def test_invalid_entries_and_unavailable_apis_are_ignored():
         mount_entry_get_fs_type=lambda entry: entry.fs_type,
     )
 
-    assert read_network_mounts(api=broken_api) == []
-    assert read_network_mounts(api=SimpleNamespace()) == []
-    assert get_mount_monitor(api=SimpleNamespace()) is None
+    monkeypatch.setattr(unix_mounts, "_default_api", lambda: broken_api)
+    assert unix_mounts.read_network_mounts() == []
+    monkeypatch.setattr(unix_mounts, "_default_api", SimpleNamespace)
+    assert unix_mounts.read_network_mounts() == []
+    assert unix_mounts.get_mount_monitor() is None

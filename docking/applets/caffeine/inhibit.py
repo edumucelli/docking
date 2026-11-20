@@ -6,10 +6,7 @@ import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from docking.applets.worker import BackgroundWorker
 from docking.log import get_logger
 
 log = get_logger("caffeine.inhibit")
@@ -67,23 +64,19 @@ class InhibitionSession:
         self,
         inhibitor: Inhibitor,
         on_result: Callable[[InhibitionResult], object],
-        *,
-        worker: BackgroundWorker | None = None,
     ) -> None:
+        from docking.applets.worker import BackgroundWorker
+
         self._inhibitor = inhibitor
         self._on_result = on_result
         # A normal process exit must wait for release, including a Unix child
         # lock which could otherwise outlive its parent. No GTK callback is
         # needed for the worker to observe stop and finish cleanup.
-        if worker is None:
-            from docking.applets.worker import BackgroundWorker
-
-            worker = BackgroundWorker(
-                thread_factory=lambda target, daemon: threading.Thread(
-                    target=target, daemon=False, name="caffeine-inhibit"
-                )
+        self._worker = BackgroundWorker(
+            thread_factory=lambda target, daemon: threading.Thread(
+                target=target, daemon=False, name="caffeine-inhibit"
             )
-        self._worker = worker
+        )
         self._lock = threading.Lock()
         self._version = 0
         self._desired = False

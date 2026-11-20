@@ -1134,7 +1134,7 @@ def load_wayfire_window_service(
     model,
     application_registry: ApplicationRegistry,
     process_identity_service: ProcessIdentityService,
-    config: Config | None = None,
+    config: Config,
 ) -> WayfireWindowService | None:
     """Return a Wayfire WindowService when the IPC socket is detectable."""
     socket_path = wayfire_socket_path()

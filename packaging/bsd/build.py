@@ -24,7 +24,7 @@ def output(*argv: str) -> str:
     return subprocess.check_output(argv, text=True).strip()
 
 
-def stage(destination: Path, *, prefix: Path = PREFIX) -> None:
+def stage(destination: Path, *, prefix: Path) -> None:
     """Keep GI/Cairo/psutil native; vendor the resolved Python runtime deps."""
     staged_prefix = destination / prefix.relative_to("/")
     installed_private = prefix / "lib/docking/python"
@@ -303,7 +303,7 @@ def netbsd_package(stage_dir: Path, work: Path, version: str) -> Path:
 
 
 def install_and_check(
-    package: Path, system: str, work: Path, version: str, *, prefix: Path = PREFIX
+    package: Path, system: str, work: Path, version: str, *, prefix: Path
 ) -> None:
     if system in {"openbsd", "netbsd"}:
         # pkg_add checks the filename against the archive's @name. Downloads

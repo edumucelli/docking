@@ -43,15 +43,15 @@ class TestTooltipManagerInit:
         assert 5 <= TOOLTIP_BASE_GAP <= 50
 
 
-def test_wrapped_tooltip_label_uses_readable_paragraph_width():
+def test_wrapped_tooltip_label_uses_readable_paragraph_width(monkeypatch):
     label = MagicMock()
+    create_label = MagicMock(return_value=label)
+    monkeypatch.setattr(tooltip_mod.Gtk, "Label", create_label)
 
-    result = tooltip_mod._configure_wrapped_tooltip_label(
-        label,
-        max_width_chars=WRAPPED_TOOLTIP_MAX_WIDTH_CHARS,
-    )
+    result = tooltip_mod.wrapped_tooltip_label("Title and explanation")
 
     assert result is label
+    create_label.assert_called_once_with(label="Title and explanation")
     label.set_xalign.assert_called_once_with(0.0)
     label.set_justify.assert_called_once_with(tooltip_mod.Gtk.Justification.LEFT)
     label.set_line_wrap.assert_called_once_with(True)

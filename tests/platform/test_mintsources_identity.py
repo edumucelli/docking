@@ -48,7 +48,6 @@ def test_software_sources_launcher(tmp_path, command, matched):
     processes = make_process_identity(
         LaunchProvenanceStore(),
         proc_root=proc.parent,
-        executable_resolver=lambda _pid: None,
     )
     matcher = WindowMatcher(
         application_registry=registry, process_identity_service=processes

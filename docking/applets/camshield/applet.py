@@ -127,19 +127,18 @@ class CamshieldApplet(PlatformServicesApplet):
                     _("Camera state unavailable")
                     if self._state.error
                     else _("No camera devices found"),
-                    gtk=Gtk,
                 )
             )
         elif self._state.active is None:
-            status.append(disabled_menu_item(_("Camera activity unknown"), gtk=Gtk))
+            status.append(disabled_menu_item(_("Camera activity unknown")))
         elif not self._state.active:
-            status.append(disabled_menu_item(_("Camera idle"), gtk=Gtk))
+            status.append(disabled_menu_item(_("Camera idle")))
         else:
-            status.append(disabled_menu_item(_("Camera active"), gtk=Gtk))
+            status.append(disabled_menu_item(_("Camera active")))
             for holder in self._state.holders:
-                status.append(disabled_menu_item(holder_label(holder), gtk=Gtk))
+                status.append(disabled_menu_item(holder_label(holder)))
         if self._state.locked:
-            status.insert(0, disabled_menu_item(_("Camera locked"), gtk=Gtk))
+            status.insert(0, disabled_menu_item(_("Camera locked")))
 
         lock = Gtk.MenuItem(label=_("Lock Camera"))
         lock.set_sensitive(self._state.available and self._backend.lock_available())
@@ -150,7 +149,7 @@ class CamshieldApplet(PlatformServicesApplet):
         unlock.connect("activate", lambda _w: self._run_action("unlock"))
 
         if not self._backend.controls_available():
-            status.append(disabled_menu_item(_("Camera locking unavailable"), gtk=Gtk))
+            status.append(disabled_menu_item(_("Camera locking unavailable")))
 
         refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _w: self._refresh_now())
@@ -164,7 +163,6 @@ class CamshieldApplet(PlatformServicesApplet):
             primary=[lock, unlock],
             refresh=[refresh],
             settings=settings,
-            gtk=Gtk,
         )
 
     def _refresh_once(self) -> bool:

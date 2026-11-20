@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from docking.core.items import DockItem
+from docking.platform.applications.backend import ProcessBackend
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
 )
@@ -208,9 +209,15 @@ def identity_services(
             application("org.gnome.Nautilus.desktop", wm_class="Nautilus"),
         )
     registry = ApplicationRegistryStub(tuple(applications))
+    backend = MagicMock(spec=ProcessBackend)
+    backend.executable.return_value = None
+    backend.sandbox_app_id.return_value = None
+    backend.script.return_value = None
+    backend.steam_app_id.return_value = None
+    backend.process_title.return_value = None
     process_identity_service = make_process_identity(
         LaunchProvenanceStore(),
-        executable_resolver=lambda _pid: None,
+        backend=backend,
     )
     return {
         "application_registry": registry,

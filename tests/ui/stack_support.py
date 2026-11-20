@@ -16,8 +16,8 @@ from tests.ui.preview_support import settle_gtk
 
 
 class StackHarness:
-    def __init__(self, bounds: Rect | None = None):
-        self.bounds = bounds or Rect(0, 0, 1280, 800)
+    def __init__(self):
+        self.bounds = Rect(0, 0, 1280, 800)
         self.config = Config(icon_size=96)
         self.parent = Gtk.Window()
         self.runtime = MagicMock()

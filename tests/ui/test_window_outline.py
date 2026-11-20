@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from docking.platform.backends.base import Rect
+from docking.platform.backends.reduced.services import ReducedSurfaceService
 
 gtk_ui = pytest.importorskip("docking.ui.window_outline")
 
@@ -31,7 +32,7 @@ class TestWindowOutlineHandlers:
             lambda _self, region: shapes.append(region),
         )
 
-        outline = gtk_ui.WindowOutline()
+        outline = gtk_ui.WindowOutline(ReducedSurfaceService())
         outline.destroy()
 
         assert len(shapes) == 1
@@ -59,7 +60,7 @@ class TestWindowOutlineHandlers:
 
 class TestWindowOutlineWidget:
     def test_show_around_places_and_sizes_window(self):
-        outline = gtk_ui.WindowOutline()
+        outline = gtk_ui.WindowOutline(ReducedSurfaceService())
         try:
             outline.show_around(Rect(30, 40, 500, 400))
             assert outline.get_visible()
@@ -73,7 +74,7 @@ class TestWindowOutlineWidget:
 
     def test_show_around_converts_device_pixels_at_scale_two(self, monkeypatch):
         monkeypatch.setattr(gtk_ui.WindowOutline, "get_scale_factor", lambda _self: 2)
-        outline = gtk_ui.WindowOutline()
+        outline = gtk_ui.WindowOutline(ReducedSurfaceService())
         try:
             outline.show_around(Rect(60, 80, 600, 400))
             assert outline.get_size() == (300, 200)
@@ -83,7 +84,7 @@ class TestWindowOutlineWidget:
 
     def test_show_around_keeps_coordinates_at_scale_one(self, monkeypatch):
         monkeypatch.setattr(gtk_ui.WindowOutline, "get_scale_factor", lambda _self: 1)
-        outline = gtk_ui.WindowOutline()
+        outline = gtk_ui.WindowOutline(ReducedSurfaceService())
         try:
             outline.show_around(Rect(60, 80, 600, 400))
             assert outline.get_size() == (600, 400)
@@ -92,7 +93,7 @@ class TestWindowOutlineWidget:
             outline.destroy()
 
     def test_degenerate_rect_stays_hidden(self):
-        outline = gtk_ui.WindowOutline()
+        outline = gtk_ui.WindowOutline(ReducedSurfaceService())
         try:
             outline.show_around(Rect(0, 0, 0, 10))
             assert not outline.get_visible()
@@ -118,7 +119,7 @@ class TestWindowOutlineTransparencyGate:
 
     def test_composited_screen_shows(self, composited_screen):
         composited_screen.is_composited.return_value = True
-        outline = gtk_ui.WindowOutline()
+        outline = gtk_ui.WindowOutline(ReducedSurfaceService())
         try:
             outline.show_around(Rect(30, 40, 500, 400))
             assert outline.get_visible()
@@ -126,7 +127,7 @@ class TestWindowOutlineTransparencyGate:
             outline.destroy()
 
     def test_missing_rgba_visual_hides_even_when_composited(self):
-        outline = gtk_ui.WindowOutline()
+        outline = gtk_ui.WindowOutline(ReducedSurfaceService())
         outline._has_rgba_visual = False
         try:
             outline.show_around(Rect(30, 40, 500, 400))
@@ -137,7 +138,7 @@ class TestWindowOutlineTransparencyGate:
     def test_degenerate_rect_hides_without_consulting_the_screen(
         self, composited_screen
     ):
-        outline = gtk_ui.WindowOutline()
+        outline = gtk_ui.WindowOutline(ReducedSurfaceService())
         try:
             outline.show_around(Rect(30, 40, 500, 400))
             composited_screen.is_composited.reset_mock()

@@ -75,9 +75,7 @@ def loader_path() -> Path:
 
 
 class WebView2Host:
-    def __init__(
-        self, profile: Path, *, on_ready, on_error, loader: Path | None = None
-    ):
+    def __init__(self, profile: Path, *, on_ready, on_error):
         self._owner = threading.get_ident()
         self._profile, self._on_ready, self._on_error = profile, on_ready, on_error
         self._scope = ExitStack()
@@ -88,7 +86,7 @@ class WebView2Host:
         check(bind(self._ole, "CoInitializeEx", HRESULT, _P, ctypes.c_uint32)(None, 2))
         self._scope.callback(bind(self._ole, "CoUninitialize", None))
         try:
-            path = loader if loader is not None else loader_path()
+            path = loader_path()
             if not path.is_absolute():
                 raise OSError("WebView2 loader path must be absolute")
             self._loader = windows_ctypes.WinDLL(str(path), use_last_error=True)

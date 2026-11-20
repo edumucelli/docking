@@ -29,12 +29,12 @@ def test_presentation_geometry_and_action_anchor_are_forwarded_then_rejected_on_
     rect = Rect(350, 420, 24, 24)
     service.set_geometry({"icon": rect})
     backend.set_geometry.assert_called_once_with({"icon": rect})
-    assert service.context_menu("icon", anchor=rect)
+    assert service.context_menu("icon", anchor=rect, generation=service.generation)
     backend.context_menu.assert_called_once_with("icon", anchor=rect, keyboard=False)
     service.stop()
     backend.reset_mock()
     service.set_geometry({"icon": rect})
-    assert not service.activate("icon", anchor=rect)
+    assert not service.activate("icon", anchor=rect, generation=service.generation)
     assert not backend.mock_calls
 
 
@@ -42,15 +42,21 @@ def test_pointer_and_keyboard_origin_forward_exact_physical_geometry():
     backend = Mock()
     service = _service(backend=backend)
     rect = Rect(-120, 420, 24, 24)
-    assert service.pointer("icon", point=(-115, 425), anchor=rect)
+    assert service.pointer(
+        "icon", point=(-115, 425), anchor=rect, generation=service.generation
+    )
     backend.pointer.assert_called_once_with("icon", point=(-115, 425), anchor=rect)
-    assert service.activate("icon", anchor=rect, keyboard=True)
+    assert service.activate(
+        "icon", anchor=rect, keyboard=True, generation=service.generation
+    )
     backend.activate.assert_called_once_with("icon", anchor=rect, keyboard=True)
-    assert service.context_menu("icon", anchor=rect, keyboard=True)
+    assert service.context_menu(
+        "icon", anchor=rect, keyboard=True, generation=service.generation
+    )
     backend.context_menu.assert_called_once_with("icon", anchor=rect, keyboard=True)
     service.stop()
     backend.reset_mock()
-    assert not service.pointer(None)
+    assert not service.pointer(None, generation=service.generation)
     assert not backend.mock_calls
 
 
@@ -271,7 +277,7 @@ class TestPolling:
         service = _service(backend=backend)
         service.start()
 
-        assert service._tick() is True
+        assert service._tick(generation=service.generation) is True
         assert backend.get_state_calls == 2
 
     def test_refresh_before_start_is_ignored(self):
@@ -576,8 +582,8 @@ class TestTrayActions:
         backend = _Backend()
         service = _service(backend=backend)
 
-        assert service.activate(":1.42/Item") is True
-        assert service.context_menu(":1.42/Item") is True
+        assert service.activate(":1.42/Item", generation=service.generation) is True
+        assert service.context_menu(":1.42/Item", generation=service.generation) is True
         assert service.menu_client(":1.42/Item") == "client::1.42/Item"
         assert backend.activated == [":1.42/Item"]
         assert backend.context_menus == [":1.42/Item"]
@@ -627,6 +633,8 @@ def test_stop_before_start_releases_backend_and_rejects_actions():
     service.stop()
     service.stop()
     assert backend.close_calls == 1
-    assert not service.activate("old") and not service.context_menu("old")
+    assert not service.activate(
+        "old", generation=service.generation
+    ) and not service.context_menu("old", generation=service.generation)
     assert service.menu_client("old") is None
     assert not backend.activated and not backend.context_menus

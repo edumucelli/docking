@@ -554,9 +554,7 @@ class CinnamonShellSurfaceService(ReducedSurfaceService):
     def popups_use_parent_relative_coordinates(self) -> bool:
         return True
 
-    def configure_before_realize(
-        self, window: object, *, keep_above: bool = True
-    ) -> None:
+    def configure_before_realize(self, window: object, *, keep_above: bool) -> None:
         super().configure_before_realize(window, keep_above=keep_above)
         set_title = getattr(window, "set_title", None)
         if callable(set_title):
@@ -675,9 +673,7 @@ class CinnamonX11SurfaceService(X11SurfaceService):
         super().__init__()
         self._chrome = CinnamonShellSurfaceService(client=client)
 
-    def configure_before_realize(
-        self, window: object, *, keep_above: bool = True
-    ) -> None:
+    def configure_before_realize(self, window: object, *, keep_above: bool) -> None:
         super().configure_before_realize(window, keep_above=keep_above)
         self._chrome.configure_before_realize(window, keep_above=keep_above)
 

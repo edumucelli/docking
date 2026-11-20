@@ -91,7 +91,9 @@ def _key_event(keyval: int, state: Gdk.ModifierType) -> Gdk.EventKey:
 def input_palette():
     activated = MagicMock()
     window = SearchWindow(
-        icon_loader=MagicMock(load_icon=MagicMock(return_value=None)),
+        result_icons=MagicMock(
+            spec=SearchResultIcons, load=MagicMock(return_value=None)
+        ),
         on_query_changed=MagicMock(),
         on_result_selected=MagicMock(),
         on_result_activated=activated,
@@ -410,7 +412,9 @@ def test_results_primary_action_and_action_panel() -> None:
     actioned = MagicMock()
     refined = MagicMock()
     window = SearchWindow(
-        icon_loader=MagicMock(load_icon=MagicMock(return_value=None)),
+        result_icons=MagicMock(
+            spec=SearchResultIcons, load=MagicMock(return_value=None)
+        ),
         on_query_changed=MagicMock(),
         on_result_selected=selected,
         on_result_activated=activated,
@@ -492,7 +496,6 @@ def test_icon_completion_updates_current_rows_without_changing_query_selection_o
     loader = MagicMock()
     resolver = SearchResultIcons(model=model, registry=MagicMock(), loader=loader)
     window = SearchWindow(
-        icon_loader=loader,
         result_icons=resolver,
         on_query_changed=MagicMock(),
         on_result_selected=MagicMock(),
@@ -624,7 +627,9 @@ def test_image_preview_shows_thumbnail_and_metadata(
         errors=(),
     )
     window = SearchWindow(
-        icon_loader=MagicMock(load_icon=MagicMock(return_value=None)),
+        result_icons=MagicMock(
+            spec=SearchResultIcons, load=MagicMock(return_value=None)
+        ),
         on_query_changed=MagicMock(),
         on_result_selected=MagicMock(),
         on_result_activated=MagicMock(),
@@ -693,7 +698,9 @@ def test_dynamic_window_preview_loader_populates_panel() -> None:
         errors=(),
     )
     window = SearchWindow(
-        icon_loader=MagicMock(load_icon=MagicMock(return_value=None)),
+        result_icons=MagicMock(
+            spec=SearchResultIcons, load=MagicMock(return_value=None)
+        ),
         on_query_changed=MagicMock(),
         on_result_selected=MagicMock(),
         on_result_activated=MagicMock(),
@@ -727,7 +734,9 @@ def test_partial_results_do_not_override_waiting_selection() -> None:
         errors=(),
     )
     window = SearchWindow(
-        icon_loader=MagicMock(load_icon=MagicMock(return_value=None)),
+        result_icons=MagicMock(
+            spec=SearchResultIcons, load=MagicMock(return_value=None)
+        ),
         on_query_changed=MagicMock(),
         on_result_selected=MagicMock(),
         on_result_activated=MagicMock(),
@@ -751,7 +760,9 @@ def test_asynchronous_window_preview_arrives_after_initial_miss_and_stops_on_hid
 
     loader = MagicMock(return_value=None)
     window = SearchWindow(
-        icon_loader=MagicMock(load_icon=MagicMock(return_value=None)),
+        result_icons=MagicMock(
+            spec=SearchResultIcons, load=MagicMock(return_value=None)
+        ),
         on_query_changed=MagicMock(),
         on_result_selected=MagicMock(),
         on_result_activated=MagicMock(),

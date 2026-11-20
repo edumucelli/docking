@@ -10,6 +10,8 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from docking.core.updates import (
+    DEFAULT_UPDATE_TIMEOUT_S,
+    GITHUB_LATEST_RELEASE_URL,
     PROJECT_RELEASES_URL,
     ReleaseInfo,
     UpdateState,
@@ -141,11 +143,12 @@ class TestReleaseParsing:
 
         monkeypatch.setattr("urllib.request.urlopen", urlopen)
 
-        release = fetch_latest_release(timeout=2)
+        release = fetch_latest_release()
 
         assert release.version == "1.16.0"
         assert release.url == "https://example.test"
-        assert calls[0][1] == 2
+        assert calls[0][1] == DEFAULT_UPDATE_TIMEOUT_S
+        assert calls[0][0].full_url == GITHUB_LATEST_RELEASE_URL
         assert calls[0][0].headers["User-agent"] == "Docking update checker"
 
 

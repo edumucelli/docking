@@ -38,14 +38,16 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
 
 import docking.ui.renderer as renderer_mod
+from docking.core.config import Config
 from docking.core.position import Position, is_horizontal
 from docking.core.theme import Theme
+from docking.platform.backends.reduced.services import ReducedSurfaceService
 from docking.platform.backends.x11.impl.struts import BlurRect, compute_blur_region
 from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
 from docking.ui.geometry import DockGeometryBuilder, Rect, build_geometry_frame
 from docking.ui.hover import HoverManager
-from docking.ui.renderer import DockRenderer
+from docking.ui.renderer import DockRenderer, RenderState
 
 WINDOW_W = 1920
 WINDOW_H = 102
@@ -102,10 +104,8 @@ class FakeWindow:
         self,
         *,
         items: list[DockItem],
-        config: object,
+        config: Config,
         theme: Theme,
-        autohide_state: HideState = HideState.VISIBLE,
-        hide_offset: float = 0.0,
     ) -> None:
         self.model = SimpleNamespace(visible_items=lambda: items)
         self.config = config
@@ -114,12 +114,14 @@ class FakeWindow:
         self.cursor_y = -1.0
         self.dock_hovered = True
         self.drawing_area = FakeDrawingArea(WINDOW_W, WINDOW_H)
+        self.surface_service = ReducedSurfaceService()
         self.zoom_animator = SimpleNamespace(progress=1.0)
         self.autohide = SimpleNamespace(
             enabled=True,
-            state=autohide_state,
+            state=HideState.VISIBLE,
             zoom_progress=1.0,
-            hide_offset=hide_offset,
+            hide_offset=0.0,
+            pointer_reveal_enabled=True,
         )
 
     def get_size(self) -> tuple[int, int]:
@@ -154,17 +156,6 @@ def _fake_cairo_set_source_pixbuf(
     cr.rectangle(0, 0, width, height)
     cr.set_source_rgba(0.9, 0.9, 0.95, 1.0)
     cr.fill()
-
-
-def _config() -> object:
-    return SimpleNamespace(
-        pos=Position.BOTTOM,
-        icon_size=ICON_SIZE,
-        zoom_percent=1.5,
-        zoom_enabled=True,
-        window_preview_thumbnails_enabled=False,
-        tooltips_enabled=True,
-    )
 
 
 def _items(*, with_icons: bool) -> list[DockItem]:
@@ -219,7 +210,7 @@ def _surface_context(width: int = WINDOW_W, height: int = WINDOW_H) -> cairo.Con
     return cairo.Context(surface)
 
 
-def _baseline_frame(items: list[DockItem], config: object, theme: Theme) -> object:
+def _baseline_frame(items: list[DockItem], config: Config, theme: Theme) -> object:
     return build_geometry_frame(
         items=items,
         config=config,
@@ -241,12 +232,12 @@ def _cursor_points(frame: object) -> list[tuple[float, float]]:
     return points
 
 
-def _bench(name: str, func: Any, *, samples: int = SAMPLES) -> BenchResult:
+def _bench(name: str, func: Any) -> BenchResult:
     for _ in range(WARMUP):
         func()
 
     timings_us: list[float] = []
-    for _ in range(samples):
+    for _ in range(SAMPLES):
         start = time.perf_counter_ns()
         func()
         elapsed_us = (time.perf_counter_ns() - start) / 1_000.0
@@ -254,7 +245,7 @@ def _bench(name: str, func: Any, *, samples: int = SAMPLES) -> BenchResult:
 
     return BenchResult(
         name=name,
-        samples=samples,
+        samples=SAMPLES,
         median_us=statistics.median(timings_us),
         p95_us=statistics.quantiles(timings_us, n=100)[94],
         mean_us=statistics.fmean(timings_us),
@@ -284,7 +275,14 @@ def _print_table(results: list[BenchResult]) -> None:
 def run_benchmarks() -> list[BenchResult]:
     renderer_mod.Gdk.cairo_set_source_pixbuf = _fake_cairo_set_source_pixbuf
 
-    config = _config()
+    config = Config(
+        position=Position.BOTTOM.value,
+        icon_size=ICON_SIZE,
+        zoom_percent=1.5,
+        zoom_enabled=True,
+        window_preview_thumbnails_enabled=False,
+        tooltips_enabled=True,
+    )
     theme = Theme.load("default", ICON_SIZE)
     items_with_icons = _items(with_icons=True)
     items_without_icons = _items(with_icons=False)
@@ -372,6 +370,8 @@ def run_benchmarks() -> list[BenchResult]:
     renderer_with_icons = DockRenderer()
     widget = FakeDrawingArea(WINDOW_W, WINDOW_H)
     renderer_mod.GLib.get_monotonic_time = lambda: 1_000_000
+    idle_state = RenderState()
+    hover_state = RenderState(hovered_id="app3.desktop")
 
     def renderer_draw_with_icons_idle() -> None:
         renderer_with_icons.draw(
@@ -380,10 +380,7 @@ def run_benchmarks() -> list[BenchResult]:
             frame=frame_with_icons_idle,
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=idle_state,
         )
 
     def renderer_draw_with_icons_hover() -> None:
@@ -393,10 +390,7 @@ def run_benchmarks() -> list[BenchResult]:
             frame=frame_with_icons_hover,
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="app3.desktop",
+            state=hover_state,
         )
 
     def renderer_draw_with_icons_click() -> None:
@@ -406,10 +400,7 @@ def run_benchmarks() -> list[BenchResult]:
             frame=frame_with_icons_click,
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="",
+            state=idle_state,
         )
 
     def renderer_draw_with_icons_hover_click() -> None:
@@ -419,10 +410,7 @@ def run_benchmarks() -> list[BenchResult]:
             frame=frame_with_icons_hover_click,
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="app3.desktop",
+            state=hover_state,
         )
 
     renderer_without_icons = DockRenderer()
@@ -434,10 +422,7 @@ def run_benchmarks() -> list[BenchResult]:
             frame=frame_without_icons,
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="app3.desktop",
+            state=hover_state,
         )
 
     blur_rect = BlurRect(
@@ -494,10 +479,7 @@ def run_benchmarks() -> list[BenchResult]:
             frame=frame,
             config=config,
             theme=theme,
-            hide_offset=0.0,
-            drag_index=-1,
-            drop_insert_index=-1,
-            hovered_id="app3.desktop",
+            state=hover_state,
         )
         if frame.cursor_rect != applied_input_rect_draw:
             applied_input_rect_draw = frame.cursor_rect

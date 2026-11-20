@@ -117,8 +117,7 @@ adapter_start() {
 # Sway has no shell API, but the IPC socket answering get_outputs proves the
 # compositor itself is up, which is the check that matters here.
 adapter_wait_ready() {
-    local attempts="${1:-40}"
-    for _ in $(seq "$attempts"); do
+    for _ in $(seq 40); do
         kill -0 "$ADAPTER_COMPOSITOR_PID"
         if swaymsg -t get_outputs >/dev/null 2>&1; then
             return 0

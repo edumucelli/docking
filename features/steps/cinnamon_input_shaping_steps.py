@@ -36,7 +36,7 @@ def layered_surfaces(context):
         )
         if name == "dock":
             service = CinnamonShellSurfaceService(client=MagicMock())
-            service.configure_before_realize(window)
+            service.configure_before_realize(window, keep_above=True)
         window.move(0, 0)
         window.show_all()
         context.shaped_windows.append(window)

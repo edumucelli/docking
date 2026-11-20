@@ -276,18 +276,18 @@ class StatusNotifierBackend:
             legacy_tray_owner=legacy_tray_owner_name() if not items else "",
         )
 
-    def activate(self, identifier: str, *, x: int = 0, y: int = 0) -> bool:
+    def activate(self, identifier: str) -> bool:
         item = self._last_items.get(identifier)
         if item is None:
             return False
         method = "ContextMenu" if item.item_is_menu else "Activate"
-        return self._call_item_method(item=item, method=method, x=x, y=y)
+        return self._call_item_method(item=item, method=method)
 
-    def context_menu(self, identifier: str, *, x: int = 0, y: int = 0) -> bool:
+    def context_menu(self, identifier: str) -> bool:
         item = self._last_items.get(identifier)
         if item is None:
             return False
-        return self._call_item_method(item=item, method="ContextMenu", x=x, y=y)
+        return self._call_item_method(item=item, method="ContextMenu")
 
     def menu_client(self, identifier: str) -> DBusMenuClient | None:
         item = self._last_items.get(identifier)
@@ -359,16 +359,14 @@ class StatusNotifierBackend:
             self._host = _StatusNotifierWatcherHost(bus=bus)
         return self._host
 
-    def _call_item_method(
-        self, *, item: TrayItem, method: str, x: int = 0, y: int = 0
-    ) -> bool:
+    def _call_item_method(self, *, item: TrayItem, method: str) -> bool:
         try:
             self._connection().call_sync(
                 item.service,
                 item.path,
                 ITEM_IFACE,
                 method,
-                GLib.Variant("(ii)", (x, y)),
+                GLib.Variant("(ii)", (0, 0)),
                 None,
                 Gio.DBusCallFlags.NONE,
                 METHOD_TIMEOUT_MS,

@@ -95,7 +95,7 @@ class WebAppApplet(PlatformServicesApplet):
             self._clear_notification_attention()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        status = [disabled_menu_item(self._tooltip_text(), gtk=Gtk)]
+        status = [disabled_menu_item(self._tooltip_text())]
 
         toggle_label = self.hide_label if self._browser.visible else self.open_label
         toggle = Gtk.MenuItem(label=toggle_label)
@@ -120,7 +120,6 @@ class WebAppApplet(PlatformServicesApplet):
             status=status,
             primary=[toggle, reload_item, open_browser],
             manage=[disconnect],
-            gtk=Gtk,
         )
 
     def _start_browser(self) -> bool:

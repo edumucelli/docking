@@ -100,9 +100,7 @@ FORMATS = {
 }
 
 
-def release_packages(
-    directory: Path, version: str, fmt: Format = FORMATS["deb"]
-) -> list[Package]:
+def release_packages(directory: Path, version: str, fmt: Format) -> list[Package]:
     """Preflight the entire release before any upload can happen."""
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         raise ValueError("Expected a stable X.Y.Z project version")
@@ -149,7 +147,7 @@ def release_packages(
     return packages
 
 
-def remote_packages(repository: str, fmt: Format = FORMATS["deb"]) -> list[dict]:
+def remote_packages(repository: str, fmt: Format) -> list[dict]:
     result = subprocess.check_output(
         [
             "cloudsmith",
@@ -170,9 +168,7 @@ def remote_packages(repository: str, fmt: Format = FORMATS["deb"]) -> list[dict]
     return data
 
 
-def existing_package(
-    package: Package, remote: list[dict], fmt: Format = FORMATS["deb"]
-) -> dict | None:
+def existing_package(package: Package, remote: list[dict], fmt: Format) -> dict | None:
     matches = [
         item
         for item in remote
@@ -217,8 +213,7 @@ def publish(
     repository: str,
     packages: list[Package],
     *,
-    fmt: Format = FORMATS["deb"],
-    timeout: float = 300,
+    fmt: Format,
 ) -> None:
     if not re.fullmatch(r"[a-z0-9_-]+/[a-z0-9_-]+", repository):
         raise ValueError(
@@ -248,7 +243,7 @@ def publish(
                 f"Already published ({detail}): "
                 f"{package.architecture} {package.version}"
             )
-    deadline = time.monotonic() + timeout
+    deadline = time.monotonic() + 300
     while True:
         remote = remote_packages(repository, fmt)
         items = [existing_package(package, remote, fmt) for package in packages]
