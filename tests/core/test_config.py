@@ -2,6 +2,7 @@
 
 import json
 import os
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -1547,3 +1548,124 @@ def test_always_behind_mode_round_trips_without_changing_other_preferences(tmp_p
     assert restored.pressure_reveal_enabled
     assert restored.hide_delay_ms == 80
     assert Config().hide_mode_enum is HideMode.NONE
+
+
+def test_first_run_import_saves_empty_layout_and_is_never_offered_again(tmp_path):
+    path = tmp_path / "dock.json"
+    migrate = MagicMock(return_value=Config(icon_size=80))
+    seed = MagicMock(
+        side_effect=AssertionError("An empty imported layout must stay empty")
+    )
+    assert (
+        Config.load(path, initial_pinned_factory=seed, first_run_import=migrate).pinned
+        == []
+    )
+    reloaded = Config.load(path, initial_pinned_factory=seed, first_run_import=migrate)
+    assert reloaded.icon_size == 80
+    assert reloaded.pinned == []
+    migrate.assert_called_once_with()
+    seed.assert_not_called()
+
+
+@pytest.mark.parametrize("error", [OSError, RuntimeError, ValueError])
+def test_failed_first_run_import_saves_defaults(tmp_path, caplog, error):
+    path = tmp_path / "dock.json"
+    pins = [PinnedEntry("applet", "applet://clock")]
+    seed = MagicMock(return_value=pins)
+    migrate = MagicMock(side_effect=error("Simulated import failure"))
+
+    config = Config.load(path, initial_pinned_factory=seed, first_run_import=migrate)
+    reloaded = Config.load(path, initial_pinned_factory=seed, first_run_import=migrate)
+
+    assert path.is_file()
+    assert config.pinned == reloaded.pinned == pins
+    assert f"First-run dock import failed ({error.__name__})" in caplog.text
+    migrate.assert_called_once_with()
+    seed.assert_called_once_with()
+
+
+def test_first_run_import_protects_backup_and_config_created_during_review(tmp_path):
+    path = tmp_path / "dock.json"
+    backup = tmp_path / "dock.json.bak"
+    Config(icon_size=72).save(backup)
+    migrate = MagicMock()
+    assert Config.load(path, first_run_import=migrate).icon_size == 72
+    migrate.assert_not_called()
+
+    backup.unlink()
+
+    def create_config_during_review():
+        Config(icon_size=96).save(path)
+        return Config(icon_size=64)
+
+    config = Config.load(path, first_run_import=create_config_during_review)
+    assert config.icon_size == 96
+    assert Config.load(path).icon_size == 96
+
+
+def test_missing_primary_ignores_backup_that_exceeds_json_recursion_limit(tmp_path):
+    path = tmp_path / "dock.json"
+    backup = tmp_path / "dock.json.bak"
+    backup.write_text("[" * 3000 + "]" * 3000, encoding="utf-8")
+    seed = [PinnedEntry("applet", "applet://clock")]
+    migrate = MagicMock()
+    config = Config.load(
+        path, initial_pinned_factory=lambda: seed, first_run_import=migrate
+    )
+
+    assert config.pinned == Config.load(path).pinned == seed
+    migrate.assert_not_called()
+
+
+def test_first_run_reloads_a_config_published_before_it_acquires_the_lock(
+    tmp_path, monkeypatch
+):
+    path = tmp_path / "dock.json"
+    host = config_mod.host_services()
+    migrate = MagicMock(return_value=Config(icon_size=64))
+
+    @contextmanager
+    def writer_lock(fd, *, path):
+        with host.writer_lock(fd, path=path):
+            Config(icon_size=96).save(tmp_path / "dock.json")
+            yield
+
+    monkeypatch.setattr(
+        config_mod,
+        "host_services",
+        lambda: SimpleNamespace(
+            writer_lock=writer_lock, flush_directory=host.flush_directory
+        ),
+    )
+
+    assert Config.load(path, first_run_import=migrate).icon_size == 96
+    assert Config.load(path).icon_size == 96
+    migrate.assert_called_once_with()
+
+
+def test_save_replacement_updates_live_config_only_after_commit(tmp_path, monkeypatch):
+    path = tmp_path / "dock.json"
+    Config(icon_size=64).save(path)
+    base = Config.load(path)
+    candidate = Config(icon_size=96)
+
+    def fail(*_args, **_kwargs):
+        raise OSError("Simulated storage error")
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(config_mod, "_write_json_atomic_candidate", fail)
+        with pytest.raises(OSError, match="Simulated storage error"):
+            base.save_replacement(candidate)
+    assert base.icon_size == 64
+    assert Config.load(path).icon_size == 64
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            config_mod,
+            "_fsync_directory",
+            MagicMock(side_effect=[None, OSError("Simulated storage error")]),
+        )
+        base.save_replacement(candidate)
+    assert base.icon_size == 96
+    assert Config.load(path).icon_size == 96
+    assert Config.load(tmp_path / "dock.json.bak").icon_size == 64

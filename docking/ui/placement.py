@@ -185,7 +185,7 @@ from docking.platform.backends.base import (
     Size,
     SurfaceService,
 )
-from docking.ui.display import get_pointer_position
+from docking.ui.display import get_pointer_position, monitor_connector
 from docking.ui.geometry import (
     compute_dock_cross_metrics,
     resting_dock_cross_extent,
@@ -276,7 +276,7 @@ class DockPlacementController:
             if monitor is None:
                 continue
             geom = monitor.get_geometry()
-            connector = self._monitor_connector(monitor)
+            connector = monitor_connector(display, idx)
             model = self._monitor_model(monitor)
             label = _("Display {display}: {width}x{height}").format(
                 display=idx + 1,
@@ -685,17 +685,9 @@ class DockPlacementController:
             return None
         for idx in range(n_monitors):
             monitor = display.get_monitor(idx)
-            if monitor is not None and cls._monitor_connector(monitor) == connector:
+            if monitor is not None and monitor_connector(display, idx) == connector:
                 return monitor
         return None
-
-    @staticmethod
-    def _monitor_connector(monitor: Gdk.Monitor) -> str | None:
-        getter = getattr(monitor, "get_connector", None)
-        if not callable(getter):
-            return None
-        text = str(getter() or "").strip()
-        return text or None
 
     @staticmethod
     def _monitor_model(monitor: Gdk.Monitor) -> str | None:
@@ -732,7 +724,7 @@ class DockPlacementController:
             scale=self._window.get_scale_factor(),
             primary=primary,
             name=self._monitor_model(monitor),
-            connector=self._monitor_connector(monitor),
+            connector=monitor_connector(display, monitor_idx),
         )
 
     def _external_workarea(self, monitor: MonitorSnapshot) -> Rect | None:

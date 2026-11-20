@@ -195,7 +195,22 @@ def main(provider: PlatformProvider | None = None) -> None:
                 pending_initial_pinned = tuple(entries)
             return entries
 
-        config = Config.load(initial_pinned_factory=initial_pinned)
+        def first_run_import() -> Config | None:
+            from docking.platform.dock_import import dock_import_supported
+            from docking.ui.dock_import import review_dock_import
+
+            if not dock_import_supported():
+                return None
+            imported = review_dock_import(None, Config(), registry, first_run=True)
+            if imported is None:
+                return None
+            if not imported.added and not imported.empty_layout:
+                imported.config.pinned = initial_pinned()
+            return imported.config
+
+        config = Config.load(
+            initial_pinned_factory=initial_pinned, first_run_import=first_run_import
+        )
         recent_applications = RecentApplications(
             registry,
             RecentApplicationsPersistence(config),

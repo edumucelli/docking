@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -94,14 +95,20 @@ class FakeLabel:
 
 
 class FakeBox:
-    def __init__(self, **_kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
+        self.orientation = kwargs.get("orientation")
         self.children: list[object] = []
+        self.sensitive = True
         self.border_width = 0
         self.hexpand = False
         self.size_request = None
         self.margin_start = 0
         self.margin_end = 0
         self.tooltip_text = None
+        self.show_count = 0
+
+    def set_sensitive(self, value: bool) -> None:
+        self.sensitive = value
 
     def set_visible(self, value: bool) -> None:
         self.visible = value
@@ -136,6 +143,9 @@ class FakeBox:
     def remove(self, child) -> None:
         if child in self.children:
             self.children.remove(child)
+
+    def show_all(self) -> None:
+        self.show_count += 1
 
 
 class FakeGrid:
@@ -822,18 +832,31 @@ def _fake_info_icon(monkeypatch):
 
 
 class TestSettingsWindowController:
-    def test_show_reuses_single_window_and_builds_four_tabs(self, monkeypatch):
+    @pytest.mark.parametrize("import_supported", [False, True])
+    def test_show_reuses_single_window_and_builds_tabs(
+        self, monkeypatch, import_supported
+    ):
         monkeypatch.setattr(settings_mod, "Gtk", FakeGtk)
         monkeypatch.setattr(settings_mod, "Gdk", FakeGdk)
         monkeypatch.setattr(
             settings_mod, "load_catalog_icon", lambda applet_id, size: None
         )
         monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+        monkeypatch.setattr(
+            settings_mod, "dock_import_supported", lambda: import_supported
+        )
+        review = MagicMock(return_value=None)
+        monkeypatch.setattr(settings_mod, "review_dock_import", review)
+        file_path = Path("shared-dock.json")
+        pick_file = MagicMock(side_effect=[None, file_path])
+        monkeypatch.setattr(settings_mod, "choose_docking_config_file", pick_file)
+        registry = MagicMock()
         controller = _settings_controller(
             parent=_parent_window(),
             actions=MagicMock(),
             model=SimpleNamespace(pinned_items=[], get_applet=lambda _desktop_id: None),
             config=_config(),
+            application_registry=registry,
         )
 
         controller.show()
@@ -849,18 +872,62 @@ class TestSettingsWindowController:
         assert isinstance(switcher, FakeStackSwitcher)
         assert switcher.halign == FakeAlign.CENTER
         assert switcher.stack is stack
-        assert [title for _, _, title in stack.pages] == [
-            "Appearance",
-            "Behavior",
-            "Applets",
-            "Updates",
-        ]
+        expected_tabs = ["Appearance", "Behavior", "Applets", "Updates", "Import"]
+        assert [title for _, _, title in stack.pages] == expected_tabs
+        tab = _stack_page_child(stack, 4)
+        (section,) = tab.children
+        header, content = section.children
+        assert header.markup == "<b>Import from</b>"
+        if import_supported:
+            dock_row, file_row = content.children
+            label, controls = dock_row.children
+            assert label.get_label() == "Another dock"
+            actions, help_icon = controls.children
+            assert actions.orientation == FakeOrientation.HORIZONTAL
+            plank_button, cairo_button = actions.children
+            assert plank_button.label == "Plank"
+            assert cairo_button.label == "Cairo-Dock"
+            assert help_icon.child.source == controller._hide_mode_info.child.source
+            assert "Plank Reloaded" in help_icon._docking_info_text
+            assert "skipped items" in help_icon._docking_info_text
+            for button, kind in ((plank_button, "plank"), (cairo_button, "cairo-dock")):
+                button.click()
+                review.assert_called_once_with(
+                    window,
+                    controller._config,
+                    registry,
+                    first_run=False,
+                    kind=kind,
+                    file_path=None,
+                )
+                review.reset_mock()
+                assert tab.sensitive
+        else:
+            (file_row,) = content.children
+        label, controls = file_row.children
+        browse, help_icon = controls.children
+        assert label.get_label() == "Docking file"
+        assert browse.label == "Browse…"
+        assert help_icon.child.source == controller._hide_mode_info.child.source
+        browse.click()
+        pick_file.assert_called_once_with(window)
+        review.assert_not_called()
+        assert tab.sensitive
+        browse.click()
+        review.assert_called_once_with(
+            window,
+            controller._config,
+            registry,
+            first_run=False,
+            kind=None,
+            file_path=file_path,
+        )
+        assert tab.sensitive
         assert window.default_size == (
             settings_mod.PREFERENCES_WINDOW_WIDTH_PX,
             settings_mod.PREFERENCES_WINDOW_HEIGHT_PX,
         )
-        for index in range(4):
-            page = stack.pages[index][0]
+        for page, _, _ in stack.pages:
             assert isinstance(page, FakeScrolledWindow)
             assert page.policy == (FakePolicyType.NEVER, FakePolicyType.AUTOMATIC)
             assert page.vexpand is True
@@ -2305,6 +2372,9 @@ class TestSettingsWindowController:
         assert any(
             isinstance(child, FakeGrid) for child in controller._applets_box.children
         )
+        previous_show_count = controller._applets_box.show_count
+        controller._rebuild_applet_tab()
+        assert controller._applets_box.show_count == previous_show_count + 1
         applets_mod.get_applet_catalog.cache_clear()
 
 

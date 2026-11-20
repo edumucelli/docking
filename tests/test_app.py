@@ -71,7 +71,9 @@ def pending_bootstrap(monkeypatch, tmp_path):
 
         class TrackedConfig(config_type):
             @classmethod
-            def load(cls, _path=None, *, initial_pinned_factory=None):
+            def load(
+                cls, _path=None, *, initial_pinned_factory=None, first_run_import=None
+            ):
                 state.config = super().load(
                     path, initial_pinned_factory=initial_pinned_factory
                 )
@@ -816,7 +818,9 @@ class TestAppMain:
 
         class MissingConfig(config_type):
             @classmethod
-            def load(cls, _path=None, *, initial_pinned_factory=None):
+            def load(
+                cls, _path=None, *, initial_pinned_factory=None, first_run_import=None
+            ):
                 load_config()
                 return super().load(
                     missing_config,

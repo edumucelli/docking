@@ -387,6 +387,9 @@ class DockHarness:
             get_n_monitors=lambda: 1,
             get_primary_monitor=lambda: monitor,
             get_monitor=lambda _index: monitor,
+            get_default_screen=lambda: SimpleNamespace(
+                get_monitor_plug_name=lambda _index: None,
+            ),
         )
         theme = Theme.load("default", 48)
         config = SimpleNamespace(

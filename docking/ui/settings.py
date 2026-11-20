@@ -38,7 +38,7 @@ settings a persistent, easier-to-scan home.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import gi
@@ -84,15 +84,19 @@ from docking.core.theme import Theme, list_theme_names
 from docking.core.updates import load_state
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform.dock_import import dock_import_supported
 from docking.search.config import (
     DEFAULT_GLOBAL_SEARCH_WEB_ENGINE,
     GLOBAL_SEARCH_WEB_ENGINES,
 )
 from docking.search.ui.shortcut_capture import ShortcutCaptureButton
+from docking.ui.dock_import import choose_docking_config_file, review_dock_import
 from docking.ui.dock_shortcut import DockShortcutController
 
 if TYPE_CHECKING:
     from docking.core.config import Config
+    from docking.platform.applications.registry import ApplicationRegistry
+    from docking.platform.dock_import import DockImportKind
     from docking.platform.model import DockModel
     from docking.search.controller import GlobalSearchController
     from docking.ui.dnd import DnDHandler
@@ -291,11 +295,13 @@ class SettingsWindowController:
         model: DockModel,
         config: Config,
         window_outline_supported: bool = False,
+        application_registry: ApplicationRegistry | None = None,
     ) -> None:
         self._parent = parent
         self._actions = actions
         self._model = model
         self._config = config
+        self._application_registry = application_registry
         self._window_outline_supported = window_outline_supported
         self._window: Gtk.Window | None = None
         self._syncing_widgets = False
@@ -422,6 +428,8 @@ class SettingsWindowController:
         stack.add_titled(self._build_behavior_tab(), "behavior", _("Behavior"))
         stack.add_titled(self._build_applets_tab(), "applets", _("Applets"))
         stack.add_titled(self._build_updates_tab(), "updates", _("Updates"))
+        if self._application_registry is not None:
+            stack.add_titled(self._build_import_tab(), "import", _("Import"))
 
         outer.pack_start(switcher, False, False, 0)
         outer.pack_start(stack, True, True, 0)
@@ -1084,6 +1092,154 @@ class SettingsWindowController:
         )
 
         return self._new_tab_scroller(outer, propagate_natural_width=True)
+
+    def _build_import_tab(self) -> Gtk.Widget:
+        outer = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=APPEARANCE_TAB_SPACING_PX,
+        )
+        outer.set_border_width(APPEARANCE_TAB_BORDER_PX)
+        rows: list[SettingsRow] = []
+        if dock_import_supported():
+            actions = Gtk.Box(
+                orientation=Gtk.Orientation.HORIZONTAL,
+                spacing=ROW_SPACING_PX,
+            )
+            buttons: tuple[tuple[DockImportKind, str], ...] = (
+                ("plank", _("Plank")),
+                ("cairo-dock", _("Cairo-Dock")),
+            )
+            for kind, label in buttons:
+                button = Gtk.Button(label=label)
+                button.connect(
+                    "clicked", lambda _button, kind=kind: self._import_dock(outer, kind)
+                )
+                actions.pack_start(button, False, False, 0)
+            rows.append(
+                (
+                    _("Another dock"),
+                    actions,
+                    _(
+                        "The Plank button also supports Plank Reloaded. Review the "
+                        "pins, preferences, and skipped items before importing."
+                    ),
+                )
+            )
+        browse = Gtk.Button(label=_("Browse…"))
+        browse.connect("clicked", lambda _button: self._import_dock(outer, None))
+        rows.append(
+            (
+                _("Docking file"),
+                browse,
+                _(
+                    "Choose a Docking JSON file to review its pins and "
+                    "layout preferences."
+                ),
+            ),
+        )
+        self._append_section(outer=outer, title=_("Import from"), rows=rows)
+        return self._new_tab_scroller(outer, propagate_natural_width=True)
+
+    def _import_dock(self, tab: Gtk.Box, kind: DockImportKind | None) -> None:
+        parent, registry = self._window, self._application_registry
+        if parent is None or registry is None:
+            return
+        tab.set_sensitive(False)
+        try:
+            file_path = None
+            if kind is None:
+                file_path = choose_docking_config_file(parent)
+                if file_path is None or self._window is not parent:
+                    return
+            imported = review_dock_import(
+                parent,
+                self._config,
+                registry,
+                first_run=False,
+                kind=kind,
+                file_path=file_path,
+            )
+        finally:
+            if self._window is parent:
+                tab.set_sensitive(True)
+        if imported is None or self._window is not parent:
+            return
+        try:
+            self._config.save_replacement(imported.config)
+        except OSError:
+            self._show_import_message(
+                parent, Gtk.MessageType.ERROR, _("Could not save the imported dock.")
+            )
+            return
+
+        failed_ids = {
+            entry.id for entry in self._model.append_imported_pins(imported.added)
+        }
+        cleanup_failed = False
+        if failed_ids:
+            try:
+                self._config.save_replacement(
+                    replace(
+                        self._config,
+                        pinned=[
+                            entry
+                            for entry in self._config.pinned
+                            if entry.id not in failed_ids
+                        ],
+                    ),
+                    preserve_backup=True,
+                )
+            except OSError:
+                cleanup_failed = True
+
+        changed = imported.changes.keys()
+        for binding in self._bindings:
+            if binding.config_attr in changed and binding.on_change is not None:
+                binding.on_change()
+        if changed & {"monitor_index", "monitor_connector"}:
+            self._actions.reposition()
+        if "hide_mode" not in changed and changed & {
+            "hide_delay_ms",
+            "unhide_delay_ms",
+        }:
+            self._actions.on_hide_mode_changed()
+        self._sync_widgets()
+        self._rebuild_applet_tab()
+        if failed_ids:
+            labels = [
+                label
+                for entry, label in zip(imported.added, imported.labels, strict=True)
+                if entry.id in failed_ids
+            ]
+            if cleanup_failed:
+                labels.append(
+                    _("Could not remove these pins from the saved configuration.")
+                )
+            self._show_import_message(
+                parent,
+                Gtk.MessageType.WARNING,
+                _("Some imported pins could not be loaded."),
+                "\n".join(labels),
+            )
+
+    @staticmethod
+    def _show_import_message(
+        parent: Gtk.Window, message_type: Gtk.MessageType, text: str, details: str = ""
+    ) -> None:
+        dialog = Gtk.MessageDialog(
+            transient_for=parent,
+            modal=True,
+            destroy_with_parent=True,
+            message_type=message_type,
+            buttons=Gtk.ButtonsType.CLOSE,
+            text=text,
+        )
+        if details:
+            dialog.format_secondary_text(details)
+        try:
+            dialog.run()
+        finally:
+            dialog.destroy()
 
     def _new_info_icon(self, tooltip: str = "") -> _InfoIcon:
         icon = _InfoIcon()
@@ -1782,7 +1938,7 @@ class SettingsWindowController:
                 active_ids=active_ids,
             )
             box.pack_start(applet_grid, False, False, 0)
-        return
+        box.show_all()
 
     def _build_applet_grid(
         self,

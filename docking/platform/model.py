@@ -349,6 +349,32 @@ class DockModel:
             if item is not None:
                 self.pinned_items.append(item)
 
+    def append_imported_pins(self, entries: list[PinnedEntry]) -> list[PinnedEntry]:
+        """Project newly saved pins and return entries that could not be loaded."""
+        failed: list[PinnedEntry] = []
+        for entry in entries:
+            item = self.find_by_desktop_id(entry.id)
+            if item is None:
+                item = self._build_pinned_item(entry)
+            if item is None:
+                failed.append(entry)
+                continue
+            if entry.kind == APP_KIND:
+                self._promote_to_pinned(item)
+                continue
+            self.pinned_items.append(item)
+            if entry.kind == APPLET_KIND:
+                applet = self._applets[entry.id]
+                if not self._start_applet(desktop_id=entry.id, applet=applet):
+                    self._stop_applet(desktop_id=entry.id, applet=applet)
+                    self._applets.pop(entry.id)
+                    self.pinned_items.remove(item)
+                    failed.append(entry)
+        if entries:
+            self._materialize_recent_apps()
+            self.notify()
+        return failed
+
     def refresh_applications(self) -> None:
         """Reconcile configured pins and metadata after registry publication."""
         pending = self._application_registry.initial_discovery_pending
