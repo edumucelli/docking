@@ -233,8 +233,9 @@ the geometry frame here, not to patch individual consumers elsewhere.
 from __future__ import annotations
 
 import math
+from bisect import bisect_left
 from collections.abc import Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from itertools import pairwise
 from typing import TYPE_CHECKING, NamedTuple
 
@@ -458,11 +459,20 @@ class DockGeometryInputs:
     constrain_main_axis: bool = False
 
 
+@dataclass
+class _AlignedZoomCache:
+    """Reuse clickability probes while only the pointer is moving."""
+
+    signature: tuple[object, ...] = ()
+    limits: dict[int, float] = field(default_factory=dict)
+
+
 class DockGeometryBuilder:
     """Window-bound adapter that builds geometry frames from live runtime state."""
 
     def __init__(self, window: DockWindow) -> None:
         self._window = window
+        self._zoom_cache = _AlignedZoomCache()
 
     def build_frame(
         self,
@@ -492,6 +502,7 @@ class DockGeometryBuilder:
             drop_insert_index=inputs.drop_insert_index,
             pointer_reveal_enabled=inputs.pointer_reveal_enabled,
             constrain_main_axis=inputs.constrain_main_axis,
+            _zoom_cache=self._zoom_cache,
         )
 
 
@@ -573,17 +584,19 @@ def build_geometry_frame(
     drop_insert_index: int = -1,
     constrain_main_axis: bool = False,
     pointer_reveal_enabled: bool = True,
+    *,
+    _zoom_cache: _AlignedZoomCache | None = None,
 ) -> DockGeometryFrame:
-    """Build shared geometry, limiting corner zoom before it loses the target."""
+    """Build shared geometry with smoothly varying zoom limits on aligned docks."""
 
-    def build(progress: float) -> DockGeometryFrame:
+    def build(progress: float, *, cursor: float = cursor_main) -> DockGeometryFrame:
         return _build_geometry_frame(
             items=items,
             config=config,
             theme=theme,
             window_w=window_w,
             window_h=window_h,
-            cursor_main=cursor_main,
+            cursor_main=cursor,
             autohide_state=autohide_state,
             zoom_progress=progress,
             hide_offset=hide_offset,
@@ -592,7 +605,6 @@ def build_geometry_frame(
             constrain_main_axis=constrain_main_axis,
         )
 
-    frame = build(zoom_progress)
     if (
         cursor_main < 0
         or zoom_progress <= 0
@@ -600,55 +612,88 @@ def build_geometry_frame(
         or autohide_state == HideState.HIDDEN
         or getattr(config, "dock_alignment", 0.5) == 0.5
     ):
-        return frame
+        return build(zoom_progress)
 
     horizontal = is_horizontal(config.pos)
     resting = build(0.0)
-    target = next(
-        (
-            geometry.item
-            for geometry in resting.item_geometries
-            if (
-                geometry.hover_rect.x
-                <= cursor_main
-                < geometry.hover_rect.x + geometry.hover_rect.w
-                if horizontal
-                else geometry.hover_rect.y
-                <= cursor_main
-                < geometry.hover_rect.y + geometry.hover_rect.h
-            )
-        ),
-        None,
-    )
-    if target is None:
-        return frame
+    centers = [
+        (_item_main_center(item_geometry=geometry, pos=config.pos), index)
+        for index, geometry in enumerate(resting.item_geometries)
+        if geometry.scaled_size > 0
+    ]
+    if not centers:
+        return build(zoom_progress)
 
-    def keeps_target(candidate: DockGeometryFrame) -> bool:
-        geometry = candidate.geometry_for_item(target)
-        if geometry is None:
-            return False
-        rect = geometry.draw_rect
-        x, y = (
-            (cursor_main, rect.y + rect.h / 2)
-            if horizontal
-            else (rect.x + rect.w / 2, cursor_main)
+    limits: dict[int, float] = {}
+    if _zoom_cache is not None:
+        signature = (
+            config.pos,
+            config.dock_alignment,
+            config.icon_size,
+            config.zoom_percent,
+            theme,
+            effective_edge_gap(theme, config),
+            window_w,
+            window_h,
+            zoom_progress,
+            hide_offset,
+            drop_insert_index,
+            constrain_main_axis,
+            tuple(
+                (item.main_size, item.insert_factor, item.allow_zoom) for item in items
+            ),
         )
-        return candidate.item_at_point(x, y) is target
+        if _zoom_cache.signature != signature:
+            _zoom_cache.signature = signature
+            _zoom_cache.limits.clear()
+        limits = _zoom_cache.limits
 
-    if keeps_target(frame) or not keeps_target(resting):
-        return frame
-    # Extreme zoom can expand inward past the original pointer position.
-    # Keep the largest safe zoom instead of letting a click hit a neighbour.
-    low, high = 0.0, zoom_progress
-    best = resting
-    for _ in range(8):
-        progress = (low + high) / 2
-        candidate = build(progress)
-        if keeps_target(candidate):
-            low, best = progress, candidate
-        else:
-            high = progress
-    return best
+    def find_safe_zoom(center: float, index: int) -> float:
+        target = resting.item_geometries[index].item
+
+        def keeps_target(frame: DockGeometryFrame) -> bool:
+            rect = frame.item_geometries[index].draw_rect
+            x, y = (
+                (center, rect.y + rect.h / 2)
+                if horizontal
+                else (rect.x + rect.w / 2, center)
+            )
+            return frame.item_at_point(x, y) is target
+
+        if keeps_target(build(zoom_progress, cursor=center)) or not keeps_target(
+            resting
+        ):
+            return zoom_progress
+
+        low, high = 0.0, zoom_progress
+        for _ in range(8):
+            progress = (low + high) / 2
+            if keeps_target(build(progress, cursor=center)):
+                low = progress
+            else:
+                high = progress
+        return low
+
+    def safe_zoom(center: float, index: int) -> float:
+        if index not in limits:
+            limits[index] = find_safe_zoom(center, index)
+        return limits[index]
+
+    # Interpolate limits between resting centers so crossing a hit boundary
+    # cannot suddenly switch the zoom off or back on.
+    slot = bisect_left(centers, cursor_main, key=lambda entry: entry[0])
+    right_center, right_index = centers[min(slot, len(centers) - 1)]
+    left_center, left_index = centers[max(0, slot - 1)]
+    if cursor_main >= right_center:
+        return build(safe_zoom(right_center, right_index))
+    if cursor_main <= left_center:
+        return build(safe_zoom(left_center, left_index))
+
+    fraction = (cursor_main - left_center) / (right_center - left_center)
+    weight = fraction * fraction * (3 - 2 * fraction)
+    left_zoom = safe_zoom(left_center, left_index)
+    right_zoom = safe_zoom(right_center, right_index)
+    return build(left_zoom + (right_zoom - left_zoom) * weight)
 
 
 def _build_geometry_frame(
