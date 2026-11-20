@@ -321,7 +321,16 @@ def run_scenario(output: Path, scenario: str) -> None:
                     (rectangle[0] + rectangle[2]) // 2,
                     (rectangle[1] + rectangle[3]) // 2,
                 )
-                assert native.window_at(*point) == dock["hwnd"]
+                report["clock_point"] = point
+
+                def clock_receives_input():
+                    report["startup_window_at_clock"] = native.window_at(*point)
+                    return report["startup_window_at_clock"] == dock["hwnd"]
+
+                native.wait_for(
+                    clock_receives_input,
+                    "Always behind dock did not receive input above the idle desktop",
+                )
                 launch_fixture()
                 bind(
                     native.user,
