@@ -29,7 +29,12 @@ from docking.platform.backends.base import Rect as PlatformRect
 from docking.platform.backends.base import WindowId
 from docking.platform.model import DockModel
 from docking.ui.autohide import AutoHideController, HideState
-from docking.ui.geometry import Rect, build_geometry_frame, compute_dock_cross_metrics
+from docking.ui.geometry import (
+    AlignedZoomCache,
+    Rect,
+    build_geometry_frame,
+    compute_dock_cross_metrics,
+)
 from docking.ui.hover import HoverManager
 from docking.ui.interaction import DockInteractionCoordinator
 from docking.ui.renderer import RenderState
@@ -540,6 +545,7 @@ class DockHarness:
     def _item_animation_frame(self, items: list[DockItem]):
         theme = Theme.load("default", 48)
         return build_geometry_frame(
+            zoom_cache=AlignedZoomCache(),
             items=items,
             config=self._geometry_config(pos=Position.BOTTOM, zoom=1.0),
             theme=theme,
@@ -576,6 +582,7 @@ class DockHarness:
             cross_extent=metrics.surface_extent + gap,
         )
         frame = build_geometry_frame(
+            zoom_cache=AlignedZoomCache(),
             items=[item],
             config=config,
             theme=theme,
@@ -685,6 +692,7 @@ class DockHarness:
         base_width = 2 * (theme.horizontal_padding + theme.item_padding / 2) + 48
         cursor_main = theme.horizontal_padding + 24 + (main_size - base_width) / 2
         frame = build_geometry_frame(
+            zoom_cache=AlignedZoomCache(),
             items=[item],
             config=config,
             theme=theme,
@@ -746,6 +754,7 @@ class DockHarness:
         def render(pos: Position, width: int, height: int):
             config = self._geometry_config(pos=pos, zoom=1.0)
             frame = build_geometry_frame(
+                zoom_cache=AlignedZoomCache(),
                 items=[item],
                 config=config,
                 theme=theme,
@@ -808,6 +817,7 @@ class DockHarness:
 
         def build_live_frame(**_kwargs):
             return build_geometry_frame(
+                zoom_cache=AlignedZoomCache(),
                 items=[item],
                 config=config,
                 theme=theme,

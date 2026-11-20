@@ -18,6 +18,7 @@ from docking.core.theme import Theme
 from docking.platform.model import DockItem
 from docking.ui.autohide import HideState
 from docking.ui.geometry import (
+    AlignedZoomCache,
     DockGeometryFrame,
     ItemGeometry,
     Rect,
@@ -211,6 +212,7 @@ class TestRendererContentFlow:
         monkeypatch.setattr(renderer_mod, "draw_shelf_background", capture_shelf)
         for cursor in (-1.0, 210.0, -1.0):
             frame = build_geometry_frame(
+                zoom_cache=AlignedZoomCache(),
                 items=items,
                 config=config,
                 theme=theme,
@@ -257,6 +259,7 @@ class TestRendererContentFlow:
             progress_visible=True,
         )
         frame = build_geometry_frame(
+            zoom_cache=AlignedZoomCache(),
             items=[item],
             config=config,
             theme=theme,
@@ -313,6 +316,7 @@ class TestRendererContentFlow:
         for factor in (0.25, 0.75, 1.0):
             animated.insert_factor = factor
             frame = build_geometry_frame(
+                zoom_cache=AlignedZoomCache(),
                 items=[steady, animated],
                 config=config,
                 theme=theme,
@@ -368,6 +372,7 @@ class TestRendererContentFlow:
         window_w = 420 if horizontal else metrics.surface_extent + 30
         window_h = metrics.surface_extent + 30 if horizontal else 420
         frame = build_geometry_frame(
+            zoom_cache=AlignedZoomCache(),
             items=[item],
             config=config,
             theme=theme,
@@ -468,6 +473,7 @@ class TestRendererContentFlow:
         window_w = 420 if horizontal else metrics.surface_extent + 30
         window_h = metrics.surface_extent + 30 if horizontal else 420
         frame = build_geometry_frame(
+            zoom_cache=AlignedZoomCache(),
             items=[item],
             config=config,
             theme=theme,
@@ -538,6 +544,7 @@ class TestRendererContentFlow:
         rest_center = theme.horizontal_padding + 48 / 2
         cursor_main = rest_center + (main_size - base_width) / 2 if zoom > 1.0 else -1.0
         frame = build_geometry_frame(
+            zoom_cache=AlignedZoomCache(),
             items=[item],
             config=config,
             theme=theme,
@@ -598,6 +605,7 @@ class TestRendererContentFlow:
             last_urgent=now_us - 300_000,
         )
         frame = build_geometry_frame(
+            zoom_cache=AlignedZoomCache(),
             items=[item],
             config=config,
             theme=theme,
@@ -686,6 +694,7 @@ class TestRendererContentFlow:
             else (cross.surface_extent, main_extent)
         )
         frame = build_geometry_frame(
+            zoom_cache=AlignedZoomCache(),
             items=[item],
             config=config,
             theme=theme,
@@ -766,6 +775,7 @@ class TestRendererContentFlow:
             (420, cross.surface_extent) if horizontal else (cross.surface_extent, 420)
         )
         frame = build_geometry_frame(
+            zoom_cache=AlignedZoomCache(),
             items=[item],
             config=config,
             theme=theme,
@@ -1103,6 +1113,7 @@ class TestRendererContentFlow:
             additional_distance_from_edge=0,
         )
         frame = build_geometry_frame(
+            zoom_cache=AlignedZoomCache(),
             items=[DockItem(desktop_id="firefox.desktop", is_running=True)],
             config=SimpleNamespace(
                 pos=Position.BOTTOM,

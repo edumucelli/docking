@@ -14,7 +14,7 @@ from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
 from docking.platform.model import AnimationTickResult, DockItem
 from docking.ui.autohide import HideState
-from docking.ui.geometry import Rect, build_geometry_frame
+from docking.ui.geometry import AlignedZoomCache, Rect, build_geometry_frame
 from docking.ui.interaction import DockInteractionCoordinator
 
 
@@ -1121,6 +1121,7 @@ class TestLeaveEnterFlow:
             stroke_width=1.0,
         )
         frame = build_geometry_frame(
+            zoom_cache=AlignedZoomCache(),
             items=[DockItem(desktop_id="firefox.desktop")],
             config=SimpleNamespace(
                 pos=Position.BOTTOM,
@@ -1429,6 +1430,7 @@ class TestDockWindowStrutsAndRegion:
             additional_distance_from_edge=0,
         )
         frame = build_geometry_frame(
+            zoom_cache=AlignedZoomCache(),
             items=[DockItem(desktop_id="firefox.desktop")],
             config=config,
             theme=theme,

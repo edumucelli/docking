@@ -44,7 +44,7 @@ from docking.platform.applications.types import (
     ApplicationOrigin,
 )
 from docking.platform.model import DockItem
-from docking.ui.geometry import Rect, build_geometry_frame
+from docking.ui.geometry import AlignedZoomCache, Rect, build_geometry_frame
 from tests.platform.application_fakes import ApplicationRegistryStub
 
 
@@ -478,6 +478,7 @@ class TestDragBeginMotion:
         def frame(*, main_cursor=-1.0, drop_insert_index=-1):
             horizontal = position in (Position.TOP, Position.BOTTOM)
             return build_geometry_frame(
+                zoom_cache=AlignedZoomCache(),
                 items=items,
                 config=config,
                 theme=theme,

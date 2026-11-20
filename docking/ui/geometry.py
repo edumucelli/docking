@@ -460,7 +460,7 @@ class DockGeometryInputs:
 
 
 @dataclass
-class _AlignedZoomCache:
+class AlignedZoomCache:
     """Reuse clickability probes while only the pointer is moving."""
 
     signature: tuple[object, ...] = ()
@@ -472,7 +472,7 @@ class DockGeometryBuilder:
 
     def __init__(self, window: DockWindow) -> None:
         self._window = window
-        self._zoom_cache = _AlignedZoomCache()
+        self._zoom_cache = AlignedZoomCache()
 
     def build_frame(
         self,
@@ -502,7 +502,7 @@ class DockGeometryBuilder:
             drop_insert_index=inputs.drop_insert_index,
             pointer_reveal_enabled=inputs.pointer_reveal_enabled,
             constrain_main_axis=inputs.constrain_main_axis,
-            _zoom_cache=self._zoom_cache,
+            zoom_cache=self._zoom_cache,
         )
 
 
@@ -585,7 +585,7 @@ def build_geometry_frame(
     constrain_main_axis: bool = False,
     pointer_reveal_enabled: bool = True,
     *,
-    _zoom_cache: _AlignedZoomCache | None = None,
+    zoom_cache: AlignedZoomCache,
 ) -> DockGeometryFrame:
     """Build shared geometry with smoothly varying zoom limits on aligned docks."""
 
@@ -624,29 +624,24 @@ def build_geometry_frame(
     if not centers:
         return build(zoom_progress)
 
-    limits: dict[int, float] = {}
-    if _zoom_cache is not None:
-        signature = (
-            config.pos,
-            config.dock_alignment,
-            config.icon_size,
-            config.zoom_percent,
-            theme,
-            effective_edge_gap(theme, config),
-            window_w,
-            window_h,
-            zoom_progress,
-            hide_offset,
-            drop_insert_index,
-            constrain_main_axis,
-            tuple(
-                (item.main_size, item.insert_factor, item.allow_zoom) for item in items
-            ),
-        )
-        if _zoom_cache.signature != signature:
-            _zoom_cache.signature = signature
-            _zoom_cache.limits.clear()
-        limits = _zoom_cache.limits
+    signature = (
+        config.pos,
+        config.dock_alignment,
+        config.icon_size,
+        config.zoom_percent,
+        theme,
+        effective_edge_gap(theme, config),
+        window_w,
+        window_h,
+        zoom_progress,
+        hide_offset,
+        drop_insert_index,
+        constrain_main_axis,
+        tuple((item.main_size, item.insert_factor, item.allow_zoom) for item in items),
+    )
+    if zoom_cache.signature != signature:
+        zoom_cache.signature = signature
+        zoom_cache.limits.clear()
 
     def find_safe_zoom(center: float, index: int) -> float:
         target = resting.item_geometries[index].item
@@ -675,9 +670,9 @@ def build_geometry_frame(
         return low
 
     def safe_zoom(center: float, index: int) -> float:
-        if index not in limits:
-            limits[index] = find_safe_zoom(center, index)
-        return limits[index]
+        if index not in zoom_cache.limits:
+            zoom_cache.limits[index] = find_safe_zoom(center, index)
+        return zoom_cache.limits[index]
 
     # Interpolate limits between resting centers so crossing a hit boundary
     # cannot suddenly switch the zoom off or back on.

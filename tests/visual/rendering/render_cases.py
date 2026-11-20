@@ -33,7 +33,11 @@ from docking.search.ui.window import SearchWindow
 from docking.ui.autohide import HideState
 from docking.ui.folder.browser import FolderRow
 from docking.ui.folder.stack import FolderStackController
-from docking.ui.geometry import build_geometry_frame, compute_dock_cross_metrics
+from docking.ui.geometry import (
+    AlignedZoomCache,
+    build_geometry_frame,
+    compute_dock_cross_metrics,
+)
 from docking.ui.menu import MenuHandler
 from docking.ui.preview import THUMB_H, THUMB_W, PreviewPopup
 from docking.ui.renderer import DockRenderer, RenderState
@@ -226,6 +230,7 @@ def _draw_renderer_case(case_name: str) -> cairo.ImageSurface:
         cursor_main=cursor_main,
     )
     frame = build_geometry_frame(
+        zoom_cache=AlignedZoomCache(),
         items=items,
         config=config,
         theme=theme,
@@ -274,6 +279,7 @@ def _draw_position_change_case() -> cairo.ImageSurface:
     def paint(pos: Position, width: int, height: int) -> cairo.ImageSurface:
         config.pos = pos
         frame = build_geometry_frame(
+            zoom_cache=AlignedZoomCache(),
             items=items,
             config=config,
             theme=theme,
@@ -310,6 +316,7 @@ def _draw_alignment_case(case_name: str) -> cairo.ImageSurface:
     cursor = -1.0
     if horizontal:
         resting = build_geometry_frame(
+            zoom_cache=AlignedZoomCache(),
             items=items,
             config=config,
             theme=theme,
@@ -321,6 +328,7 @@ def _draw_alignment_case(case_name: str) -> cairo.ImageSurface:
         first = resting.item_geometries[0].draw_rect
         cursor = first.x + first.w / 2
     frame = build_geometry_frame(
+        zoom_cache=AlignedZoomCache(),
         items=items,
         config=config,
         theme=theme,
