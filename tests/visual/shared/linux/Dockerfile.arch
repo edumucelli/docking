@@ -164,7 +164,7 @@ FROM hyprland-runtime AS aquamarine-builder
 RUN pacman -Syu --noconfirm --needed base-devel cmake hyprwayland-scanner && pacman -Scc --noconfirm
 RUN curl --fail --location https://codeload.github.com/hyprwm/aquamarine/tar.gz/f31c47a1b9d300847d8fc3108ad959448103dfc1 -o /tmp/aquamarine.tar.gz \
     && echo '975a3479b458722ec2e34e5fed9cdd46f77fa70485431f70093693532f685ff3  /tmp/aquamarine.tar.gz' | sha256sum -c - \
-    && curl --fail --location https://github.com/hyprwm/aquamarine/commit/7bb8bdf4e8fedaf4dfae58512bc4c728671727df.patch -o /tmp/configure.patch \
+    && curl --fail --location --retry 5 https://github.com/hyprwm/aquamarine/commit/7bb8bdf4e8fedaf4dfae58512bc4c728671727df.patch -o /tmp/configure.patch \
     && echo '542a3075643971d69862e7481446b9ec8f368338d1dcbc13ce26438a0e7e23cf  /tmp/configure.patch' | sha256sum -c - \
     && mkdir /tmp/aquamarine \
     && tar -xzf /tmp/aquamarine.tar.gz -C /tmp/aquamarine --strip-components=1 \
