@@ -58,7 +58,8 @@ RUN printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "$
 # Software rendering: correctness-representative, not performance-representative.
 ENV LIBGL_ALWAYS_SOFTWARE=1
 
-RUN pacman -Syyuu --noconfirm --needed \
+# Keep completed downloads in the package cache across transient archive failures.
+RUN set -- -Syyuu --noconfirm --needed \
         python \
         python-gobject \
         python-cairo \
@@ -78,6 +79,7 @@ RUN pacman -Syyuu --noconfirm --needed \
         util-linux \
         diffutils \
         sway \
+    && (pacman "$@" || (sleep 5 && pacman "$@") || (sleep 10 && pacman "$@")) \
     && pacman -Scc --noconfirm
 
 # Arch ships sway with cap_sys_nice=ep on the binary. Executing a file with a
@@ -176,7 +178,9 @@ FROM hyprland-runtime AS hyprland
 COPY --from=aquamarine-builder /tmp/installed/usr/lib/libaquamarine.so* /usr/lib/
 
 FROM base AS treeland
-RUN pacman -Syu --noconfirm --needed treeland accountsservice && pacman -Scc --noconfirm
+RUN set -- -Syu --noconfirm --needed treeland accountsservice \
+    && (pacman "$@" || (sleep 5 && pacman "$@") || (sleep 10 && pacman "$@")) \
+    && pacman -Scc --noconfirm
 RUN command -v treeland
 ENTRYPOINT ["bash", "/src/tests/visual/backends/treeland/system_session.sh"]
 
