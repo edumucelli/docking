@@ -179,6 +179,13 @@ appear in the dock. It keeps tracking hidden applications and recording recent
 history according to the existing recent-app settings. Turning it off restores
 the current running and recent items without changing pins or deleting history.
 
+Use **Edit Layout…** in the same section to add, remove, and reorder pinned
+applications, applets, files, folders, and separators. Move items within their
+anchored sections when anchoring is enabled. The dock previews reordering as you
+move items. **Apply** saves the order and applies any additions and removals.
+**Cancel** restores the saved order and discards pending edits. Unavailable pins
+stay in the editor so you can remove them or keep them for later.
+
 ### Mouse, Menus, and Stacks
 
 | Setting | Default | Values | Description |

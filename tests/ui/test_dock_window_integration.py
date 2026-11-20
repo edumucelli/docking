@@ -1521,10 +1521,16 @@ class TestDockWindowDrawAndHelpers:
         stub.autohide.reconcile.assert_called_once_with()
         stub.placement.update_struts.assert_called_once_with()
 
-    def test_on_draw_invokes_renderer_and_updates_region(self):
+    @pytest.mark.parametrize("sliding", [False, True])
+    def test_on_draw_invokes_renderer_and_updates_region(self, sliding):
         # Given
         renderer = renderer_mod.DockRenderer()
-        renderer.draw = MagicMock()
+
+        def draw(*_args):
+            if sliding:
+                renderer.slide_offsets["editor.desktop"] = 24.0
+
+        renderer.draw = MagicMock(side_effect=draw)
         geometry = SimpleNamespace()
         geometry.build_frame = MagicMock()
         stub = _bind_geometry_signature(
@@ -1569,6 +1575,7 @@ class TestDockWindowDrawAndHelpers:
             )
         )
         geometry.build_frame.side_effect = lambda **_kwargs: stub._test_geometry_frame
+        stub.schedule_redraw = MagicMock()
 
         # When
         result = input_controller_mod.DockInputController._on_draw(
@@ -1583,6 +1590,7 @@ class TestDockWindowDrawAndHelpers:
             frame=stub._cache.geometry_frame.frame
         )
         geometry.build_frame.assert_not_called()
+        assert stub.schedule_redraw.call_count == int(sliding)
 
     def test_on_draw_rebuilds_geometry_after_final_animation_mutation(self):
         stale_frame = SimpleNamespace(
@@ -1596,6 +1604,7 @@ class TestDockWindowDrawAndHelpers:
         geometry = SimpleNamespace(build_frame=MagicMock(return_value=current_frame))
         renderer = SimpleNamespace(
             draw=MagicMock(),
+            slide_offsets={},
             has_active_urgent_glow=lambda **_kwargs: False,
         )
         stub = _bind_geometry_signature(
@@ -1810,6 +1819,7 @@ class TestDockWindowDrawAndHelpers:
                 hover=SimpleNamespace(hovered_item=hovered),
                 renderer=SimpleNamespace(
                     draw=MagicMock(),
+                    slide_offsets={},
                     has_active_urgent_glow=lambda **_kwargs: False,
                 ),
                 model=_model_mock(),
@@ -1858,6 +1868,7 @@ class TestDockWindowDrawAndHelpers:
                 hover=SimpleNamespace(hovered_item=hovered, update=MagicMock()),
                 renderer=SimpleNamespace(
                     draw=MagicMock(),
+                    slide_offsets={},
                     has_active_urgent_glow=lambda **_kwargs: False,
                 ),
                 model=_model_mock(),
@@ -1909,6 +1920,7 @@ class TestDockWindowDrawAndHelpers:
                 hover=SimpleNamespace(hovered_item=hovered, update=MagicMock()),
                 renderer=SimpleNamespace(
                     draw=MagicMock(),
+                    slide_offsets={},
                     has_active_urgent_glow=lambda **_kwargs: False,
                 ),
                 model=_model_mock(),

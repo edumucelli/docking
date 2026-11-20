@@ -39,6 +39,7 @@ that make that work.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 
@@ -120,6 +121,16 @@ def applet_desktop_id(applet_id: str, instance: int | None = None) -> str:
     if instance is None:
         return f"{APPLET_PREFIX}{applet_id}"
     return f"{APPLET_PREFIX}{applet_id}#{instance}"
+
+
+def next_applet_instance_id(applet_id: str, occupied: Iterable[str]) -> str:
+    """Allocate an instance after the highest existing numeric suffix."""
+    prefix = f"{applet_desktop_id(applet_id)}#"
+    suffixes = (
+        value.removeprefix(prefix) for value in occupied if value.startswith(prefix)
+    )
+    last = max((int(suffix) for suffix in suffixes if suffix.isdecimal()), default=-1)
+    return applet_desktop_id(applet_id, last + 1)
 
 
 def category_for(applet_id: str) -> AppletCategory:

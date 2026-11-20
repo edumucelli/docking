@@ -148,7 +148,9 @@ import math
 import os
 import tempfile
 import threading
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Generator, Iterable
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -311,6 +313,9 @@ MAX_RECENT_APPS_RETENTION_DAYS = 90
 
 logger = get_logger("config")
 _SAVE_LOCK = threading.RLock()
+_MEMORY_ONLY_CONFIG: ContextVar[Config | None] = ContextVar(
+    "memory_only_config", default=None
+)
 
 
 class HideMode(str, Enum):
@@ -1250,10 +1255,21 @@ class Config:
         config._path = path
         return config
 
+    @contextmanager
+    def memory_only(self) -> Generator[None, None, None]:
+        """Keep incidental preference changes in memory during live projection."""
+        token = _MEMORY_ONLY_CONFIG.set(self)
+        try:
+            yield
+        finally:
+            _MEMORY_ONLY_CONFIG.reset(token)
+
     def save(
         self, path: Path | str | None = None, *, preserve_backup: bool = False
     ) -> None:
         """Save config to JSON file."""
+        if path is None and _MEMORY_ONLY_CONFIG.get() is self:
+            return
         path = Path(path) if path else self._path
         # Dotfiles setups symlink the config into a repository, and replacing
         # the link would leave the repo silently untracking it, so write through.

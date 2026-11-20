@@ -142,7 +142,7 @@ If these invariants hold, the rest of the dock can remain much simpler.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -156,10 +156,11 @@ from docking.applets.base import (
     TargetServicesApplet,
 )
 from docking.applets.identity import (
-    APPLET_PREFIX,
     applet_desktop_id,
     applet_id_from,
     is_applet_desktop_id,
+    next_applet_instance_id,
+    parse_applet_id,
 )
 from docking.applets.platform import AppletPlatformServices
 from docking.applets.separator import meta as _separator_meta
@@ -171,6 +172,8 @@ from docking.core.items import (
     FILE_KIND,
     FOLDER_KIND,
     DockItem,
+    ItemKind,
+    pinned_section,
 )
 from docking.core.math import clamp
 from docking.i18n import _
@@ -195,12 +198,23 @@ if TYPE_CHECKING:
     from docking.platform.applications.launcher import ApplicationLauncher
     from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.icons import IconLoader
-    from docking.platform.targets import TargetService
+    from docking.platform.targets import FileTargetInfo, TargetService
 
 log = with_context(get_logger(name="model"))
 
 ITEM_ANIMATION_DURATION_MS = 140
 _ITEM_ANIMATION_DURATION_US = ITEM_ANIMATION_DURATION_MS * 1000
+
+
+class LayoutConflictError(Exception):
+    """The saved pins or anchoring changed since the draft was opened."""
+
+
+@dataclass(frozen=True)
+class _PinOrderPreview:
+    original: tuple[PinnedEntry, ...]
+    anchors: tuple[bool, bool]
+    positions: dict[tuple[ItemKind, str], int]
 
 
 @dataclass(frozen=True)
@@ -294,6 +308,8 @@ class DockModel:
         self._recent_apps: list[DockItem] = []
         self._recent_item_overrides: dict[str, DockItem] = {}
         self._pending_application_ids: set[str] = set()
+        self._applying_layout = False
+        self._pin_order_preview: _PinOrderPreview | None = None
         self._initial_discovery_pending = application_registry.initial_discovery_pending
         raw_pinned = self._config.pinned
         if raw_pinned and not isinstance(raw_pinned[0], PinnedEntry):
@@ -349,6 +365,212 @@ class DockModel:
             if item is not None:
                 self.pinned_items.append(item)
 
+    def _matches_saved_layout(
+        self, pins: tuple[PinnedEntry, ...], anchors: tuple[bool, bool]
+    ) -> bool:
+        return (
+            tuple(self._config.pinned) == pins
+            and (
+                self._config.anchor_files,
+                self._config.anchor_applets,
+            )
+            == anchors
+        )
+
+    def preview_pinned_order(
+        self,
+        entries: list[PinnedEntry],
+        *,
+        expected_pins: tuple[PinnedEntry, ...],
+        expected_anchors: tuple[bool, bool],
+    ) -> None:
+        """Show a draft's order using only items already present on the dock."""
+        if not self._matches_saved_layout(expected_pins, expected_anchors):
+            self.clear_pinned_order_preview()
+            return
+        original = [(entry.kind, entry.target) for entry in expected_pins]
+        retained = set(original)
+        order = [
+            (entry.kind, entry.target)
+            for entry in entries
+            if (entry.kind, entry.target) in retained
+        ]
+        positions = {key: index for index, key in enumerate(order)}
+        if order == [key for key in original if key in positions]:
+            self.clear_pinned_order_preview()
+            return
+        preview = _PinOrderPreview(expected_pins, expected_anchors, positions)
+        if preview != self._pin_order_preview:
+            self._pin_order_preview = preview
+            self.notify()
+
+    def clear_pinned_order_preview(self) -> None:
+        """Restore the saved order without saving or rebuilding live items."""
+        if self._pin_order_preview is not None:
+            self._pin_order_preview = None
+            self.notify()
+
+    def _previewed_pins(self) -> list[DockItem]:
+        preview = self._pin_order_preview
+        if preview is None or not self._matches_saved_layout(
+            preview.original, preview.anchors
+        ):
+            return self.pinned_items
+        positions = preview.positions
+        retained = sorted(
+            (
+                item
+                for item in self.pinned_items
+                if (item.kind, item.desktop_id) in positions
+            ),
+            key=lambda item: positions[item.kind, item.desktop_id],
+        )
+        ordered = iter(retained)
+        return [
+            next(ordered) if (item.kind, item.desktop_id) in positions else item
+            for item in self.pinned_items
+        ]
+
+    def apply_pinned_layout(
+        self,
+        entries: list[PinnedEntry],
+        *,
+        expected_pins: tuple[PinnedEntry, ...],
+        expected_anchors: tuple[bool, bool],
+    ) -> tuple[PinnedEntry, ...]:
+        """Commit the saved order, then reconcile the live items in one batch."""
+        if not self._matches_saved_layout(expected_pins, expected_anchors):
+            raise LayoutConflictError
+        if entries == self._config.pinned:
+            return ()
+
+        previous = {(entry.kind, entry.target) for entry in expected_pins}
+        occupied = {
+            entry.id for entry in entries if (entry.kind, entry.target) in previous
+        }
+        selected: set[tuple[ItemKind, str]] = set()
+        prepared_files: dict[str, FileTargetInfo] = {}
+        for entry in entries:
+            identity = (entry.kind, entry.target)
+            if identity in selected:
+                raise ValueError(_("This item is already pinned."))
+            selected.add(identity)
+            if identity in previous:
+                continue
+            if entry.id in occupied:
+                raise ValueError(_("This item is already pinned."))
+            occupied.add(entry.id)
+            if entry.kind == APP_KIND:
+                app = self._application_registry.get(entry.target)
+                if app is None or app.origin is ApplicationOrigin.RUNTIME:
+                    raise ValueError(_("The selected application is unavailable."))
+            elif entry.kind == APPLET_KIND:
+                applet_id = parse_applet_id(entry.target)
+                meta = applets.get_applet_catalog().get(applet_id or "")
+                if meta is None or not meta.available_on_host:
+                    raise ValueError(_("The selected applet is unavailable."))
+            else:
+                info = self._target_service.resolve_file(
+                    target=entry.target, size=self._config.scaled_icon_size
+                )
+                if (
+                    info is None
+                    or info.target != entry.target
+                    or info.is_dir != (entry.kind == FOLDER_KIND)
+                ):
+                    raise ValueError(_("The selected file or folder is unavailable."))
+                prepared_files[entry.id] = info
+
+        new_app_ids = {
+            entry.id
+            for entry in entries
+            if entry.kind == APP_KIND and (entry.kind, entry.target) not in previous
+        }
+        self._config.save_replacement(
+            replace(
+                self._config,
+                pinned=[replace(entry) for entry in entries],
+                recent_apps=[
+                    record
+                    for record in self._config.recent_apps
+                    if record.get("desktop_id") not in new_app_ids
+                ],
+            )
+        )
+        self._pin_order_preview = None
+        self._applying_layout = True
+        try:
+            # Applet initialization may clean up old preferences. Keep the
+            # backup of the previous layout until the next ordinary save.
+            with self._config.memory_only():
+                failed = self._reconcile_pinned_layout(
+                    entries, selected, previous, prepared_files
+                )
+        finally:
+            self._applying_layout = False
+        self.notify()
+        return failed
+
+    def _reconcile_pinned_layout(
+        self,
+        entries: list[PinnedEntry],
+        selected: set[tuple[ItemKind, str]],
+        previous: set[tuple[ItemKind, str]],
+        prepared_files: dict[str, FileTargetInfo],
+    ) -> tuple[PinnedEntry, ...]:
+        live: dict[tuple[str, str], DockItem] = {}
+        for item in self.pinned_items:
+            entry = self._entry_from_item(item)
+            key = (entry.kind, entry.target)
+            if key in selected:
+                live[key] = item
+                continue
+            if entry.kind == APPLET_KIND:
+                applet = self._applets.pop(entry.id)
+                self._stop_applet(desktop_id=entry.id, applet=applet)
+            item.is_pinned = False
+            self._animation_last_update_us.pop(id(item), None)
+            if entry.kind == APP_KIND and (
+                item.is_running or self._is_launcher_only_transient(item)
+            ):
+                item.removal_index = -1
+                self._transient.append(item)
+
+        ordered: list[DockItem] = []
+        failed: list[PinnedEntry] = []
+        for entry in entries:
+            key = (entry.kind, entry.target)
+            if key in live:
+                ordered.append(live[key])
+                continue
+            if key in previous:
+                continue
+            if entry.kind == APP_KIND:
+                item = self.find_by_desktop_id(entry.id) or self._build_pinned_item(
+                    entry
+                )
+                if item is not None:
+                    self._promote_to_pinned(item)
+            elif entry.kind == APPLET_KIND:
+                item = self._build_pinned_item(entry)
+                if item is not None and not self._activate_pinned_applet(entry.id):
+                    item = None
+            else:
+                item = self._file_pinned_item(entry, prepared_files[entry.id])
+            if item is None:
+                failed.append(entry)
+            else:
+                ordered.append(item)
+
+        self.pinned_items[:] = ordered
+        self._pending_application_ids.intersection_update(self._pinned_ids())
+        for item in list(self._animating_out):
+            if (item.kind, self._entry_from_item(item).target) in selected:
+                self._animating_out.remove(item)
+                self._animation_last_update_us.pop(id(item), None)
+        self._materialize_recent_apps()
+        return tuple(failed)
+
     def append_imported_pins(self, entries: list[PinnedEntry]) -> list[PinnedEntry]:
         """Project newly saved pins and return entries that could not be loaded."""
         failed: list[PinnedEntry] = []
@@ -363,13 +585,9 @@ class DockModel:
                 self._promote_to_pinned(item)
                 continue
             self.pinned_items.append(item)
-            if entry.kind == APPLET_KIND:
-                applet = self._applets[entry.id]
-                if not self._start_applet(desktop_id=entry.id, applet=applet):
-                    self._stop_applet(desktop_id=entry.id, applet=applet)
-                    self._applets.pop(entry.id)
-                    self.pinned_items.remove(item)
-                    failed.append(entry)
+            if entry.kind == APPLET_KIND and not self._activate_pinned_applet(entry.id):
+                self.pinned_items.remove(item)
+                failed.append(entry)
         if entries:
             self._materialize_recent_apps()
             self.notify()
@@ -531,6 +749,11 @@ class DockModel:
             target=entry.target,
             size=icon_size,
         )
+        return self._file_pinned_item(entry, info)
+
+    def _file_pinned_item(
+        self, entry: PinnedEntry, info: FileTargetInfo | None
+    ) -> DockItem:
         if info is None:
             icon_name = fallback_file_icon_name(is_dir=entry.kind == FOLDER_KIND)
             item = DockItem(
@@ -542,7 +765,7 @@ class DockModel:
                 is_pinned=True,
                 icon=self._icon_loader.load_icon(
                     icon_name=icon_name,
-                    size=icon_size,
+                    size=self._config.scaled_icon_size,
                 ),
                 prefs_key=entry.target,
             )
@@ -1068,11 +1291,9 @@ class DockModel:
         if not cls:
             return
 
-        # Find next unused instance number
-        prefix = f"{APPLET_PREFIX}{_separator_meta.id}#"
-        nums = [int(k[len(prefix) :]) for k in self._applets if k.startswith(prefix)]
-        n = max(nums, default=-1) + 1
-        desktop_id = applet_desktop_id(applet_id=_separator_meta.id, instance=n)
+        desktop_id = next_applet_instance_id(
+            _separator_meta.id, (entry.id for entry in self._config.pinned)
+        )
 
         icon_size = self._config.scaled_icon_size
         try:
@@ -1115,14 +1336,28 @@ class DockModel:
                 self._reverse_item_animation(applet.item, target=1.0)
                 self.pinned_items.remove(applet.item)
                 self._animating_out.append(applet.item)
-            self.sync_pinned_to_config()
+            self.sync_pinned_to_config(removed_id=desktop_id)
             self._config.save()
             self.notify()
 
     def start_applets(self) -> None:
         """Start all active applets (call after dock is ready)."""
+        changed = False
         for desktop_id, applet in list(self._applets.items()):
-            self._start_applet(desktop_id=desktop_id, applet=applet)
+            if not self._activate_pinned_applet(desktop_id):
+                if applet.item in self.pinned_items:
+                    self.pinned_items.remove(applet.item)
+                changed = True
+        if changed:
+            self.notify()
+
+    def _activate_pinned_applet(self, desktop_id: str) -> bool:
+        applet = self._applets[desktop_id]
+        if self._start_applet(desktop_id=desktop_id, applet=applet):
+            return True
+        self._stop_applet(desktop_id=desktop_id, applet=applet)
+        self._applets.pop(desktop_id, None)
+        return False
 
     def stop_applets(self) -> None:
         """Stop all active applets (call on shutdown)."""
@@ -1155,18 +1390,22 @@ class DockModel:
 
     def visible_items(self) -> list[DockItem]:
         """Apply the dock's display policy without discarding tracked apps."""
-        return self._ordered_items(pinned_only=self._config.pinned_only)
+        return self._ordered_items(
+            self._previewed_pins(), pinned_only=self._config.pinned_only
+        )
 
     def tracked_items(self) -> list[DockItem]:
         """Unfiltered items in dock order for identity matching and Search."""
-        return self._ordered_items(pinned_only=False)
+        return self._ordered_items(self.pinned_items, pinned_only=False)
 
-    def _ordered_items(self, *, pinned_only: bool) -> list[DockItem]:
+    def _ordered_items(
+        self, pinned: list[DockItem], *, pinned_only: bool
+    ) -> list[DockItem]:
         if not self._config.show_recent_apps:
             recent: list[DockItem] = []
         else:
             recent = [item for item in self._recent_apps if not item.is_running]
-        items = self.pinned_items + recent + self._transient
+        items = pinned + recent + self._transient
         anchor_applets = self._config.anchor_applets
         anchor_files = self._config.anchor_files
         if not anchor_applets and not anchor_files:
@@ -1175,17 +1414,13 @@ class DockModel:
             # Rebuild the visible order with the optional "anchor applets/files
             # to the end" policy applied. This is a presentation rule only; the
             # underlying pinned/transient ownership does not change here.
-            regular: list[DockItem] = []
-            files: list[DockItem] = []
-            applet_items: list[DockItem] = []
+            sections: tuple[list[DockItem], ...] = ([], [], [])
             for item in items:
-                if anchor_applets and item.kind == APPLET_KIND:
-                    applet_items.append(item)
-                elif anchor_files and item.kind in {FILE_KIND, FOLDER_KIND}:
-                    files.append(item)
-                else:
-                    regular.append(item)
-            ordered = regular + files + applet_items
+                section = pinned_section(
+                    item.kind, anchor_files=anchor_files, anchor_applets=anchor_applets
+                )
+                sections[section].append(item)
+            ordered = [item for section in sections for item in section]
 
         if pinned_only:
             ordered = [
@@ -1620,7 +1855,7 @@ class DockModel:
                     item.removal_index = visible_index
                     self._reverse_item_animation(item, target=1.0)
                     self._animating_out.append(item)
-                self._persist_pinned_changes()
+                self._persist_pinned_changes(removed_id=desktop_id)
                 self._materialize_recent_apps()
             finally:
                 self._recent_item_overrides.pop(desktop_id, None)
@@ -1672,15 +1907,18 @@ class DockModel:
         self._materialize_recent_apps()
         self.notify()
 
-    def sync_pinned_to_config(self) -> None:
-        """Write current pinned_items order back to config (does not save to disk)."""
-        self._config.pinned = [
-            self._entry_from_item(item=item) for item in self.pinned_items
-        ]
+    def sync_pinned_to_config(self, *, removed_id: str | None = None) -> None:
+        """Project live pin order while retaining unavailable saved entries."""
+        entries = [self._entry_from_item(item=item) for item in self.pinned_items]
+        live = {(entry.kind, entry.target) for entry in entries}
+        for index, entry in enumerate(self._config.pinned):
+            if entry.id != removed_id and (entry.kind, entry.target) not in live:
+                entries.insert(index, entry)
+        self._config.pinned = entries
 
-    def _persist_pinned_changes(self) -> None:
+    def _persist_pinned_changes(self, *, removed_id: str | None = None) -> None:
         """Sync current pinned order to config and flush it to disk."""
-        self.sync_pinned_to_config()
+        self.sync_pinned_to_config(removed_id=removed_id)
         self._config.save()
 
     @staticmethod
@@ -1710,6 +1948,8 @@ class DockModel:
 
     def _notify_applet_changed(self, *, desktop_id: str) -> None:
         """Notify general redraw listeners and applet-specific consumers."""
+        if self._applying_layout:
+            return
         self.notify()
         for callback in list(self._applet_change_listeners):
             try:

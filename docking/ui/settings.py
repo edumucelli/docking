@@ -91,6 +91,7 @@ from docking.search.config import (
 )
 from docking.search.ui.shortcut_capture import ShortcutCaptureButton
 from docking.ui.dock_import import choose_docking_config_file, review_dock_import
+from docking.ui.dock_layout import DockLayoutEditor
 from docking.ui.dock_shortcut import DockShortcutController
 
 if TYPE_CHECKING:
@@ -867,6 +868,9 @@ class SettingsWindowController:
                 (_("Monitor"), monitor_box, None),
             ],
         )
+        edit_layout = Gtk.Button(label=_("Edit Layout…"))
+        edit_layout.set_sensitive(self._application_registry is not None)
+        edit_layout.connect("clicked", self._edit_layout)
         self._append_section(
             outer=outer,
             title=_("Layout"),
@@ -894,10 +898,18 @@ class SettingsWindowController:
                     self._anchor_files_switch,
                     _("Keep pinned files and folders grouped at the end of the dock."),
                 ),
+                (_("Pinned Items"), edit_layout, None),
             ],
         )
 
         return self._new_tab_scroller(outer, propagate_natural_width=True)
+
+    def _edit_layout(self, _button: Gtk.Button) -> None:
+        parent, registry = self._window, self._application_registry
+        if parent is not None and registry is not None:
+            editor = DockLayoutEditor(parent, self._config, self._model, registry)
+            if editor.run() and self._window is parent:
+                self._rebuild_applet_tab()
 
     def _build_behavior_tab(self) -> Gtk.Widget:
         outer = Gtk.Box(

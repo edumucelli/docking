@@ -240,7 +240,7 @@ class DockInputController:
                     fallback_y=window.cursor_y,
                 )
 
-        if window.renderer.has_active_urgent_glow(
+        if window.renderer.slide_offsets or window.renderer.has_active_urgent_glow(
             model=window.model,
             theme=window.theme,
             autohide_state=current_autohide_state,
