@@ -860,10 +860,14 @@ class _FakeGdk:
 
 
 class TestTooltipIntegrationBranches:
-    def test_show_tooltip_creates_window_and_clamps_to_screen(self, monkeypatch):
+    @pytest.mark.parametrize("x11", [False, True])
+    def test_show_tooltip_creates_window_and_stacks_relative_to_dock(
+        self, monkeypatch, x11
+    ):
         # Given
         monkeypatch.setattr(tooltip_mod, "Gtk", _FakeGtk)
         monkeypatch.setattr(tooltip_mod, "Gdk", _FakeGdk)
+        monkeypatch.setattr(tooltip_mod, "is_x11_backend", lambda *, display: x11)
         window = MagicMock()
         dock_surface = window.get_window.return_value
         window.surface_service.popups_use_parent_relative_coordinates = False
@@ -889,7 +893,7 @@ class TestTooltipIntegrationBranches:
         assert tooltip._tooltip_window._accept_focus is False
         assert tooltip._tooltip_window._focus_on_map is False
         tooltip._tooltip_window._surface.restack.assert_called_once_with(
-            dock_surface, False
+            dock_surface, x11
         )
         moved = tooltip._tooltip_window._moved
         assert moved is not None
