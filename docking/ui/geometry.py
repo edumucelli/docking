@@ -247,6 +247,7 @@ from docking.core.layout import (
     compute_layout,
     content_bounds,
 )
+from docking.core.math import clamp
 from docking.core.position import Position, aligned_main_axis_start, is_horizontal
 from docking.ui.autohide import HideState
 
@@ -588,6 +589,7 @@ def build_geometry_frame(
     zoom_cache: AlignedZoomCache,
 ) -> DockGeometryFrame:
     """Build shared geometry with smoothly varying zoom limits on aligned docks."""
+    resting_center: float | None = None
 
     def build(progress: float, *, cursor: float = cursor_main) -> DockGeometryFrame:
         return _build_geometry_frame(
@@ -603,6 +605,7 @@ def build_geometry_frame(
             drop_insert_index=drop_insert_index,
             pointer_reveal_enabled=pointer_reveal_enabled,
             constrain_main_axis=constrain_main_axis,
+            resting_center=resting_center,
         )
 
     if (
@@ -616,6 +619,8 @@ def build_geometry_frame(
 
     horizontal = is_horizontal(config.pos)
     resting = build(0.0)
+    if 0.0 < config.dock_alignment < 1.0:
+        resting_center = resting.shelf_main_pos + resting.shelf_main_extent / 2
     centers = [
         (_item_main_center(item_geometry=geometry, pos=config.pos), index)
         for index, geometry in enumerate(resting.item_geometries)
@@ -700,6 +705,7 @@ def _build_geometry_frame(
     window_h: int,
     cursor_main: float,
     autohide_state: HideState | None,
+    resting_center: float | None,
     zoom_progress: float = 1.0,
     hide_offset: float = 0.0,
     drop_insert_index: int = -1,
@@ -802,6 +808,7 @@ def _build_geometry_frame(
         main_size=main_size,
         start=background_rect.x if horizontal else background_rect.y,
         extent=background_rect.w if horizontal else background_rect.h,
+        resting_center=resting_center,
     )
     if shift:
         dx, dy = (shift, 0) if horizontal else (0, shift)
@@ -1043,12 +1050,19 @@ def _local_cursor_main(
 
 
 def _main_axis_alignment_shift(
-    *, config: Config, main_size: int, start: float, extent: float
+    *,
+    config: Config,
+    main_size: int,
+    start: float,
+    extent: float,
+    resting_center: float | None = None,
 ) -> int:
-    """Translate a shelf while preserving the existing centered pixel layout."""
+    """Align a resting shelf or keep its center during zoom until it hits an edge."""
     alignment = getattr(config, "dock_alignment", 0.5)
-    if alignment == 0.5:
-        desired = min(max(0.0, main_size - extent), max(0.0, start))
+    if resting_center is not None:
+        desired = clamp(resting_center - extent / 2, 0.0, max(0.0, main_size - extent))
+    elif alignment == 0.5:
+        desired = clamp(start, 0.0, max(0.0, main_size - extent))
     else:
         desired = aligned_main_axis_start(
             available=main_size,

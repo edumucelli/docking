@@ -214,6 +214,25 @@ class TestDockAlignment:
             )
 
     @pytest.mark.parametrize("position", list(Position))
+    @pytest.mark.parametrize("alignment", [0.0, 0.04, 0.29, 0.71, 0.96, 1.0])
+    def test_zoom_expands_around_resting_center_until_screen_edge(
+        self, position, alignment
+    ):
+        config = Config(position=position.value, dock_alignment=alignment)
+        items = [DockItem(desktop_id=f"app-{i}.desktop") for i in range(3)]
+        resting = self.frame(config, items)
+        center = resting.shelf_main_pos + resting.shelf_main_extent / 2
+
+        hovered = self.frame(config, items, cursor=center)
+
+        assert hovered.shelf_main_extent > resting.shelf_main_extent
+        ideal_start = center - hovered.shelf_main_extent / 2
+        last_start = 420 - hovered.shelf_main_extent
+        assert hovered.shelf_main_pos == pytest.approx(
+            min(max(ideal_start, 0), last_start), abs=1
+        )
+
+    @pytest.mark.parametrize("position", list(Position))
     @pytest.mark.parametrize("alignment", [0.0, 1.0])
     @pytest.mark.parametrize("zoom", [1.5, 4.0])
     @pytest.mark.parametrize("index", [0, -1])
