@@ -219,6 +219,48 @@ class WindowsAppBar:
     def mapping(self, monitor: MonitorSnapshot, display: Gdk.Display) -> ScreenMapping:
         return self._coordinates.mapping(monitor, display)
 
+    def set_dock_accept_focus(self, window: Gdk.Window, accept: bool) -> None:
+        """Keep the dock out of automatic shell focus handoffs outside menus."""
+        if self._closed or not (hwnd := window_handle(window)):
+            return
+        index = -20  # GWL_EXSTYLE.
+        no_activate = 0x08000000  # WS_EX_NOACTIVATE.
+        read_style = _bind(
+            self._user,
+            "GetWindowLongPtrW",
+            ctypes.c_ssize_t,
+            wintypes.HWND,
+            ctypes.c_int,
+        )
+        windows_ctypes.set_last_error(0)
+        style = read_style(hwnd, index)
+        if not style and (error := windows_ctypes.get_last_error()):
+            log.warning(
+                "Could not read the dock activation style (Win32 error %d)", error
+            )
+            return
+        desired = style & ~no_activate if accept else style | no_activate
+        if desired == style:
+            return
+        write_style = _bind(
+            self._user,
+            "SetWindowLongPtrW",
+            ctypes.c_ssize_t,
+            wintypes.HWND,
+            ctypes.c_int,
+            ctypes.c_ssize_t,
+        )
+        windows_ctypes.set_last_error(0)
+        if not write_style(hwnd, index, desired) and (
+            error := windows_ctypes.get_last_error()
+        ):
+            log.warning(
+                "Could not update the dock activation style (Win32 error %d)", error
+            )
+            return
+        # NOSIZE | NOMOVE | NOZORDER | NOACTIVATE | FRAMECHANGED.
+        self._set_position(hwnd, None, 0, 0, 0, 0, 0x37)
+
     def ensure_keep_above(self, window: Gdk.Window) -> bool:
         """Confirm native stacking, repairing stale GTK hints without activation.
 
