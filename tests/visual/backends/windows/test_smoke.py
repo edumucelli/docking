@@ -2,7 +2,11 @@
 
 import pytest
 
-from tests.visual.backends.windows.smoke import dock_window, placement_pixels
+from tests.visual.backends.windows.smoke import (
+    dock_window,
+    open_background_menu,
+    placement_pixels,
+)
 
 
 def test_startup_hover_popup_cannot_replace_the_dock_observation():
@@ -23,6 +27,31 @@ def test_startup_hover_popup_cannot_replace_the_dock_observation():
 )
 def test_transient_or_unrelated_windows_do_not_establish_dock_startup(rows):
     assert dock_window(rows) is None
+
+
+def test_native_menu_waits_for_dock_input_and_the_mapped_menu():
+    dock = {"hwnd": 20, "title": "Docking", "rect": (0, 540, 1024, 720)}
+    tooltip = {"hwnd": 10, "title": "Docking", "rect": (520, 591, 585, 620)}
+    menu = {"hwnd": 30, "title": "Docking", "rect": (510, 400, 720, 699)}
+    desktop = iter([[dock, tooltip], [dock, tooltip, menu]])
+    hits = iter([None, dock["hwnd"]])
+    clicks = []
+
+    class Native:
+        def window_at(self, x, y):
+            assert (x, y) == (512, 695)
+            return next(hits)
+
+        def wait_for(self, predicate, _message):
+            assert not predicate()
+            return predicate()
+
+        def click(self, x, y, *, right, control, before_press):
+            before_press()
+            clicks.append((x, y, right, control))
+
+    assert open_background_menu(Native(), dock, lambda: next(desktop)) is menu
+    assert clicks == [(512, 695, True, True)]
 
 
 @pytest.mark.parametrize("edge", ["bottom", "top", "left", "right"])

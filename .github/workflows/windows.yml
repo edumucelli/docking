@@ -96,7 +96,18 @@ jobs:
       - name: Verify native multiwindow grouping, cycling and restored pins
         run: python -m tests.visual.backends.windows.runtime_pin_smoke --multiple-windows --uncataloged --output artifacts/windows/multiple-windows
       - name: Verify fullscreen stacking and startup recovery
-        run: python -m tests.visual.backends.windows.fullscreen_smoke --output artifacts/windows/fullscreen
+        id: fullscreen
+        run: |
+          # Always behind needs an idle desktop. The hosted agent's terminal can cover the dock.
+          powershell.exe -NoLogo -NoProfile -NonInteractive -Command '$ErrorActionPreference = "Stop"; (New-Object -ComObject Shell.Application).MinimizeAll()'
+          python -m tests.visual.backends.windows.fullscreen_smoke --output artifacts/windows/fullscreen
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && steps.fullscreen.outcome == 'failure' }}
+        with:
+          name: windows-fullscreen-failure-ucrt64-x64
+          path: artifacts/windows/fullscreen/
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Verify Windows Server input API, layouts and shortcuts
         run: python -m tools.windows.ci --stage input --input-coverage server-api --installed-root artifacts/windows/runtime --wheel dist/*.whl --source-sha "$GITHUB_SHA"
       - name: Verify the complete Windows notification icon domain

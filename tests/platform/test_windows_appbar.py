@@ -297,6 +297,32 @@ def test_all_edges_use_the_available_desktop_beyond_external_panels(position, ex
     assert edge_strip(Rect(-1920, 24, 1920, 1000), position, 60) == expected
 
 
+def test_dock_activation_style_preserves_native_bits_and_allows_menu_focus(monkeypatch):
+    monkeypatch.setattr(appbar, "window_handle", lambda _window: 123)
+    monkeypatch.setattr(appbar.windows_ctypes, "set_last_error", Mock(), raising=False)
+    layered_topmost = 0x00080008
+    no_activate = 0x08000000
+    bar = appbar.WindowsAppBar.__new__(appbar.WindowsAppBar)
+    bar._closed = False
+    bar._user = SimpleNamespace(
+        GetWindowLongPtrW=Mock(
+            side_effect=[layered_topmost, layered_topmost | no_activate]
+        ),
+        SetWindowLongPtrW=Mock(return_value=1),
+    )
+    bar._set_position = Mock()
+    window = Mock()
+
+    bar.set_dock_accept_focus(window, False)
+    bar.set_dock_accept_focus(window, True)
+
+    assert bar._user.SetWindowLongPtrW.call_args_list == [
+        call(123, -20, layered_topmost | no_activate),
+        call(123, -20, layered_topmost),
+    ]
+    assert bar._set_position.call_args_list == [call(123, None, 0, 0, 0, 0, 0x37)] * 2
+
+
 def test_native_topmost_repair_ignores_stale_gtk_hint_and_waits_for_confirmation(
     monkeypatch,
 ):

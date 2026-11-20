@@ -177,6 +177,7 @@ from docking.applets.identity import is_applet_desktop_id as is_applet
 from docking.core.position import Position
 from docking.i18n import _
 from docking.log import get_logger
+from docking.platform.environment import is_x11_backend
 from docking.ui.display import clamp_popup, popup_workarea, window_screen_position
 from docking.ui.geometry import DockGeometryFrame
 
@@ -582,11 +583,15 @@ class TooltipManager:
         self._tooltip_window.move(tx, ty)
         self._tooltip_window.show_all()
 
-        # Keep tooltips behind dialogs and other dock popups.
         tooltip_surface = self._tooltip_window.get_window()
         dock_surface = self._window.get_window()
         if tooltip_surface is not None and dock_surface is not None:
-            tooltip_surface.restack(dock_surface, False)
+            # The X11 dock backing window overlaps the tooltip. Stack directly
+            # above it, leaving any higher dialogs or popups above the tooltip.
+            tooltip_surface.restack(
+                dock_surface,
+                is_x11_backend(display=self._tooltip_window.get_display()),
+            )
 
     def hide(self) -> None:
         """Hide the tooltip window and clear tracking state."""

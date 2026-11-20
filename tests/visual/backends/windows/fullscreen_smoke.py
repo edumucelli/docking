@@ -192,6 +192,9 @@ def run_scenario(output: Path, scenario: str) -> None:
             dock = native.wait_for(
                 lambda: dock_window(native.windows(os.getpid())), "Dock did not map"
             )
+            assert style(dock["hwnd"], -20) & 0x08000000, (
+                "The native dock can take focus when another window closes"
+            )
 
             def trace_native_stacking():
                 surface = shared["ui"].window.surface_service
@@ -281,6 +284,9 @@ def run_scenario(output: Path, scenario: str) -> None:
                         "native_hwnd_topmost": bool(style(handle, -20) & 8)
                         if handle
                         else None,
+                        "native_hwnd_no_activate": bool(style(handle, -20) & 0x08000000)
+                        if handle
+                        else None,
                         "reservation_active": surface._reservation is not None,
                         "restoration_source_alive": source is not None,
                         "restoration_due_ms": (
@@ -304,7 +310,7 @@ def run_scenario(output: Path, scenario: str) -> None:
                     "dock_topmost": bool(style(dock["hwnd"], -20) & 8),
                     "stacking": call(stacking),
                     "fixture": fixture_window(),
-                    "foreground": int(native.user.GetForegroundWindow()),
+                    "foreground": int(native.user.GetForegroundWindow() or 0),
                     "clock_rectangle": rectangle,
                     "non_fixture_pixels": sum(
                         count for count, color in colors if color != COLOR
@@ -321,7 +327,16 @@ def run_scenario(output: Path, scenario: str) -> None:
                     (rectangle[0] + rectangle[2]) // 2,
                     (rectangle[1] + rectangle[3]) // 2,
                 )
-                assert native.window_at(*point) == dock["hwnd"]
+                report["clock_point"] = point
+
+                def clock_receives_input():
+                    report["startup_window_at_clock"] = native.window_at(*point)
+                    return report["startup_window_at_clock"] == dock["hwnd"]
+
+                native.wait_for(
+                    clock_receives_input,
+                    "Always behind dock did not receive input above the idle desktop",
+                )
                 launch_fixture()
                 bind(
                     native.user,
@@ -466,6 +481,7 @@ def run_scenario(output: Path, scenario: str) -> None:
 
             def after_close():
                 state = observe()
+                report["last_closed_observation"] = state
                 return (
                     state
                     if state["dock_topmost"]
@@ -527,7 +543,9 @@ def run_scenario(output: Path, scenario: str) -> None:
                                 "result": int(result),
                                 "error": ctypes.get_last_error(),
                                 "topmost": bool(style(dock["hwnd"], -20) & 8),
-                                "foreground": int(native.user.GetForegroundWindow()),
+                                "foreground": int(
+                                    native.user.GetForegroundWindow() or 0
+                                ),
                             }
                         )
                     return observations

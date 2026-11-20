@@ -450,6 +450,8 @@ def test_windows_surface_preserves_gtk_hints_and_placement_without_reduced_servi
     # lifecycle on every host without loading Windows DLLs.
     service._appbar = appbar = Mock()
     service._menus = menus = Mock()
+    window.connect.side_effect = [8, 9]
+    window.get_accept_focus.return_value = False
     service.on_realize(window)
     assert window.set_skip_taskbar_hint.call_args_list == [call(True), call(True)]
     assert window.set_skip_pager_hint.call_args_list == [call(True), call(True)]
@@ -459,6 +461,13 @@ def test_windows_surface_preserves_gtk_hints_and_placement_without_reduced_servi
     assert window.set_keep_above.call_args_list == [call(True), call(True)]
     assert window.set_type_hint.call_count == 2
     menus.bind_parent.assert_called_once_with(window.get_window.return_value)
+    native = window.get_window.return_value
+    appbar.set_dock_accept_focus.assert_called_once_with(native, False)
+    signal, sync_focus = window.connect.call_args.args
+    assert signal == "notify::accept-focus"
+    window.get_accept_focus.return_value = True
+    sync_focus(window, None)
+    appbar.set_dock_accept_focus.assert_called_with(native, True)
     service.position_or_anchor(placement)
     window.set_size_request.assert_called_once_with(300, 40)
     window.resize.assert_called_once_with(300, 40)
@@ -467,6 +476,7 @@ def test_windows_surface_preserves_gtk_hints_and_placement_without_reduced_servi
     service.stop()
     appbar.close.assert_called_once_with()
     menus.stop.assert_called_once_with()
+    assert window.disconnect.call_args_list == [call(8), call(9)]
     forbidden.assert_not_called()
 
 

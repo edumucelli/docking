@@ -412,6 +412,15 @@ def _phase(output: Path, phase: str, runtime) -> None:
                 lambda: dock_window(native.windows(os.getpid())),
                 "Dock did not map",
             )
+            if phase in {"pin", "restart"}:
+                # Publishing the first catalog can insert running apps and move icons.
+                native.wait_for(
+                    lambda: (
+                        not call(lambda: shared["registry"].initial_discovery_pending)
+                    ),
+                    "Initial application catalog did not complete before pin input",
+                    seconds=60,
+                )
 
             def point():
                 window = shared["ui"].window

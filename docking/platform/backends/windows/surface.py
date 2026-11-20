@@ -81,6 +81,7 @@ class WindowsSurfaceService(SurfaceService):
 
         self._map_source = 0
         self._map_handler = 0
+        self._focus_handler = 0
         self._placement: PlacementRequest | None = None
         self._menus: WindowsMenuSession | None = None
         self._popup_focus: WindowsMenuFocus | None = None
@@ -148,6 +149,11 @@ class WindowsSurfaceService(SurfaceService):
 
         if not self._map_handler:
             self._map_handler = window.connect("map-event", self._mapped)
+        if not self._focus_handler:
+            self._focus_handler = window.connect(
+                "notify::accept-focus", self._sync_focus
+            )
+        self._sync_focus(window)
         if self._menus is None:
             from docking.platform.desktop.implementations.windows.menus import (
                 WindowsMenuSession,
@@ -155,6 +161,11 @@ class WindowsSurfaceService(SurfaceService):
 
             self._menus = WindowsMenuSession(window)
         self._menus.bind_parent(window.get_window())
+
+    def _sync_focus(self, window: Gtk.Window, *_args: object) -> None:
+        native = window.get_window()
+        if self._appbar is not None and native is not None:
+            self._appbar.set_dock_accept_focus(native, window.get_accept_focus())
 
     def prepare_menu_popup(self, menu: object) -> None:
         if self._window is None:
@@ -301,10 +312,11 @@ class WindowsSurfaceService(SurfaceService):
         if self._map_source:
             GLib.source_remove(self._map_source)
             self._map_source = 0
-        if self._map_handler and self._window is not None:
-            if self._window.handler_is_connected(self._map_handler):
-                self._window.disconnect(self._map_handler)
-            self._map_handler = 0
+        if self._window is not None:
+            for handler in (self._map_handler, self._focus_handler):
+                if handler and self._window.handler_is_connected(handler):
+                    self._window.disconnect(handler)
+        self._map_handler = self._focus_handler = 0
         if self._refresh_source:
             GLib.source_remove(self._refresh_source)
             self._refresh_source = 0

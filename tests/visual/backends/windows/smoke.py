@@ -13,9 +13,13 @@ import os
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from ctypes import wintypes
 from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
+
+if TYPE_CHECKING:
+    from tests.visual.backends.windows.desktop_driver import WindowsDesktop
 
 
 def dock_window(rows: list[dict]) -> dict | None:
@@ -28,6 +32,37 @@ def dock_window(rows: list[dict]) -> dict | None:
         ),
         None,
     )
+
+
+def open_background_menu(
+    native: WindowsDesktop, dock: dict, windows: Callable[[], list[dict]]
+) -> dict:
+    """Send one native Ctrl-right-click and observe its mapped menu."""
+    left, _top, right, bottom = dock["rect"]
+    x, y = (left + right) // 2, bottom - 25
+    dock_hwnd = dock["hwnd"]
+
+    def wait_for_dock_input():
+        native.wait_for(
+            lambda: native.window_at(x, y) == dock_hwnd,
+            "Native pointer did not reach the dock input region",
+        )
+
+    def mapped_menu():
+        return next(
+            (
+                window
+                for window in windows()
+                if window["hwnd"] != dock_hwnd
+                and window["title"] == "Docking"
+                and window["rect"][0] >= 0
+                and window["rect"][2] - window["rect"][0] > 100
+            ),
+            None,
+        )
+
+    native.click(x, y, right=True, control=True, before_press=wait_for_dock_input)
+    return native.wait_for(mapped_menu, "Docking's native context menu did not open")
 
 
 def placement_pixels(
@@ -109,6 +144,9 @@ def main() -> None:
         parser.error("This check requires a native Windows desktop")
     from PIL import ImageChops, ImageGrab
 
+    from tests.visual.backends.windows.desktop_driver import WindowsDesktop
+
+    native = WindowsDesktop()
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     repo = Path(__file__).resolve().parents[4]
@@ -241,33 +279,20 @@ def main() -> None:
             raise ctypes.WinError(ctypes.get_last_error())
         time.sleep(0.15)
 
-    def open_background_menu() -> None:
-        # Let GTK handle the preceding native pointer motion and update its
-        # shaped input region before delivering the button events.
-        time.sleep(0.3)
-        events = (Input * 4)(
-            Input(type=1, data=InputData(keyboard=KeyboardInput(key=0x11))),
-            Input(type=0, data=InputData(mouse=MouseInput(flags=0x0008))),
-            Input(type=0, data=InputData(mouse=MouseInput(flags=0x0010))),
-            Input(type=1, data=InputData(keyboard=KeyboardInput(key=0x11, flags=2))),
-        )
-        if user32.SendInput(4, events, ctypes.sizeof(Input)) != 4:
-            raise ctypes.WinError(ctypes.get_last_error())
-        time.sleep(1)
-
     def click_menu_row(menu_window: dict, rows_from_bottom: int) -> None:
         # The baseline lab uses the default Windows GTK theme at 96 DPI. These
         # row centers were checked against the captured native menu. This is a
         # desktop acceptance test, not an arbitrary-theme menu geometry test.
         x1, _y1, x2, y2 = menu_window["rect"]
-        user32.SetCursorPos((x1 + x2) // 2, y2 - 24 - 25 * rows_from_bottom)
-        time.sleep(0.25)
-        events = (Input * 2)(
-            Input(type=0, data=InputData(mouse=MouseInput(flags=0x0002))),
-            Input(type=0, data=InputData(mouse=MouseInput(flags=0x0004))),
-        )
-        if user32.SendInput(2, events, ctypes.sizeof(Input)) != 2:
-            raise ctypes.WinError(ctypes.get_last_error())
+        x, y = (x1 + x2) // 2, y2 - 24 - 25 * rows_from_bottom
+
+        def wait_for_menu_input():
+            native.wait_for(
+                lambda: native.window_at(x, y) == menu_window["hwnd"],
+                "Native context menu row was covered before input",
+            )
+
+        native.click(x, y, before_press=wait_for_menu_input)
 
     def set_icon_size(preferences: dict, size: int) -> None:
         _x1, y1, x2, _y2 = preferences["rect"]
@@ -288,16 +313,6 @@ def main() -> None:
         for character in str(size):
             key(ord(character))
         key(0x0D)
-
-    def menu_window(pid: int) -> dict:
-        return next(
-            w
-            for w in windows(pid)
-            if w["hwnd"] != dock["hwnd"]
-            and w["title"] == "Docking"
-            and w["rect"][0] >= 0
-            and w["rect"][2] - w["rect"][0] > 100
-        )
 
     def windows(pid: int) -> list[dict]:
         rows = []
@@ -504,20 +519,37 @@ def main() -> None:
         report["hover_preserves_focus"] = user32.GetForegroundWindow() == foreground
         if not report["hover_preserves_focus"]:
             raise AssertionError("Hovering Docking stole keyboard focus")
-        open_background_menu()
-        menu = ImageGrab.grab(all_screens=True)
-        menu.save(output / "menu.png")
-        difference = ImageChops.difference(hover.convert("RGB"), menu.convert("RGB"))
-        changed = (
-            difference.convert("L").point(lambda value: bool(value)).histogram()[1]
+        context_menu = open_background_menu(
+            native, dock, lambda: windows(application_pid)
         )
-        report["menu_changed_pixels"] = changed
         report["windows_after_menu"] = windows(application_pid)
-        if changed < 1000:
-            raise AssertionError(
-                "The native context-menu input produced no substantial visual change"
+        vx, vy = user32.GetSystemMetrics(76), user32.GetSystemMetrics(77)
+        x1, y1, x2, y2 = context_menu["rect"]
+        # The menu's upper half is away from the dock's hover repaint.
+        menu_center = ((x1 + x2) // 2, (y1 + y2) // 2)
+        menu_bounds = (x1 - vx, y1 - vy, x2 - vx, menu_center[1] - vy)
+        before_menu = hover.crop(menu_bounds).convert("RGB")
+
+        def painted_menu():
+            report["menu_hit_test"] = native.window_at(*menu_center)
+            if report["menu_hit_test"] != context_menu["hwnd"]:
+                return None
+            frame = ImageGrab.grab(all_screens=True)
+            difference = ImageChops.difference(
+                before_menu, frame.crop(menu_bounds).convert("RGB")
             )
-        click_menu_row(menu_window(application_pid), 3)
+            changed = (
+                difference.convert("L").point(lambda value: bool(value)).histogram()[1]
+            )
+            report["menu_changed_pixels"] = changed
+            return frame if changed >= 1000 else None
+
+        menu = native.wait_for(
+            painted_menu,
+            "The native context-menu input produced no substantial visual change",
+        )
+        menu.save(output / "menu.png")
+        click_menu_row(context_menu, 3)
         deadline = time.monotonic() + 10
         preferences = None
         while time.monotonic() < deadline:
@@ -562,9 +594,9 @@ def main() -> None:
                 "Resizing the dock placed it behind Explorer's taskbar"
             )
         ImageGrab.grab(all_screens=True).save(output / "resized.png")
-        user32.SetCursorPos((left + right) // 2, bottom - 25)
-        open_background_menu()
-        click_menu_row(menu_window(application_pid), 0)
+        click_menu_row(
+            open_background_menu(native, dock, lambda: windows(application_pid)), 0
+        )
         report["shutdown_method"] = "menu_quit"
         child.wait(timeout=10)
         report["ok"] = True

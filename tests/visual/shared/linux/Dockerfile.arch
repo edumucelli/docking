@@ -24,19 +24,20 @@
 # ---------------------------------------------------------------------------
 ARG ARCH_IMAGE=archlinux@sha256:b21322c663be387c0ed9cbc7bbbfe18e41633ad4e7b7c77cfad45f128be20040
 ARG ARCH_SNAPSHOT=2026/10/02
-FROM ${ARCH_IMAGE} AS pywayland-builder
+FROM ${ARCH_IMAGE} AS archive
 ARG ARCH_SNAPSHOT
 RUN printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "$ARCH_SNAPSHOT" >/etc/pacman.d/mirrorlist
+COPY --chmod=0755 install-arch-packages.sh /usr/local/bin/install-arch-packages
 
-RUN pacman -Syyuu --noconfirm --needed \
+FROM archive AS pywayland-builder
+RUN install-arch-packages -Syyuu --noconfirm --needed \
         base-devel \
         python \
         python-pip \
         libffi \
         wayland \
         wayland-protocols \
-        pkgconf \
-    && pacman -Scc --noconfirm
+        pkgconf
 
 RUN python -m pip install --upgrade --ignore-installed --break-system-packages pip \
     && python -m pip install --no-compile --no-binary=pywayland --break-system-packages \
@@ -51,15 +52,12 @@ RUN PYTHONPATH="$(ls -d /vendors/vendor-python*)" python -c \
 # ---------------------------------------------------------------------------
 # Stage: shared Arch base.
 # ---------------------------------------------------------------------------
-FROM ${ARCH_IMAGE} AS base
-ARG ARCH_SNAPSHOT
-RUN printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "$ARCH_SNAPSHOT" >/etc/pacman.d/mirrorlist
+FROM archive AS base
 
 # Software rendering: correctness-representative, not performance-representative.
 ENV LIBGL_ALWAYS_SOFTWARE=1
 
-# Keep completed downloads in the package cache across transient archive failures.
-RUN set -- -Syyuu --noconfirm --needed \
+RUN install-arch-packages -Syyuu --noconfirm --needed \
         python \
         python-gobject \
         python-cairo \
@@ -78,9 +76,7 @@ RUN set -- -Syyuu --noconfirm --needed \
         ca-certificates \
         util-linux \
         diffutils \
-        sway \
-    && (pacman "$@" || (sleep 5 && pacman "$@") || (sleep 10 && pacman "$@")) \
-    && pacman -Scc --noconfirm
+        sway
 
 # Arch ships sway with cap_sys_nice=ep on the binary. Executing a file with a
 # capability the container's bounding set does not include fails with EPERM
@@ -123,7 +119,7 @@ LABEL org.docking.purpose="headless Wayland compositor lab (non-Debian composito
 # inside nested niri, selects wayland-layer-shell, and places correctly.
 # ---------------------------------------------------------------------------
 FROM base AS niri
-RUN pacman -Syu --noconfirm --needed niri && pacman -Scc --noconfirm
+RUN install-arch-packages -Syu --noconfirm --needed niri
 RUN command -v niri && niri --version
 
 
@@ -139,7 +135,7 @@ RUN command -v niri && niri --version
 # Verified: Docking selects its native COSMIC backend and places on all edges.
 # ---------------------------------------------------------------------------
 FROM base AS cosmic
-RUN pacman -Syu --noconfirm --needed cosmic-comp sway && pacman -Scc --noconfirm
+RUN install-arch-packages -Syu --noconfirm --needed cosmic-comp sway
 RUN setcap -r /usr/bin/sway; command -v sway && command -v cosmic-comp && cosmic-comp --version
 
 
@@ -147,23 +143,23 @@ RUN setcap -r /usr/bin/sway; command -v sway && command -v cosmic-comp && cosmic
 # Target: all -- every non-Debian compositor.
 # ---------------------------------------------------------------------------
 FROM base AS all
-RUN pacman -Syu --noconfirm --needed niri cosmic-comp wayfire hyprland && pacman -Scc --noconfirm
+RUN install-arch-packages -Syu --noconfirm --needed niri cosmic-comp wayfire hyprland
 RUN command -v niri && command -v cosmic-comp
 
 # Wayfire >=0.11/wlroots >=0.19 supports Pixman without a DRM device.
 FROM base AS wayfire
-RUN pacman -Syu --noconfirm --needed wayfire && pacman -Scc --noconfirm
+RUN install-arch-packages -Syu --noconfirm --needed wayfire
 RUN command -v wayfire && wayfire --version
 
 # Hyprland's nested Aquamarine backend needs a render node and dmabuf feedback.
 FROM base AS hyprland-runtime
-RUN pacman -Syu --noconfirm --needed hyprland niri && pacman -Scc --noconfirm
+RUN install-arch-packages -Syu --noconfirm --needed hyprland niri
 RUN command -v Hyprland && command -v hyprctl
 
 # shortcut: Arch's Aquamarine 0.15.1 loses nested output configures; remove this
 # backport when the pinned snapshot includes upstream fix #415 (7bb8bdf4).
 FROM hyprland-runtime AS aquamarine-builder
-RUN pacman -Syu --noconfirm --needed base-devel cmake hyprwayland-scanner && pacman -Scc --noconfirm
+RUN install-arch-packages -Syu --noconfirm --needed base-devel cmake hyprwayland-scanner
 RUN curl --fail --location https://codeload.github.com/hyprwm/aquamarine/tar.gz/f31c47a1b9d300847d8fc3108ad959448103dfc1 -o /tmp/aquamarine.tar.gz \
     && echo '975a3479b458722ec2e34e5fed9cdd46f77fa70485431f70093693532f685ff3  /tmp/aquamarine.tar.gz' | sha256sum -c - \
     && curl --fail --location --retry 5 https://github.com/hyprwm/aquamarine/commit/7bb8bdf4e8fedaf4dfae58512bc4c728671727df.patch -o /tmp/configure.patch \
@@ -178,21 +174,17 @@ FROM hyprland-runtime AS hyprland
 COPY --from=aquamarine-builder /tmp/installed/usr/lib/libaquamarine.so* /usr/lib/
 
 FROM base AS treeland
-RUN set -- -Syu --noconfirm --needed treeland accountsservice \
-    && (pacman "$@" || (sleep 5 && pacman "$@") || (sleep 10 && pacman "$@")) \
-    && pacman -Scc --noconfirm
+RUN install-arch-packages -Syu --noconfirm --needed treeland accountsservice
 RUN command -v treeland
 ENTRYPOINT ["bash", "/src/tests/visual/backends/treeland/system_session.sh"]
 
 FROM base AS gamescope
-RUN pacman -Syu --noconfirm --needed gamescope vulkan-swrast xorg-xprop xdotool \
-    && pacman -Scc --noconfirm
+RUN install-arch-packages -Syu --noconfirm --needed gamescope vulkan-swrast xorg-xprop xdotool
 RUN command -v gamescope
 
 FROM base AS jay
-RUN pacman -Syu --noconfirm --needed rust cargo gcc libinput pango fontconfig \
-        xorg-xwayland vulkan-swrast \
-    && pacman -Scc --noconfirm
+RUN install-arch-packages -Syu --noconfirm --needed rust cargo gcc libinput pango fontconfig \
+        xorg-xwayland vulkan-swrast
 RUN cargo install --locked --version 1.15.1 --root /usr/local jay-compositor \
     && rm -rf /root/.cargo/registry /root/.cargo/git
 RUN command -v jay
