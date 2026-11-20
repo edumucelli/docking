@@ -1174,7 +1174,13 @@ class Config:
                 and not original_path.is_symlink()
                 and not found_backups
             ):
-                imported = first_run_import()
+                try:
+                    imported = first_run_import()
+                except (OSError, RuntimeError, ValueError) as exc:
+                    logger.warning(
+                        "First-run dock import failed (%s). Using the default layout.",
+                        type(exc).__name__,
+                    )
             ensure_parent_dir(path)
             lock_path = path.with_name(f".{path.name}.lock")
             # Serialize publication without holding a lock during the review dialog.

@@ -1567,6 +1567,23 @@ def test_first_run_import_saves_empty_layout_and_is_never_offered_again(tmp_path
     seed.assert_not_called()
 
 
+@pytest.mark.parametrize("error", [OSError, RuntimeError, ValueError])
+def test_failed_first_run_import_saves_defaults(tmp_path, caplog, error):
+    path = tmp_path / "dock.json"
+    pins = [PinnedEntry("applet", "applet://clock")]
+    seed = MagicMock(return_value=pins)
+    migrate = MagicMock(side_effect=error("Simulated import failure"))
+
+    config = Config.load(path, initial_pinned_factory=seed, first_run_import=migrate)
+    reloaded = Config.load(path, initial_pinned_factory=seed, first_run_import=migrate)
+
+    assert path.is_file()
+    assert config.pinned == reloaded.pinned == pins
+    assert f"First-run dock import failed ({error.__name__})" in caplog.text
+    migrate.assert_called_once_with()
+    seed.assert_called_once_with()
+
+
 def test_first_run_import_protects_backup_and_config_created_during_review(tmp_path):
     path = tmp_path / "dock.json"
     backup = tmp_path / "dock.json.bak"
