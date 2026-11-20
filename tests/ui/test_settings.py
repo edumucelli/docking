@@ -951,6 +951,18 @@ class TestSettingsWindowController:
         ]
         preview_section = appearance_box.get_children()[2]
         layout_section = appearance_box.get_children()[4]
+        edit_row = layout_section.get_children()[1].get_children()[-1]
+        assert edit_row.get_children()[0].get_label() == "Pinned Items"
+        edit_button = edit_row.get_children()[1]
+        assert edit_button.label == "Edit Layout…"
+        editor = MagicMock()
+        editor.return_value.run.return_value = False
+        monkeypatch.setattr(settings_mod, "DockLayoutEditor", editor)
+        edit_button.click()
+        editor.assert_called_once_with(
+            window, controller._config, controller._model, registry
+        )
+        editor.return_value.run.assert_called_once_with()
         pinned_row = layout_section.get_children()[1].get_children()[0]
         assert pinned_row.get_children()[0].get_label() == "Pinned Only"
         assert (

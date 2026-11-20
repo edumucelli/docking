@@ -30,6 +30,15 @@ FILE_KIND: ItemKind = "file"
 FOLDER_KIND: ItemKind = "folder"
 
 
+def pinned_section(kind: ItemKind, *, anchor_files: bool, anchor_applets: bool) -> int:
+    """Return the shared display order for the anchored sections."""
+    if anchor_applets and kind == APPLET_KIND:
+        return 2
+    if anchor_files and kind in {FILE_KIND, FOLDER_KIND}:
+        return 1
+    return 0
+
+
 class IconPixmapLike(Protocol):
     """Pixmap-like icon contract used by the renderer and color helpers."""
 
