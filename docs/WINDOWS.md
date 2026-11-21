@@ -67,7 +67,7 @@ The optional Qt companion uses a separate standard CPython x64 environment:
 
 ```powershell
 py -3.13 -m venv "$env:LOCALAPPDATA\Docking\WebEngine"
-& "$env:LOCALAPPDATA\Docking\WebEngine\Scripts\python.exe" -m pip install -r requirements-windows-browser.txt
+& "$env:LOCALAPPDATA\Docking\WebEngine\Scripts\python.exe" -m pip install -r tools/windows/requirements-windows-browser.txt
 $env:DOCKING_WEBENGINE_PYTHON = "$env:LOCALAPPDATA\Docking\WebEngine\Scripts\python.exe"
 ```
 

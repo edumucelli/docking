@@ -27,7 +27,7 @@ source .venv/bin/activate
 # the distribution-provided PyGObject runtime
 pip install -e ".[dev]"
 PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
-  pip install --no-deps -r requirements-typing.txt
+  pip install --no-deps -r tools/requirements-typing.txt
 ```
 
 Or with [uv](https://docs.astral.sh/uv/):
@@ -37,7 +37,7 @@ uv venv --python /usr/bin/python3 --system-site-packages .venv
 source .venv/bin/activate
 uv pip install -e ".[dev]"
 PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
-  uv pip install --no-deps -r requirements-typing.txt
+  uv pip install --no-deps -r tools/requirements-typing.txt
 ```
 
 ## Running
@@ -224,8 +224,7 @@ rebuild. From the `website` directory, use `npm run dev` directly. Run
 Hetzner hosts `website/dist` through a dedicated native Komodo Stack. The website
 workflow promotes tested website inputs to `deploy/docking-cc`; unrelated desktop
 commits do not trigger or block website deployment. Runtime/dependency/workflow
-changes require operational review. The root `netlify.toml` retains the old deploy
-for DNS propagation and skips new automatic Netlify builds.
+changes require operational review.
 Publish the built directory, not the source `website` directory. Build output
 and `node_modules` are ignored by Git. Tailwind runs at build time; visitors
 do not download a CSS compiler. Applet icons come from the repository, and the

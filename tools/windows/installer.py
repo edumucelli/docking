@@ -78,7 +78,7 @@ def build_upgrade_fixture(
             "MANIFEST.in",
             "README.md",
             "LICENSE",
-            "requirements-windows-browser.txt",
+            "tools/windows/requirements-windows-browser.txt",
             "tools/windows/__init__.py",
             "tools/windows/input_runtime.py",
         )
