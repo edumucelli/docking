@@ -98,13 +98,12 @@ class SunriseApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         status = [
-            disabled_menu_item(menu_header_label(self._snapshot), gtk=Gtk),
+            disabled_menu_item(menu_header_label(self._snapshot)),
         ]
         if self._active_city is not None:
             status.append(
                 disabled_menu_item(
                     _("Times shown in system timezone"),
-                    gtk=Gtk,
                 )
             )
 
@@ -126,7 +125,6 @@ class SunriseApplet(Applet):
                 on_selected=lambda _widget, value: self._on_label_mode_selected(
                     label_mode=value,
                 ),
-                gtk=Gtk,
             )
         ]
 
@@ -144,7 +142,6 @@ class SunriseApplet(Applet):
             refresh=[change_city],
             display=display,
             destructive=destructive,
-            gtk=Gtk,
         )
 
     def start(self, notify: Callable[[], None]) -> None:

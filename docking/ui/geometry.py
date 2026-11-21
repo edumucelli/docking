@@ -741,11 +741,11 @@ def _build_geometry_frame(
     cursor_main: float,
     autohide_state: HideState | None,
     resting_center: float | None,
-    zoom_progress: float = 1.0,
-    hide_offset: float = 0.0,
-    drop_insert_index: int = -1,
-    constrain_main_axis: bool = False,
-    pointer_reveal_enabled: bool = True,
+    zoom_progress: float,
+    hide_offset: float,
+    drop_insert_index: int,
+    constrain_main_axis: bool,
+    pointer_reveal_enabled: bool,
 ) -> DockGeometryFrame:
     """Build one shared dock geometry snapshot from current runtime state."""
     pos = config.pos
@@ -919,10 +919,10 @@ def _build_geometry_frame(
 def capture_geometry_inputs(
     window: DockWindow,
     *,
-    main_cursor: float | None = None,
-    cursor_x: float | None = None,
-    cursor_y: float | None = None,
-    drop_insert_index: int = -1,
+    main_cursor: float | None,
+    cursor_x: float | None,
+    cursor_y: float | None,
+    drop_insert_index: int,
 ) -> DockGeometryInputs:
     """Capture explicit geometry inputs from the current dock window state."""
     # Keep GTK imports out of the pure geometry module until capture is needed.
@@ -1042,9 +1042,9 @@ def _local_cursor_main(
     main_size: int,
     cursor_main: float,
     resting_layout: Sequence[LayoutItem],
-    layout_scale: float = 1.0,
-    drop_gap: float = 0.0,
-    constrain_main_axis: bool = False,
+    layout_scale: float,
+    drop_gap: float,
+    constrain_main_axis: bool,
 ) -> float:
     if cursor_main < 0:
         return NO_CURSOR_SENTINEL

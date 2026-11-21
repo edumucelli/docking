@@ -53,7 +53,7 @@ class DeviceSnapshot:
     acl_file: Path | None = None
 
 
-def discover_video_devices(*, dev_root: Path = DEV_ROOT) -> tuple[Path, ...]:
+def discover_video_devices(*, dev_root: Path) -> tuple[Path, ...]:
     """Return camera device nodes this helper is allowed to operate on."""
     try:
         entries = tuple(dev_root.iterdir())

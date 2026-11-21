@@ -974,14 +974,11 @@ class TestPinnedOnly:
         for desktop_id in ("pinned.desktop", "overlay.desktop"):
             state = LauncherEntryState(
                 sender_name=f":1.{7 if desktop_id == 'pinned.desktop' else 8}",
-                app_uri=f"application://{desktop_id}",
                 desktop_id=desktop_id,
                 badge_count=7,
                 badge_visible=True,
             )
             assert model.apply_launcher_entry(
-                sender_name=state.sender_name,
-                app_uri=state.app_uri,
                 state=state,
                 create_transient=True,
             )
@@ -1978,11 +1975,8 @@ class TestLauncherEntryState:
         model = _make_model(config, dependencies, AppletServices())
 
         applied = model.apply_launcher_entry(
-            sender_name=":1.7",
-            app_uri="application://a.desktop",
             state=LauncherEntryState(
                 sender_name=":1.7",
-                app_uri="application://a.desktop",
                 desktop_id="a.desktop",
                 badge_count=4,
                 badge_visible=True,
@@ -1990,6 +1984,7 @@ class TestLauncherEntryState:
                 progress_visible=True,
                 urgent=True,
             ),
+            create_transient=False,
         )
 
         item = model.visible_items()[0]
@@ -2008,15 +2003,13 @@ class TestLauncherEntryState:
         model = _make_model(config, dependencies, AppletServices())
 
         model.apply_launcher_entry(
-            sender_name=":1.7",
-            app_uri="application://a.desktop",
             state=LauncherEntryState(
                 sender_name=":1.7",
-                app_uri="application://a.desktop",
                 desktop_id="a.desktop",
                 badge_count=4,
                 badge_visible=True,
             ),
+            create_transient=False,
         )
 
         item = model.visible_items()[0]
@@ -2030,15 +2023,13 @@ class TestLauncherEntryState:
         model = _make_model(config, dependencies, AppletServices())
 
         model.apply_launcher_entry(
-            sender_name=":1.7",
-            app_uri="application://a.desktop",
             state=LauncherEntryState(
                 sender_name=":1.7",
-                app_uri="application://a.desktop",
                 desktop_id="a.desktop",
                 progress=0.6,
                 progress_visible=True,
             ),
+            create_transient=False,
         )
 
         item = model.visible_items()[0]
@@ -2053,7 +2044,6 @@ class TestLauncherEntryState:
         model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
-            app_uri="application://mail.desktop",
             desktop_id="mail.desktop",
             badge_count=7,
             badge_visible=True,
@@ -2062,8 +2052,6 @@ class TestLauncherEntryState:
         )
 
         applied = model.apply_launcher_entry(
-            sender_name=":1.9",
-            app_uri=state.app_uri,
             state=state,
             create_transient=True,
         )
@@ -2088,15 +2076,12 @@ class TestLauncherEntryState:
         model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
-            app_uri="application://mail.desktop",
             desktop_id="mail.desktop",
             badge_count=0,
             badge_visible=True,
         )
 
         applied = model.apply_launcher_entry(
-            sender_name=":1.9",
-            app_uri=state.app_uri,
             state=state,
             create_transient=True,
         )
@@ -2110,14 +2095,11 @@ class TestLauncherEntryState:
         model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
-            app_uri="application://mail.desktop",
             desktop_id="mail.desktop",
             badge_count=7,
             badge_visible=True,
         )
         model.apply_launcher_entry(
-            sender_name=":1.9",
-            app_uri=state.app_uri,
             state=state,
             create_transient=True,
         )
@@ -2142,15 +2124,12 @@ class TestLauncherEntryState:
         model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
-            app_uri="application://mail.desktop",
             desktop_id="mail.desktop",
             badge_count=7,
             badge_visible=True,
             urgent=True,
         )
         model.apply_launcher_entry(
-            sender_name=":1.9",
-            app_uri=state.app_uri,
             state=state,
             create_transient=True,
         )
@@ -2171,31 +2150,26 @@ class TestLauncherEntryState:
         model = _make_model(config, dependencies, AppletServices())
         urgent_state = LauncherEntryState(
             sender_name=":1.7",
-            app_uri="application://a.desktop",
             desktop_id="a.desktop",
             urgent=True,
         )
         badge_state = LauncherEntryState(
             sender_name=":1.8",
-            app_uri="application://a.desktop",
             desktop_id="a.desktop",
             badge_count=4,
             badge_visible=True,
         )
         model.apply_launcher_entry(
-            sender_name=urgent_state.sender_name,
-            app_uri=urgent_state.app_uri,
             state=urgent_state,
+            create_transient=False,
         )
         model.apply_launcher_entry(
-            sender_name=badge_state.sender_name,
-            app_uri=badge_state.app_uri,
             state=badge_state,
+            create_transient=False,
         )
         model.apply_launcher_entry(
-            sender_name=urgent_state.sender_name,
-            app_uri=urgent_state.app_uri,
             state=urgent_state,
+            create_transient=False,
         )
         assert model.visible_items()[0].launcher_entry_urgent is True
 
@@ -2212,14 +2186,12 @@ class TestLauncherEntryState:
         dependencies = _make_dependencies("a.desktop")
         model = _make_model(config, dependencies, AppletServices())
         model.apply_launcher_entry(
-            sender_name=":1.7",
-            app_uri="application://a.desktop",
             state=LauncherEntryState(
                 sender_name=":1.7",
-                app_uri="application://a.desktop",
                 desktop_id="a.desktop",
                 urgent=True,
             ),
+            create_transient=False,
         )
 
         model.update_running({"a.desktop": _running(urgent=False)})
@@ -2235,20 +2207,16 @@ class TestLauncherEntryState:
         model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
-            app_uri="application://mail.desktop",
             desktop_id="mail.desktop",
             badge_count=7,
             badge_visible=True,
         )
 
         first = model.apply_launcher_entry(
-            sender_name=":1.9",
-            app_uri=state.app_uri,
             state=state,
+            create_transient=False,
         )
         second = model.apply_launcher_entry(
-            sender_name=":1.9",
-            app_uri=state.app_uri,
             state=state,
             create_transient=True,
         )
@@ -2268,14 +2236,11 @@ class TestLauncherEntryState:
         model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
-            app_uri="application://mail.desktop",
             desktop_id="mail.desktop",
             urgent=True,
         )
 
         applied = model.apply_launcher_entry(
-            sender_name=":1.9",
-            app_uri=state.app_uri,
             state=state,
             create_transient=True,
         )
@@ -2294,14 +2259,11 @@ class TestLauncherEntryState:
         model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
-            app_uri="application://mail.desktop",
             desktop_id="mail.desktop",
             badge_count=7,
             badge_visible=True,
         )
         model.apply_launcher_entry(
-            sender_name=":1.9",
-            app_uri=state.app_uri,
             state=state,
             create_transient=True,
         )
@@ -2316,14 +2278,11 @@ class TestLauncherEntryState:
         model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
-            app_uri="application://mail.desktop",
             desktop_id="mail.desktop",
             badge_count=3,
             badge_visible=True,
         )
         model.apply_launcher_entry(
-            sender_name=":1.9",
-            app_uri=state.app_uri,
             state=state,
             create_transient=True,
         )
@@ -2342,13 +2301,10 @@ class TestLauncherEntryState:
         model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.9",
-            app_uri="application://mail.desktop",
             desktop_id="mail.desktop",
             urgent=True,
         )
         model.apply_launcher_entry(
-            sender_name=":1.9",
-            app_uri=state.app_uri,
             state=state,
             create_transient=True,
         )
@@ -2367,15 +2323,13 @@ class TestLauncherEntryState:
         model = _make_model(config, dependencies, AppletServices())
         state = LauncherEntryState(
             sender_name=":1.7",
-            app_uri="application://a.desktop",
             desktop_id="a.desktop",
             badge_count=2,
             badge_visible=True,
         )
         model.apply_launcher_entry(
-            sender_name=":1.7",
-            app_uri=state.app_uri,
             state=state,
+            create_transient=False,
         )
 
         model.unpin_item("a.desktop")
@@ -2396,15 +2350,13 @@ class TestStatusNotifierOverlayState:
             source_id="tray", desktop_id="a.desktop", badge_count=2
         )
         model.apply_launcher_entry(
-            sender_name=":1.7",
-            app_uri="application://a.desktop",
             state=LauncherEntryState(
                 sender_name=":1.7",
-                app_uri="application://a.desktop",
                 desktop_id="a.desktop",
                 badge_count=99,
                 badge_visible=False,
             ),
+            create_transient=False,
         )
 
         item = model.visible_items()[0]
@@ -2500,15 +2452,13 @@ class TestStatusNotifierOverlayState:
             badge_count=5,
         )
         model.apply_launcher_entry(
-            sender_name=":1.7",
-            app_uri="application://slack.desktop",
             state=LauncherEntryState(
                 sender_name=":1.7",
-                app_uri="application://slack.desktop",
                 desktop_id="slack.desktop",
                 badge_count=2,
                 badge_visible=True,
             ),
+            create_transient=False,
         )
 
         item = model.visible_items()[0]

@@ -93,7 +93,6 @@ class BookmarksApplet(Applet):
             primary=primary,
             manage=[add_item],
             destructive=[remove_all],
-            gtk=Gtk,
         )
 
     def _open_url(self, url: str) -> None:

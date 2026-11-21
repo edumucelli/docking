@@ -25,6 +25,29 @@ log_adapter() {
     printf '[adapter] %s\n' "$*" >&2
 }
 
+# One name per line for nested compositors that share the runtime directory.
+_wayland_sockets() {
+    local socket
+    for socket in "$XDG_RUNTIME_DIR"/wayland-*; do
+        [ -S "$socket" ] || continue
+        printf '%s\n' "${socket##*/}"
+    done
+}
+
+find_new_wayland_socket() {
+    local before="$1"
+    local socket
+    while read -r socket; do
+        [ -n "$socket" ] || continue
+        case "$before" in
+            *"$socket"*) continue ;;
+        esac
+        printf '%s\n' "$socket"
+        return 0
+    done < <(_wayland_sockets)
+    return 1
+}
+
 # The vendored dependency directory the packaged launcher also uses. Docking's
 # Wayland runtime imports pywayland protocol bindings that Debian's
 # python3-pywayland does not ship, so the image builds them from source into
@@ -100,14 +123,13 @@ framebuffer_geometry() {
 
 # SIGTERM, bounded grace, then SIGKILL. A bare `wait` on a process that ignores
 # SIGTERM blocks the whole run, so every teardown path goes through this.
-# $1 = pid, $2 = grace attempts (default 20 x 0.25s = 5s)
+# $1 = pid. Allow up to 5s before forcing termination.
 terminate_pid() {
     local pid="$1"
-    local attempts="${2:-20}"
     [ -n "$pid" ] || return 0
     kill -TERM "$pid" 2>/dev/null || true
     local _attempt
-    for _attempt in $(seq "$attempts"); do
+    for _attempt in $(seq 20); do
         kill -0 "$pid" 2>/dev/null || break
         sleep 0.25
     done
@@ -164,7 +186,7 @@ adapter_cleanup() {
 # loop refuses to proceed on timeout.
 # Provenance: runtime-smoke.sh:33-41.
 wait_for_wayland_socket() {
-    local attempts="${1:-80}"
+    local attempts="$1"
     local socket
     for _ in $(seq "$attempts"); do
         if ! kill -0 "$ADAPTER_COMPOSITOR_PID" 2>/dev/null; then
@@ -257,7 +279,7 @@ adapter_wait_ready() {
 # $2 = launch mode: "source" or "installed"
 start_docking() {
     local log_path="$1"
-    local mode="${2:-source}"
+    local mode="$2"
 
     export DOCKING_LOG_LEVEL="${DOCKING_LOG_LEVEL:-INFO}"
 

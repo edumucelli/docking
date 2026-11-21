@@ -921,7 +921,9 @@ def test_cold_readiness_unavailable_does_not_replace_measured_initial_read():
 @pytest.mark.parametrize(
     "failure", ["unavailable", "deadline", "identity", "api", "cancelled"]
 )
-def test_readiness_cannot_accept_timeout_target_loss_api_error_or_cancel(failure):
+def test_readiness_cannot_accept_timeout_target_loss_api_error_or_cancel(
+    failure, monkeypatch
+):
     from dataclasses import dataclass
 
     @dataclass
@@ -945,7 +947,9 @@ def test_readiness_cannot_accept_timeout_target_loss_api_error_or_cancel(failure
             cancelled.set()
         return None if failure == "unavailable" else State()
 
-    kwargs = {"seconds": 0} if failure == "deadline" else {}
+    if failure == "deadline":
+        clock = iter([0, 20])
+        monkeypatch.setattr(mod, "time", SimpleNamespace(monotonic=clock.__next__))
     expected = (
         OSError if failure in ("api", "unavailable", "deadline") else RuntimeError
     )
@@ -956,7 +960,6 @@ def test_readiness_cannot_accept_timeout_target_loss_api_error_or_cancel(failure
             journal=journal,
             publish=lambda: None,
             cancelled=cancelled,
-            **kwargs,
         )
     assert not journal["ready"]
     assert len(journal["attempts"]) <= 3

@@ -114,11 +114,9 @@ class ThermalsApplet(PlatformServicesApplet):
         status: list[Gtk.MenuItem] = []
         if self._snapshot is not None:
             if not self._snapshot.available:
-                status.append(
-                    disabled_menu_item(_("lm-sensors not installed"), gtk=Gtk)
-                )
+                status.append(disabled_menu_item(_("lm-sensors not installed")))
             elif self._snapshot.error:
-                status.append(disabled_menu_item(self._snapshot.error, gtk=Gtk))
+                status.append(disabled_menu_item(self._snapshot.error))
             else:
                 if self._snapshot.hottest is not None:
                     hot = self._snapshot.hottest
@@ -131,7 +129,6 @@ class ThermalsApplet(PlatformServicesApplet):
                                     temperature_unit=self._temperature_unit,
                                 ),
                             ),
-                            gtk=Gtk,
                         )
                     )
                 if self._snapshot.fan is not None:
@@ -142,24 +139,20 @@ class ThermalsApplet(PlatformServicesApplet):
                                 label=reading_label(fan),
                                 rpm=format_rpm(fan.rpm),
                             ),
-                            gtk=Gtk,
                         )
                     )
 
         state_status = self._live_status()
         state_label = live_state_label(state_status)
         if state_label:
-            status.append(disabled_menu_item(state_label, gtk=Gtk))
+            status.append(disabled_menu_item(state_label))
         error = live_state_error(status=state_status, error=self._last_error)
         if error:
-            status.append(
-                disabled_menu_item(_("Error: {msg}").format(msg=error), gtk=Gtk)
-            )
+            status.append(disabled_menu_item(_("Error: {msg}").format(msg=error)))
 
         status.append(
             disabled_menu_item(
                 cadence_label(seconds=REFRESH_INTERVAL_S, verb=_("Samples")),
-                gtk=Gtk,
             )
         )
 
@@ -177,7 +170,6 @@ class ThermalsApplet(PlatformServicesApplet):
                 on_selected=lambda _widget, value: self._on_temperature_unit_selected(
                     temperature_unit=value,
                 ),
-                gtk=Gtk,
             )
         ]
 
@@ -185,7 +177,6 @@ class ThermalsApplet(PlatformServicesApplet):
             status=status,
             refresh=[refresh],
             display=display,
-            gtk=Gtk,
         )
 
     def start(self, notify: Callable[[], None]) -> None:

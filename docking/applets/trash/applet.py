@@ -110,7 +110,7 @@ class TrashApplet(PlatformServicesApplet):
         """Return 'Open Trash' and 'Empty Trash' menu items."""
         status: list[Gtk.MenuItem] = []
         if self._action_error:
-            status.append(disabled_menu_item(self._action_error, gtk=Gtk))
+            status.append(disabled_menu_item(self._action_error))
 
         open_item = Gtk.MenuItem(label=_("Open Trash"))
         open_item.connect("activate", lambda _: self.on_clicked())
@@ -123,7 +123,6 @@ class TrashApplet(PlatformServicesApplet):
             status=status,
             primary=[open_item],
             destructive=[empty_item],
-            gtk=Gtk,
         )
 
     def start(self, notify: Callable[[], None]) -> None:

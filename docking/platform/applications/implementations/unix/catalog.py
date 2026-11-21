@@ -17,7 +17,7 @@ from ...backend import DiscoveryResult
 from ...steam import SteamDiscoveryResult, steam_app_id_from_exec
 from ..shared.monitor import GioCatalogMonitor
 from . import discovery, entries
-from .steam import game_application
+from .steam import SteamDiscovery, game_application
 
 
 class UnixApplicationCatalogBackend(ApplicationCatalogBackend):
@@ -46,7 +46,7 @@ class UnixApplicationCatalogBackend(ApplicationCatalogBackend):
         self._desktop_directories_source = (
             desktop_directories_source or entries.desktop_dirs
         )
-        self._steam_source = steam_source
+        self._steam_source = SteamDiscovery() if steam_source is None else steam_source
         self._desktop_app_info_for_id = Gio.DesktopAppInfo.new
         self._desktop_app_info_from_filename = Gio.DesktopAppInfo.new_from_filename
 
@@ -60,11 +60,7 @@ class UnixApplicationCatalogBackend(ApplicationCatalogBackend):
         )
 
     def steam(self) -> SteamDiscoveryResult:
-        return (
-            self._steam_source()
-            if self._steam_source is not None
-            else SteamDiscoveryResult()
-        )
+        return self._steam_source()
 
     def create_monitor(self, changed: Callable[[], None]) -> GioCatalogMonitor:
         return GioCatalogMonitor(changed, self._desktop_directories_source)

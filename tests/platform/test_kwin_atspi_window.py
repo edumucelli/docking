@@ -36,7 +36,9 @@ def test_accessibility_address_is_discovered_on_current_session_bus(monkeypatch)
     get_bus = MagicMock(return_value=session)
     monkeypatch.setattr(atspi_window.Gio, "bus_get_sync", get_bus)
 
-    assert atspi_window._at_spi_address() == "unix:path=/tmp/session-b/accessibility"
+    assert (
+        atspi_window._at_spi_address(None) == "unix:path=/tmp/session-b/accessibility"
+    )
 
     get_bus.assert_called_once_with(atspi_window.Gio.BusType.SESSION, None)
     args = session.call_sync.call_args.args
@@ -59,7 +61,7 @@ def test_invalid_discovered_address_has_no_socket_fallback(monkeypatch, address)
     monkeypatch.setattr(atspi_window.Gio, "bus_get_sync", lambda *_: session)
 
     with pytest.raises(ValueError):
-        atspi_window._at_spi_address()
+        atspi_window._at_spi_address(None)
 
 
 def test_missing_discovery_service_has_no_socket_fallback(monkeypatch):
@@ -68,7 +70,7 @@ def test_missing_discovery_service_has_no_socket_fallback(monkeypatch):
     monkeypatch.setattr(atspi_window.Gio, "bus_get_sync", lambda *_: session)
 
     with pytest.raises(RuntimeError, match=r"No org\.a11y\.Bus"):
-        atspi_window._at_spi_address()
+        atspi_window._at_spi_address(None)
 
 
 def test_explicit_address_works_without_session_discovery(monkeypatch):
@@ -76,7 +78,7 @@ def test_explicit_address_works_without_session_discovery(monkeypatch):
     get_bus = MagicMock(side_effect=RuntimeError("No session bus"))
     monkeypatch.setattr(atspi_window.Gio, "bus_get_sync", get_bus)
 
-    assert atspi_window._at_spi_address() == "unix:path=/tmp/explicit-accessibility"
+    assert atspi_window._at_spi_address(None) == "unix:path=/tmp/explicit-accessibility"
     get_bus.assert_not_called()
 
 
@@ -86,7 +88,7 @@ def test_invalid_explicit_address_does_not_fall_back_to_another_bus(monkeypatch)
     monkeypatch.setattr(atspi_window.Gio, "bus_get_sync", get_bus)
 
     with pytest.raises(ValueError, match="AT_SPI_BUS_ADDRESS"):
-        atspi_window._at_spi_address()
+        atspi_window._at_spi_address(None)
     get_bus.assert_not_called()
 
 

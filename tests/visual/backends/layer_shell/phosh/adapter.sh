@@ -19,7 +19,7 @@ adapter_start() {
 
 adapter_wait_ready() {
     # Screenshot success alone would race the shell's private protocol bind.
-    for _ in $(seq "${1:-80}"); do
+    for _ in $(seq 80); do
         kill -0 "$ADAPTER_COMPOSITOR_PID" 2>/dev/null || { report_compositor_failure; return 1; }
         if gdbus call --session --dest org.freedesktop.DBus \
             --object-path /org/freedesktop/DBus --method org.freedesktop.DBus.GetNameOwner \

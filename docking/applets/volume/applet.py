@@ -178,7 +178,7 @@ class VolumeApplet(PlatformServicesApplet):
                 "activate", lambda _widget: self._backend.settings.open()
             )
             settings.append(volume_settings)
-        return menu_sections(display=[show], settings=settings, gtk=Gtk)
+        return menu_sections(display=[show], settings=settings)
 
     def _on_toggle_level(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_level = widget.get_active()
@@ -199,11 +199,9 @@ class VolumeApplet(PlatformServicesApplet):
         )
         return True
 
-    def _on_poll_result(
-        self, state: VolumeState | None, *, generation: int | None = None
-    ) -> bool:
+    def _on_poll_result(self, state: VolumeState | None, *, generation: int) -> bool:
         """Apply polled state on main thread, refresh if changed."""
-        if generation is not None and generation != self._poll_generation:
+        if generation != self._poll_generation:
             return False
         if state is None:
             if self._available:

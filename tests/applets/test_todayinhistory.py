@@ -167,15 +167,18 @@ class TestHistoryHelpers:
         assert today_state_mod._parse_wikipedia_events(data=[], limit=3) == []
         assert today_state_mod._parse_wikipedia_events(data={}, limit=3) == []
 
-    def test_fallback_catalog_exact_pool_and_empty(self):
+    def test_fallback_catalog_exact_pool_and_empty(self, monkeypatch):
         catalog = {
             "03-14": [ENTRY],
             "03-15": [HistoryEvent(1900, "Other", "Other summary")],
         }
 
-        assert fallback_today_in_history(month=3, day=14, catalog=catalog) == [ENTRY]
-        assert fallback_today_in_history(month=1, day=1, catalog={"01-01": []}) == []
-        assert len(fallback_today_in_history(month=3, day=16, catalog=catalog)) == 2
+        monkeypatch.setattr(today_state_mod, "_load_fallback_catalog", lambda: catalog)
+        assert fallback_today_in_history(month=3, day=14) == [ENTRY]
+        assert len(fallback_today_in_history(month=3, day=16)) == 2
+
+        monkeypatch.setattr(today_state_mod, "_load_fallback_catalog", dict)
+        assert fallback_today_in_history(month=1, day=1) == []
 
 
 class TestTodayInHistoryApplet:

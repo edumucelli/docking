@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import random
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from importlib import resources
 from typing import Any
@@ -145,12 +145,8 @@ def load_cards() -> list[StretchCard]:
 
 def choose_random_card(
     cards: Sequence[StretchCard],
-    chooser: Callable[[Sequence[StretchCard]], StretchCard] | None = None,
 ) -> StretchCard | None:
-    if not cards:
-        return None
-    pick = chooser or random.choice
-    return pick(cards)
+    return random.choice(cards) if cards else None
 
 
 def format_remaining(seconds: int) -> str:
@@ -200,9 +196,8 @@ def prefs_from_state(state: StretchCoachState) -> dict[str, object]:
 def trigger_reminder(
     state: StretchCoachState,
     cards: Sequence[StretchCard],
-    chooser: Callable[[Sequence[StretchCard]], StretchCard] | None = None,
 ) -> StretchCoachState:
-    card = choose_random_card(cards, chooser=chooser) if state.cards_enabled else None
+    card = choose_random_card(cards) if state.cards_enabled else None
     return replace(
         state,
         remaining=0,
@@ -225,9 +220,8 @@ def acknowledge_reminder(state: StretchCoachState) -> StretchCoachState:
 def show_preview_card(
     state: StretchCoachState,
     cards: Sequence[StretchCard],
-    chooser: Callable[[Sequence[StretchCard]], StretchCard] | None = None,
 ) -> StretchCoachState:
-    card = choose_random_card(cards, chooser=chooser)
+    card = choose_random_card(cards)
     if state.due:
         return replace(state, active_card=card)
     return replace(state, preview_card=card)
@@ -249,7 +243,6 @@ def set_cards_enabled(state: StretchCoachState, enabled: bool) -> StretchCoachSt
 def tick(
     state: StretchCoachState,
     cards: Sequence[StretchCard],
-    chooser: Callable[[Sequence[StretchCard]], StretchCard] | None = None,
 ) -> TickResult:
     if state.due:
         return TickResult(state=state, became_due=False, should_refresh=False)
@@ -257,7 +250,7 @@ def tick(
     remaining = max(0, state.remaining - 1)
     next_state = replace(state, remaining=remaining)
     if remaining == 0:
-        due_state = trigger_reminder(next_state, cards=cards, chooser=chooser)
+        due_state = trigger_reminder(next_state, cards=cards)
         return TickResult(state=due_state, became_due=True, should_refresh=True)
 
     should_refresh = remaining <= 10 or remaining % REFRESH_EVERY_SECONDS == 0

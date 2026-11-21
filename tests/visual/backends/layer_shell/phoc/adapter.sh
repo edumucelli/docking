@@ -30,7 +30,7 @@ adapter_start() {
 
 adapter_wait_ready() {
     local target="$XDG_RUNTIME_DIR/.phoc-ready.png"
-    for _ in $(seq "${1:-60}"); do
+    for _ in $(seq 60); do
         kill -0 "$ADAPTER_COMPOSITOR_PID" 2>/dev/null || { report_compositor_failure; return 1; }
         if grim "$target" 2>/dev/null; then rm -f "$target"; return 0; fi
         sleep 0.25

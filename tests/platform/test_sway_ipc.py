@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from docking.core.config import Config
 from docking.platform.backends.base import ActionResult, DisplayServer, Rect, WindowId
 from docking.platform.backends.wayland.sway_ipc import (
     _HEADER,
@@ -91,7 +92,9 @@ class Client:
 
 def test_native_actions_and_workspace_names_are_not_command_injection():
     client = Client()
-    service = SwayWindowService(model=_model(), client=client, **identity_services())
+    service = SwayWindowService(
+        model=_model(), client=client, **identity_services(), config=Config()
+    )
     service.refresh()
     row = service.list_windows("firefox.desktop")[0]
     assert service.activate(row.id) is ActionResult.OK
@@ -168,7 +171,9 @@ def test_subscription_io_channel_reads_socket_and_stop_keeps_fd_ownership(tmp_pa
 
     client = Client()
     client.path = str(tmp_path / "events.sock")
-    service = SwayWindowService(model=_model(), client=client, **identity_services())
+    service = SwayWindowService(
+        model=_model(), client=client, **identity_services(), config=Config()
+    )
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
         server.bind(client.path)
         server.listen()

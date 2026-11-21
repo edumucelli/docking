@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from gi.repository import Gtk
 
 
-def apply_dock_hints(window: object, *, keep_above: bool = True) -> None:
+def apply_dock_hints(window: object, *, keep_above: bool) -> None:
     """Apply the toolkit's common dock-window hints."""
     # Surface services keep toolkit handles opaque until the GTK boundary.
     window = cast("Gtk.Window", window)

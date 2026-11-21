@@ -62,17 +62,11 @@ def host_command(
     return command
 
 
-def host_command_available(
-    command: str,
-    *,
-    timeout: float = 1.5,
-    require_flatpak: bool = True,
-) -> bool:
+def host_command_available(command: str) -> bool:
     """Return True when *command* exists on the host."""
     cmd = host_command(
         ["sh", "-lc", f"command -v {shlex.quote(command)} >/dev/null"],
         sanitize_env=False,
-        require_flatpak=require_flatpak,
     )
     if cmd is None:
         return shutil.which(command) is not None
@@ -81,7 +75,7 @@ def host_command_available(
             cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            timeout=timeout,
+            timeout=1.5,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):

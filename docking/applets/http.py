@@ -63,12 +63,11 @@ def http_get_bytes(
 def http_get_text(
     url: str,
     *,
-    timeout: float = 8.0,
-    user_agent: str = DEFAULT_USER_AGENT,
-    encoding: str = "utf-8",
+    timeout: float,
+    user_agent: str,
 ) -> str:
-    """Fetch a URL and decode the response body as text."""
-    return http_get_bytes(url, timeout=timeout, user_agent=user_agent).decode(encoding)
+    """Fetch a URL and decode the response body as UTF-8."""
+    return http_get_bytes(url, timeout=timeout, user_agent=user_agent).decode("utf-8")
 
 
 def http_get_json(

@@ -237,7 +237,7 @@ class KWinSessionBackend(SessionBackend):
         model: DockModel,
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
-        config: Config | None = None,
+        config: Config,
         protocol_runtime: WaylandProtocolRuntime | None = None,
     ) -> None:
         from docking.platform.backends.wayland.services import (

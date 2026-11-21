@@ -121,7 +121,7 @@ class SnapshotVisibilityMonitor(VisibilityMonitor):
         if not self._started:
             self._timer = 0
             return False
-        mode = self._config.hide_mode_enum if self._config else HideMode.NONE
+        mode = self._config.hide_mode_enum
         if mode in {
             HideMode.WINDOW_DODGE,
             HideMode.DODGE_ACTIVE,
@@ -139,7 +139,7 @@ class SnapshotVisibilityMonitor(VisibilityMonitor):
             hidden = should_hide(
                 windows=self._service._window_snapshots(),
                 dock=rect,
-                mode=self._config.hide_mode_enum if self._config else HideMode.NONE,
+                mode=self._config.hide_mode_enum,
             )
         if hidden != self._hidden:
             self._hidden = hidden
@@ -151,7 +151,7 @@ class SnapshotVisibilityService(VisibilityService):
         self,
         *,
         windows: WindowService,
-        config: Config | None,
+        config: Config,
         poll_ms: int = 0,
     ) -> None:
         self._windows = windows

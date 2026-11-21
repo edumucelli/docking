@@ -71,8 +71,8 @@ def score_fields(
     request: SearchRequest,
     fields: Iterable[str],
     *,
-    source_boost: float = 0,
-    state_boost: float = 0,
+    source_boost: float,
+    state_boost: float,
 ) -> float | None:
     """Return the best shared matcher score across provider-owned fields."""
     matched = best_match(

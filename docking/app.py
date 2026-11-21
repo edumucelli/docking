@@ -90,7 +90,6 @@ from docking.platform.applications.recents import (
     RecentApplicationsPersistence,
 )
 from docking.platform.applications.registry import ApplicationRegistry
-from docking.platform.composition.base import PlatformProvider
 from docking.platform.composition.selection import platform_provider
 from docking.platform.environment import apply_tweaks, detect_desktop
 from docking.platform.icons import IconLoader
@@ -151,9 +150,9 @@ def _refresh_application_icon(model: DockModel, desktop_id: str) -> None:
         model.refresh_item_icons(item)
 
 
-def main(provider: PlatformProvider | None = None) -> None:
+def main() -> None:
     """Entry point for the docking application."""
-    provider = platform_provider() if provider is None else provider
+    provider = platform_provider()
     apply_tweaks(desktop=detect_desktop())
 
     with ExitStack() as providers, ExitStack() as cleanup:

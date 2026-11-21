@@ -26,6 +26,7 @@ def _settings_controller(**kwargs):
     kwargs["actions"].dock_shortcut_mode_pending.return_value = False
     kwargs["actions"].dock_shortcut_status.return_value = ""
     kwargs["actions"].dock_shortcut_label.return_value = None
+    kwargs.setdefault("application_registry", MagicMock())
     return settings_mod.SettingsWindowController(**kwargs)
 
 

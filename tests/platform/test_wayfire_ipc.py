@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import docking.platform.backends.wayland.wayfire_ipc as wayfire_ipc
+from docking.core.config import Config
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.backends.wayland.wayfire_ipc import (
     WayfireIpcClient,
@@ -120,7 +121,7 @@ def test_wayfire_snapshot_visibility_does_not_guess_inactive_workspaces(
         pid=1234,
     )
     service = WayfireWindowService(
-        model=_model(), **identity_services(), client=MagicMock()
+        config=Config(), model=_model(), **identity_services(), client=MagicMock()
     )
     snapshot = service._snapshot_for(record)
     assert snapshot.visible is visible
@@ -145,7 +146,7 @@ def test_wayfire_snapshot_visibility_uses_its_own_output_viewport(x, visible):
         output_id=2,
     )
     service = WayfireWindowService(
-        model=_model(), **identity_services(), client=MagicMock()
+        config=Config(), model=_model(), **identity_services(), client=MagicMock()
     )
     # A negative global output origin is valid; view geometry is output-relative.
     service._outputs = {
@@ -216,6 +217,7 @@ def test_wayfire_payload_with_pid_flows_through_real_matcher_to_model():
     )
     services = identity_services()
     service = WayfireWindowService(
+        config=Config(),
         model=model,
         **services,
         client=client,
@@ -269,6 +271,7 @@ def test_wayfire_window_service_polls_for_late_window_changes(monkeypatch):
         }
     )
     service = WayfireWindowService(
+        config=Config(),
         model=model,
         **identity_services(),
         client=client,
@@ -401,6 +404,7 @@ def test_wayfire_window_service_minimize_all_and_toggle_focus():
         }
     )
     service = WayfireWindowService(
+        config=Config(),
         model=model,
         **identity_services(),
         client=client,
@@ -539,6 +543,7 @@ def test_wayfire_event_watcher_dispatches_events_to_handler():
     """Simulate an event stream and verify the handler updates records."""
     model = _model()
     service = WayfireWindowService(
+        config=Config(),
         model=model,
         **identity_services(),
         client=FakeIpcClient({}),
@@ -636,6 +641,7 @@ def test_wayfire_window_service_falls_back_to_polling_without_watcher(monkeypatc
         }
     )
     service = WayfireWindowService(
+        config=Config(),
         model=model,
         **identity_services(),
         client=client,
@@ -693,7 +699,9 @@ def test_wayfire_windows_and_picker_use_global_output_coordinates(origin_x):
     from docking.platform.backends.base import Rect
 
     client = _window_client([_view()], [_output(x=origin_x)])
-    windows = WayfireWindowService(model=_model(), **identity_services(), client=client)
+    windows = WayfireWindowService(
+        model=_model(), **identity_services(), client=client, config=Config()
+    )
     windows._refresh()
     snapshot = windows.list_all_windows()[0]
     assert snapshot.geometry == Rect(origin_x + 10, -80, 200, 150)
@@ -717,7 +725,9 @@ def test_wayfire_window_workspace_identity_matches_grid_service(
     relative_x, workspace_id, visible
 ):
     client = _window_client([_view(x=relative_x)])
-    windows = WayfireWindowService(model=_model(), **identity_services(), client=client)
+    windows = WayfireWindowService(
+        model=_model(), **identity_services(), client=client, config=Config()
+    )
     windows._refresh()
     snapshot = windows.list_all_windows()[0]
     assert snapshot.workspace_id == workspace_id
@@ -804,7 +814,9 @@ def test_wayfire_current_workspace_scope_preserves_minimized_and_sticky_windows(
 
 def test_wayfire_detached_workspace_set_is_hidden_even_at_visible_coordinates():
     client = _window_client([_view(**{"wset-index": 8})])
-    service = WayfireWindowService(model=_model(), **identity_services(), client=client)
+    service = WayfireWindowService(
+        model=_model(), **identity_services(), client=client, config=Config()
+    )
     service._refresh()
     snapshot = service.list_all_windows()[0]
     assert snapshot.visible is False
@@ -822,7 +834,9 @@ def test_wayfire_pluginless_session_keeps_tracking_but_rejects_optional_actions(
             "window-rules/focus-view",
         ],
     )
-    service = WayfireWindowService(model=_model(), **identity_services(), client=client)
+    service = WayfireWindowService(
+        model=_model(), **identity_services(), client=client, config=Config()
+    )
     service._refresh()
     assert service.list_all_windows()[0].can_minimize is False
     assert service.minimize_all("Alacritty.desktop") is ActionResult.UNSUPPORTED
@@ -841,7 +855,9 @@ def test_wayfire_cycles_all_three_windows_and_uses_mru_for_activation():
         _view(view_id=3),
     ]
     client = _window_client(views)
-    service = WayfireWindowService(model=_model(), **identity_services(), client=client)
+    service = WayfireWindowService(
+        model=_model(), **identity_services(), client=client, config=Config()
+    )
     service._refresh()
     assert service.activate_most_recent("Alacritty.desktop") is ActionResult.OK
     assert client.actions[-1] == ("window-rules/focus-view", {"id": 2})
@@ -854,7 +870,9 @@ def test_wayfire_cycles_all_three_windows_and_uses_mru_for_activation():
 
 def test_wayfire_close_focused_does_not_close_background_app():
     client = _window_client([_view()], focused_id=99)
-    service = WayfireWindowService(model=_model(), **identity_services(), client=client)
+    service = WayfireWindowService(
+        model=_model(), **identity_services(), client=client, config=Config()
+    )
     service._refresh()
     assert service.close_focused("Alacritty.desktop") is ActionResult.NOT_FOUND
     assert client.actions == []
@@ -862,7 +880,9 @@ def test_wayfire_close_focused_does_not_close_background_app():
 
 def test_wayfire_null_focus_event_clears_active_app_and_output_events_refresh():
     client = _window_client([_view()], focused_id=7)
-    service = WayfireWindowService(model=_model(), **identity_services(), client=client)
+    service = WayfireWindowService(
+        model=_model(), **identity_services(), client=client, config=Config()
+    )
     service._refresh()
     service._on_event("view-focused", {})
     assert service.list_all_windows()[0].active is False
@@ -1012,7 +1032,9 @@ def test_wayfire_loader_requires_real_snapshot_even_when_ipc_socket_exists(
         WayfireIpcClient, "request", lambda *_args: {"error": "No such method found!"}
     )
     assert (
-        wayfire_ipc.load_wayfire_window_service(model=_model(), **identity_services())
+        wayfire_ipc.load_wayfire_window_service(
+            model=_model(), config=Config(), **identity_services()
+        )
         is None
     )
     assert wayfire_ipc.load_wayfire_window_pick_service() is None
@@ -1036,7 +1058,9 @@ def test_wayfire_pick_and_overlap_respect_output_clipping_for_straddling_view():
 
 def test_wayfire_focus_on_panel_clears_toplevel_focus():
     client = _window_client([_view()], focused_id=7)
-    service = WayfireWindowService(model=_model(), **identity_services(), client=client)
+    service = WayfireWindowService(
+        model=_model(), **identity_services(), client=client, config=Config()
+    )
     service._refresh()
     service._on_event(
         "view-focused", {"id": 99, "type": "panel", "role": "desktop-environment"}
@@ -1058,7 +1082,11 @@ def test_wayfire_poll_restarts_disconnected_events_then_reconciles_snapshot(
     watcher = MagicMock()
     watcher.start.return_value = True
     service = WayfireWindowService(
-        model=_model(), **identity_services(), client=client, watcher=watcher
+        config=Config(),
+        model=_model(),
+        **identity_services(),
+        client=client,
+        watcher=watcher,
     )
     service.start()
     watcher.start.reset_mock()
@@ -1076,7 +1104,11 @@ def test_wayfire_initially_rejected_events_keep_polling_without_repeated_handsha
     watcher = MagicMock(running=False)
     watcher.start.return_value = False
     service = WayfireWindowService(
-        model=_model(), **identity_services(), client=client, watcher=watcher
+        config=Config(),
+        model=_model(),
+        **identity_services(),
+        client=client,
+        watcher=watcher,
     )
     service.start()
     client.data["window-rules/list-views"] = [_view(view_id=8)]
@@ -1093,6 +1125,7 @@ def test_wayfire_failed_reconnect_waits_before_trying_again(monkeypatch):
     watcher = MagicMock(running=False)
     watcher.start.side_effect = [True, False, True]
     service = WayfireWindowService(
+        config=Config(),
         model=_model(),
         **identity_services(),
         client=_window_client([_view()]),
@@ -1151,7 +1184,9 @@ def test_wayfire_maximized_state_distinguishes_partial_tiling_from_all_edges():
             _view(view_id=8, **{"tiled-edges": 3}),
         ]
     )
-    service = WayfireWindowService(model=_model(), **identity_services(), client=client)
+    service = WayfireWindowService(
+        model=_model(), **identity_services(), client=client, config=Config()
+    )
     service._refresh()
     assert [window.maximized for window in service.list_all_windows()] == [True, False]
 
@@ -1161,6 +1196,8 @@ def test_wayfire_keyboard_focus_overrides_stale_activation_on_another_output(
     focused_id,
 ):
     client = _window_client([_view(activated=True)], focused_id=focused_id)
-    service = WayfireWindowService(model=_model(), **identity_services(), client=client)
+    service = WayfireWindowService(
+        model=_model(), **identity_services(), client=client, config=Config()
+    )
     service._refresh()
     assert service.list_all_windows()[0].active is False

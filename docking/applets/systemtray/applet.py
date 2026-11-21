@@ -185,7 +185,7 @@ class SystemTrayApplet(PlatformServicesApplet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         status: list[Gtk.MenuItem] = [
-            disabled_menu_item(self._menu_header(), gtk=Gtk),
+            disabled_menu_item(self._menu_header()),
         ]
         legacy = (
             self._presentation.menu_items() if self._presentation is not None else []
@@ -670,7 +670,7 @@ class SystemTrayApplet(PlatformServicesApplet):
         row.pack_start(menu, False, False, 0)
         return row
 
-    def _on_activate(self, identifier: str, *, keyboard: bool = False) -> None:
+    def _on_activate(self, identifier: str, *, keyboard: bool) -> None:
         anchor = self._action_rectangle(identifier)
         request = self._request()
         self._focus_target = (identifier, request)
@@ -701,7 +701,7 @@ class SystemTrayApplet(PlatformServicesApplet):
         )
         return True
 
-    def _show_item_menu(self, identifier: str, *, keyboard: bool = False) -> None:
+    def _show_item_menu(self, identifier: str, *, keyboard: bool) -> None:
         if not self._active:
             return
         request = self._request()
@@ -753,7 +753,7 @@ class SystemTrayApplet(PlatformServicesApplet):
         layout: TrayMenuLayout | None,
         client: TrayMenuClient,
         identifier: str,
-        keyboard: bool = False,
+        keyboard: bool,
     ) -> None:
         # The layout arrives on a worker thread; the applet may be gone by now.
         if not self._active:
@@ -773,7 +773,7 @@ class SystemTrayApplet(PlatformServicesApplet):
         menu.show_all()
         menu.popup_at_pointer(None)
 
-    def _on_context_menu(self, identifier: str, *, keyboard: bool = False) -> None:
+    def _on_context_menu(self, identifier: str, *, keyboard: bool) -> None:
         if not self._active:
             return
         anchor = self._action_rectangle(identifier)

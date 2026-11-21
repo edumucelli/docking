@@ -65,8 +65,12 @@ def test_update_manager_matches_its_current_desktop_variant(
             )
         )
     else:
-        match = AppIdMatcher(registry, processes).match_result(
-            "MintUpdate.py", instance_hint="mintUpdate.py", process_id=42
+        match = (
+            AppIdMatcher(registry, processes)
+            .match_attempt(
+                "MintUpdate.py", instance_hint="mintUpdate.py", process_id=42
+            )
+            .match
         )
     expected = "mintupdate-kde.desktop" if desktop == "KDE" else "mintupdate.desktop"
     assert match is not None

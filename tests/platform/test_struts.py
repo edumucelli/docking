@@ -542,6 +542,9 @@ class TestStrutWriters:
             monitor_geom=monitor_geom,
             screen=screen,
             position=Position.TOP,
+            edge_offset=0,
+            span_start=None,
+            span_end=None,
         )
 
         # Then
@@ -580,6 +583,9 @@ class TestStrutWriters:
             monitor_geom=monitor_geom,
             screen=screen,
             position=Position.TOP,
+            edge_offset=0,
+            span_start=None,
+            span_end=None,
         )
         set_dock_struts(
             gdk_window=gdk_window,
@@ -587,6 +593,9 @@ class TestStrutWriters:
             monitor_geom=monitor_geom,
             screen=screen,
             position=Position.TOP,
+            edge_offset=0,
+            span_start=None,
+            span_end=None,
         )
 
         assert compute_mock.call_args_list[0].kwargs["scale"] == 1

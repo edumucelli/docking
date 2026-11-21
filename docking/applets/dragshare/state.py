@@ -18,12 +18,11 @@ from __future__ import annotations
 import json
 import mimetypes
 import urllib.error
-import urllib.request
 import uuid
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Protocol
+from urllib.request import Request, urlopen
 
 from docking.applets.http import is_valid_http_url
 from docking.core.paths import local_path_from_uri_or_path as file_path_from_uri
@@ -34,10 +33,6 @@ USER_AGENT = "Docking/1.0 (Linux; Drag Share Applet)"
 UPLOAD_TIMEOUT_S = 60
 
 log = get_logger("dragshare.state")
-
-
-class UrlOpen(Protocol):
-    def __call__(self, request: urllib.request.Request, *, timeout: float) -> Any: ...
 
 
 class DragshareStatus(str, Enum):
@@ -66,13 +61,7 @@ def first_uploadable_file(uris: list[str]) -> Path | None:
     return None
 
 
-def upload_file(
-    path: Path,
-    *,
-    endpoint: str = UPLOAD_ENDPOINT,
-    timeout: float = UPLOAD_TIMEOUT_S,
-    opener: UrlOpen | None = None,
-) -> UploadResult:
+def upload_file(path: Path) -> UploadResult:
     """Upload one file to tmpfiles.org and return the resulting public URL."""
     path = path.expanduser()
     if not path.is_file():
@@ -80,8 +69,8 @@ def upload_file(
 
     boundary = f"----DockingDragShare{uuid.uuid4().hex}"
     body = _multipart_body(path=path, boundary=boundary)
-    request = urllib.request.Request(
-        endpoint,
+    request = Request(
+        UPLOAD_ENDPOINT,
         data=body,
         headers={
             "Content-Type": f"multipart/form-data; boundary={boundary}",
@@ -90,10 +79,8 @@ def upload_file(
         },
         method="POST",
     )
-    open_url = opener if opener is not None else urllib.request.urlopen
-
     try:
-        with open_url(request, timeout=timeout) as response:
+        with urlopen(request, timeout=UPLOAD_TIMEOUT_S) as response:
             status = response.getcode()
             payload = response.read().decode("utf-8", errors="replace").strip()
     except urllib.error.HTTPError as exc:

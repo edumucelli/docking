@@ -84,8 +84,8 @@ class WindowsPowerRequests:
 class WindowsInhibitor(Inhibitor):
     """Called serially by InhibitionSession, including cleanup after stop."""
 
-    def __init__(self, *, api: WindowsPowerRequests | None = None) -> None:
-        self._api = api
+    def __init__(self) -> None:
+        self._api: WindowsPowerRequests | None = None
         self._handle: int | None = None
         self._held: set[int] = set()
 

@@ -193,9 +193,9 @@ class FreeBsdBluetoothBackend(BluetoothBackend):
         selected = adapter_from_state(state, active_adapter_path) or ""
         return BluetoothState(state.available, state.adapters, state.devices, selected)
 
-    def _privileged(self, argv: list[str], *, timeout: float = 120) -> bool:
+    def _privileged(self, argv: list[str]) -> bool:
         pkexec = shutil.which("pkexec")
-        return bool(pkexec) and _run([pkexec, *argv], timeout=timeout) is not None
+        return bool(pkexec) and _run([pkexec, *argv], timeout=120) is not None
 
     def set_adapter_power(self, adapter_path: str, powered: bool) -> bool:
         if not _NODE.fullmatch(adapter_path):

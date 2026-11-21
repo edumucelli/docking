@@ -280,17 +280,13 @@ def compositor_active(*, display: object | None = None) -> bool | None:
     return desktop_services().compositor_active(display=display)
 
 
-def log_runtime_snapshot(
-    *,
-    display: object | None = None,
-    desktop: Desktop | None = None,
-) -> None:
+def log_runtime_snapshot(*, display: object | None) -> None:
     """Log a small startup snapshot for comparing good and bad runs."""
     compositor = compositor_active(display=display)
     log.info(
         "runtime snapshot: desktop=%s session=%s backend=%s x11=%s xwayland=%s "
         "compositor_active=%s DISPLAY=%r WAYLAND_DISPLAY=%r GDK_BACKEND=%r",
-        desktop if desktop is not None else detect_desktop(),
+        detect_desktop(),
         os.environ.get("XDG_SESSION_TYPE", "").strip().lower() or "unknown",
         backend_name(display=display),
         is_x11_backend(display=display),

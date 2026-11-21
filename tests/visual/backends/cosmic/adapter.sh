@@ -31,33 +31,6 @@
 COSMIC_LOG="${LAB_DIR}/cosmic.log"
 COSMIC_PARENT_LOG="${LAB_DIR}/cosmic-parent.log"
 
-_wayland_sockets() {
-    local socket
-    for socket in "$XDG_RUNTIME_DIR"/wayland-*; do
-        [ -S "$socket" ] || continue
-        printf '%s\n' "${socket##*/}"
-    done
-}
-
-# Wait for a socket that was not in $1 (a newline-separated snapshot).
-_wait_new_socket() {
-    local before="$1"
-    local attempts="${2:-120}"
-    local socket
-    for _ in $(seq "$attempts"); do
-        while read -r socket; do
-            [ -n "$socket" ] || continue
-            case "$before" in
-                *"$socket"*) continue ;;
-            esac
-            printf '%s\n' "$socket"
-            return 0
-        done < <(_wayland_sockets)
-        sleep 0.25
-    done
-    return 1
-}
-
 adapter_capabilities() {
     local probe
     probe="$(session_probe_json)"
@@ -120,8 +93,8 @@ adapter_start() {
             report_compositor_failure
             return 1
         fi
-        parent_display="$(_wait_new_socket "$before" 1)" && break
-        sleep 0.25
+        parent_display="$(find_new_wayland_socket "$before")" && break
+        sleep 0.5
     done
     if [ -z "$parent_display" ]; then
         log_adapter "parent sway never published a Wayland socket"
@@ -147,8 +120,8 @@ adapter_start() {
             report_compositor_failure
             return 1
         fi
-        cosmic_display="$(_wait_new_socket "$before" 1)" && break
-        sleep 0.25
+        cosmic_display="$(find_new_wayland_socket "$before")" && break
+        sleep 0.5
     done
     if [ -z "$cosmic_display" ]; then
         log_adapter "cosmic-comp published no Wayland socket"
@@ -161,9 +134,8 @@ adapter_start() {
 }
 
 adapter_wait_ready() {
-    local attempts="${1:-60}"
     local probe="$XDG_RUNTIME_DIR/.ready.png"
-    for _ in $(seq "$attempts"); do
+    for _ in $(seq 60); do
         kill -0 "$ADAPTER_COMPOSITOR_PID"
         if WAYLAND_DISPLAY="$LAB_PARENT_DISPLAY" grim -s 1 "$probe" 2>/dev/null; then
             rm -f "$probe"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import Mock
 
 from docking.applets.platform import AppletPlatformServices
 from docking.platform.applications.identity import ProcessIdentityService
@@ -23,6 +24,7 @@ from docking.platform.applications.implementations.unix.registration import (
 )
 from docking.platform.applications.launcher import ApplicationLauncher
 from docking.platform.applications.registry import ApplicationRegistry
+from docking.platform.applications.steam import SteamDiscoveryResult
 from docking.platform.composition.linux import LinuxAppletBackendFactories
 from docking.platform.model import DockModel
 from docking.platform.targets import TargetService
@@ -74,6 +76,7 @@ def make_application_registry(**kwargs):
     catalog = kwargs.pop("catalog_backend", None)
     associations = kwargs.pop("association_backend", None)
     registrations = kwargs.pop("registration_backend", None)
+    kwargs.setdefault("steam_source", SteamDiscoveryResult)
     return ApplicationRegistry(
         catalog_backend=catalog
         if catalog is not None
@@ -98,13 +101,10 @@ def make_application_launcher(registry, provenance_store, **kwargs):
     )
 
 
-def make_process_identity(
-    provenance_store, *, proc_root=Path("/proc"), backend=None, **kwargs
-):
+def make_process_identity(provenance_store, *, proc_root=Path("/proc"), backend=None):
     return ProcessIdentityService(
         provenance_store,
         backend=backend if backend is not None else LinuxProcessBackend(proc_root),
-        **kwargs,
     )
 
 
@@ -202,6 +202,29 @@ def make_tray_service(*, backend=None, worker=None, backend_factory=None, interv
         backend_factory=factory,
         interval_s=interval_s,
         worker_factory=lambda *, on_close, logger: OwnedTestWorker(owner, on_close),
+    )
+
+
+def make_unsupported_windows_workspaces():
+    from docking.platform.backends.windows.workspaces import (
+        WindowsWorkspaceService,
+        WorkspaceAPI,
+    )
+
+    api = Mock(spec=WorkspaceAPI)
+    api.supported.return_value = False
+    return WindowsWorkspaceService(api=api)
+
+
+def make_windows_surface():
+    from docking.platform.applications.implementations.windows.drag_source import (
+        WindowsFileDragSource,
+    )
+    from docking.platform.backends.windows.surface import WindowsSurfaceService
+
+    return WindowsSurfaceService(
+        workspaces=make_unsupported_windows_workspaces(),
+        file_drag_source_factory=WindowsFileDragSource,
     )
 
 

@@ -76,7 +76,7 @@ class QuickNoteApplet(Applet):
         clear = Gtk.MenuItem(label=_("Clear Note"))
         clear.connect("activate", lambda _: self._clear_note())
 
-        return menu_sections(manage=[edit], destructive=[clear], gtk=Gtk)
+        return menu_sections(manage=[edit], destructive=[clear])
 
     def _show_edit_dialog(self) -> None:
         dialog = Gtk.Dialog(

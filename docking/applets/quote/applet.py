@@ -92,9 +92,7 @@ class QuoteApplet(Applet):
         self._fetch_async(show_first=True)
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        status = [
-            disabled_menu_item(SOURCE_LABELS.get(self._source, _("Quote")), gtk=Gtk)
-        ]
+        status = [disabled_menu_item(SOURCE_LABELS.get(self._source, _("Quote")))]
 
         next_item = Gtk.MenuItem(label=_("Next Quote"))
         next_item.connect("activate", lambda _: self.on_clicked())
@@ -106,14 +104,13 @@ class QuoteApplet(Applet):
         refresh_item.connect("activate", lambda _: self._refresh_from_web())
 
         display = [
-            disabled_menu_item(_("Source"), gtk=Gtk),
+            disabled_menu_item(_("Source")),
             *radio_menu_items(
                 choices=tuple(
                     (label, source_id) for source_id, label in SOURCE_LABELS.items()
                 ),
                 active_value=self._source,
                 on_selected=self._on_source_toggled,
-                gtk=Gtk,
             ),
         ]
 
@@ -123,7 +120,6 @@ class QuoteApplet(Applet):
             navigation=[next_item],
             refresh=[refresh_item],
             display=display,
-            gtk=Gtk,
         )
 
     def _on_source_toggled(self, widget: Gtk.RadioMenuItem, source_id: str) -> None:

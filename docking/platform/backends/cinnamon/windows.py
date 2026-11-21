@@ -34,7 +34,7 @@ class CinnamonWindowService(MuffinWindowService):
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
         client: CinnamonShellClient,
-        config: Config | None = None,
+        config: Config,
     ) -> None:
         super().__init__(
             model=model,
@@ -71,7 +71,7 @@ class CinnamonWindowService(MuffinWindowService):
         self._sticky.clear()
 
     def _on_current_workspace(self, window: MuffinWindow) -> bool:
-        if self._config is None or not self._config.current_workspace_only:
+        if not self._config.current_workspace_only:
             return True
         active = next((w.id for w in self._shell.workspace_snapshots if w.active), None)
         return (

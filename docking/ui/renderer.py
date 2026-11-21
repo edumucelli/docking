@@ -1285,7 +1285,7 @@ class DockRenderer:
         layout: list[LayoutItem],
         icon_offset: float,
         *,
-        layout_context: tuple[object, ...] | None = None,
+        layout_context: tuple[object, ...],
     ) -> None:
         """Detect items that changed position and set slide animation offsets."""
         new_positions: dict[str, float] = {}
@@ -1295,8 +1295,7 @@ class DockRenderer:
             new_widths[item.desktop_id] = li.width
 
         if (
-            layout_context is not None
-            and self._slide_layout_context is not None
+            self._slide_layout_context is not None
             and layout_context != self._slide_layout_context
         ):
             log.debug(
@@ -1309,8 +1308,7 @@ class DockRenderer:
             self.prev_widths = new_widths
             self._slide_layout_context = layout_context
             return
-        if layout_context is not None:
-            self._slide_layout_context = layout_context
+        self._slide_layout_context = layout_context
 
         previous_ids = set(self.prev_positions)
         new_ids = set(new_positions)

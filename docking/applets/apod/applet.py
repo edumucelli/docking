@@ -109,7 +109,6 @@ class ApodApplet(Applet):
                         date=self._result.date,
                         title=self._result.title or _("Untitled"),
                     ),
-                    gtk=Gtk,
                 )
             )
             status.append(
@@ -118,18 +117,15 @@ class ApodApplet(Applet):
                         seconds=REFRESH_CHECK_INTERVAL_S,
                         verb=_("Checks"),
                     ),
-                    gtk=Gtk,
                 )
             )
         state_status = self._live_status()
         state_label = live_state_label(state_status)
         if state_label:
-            status.append(disabled_menu_item(state_label, gtk=Gtk))
+            status.append(disabled_menu_item(state_label))
         error = live_state_error(status=state_status, error=self._error)
         if error:
-            status.append(
-                disabled_menu_item(_("Error: {msg}").format(msg=error), gtk=Gtk)
-            )
+            status.append(disabled_menu_item(_("Error: {msg}").format(msg=error)))
 
         open_item = Gtk.MenuItem(label=_("Open in Browser"))
         open_item.connect("activate", lambda _w: self._open_page())
@@ -147,7 +143,6 @@ class ApodApplet(Applet):
             status=status,
             primary=primary,
             refresh=[refresh_item],
-            gtk=Gtk,
         )
 
     def start(self, notify: Callable[[], None]) -> None:

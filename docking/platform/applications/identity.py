@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from threading import RLock
@@ -15,8 +14,6 @@ from .backend import LaunchedProcessHandle
 
 APP_URI_PREFIX = "application://"
 DEFAULT_MAX_LAUNCH_RECORDS = 256
-
-ExecutableResolver = Callable[[int], Path | None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,22 +136,16 @@ class ProcessIdentityService:
         provenance_store: LaunchProvenanceStore,
         *,
         backend: ProcessBackend,
-        executable_resolver: ExecutableResolver | None = None,
     ) -> None:
         self._provenance_store = provenance_store
         self._backend = backend
-        self._executable_resolver = (
-            executable_resolver
-            if executable_resolver is not None
-            else backend.executable
-        )
 
     def identity_for_pid(self, pid: int | None) -> ProcessIdentity | None:
         """Return available identity evidence for *pid* without raising."""
         if not _valid_pid(pid):
             return None
         try:
-            executable_path = self._executable_resolver(pid)
+            executable_path = self._backend.executable(pid)
         except (OSError, RuntimeError):
             executable_path = None
         return ProcessIdentity(
@@ -171,7 +162,6 @@ class ProcessIdentityService:
 __all__ = [
     "APP_URI_PREFIX",
     "DEFAULT_MAX_LAUNCH_RECORDS",
-    "ExecutableResolver",
     "LaunchProvenance",
     "LaunchProvenanceStore",
     "ProcessIdentity",

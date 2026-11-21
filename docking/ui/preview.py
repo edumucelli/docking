@@ -283,7 +283,7 @@ class PreviewPopup(Gtk.Window):
         anchor_x: float,
         icon_w: float,
         anchor_y: float,
-        position: Position = Position.BOTTOM,
+        position: Position,
     ) -> None:
         """Show preview popup near a dock icon.
 
@@ -610,11 +610,11 @@ class PreviewPopup(Gtk.Window):
         """Keep the current preview open when returning to its dock icon."""
         self._cancel_hide_timer()
 
-    def _schedule_hide(self, delay_ms: int = PREVIEW_HIDE_DELAY_MS) -> None:
+    def _schedule_hide(self) -> None:
         """Hide after a grace period (lets user move mouse to popup)."""
         self._cancel_hide_timer()
-        log.debug(f"preview: scheduling hide in {delay_ms}ms")
-        self._hide_timer_id = GLib.timeout_add(delay_ms, self._do_hide)
+        log.debug("preview: scheduling hide in %sms", PREVIEW_HIDE_DELAY_MS)
+        self._hide_timer_id = GLib.timeout_add(PREVIEW_HIDE_DELAY_MS, self._do_hide)
 
     def _do_hide(self) -> bool:
         log.debug("preview: hiding")

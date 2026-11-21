@@ -36,7 +36,10 @@ from docking.platform.tray.state import (
     TrayState as StatusTrayState,
 )
 from tests.applets.inline_worker import ImmediateWorker
-from tests.platform_factories import make_applet_platform
+from tests.platform_factories import (
+    make_applet_platform,
+    make_windows_surface,
+)
 
 
 class TestRegisteredItemParsing:
@@ -389,10 +392,9 @@ def tray(monkeypatch):
 @pytest.mark.parametrize("managed", [False, True])
 def test_tray_uses_its_surface_policy_for_keyboard_focus(tray, monkeypatch, managed):
     from docking.platform.backends.reduced.services import ReducedSurfaceService
-    from docking.platform.backends.windows.surface import WindowsSurfaceService
 
     applet = tray.applet
-    applet._surface = WindowsSurfaceService() if managed else ReducedSurfaceService()
+    applet._surface = make_windows_surface() if managed else ReducedSurfaceService()
     window = MagicMock()
     create = MagicMock(return_value=window)
     monkeypatch.setattr(applet_mod, "create_popup_window", create)
@@ -488,7 +490,7 @@ class TestSystemTrayAppletService:
 
     def test_activate_runs_on_the_worker_and_repolls(self, tray):
         tray.applet.start(notify=lambda: None)
-        tray.applet._on_activate(":1.42/Tray")
+        tray.applet._on_activate(":1.42/Tray", keyboard=False)
         assert tray.created[0].activated == [":1.42/Tray"]
         assert tray.created[0].refreshes == 1
 
@@ -523,7 +525,7 @@ class TestSystemTrayAppletService:
         build_menu = MagicMock()
         monkeypatch.setattr(applet, "_gtk_menu_from_tray_menu", build_menu)
 
-        applet._show_item_menu(":1.42/Tray")
+        applet._show_item_menu(":1.42/Tray", keyboard=False)
         assert worker.tasks, "the layout fetch should still be in flight"
         applet.stop()
         worker.deliver()
@@ -550,7 +552,7 @@ def test_old_menu_cannot_open_after_applet_restart(monkeypatch):
     applet.start(notify=lambda: None)
     build_menu = MagicMock()
     monkeypatch.setattr(applet, "_gtk_menu_from_tray_menu", build_menu)
-    applet._show_item_menu(":1.42/Tray")
+    applet._show_item_menu(":1.42/Tray", keyboard=False)
     applet.stop()
     applet.start(notify=lambda: None)
     worker.deliver()
@@ -562,7 +564,7 @@ def test_queued_action_keeps_the_construction_service(monkeypatch):
     first, second = _FakeService(), _FakeService()
     applet = _make_tray(monkeypatch, worker=worker, service=first).applet
     applet.start(notify=lambda: None)
-    applet._on_activate(":1.42/Tray")
+    applet._on_activate(":1.42/Tray", keyboard=False)
     applet.set_services(AppletServices(status_notifier=second))
     while worker.tasks:
         worker.deliver()
@@ -667,7 +669,7 @@ def test_old_worker_leave_cannot_close_new_hover_delivered_after_restart(monkeyp
 def test_service_restart_rejects_old_work_and_does_not_strand_new_hover(monkeypatch):
     worker = _DeferredWorker()
     applet, service = _active_tray(monkeypatch, worker=worker)
-    applet._on_activate(":1.42/Tray")
+    applet._on_activate(":1.42/Tray", keyboard=False)
     applet._queue_pointer("old-row", point=(1, 2))
     applet._clear_pointer()
     service.stop()
@@ -688,7 +690,7 @@ def test_hiding_popup_cannot_retarget_an_action_to_a_restarted_service(monkeypat
 
     applet._popup = SimpleNamespace(hide=hide)
     monkeypatch.setattr(applet, "_action_rectangle", lambda _identifier: None)
-    applet._on_activate(":1.42/Tray")
+    applet._on_activate(":1.42/Tray", keyboard=False)
     assert not service.activated
 
 
@@ -803,7 +805,7 @@ def test_focus_return_revalidates_after_claim_during_mapping(monkeypatch, invali
             service.stop()
             service.start()
         elif invalidate == "new-action":
-            applet._on_activate(":1.42/Tray")
+            applet._on_activate(":1.42/Tray", keyboard=False)
         else:
             service.stop()
             service.start()

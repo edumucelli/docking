@@ -216,7 +216,7 @@ def test_service_environment_does_not_reuse_host_displays_or_settings(
     monkeypatch.setenv("XDG_SESSION_DESKTOP", "host-desktop")
     monkeypatch.setenv("XDG_CONFIG_HOME", "/host/config")
     monkeypatch.setenv("HOME", "/host/home")
-    env = private_environment(tmp_path)
+    env = private_environment(tmp_path, "xfce")
     assert "DISPLAY" not in env
     assert "WAYLAND_DISPLAY" not in env
     assert "XDG_SESSION_DESKTOP" not in env

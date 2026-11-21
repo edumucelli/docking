@@ -100,7 +100,6 @@ class DockerApplet(Applet):
             status=status,
             primary=primary,
             refresh=[refresh],
-            gtk=Gtk,
         )
 
     def _status_menu_items(self) -> list[Gtk.MenuItem]:
@@ -110,17 +109,15 @@ class DockerApplet(Applet):
                     _("Docker unavailable: {error}").format(
                         error=self._state.error or _("unknown error")
                     ),
-                    gtk=Gtk,
                 )
             ]
         if not self._state.containers:
-            return [disabled_menu_item(_("No running containers"), gtk=Gtk)]
+            return [disabled_menu_item(_("No running containers"))]
         return [
             disabled_menu_item(
                 _("{count} running containers").format(
                     count=len(self._state.containers)
                 ),
-                gtk=Gtk,
             )
         ]
 
@@ -130,8 +127,8 @@ class DockerApplet(Applet):
 
         image = container.image or _("unknown image")
         status = container.status or _("running")
-        submenu.append(disabled_menu_item(image, gtk=Gtk))
-        submenu.append(disabled_menu_item(status, gtk=Gtk))
+        submenu.append(disabled_menu_item(image))
+        submenu.append(disabled_menu_item(status))
         submenu.append(Gtk.SeparatorMenuItem())
 
         stop_item = Gtk.MenuItem(label=_("Stop"))

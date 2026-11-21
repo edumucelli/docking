@@ -42,6 +42,7 @@ def test_idle_wiring_is_conditional_and_stops_owned_protocol(
     common = dict(
         layer_shell=_layer_shell(),
         model=_model(),
+        config=Config(),
         protocol_runtime=runtime,
         **identity_services(),
     )
@@ -72,7 +73,7 @@ def test_idle_wiring_is_conditional_and_stops_owned_protocol(
         monkeypatch.setattr(
             module, "load_wayfire_visibility_service", lambda **_kwargs: None
         )
-        backend = module.WayfireSessionBackend(config=Config(), **common)
+        backend = module.WayfireSessionBackend(**common)
     else:
         monkeypatch.setattr(module.KWinBridgeClient, "connect", lambda: None)
         monkeypatch.setattr(module.KWinDesktopActionService, "connect", lambda: None)
@@ -93,7 +94,7 @@ def test_gnome_idle_portal_and_overlap_follow_real_services(monkeypatch, availab
     monkeypatch.setattr(gnome.MutterIdleService, "connect", lambda: idle)
     monkeypatch.setattr(gnome, "load_portal_color_picker", lambda: picker)
     backend = gnome.GnomeShellBridgeSessionBackend(
-        bridge=_bridge(), model=_model(), **identity_services()
+        config=Config(), bridge=_bridge(), model=_model(), **identity_services()
     )
     assert backend.capabilities.supports_idle_time is available
     assert backend.capabilities.supports_screen_color_pick is available

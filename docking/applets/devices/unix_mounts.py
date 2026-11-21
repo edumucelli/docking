@@ -75,9 +75,9 @@ class NativeNetworkMount:
     icon: Gio.Icon | None
 
 
-def read_network_mounts(*, api: Any | None = None) -> list[NativeNetworkMount]:
+def read_network_mounts() -> list[NativeNetworkMount]:
     """Return supported network filesystems from the active mount table."""
-    namespace = api if api is not None else _default_api()
+    namespace = _default_api()
     try:
         entries = _mount_entries(namespace)
     except Exception:
@@ -116,9 +116,9 @@ def read_network_mounts(*, api: Any | None = None) -> list[NativeNetworkMount]:
     return mounts
 
 
-def get_mount_monitor(*, api: Any | None = None) -> Any | None:
+def get_mount_monitor() -> Any | None:
     """Return the Unix mount monitor, or ``None`` when it is unavailable."""
-    namespace = api if api is not None else _default_api()
+    namespace = _default_api()
     monitor_type = getattr(namespace, "MountMonitor", None)
     if monitor_type is None:
         monitor_type = getattr(namespace, "UnixMountMonitor", None)

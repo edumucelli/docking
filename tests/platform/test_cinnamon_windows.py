@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from docking.core.config import Config
 from docking.core.items import DockItem
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.backends.cinnamon import muffin
@@ -46,7 +47,9 @@ def _service(*rows):
         features=frozenset({"previews"}),
         window_action=MagicMock(return_value=ActionResult.OK),
     )
-    service = CinnamonWindowService(model=model, client=client, **identity_services())
+    service = CinnamonWindowService(
+        model=model, client=client, **identity_services(), config=Config()
+    )
     return service, client, model
 
 

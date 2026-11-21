@@ -251,15 +251,12 @@ class KdeconnectApplet(Applet):
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         device = self._device()
         status = [
-            disabled_menu_item(
-                tooltip(self._state, self._selected, self._status), gtk=Gtk
-            )
+            disabled_menu_item(tooltip(self._state, self._selected, self._status))
         ]
         devices = radio_menu_items(
             choices=((device_label(d), d.device_id) for d in self._state.devices),
             active_value=self._selected,
             on_selected=lambda _widget, device_id: self._select(device_id),
-            gtk=Gtk,
         )
         ring = Gtk.MenuItem(label=_("Ring Phone"))
         ring.set_sensitive(
@@ -279,5 +276,4 @@ class KdeconnectApplet(Applet):
             navigation=[ring, send],
             refresh=[refresh],
             manage=[settings],
-            gtk=Gtk,
         )

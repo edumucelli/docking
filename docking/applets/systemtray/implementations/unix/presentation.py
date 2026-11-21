@@ -85,7 +85,6 @@ class UnixTrayPresentation(TrayPresentation):
                     _("Legacy X11 tray active: {n} item(s)").format(
                         n=len(self._host.icons),
                     ),
-                    gtk=Gtk,
                 ),
                 release,
             ]
@@ -98,7 +97,6 @@ class UnixTrayPresentation(TrayPresentation):
                     _("Legacy X11 tray owned by {owner}").format(
                         owner=self._state().legacy_owner,
                     ),
-                    gtk=Gtk,
                 ),
                 take_over,
             ]

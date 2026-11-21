@@ -13,9 +13,7 @@ from docking.platform.applications.steam import valid_steam_app_id
 _PYTHON_EXECUTABLE = re.compile(r"python(?:\d+(?:\.\d+)*)?")
 
 
-def _process_executable_path(
-    pid: int, *, proc_root: Path = Path("/proc")
-) -> Path | None:
+def _process_executable_path(pid: int, *, proc_root: Path) -> Path | None:
     """Resolve a process executable through its host's native interface."""
     try:
         path = (proc_root / str(pid) / "exe").resolve(strict=True)

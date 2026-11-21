@@ -18,6 +18,8 @@ import traceback
 import uuid
 from pathlib import Path
 
+RICH_POPUP_SIZE = (230, 72)
+
 
 def decode_callback(first: int, second: int, versions: dict[str, int]):
     """Decode only identities established by our actual provider registrations."""
@@ -33,8 +35,9 @@ def decode_callback(first: int, second: int, versions: dict[str, int]):
     return None, uid, second & 0xFFFFFFFF, None
 
 
-def rich_popup_position(icon, work, width=230, height=72):
+def rich_popup_position(icon, work):
     """Keep owned hover UI on its monitor without covering its trigger icon."""
+    width, height = RICH_POPUP_SIZE
     left, top, right, bottom = icon
     for x, y in (
         (left, top - height - 4),
@@ -284,8 +287,7 @@ def main():
                     0x80800001,
                     x,
                     y,
-                    230,
-                    72,
+                    *RICH_POPUP_SIZE,
                     hwnd,
                     None,
                     None,

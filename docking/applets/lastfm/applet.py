@@ -149,7 +149,7 @@ class LastfmApplet(Applet):
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         service_label = service_display_name(self._prefs.service)
         status: list[Gtk.MenuItem] = [
-            disabled_menu_item(service_label, gtk=Gtk),
+            disabled_menu_item(service_label),
         ]
         if not self._prefs.is_configured:
             hint = (
@@ -157,21 +157,18 @@ class LastfmApplet(Applet):
                 if self._prefs.service == LIBREFM_SERVICE
                 else _("Set API key and username...")
             )
-            status.append(disabled_menu_item(hint, gtk=Gtk))
+            status.append(disabled_menu_item(hint))
         else:
             status.append(
                 disabled_menu_item(
                     _("Recent tracks for {user} ({count})").format(
                         user=self._prefs.username, count=len(self._tracks)
                     ),
-                    gtk=Gtk,
                 )
             )
             if self._error:
                 status.append(
-                    disabled_menu_item(
-                        _("Error: {msg}").format(msg=self._error), gtk=Gtk
-                    )
+                    disabled_menu_item(_("Error: {msg}").format(msg=self._error))
                 )
 
         primary = [
@@ -203,7 +200,6 @@ class LastfmApplet(Applet):
             primary=primary,
             navigation=navigation,
             refresh=[refresh],
-            gtk=Gtk,
         )
 
     def _build_track_menu_item(self, track: PlayedTrack, index: int) -> Gtk.MenuItem:
