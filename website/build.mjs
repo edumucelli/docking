@@ -19,9 +19,8 @@ export function attribute(node, name) {
 }
 
 function translateDocument(document, translate) {
-  function visit(node, ignored = false) {
-    ignored ||= ignoredTags.has(node.tagName);
-    if (ignored) return;
+  function visit(node) {
+    if (ignoredTags.has(node.tagName)) return;
     if (node.nodeName === "#text" && node.value.trim()) {
       node.value = node.value.replace(/\S[\s\S]*\S|\S/, (value) => translate(value));
     }
@@ -35,7 +34,7 @@ function translateDocument(document, translate) {
       }
     }
     if (!attribute(node, "data-language-nav")) {
-      for (const child of node.childNodes || []) visit(child, ignored);
+      for (const child of node.childNodes || []) visit(child);
     }
   }
   visit(document);

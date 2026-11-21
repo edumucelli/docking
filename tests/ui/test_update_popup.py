@@ -263,13 +263,6 @@ class TestUpdateCheckControllerInit:
         assert controller._latest_release is None
         assert controller._start_source_id == 0
 
-    def test_set_window_attaches_window(self):
-        config = MagicMock()
-        controller = UpdateCheckController(window=MagicMock(), config=config)
-        window = MagicMock()
-        controller.set_window(window)
-        assert controller._window is window
-
 
 # ---------------------------------------------------------------------------
 # Start
@@ -283,7 +276,7 @@ class TestUpdateCheckControllerStart:
         config.update_check_enabled = True
         controller = UpdateCheckController(window=window, config=config)
         controller._start_source_id = 42
-        controller.start()
+        controller.start(MagicMock(), MagicMock())
         assert controller._start_source_id == 42
 
     def test_start_disabled_returns(self):
@@ -291,7 +284,7 @@ class TestUpdateCheckControllerStart:
         config = MagicMock()
         config.update_check_enabled = False
         controller = UpdateCheckController(window=window, config=config)
-        controller.start()
+        controller.start(MagicMock(), MagicMock())
         assert controller._start_source_id == 0
 
     def test_start_schedules_timeout(self, monkeypatch):
@@ -307,7 +300,7 @@ class TestUpdateCheckControllerStart:
         monkeypatch.setattr(mod, "should_check_for_updates", lambda **kw: True)
         monkeypatch.setattr(mod.GLib, "timeout_add_seconds", lambda delay, cb, *a: 99)
 
-        controller.start()
+        controller.start(MagicMock(), MagicMock())
 
         assert controller._start_source_id == 99
 
@@ -323,7 +316,7 @@ class TestUpdateCheckControllerStart:
         )
         monkeypatch.setattr(mod, "should_check_for_updates", lambda **kw: False)
 
-        controller.start()
+        controller.start(MagicMock(), MagicMock())
 
         assert controller._start_source_id == 0
 
@@ -540,34 +533,6 @@ class TestUpdateCheckOnCheckFinished:
         assert result is False
         assert show_calls == [release]
 
-    def test_automatic_without_request_show_shows_directly(self, monkeypatch):
-        window = MagicMock()
-        config = MagicMock()
-        controller = UpdateCheckController(window=window, config=config)
-        controller._request_show = None
-
-        release = ReleaseInfo(version="4.0.0", name="v4", url="https://x.com")
-        monkeypatch.setattr(mod, "load_state", lambda: UpdateState())
-        monkeypatch.setattr(mod, "save_state", MagicMock())
-        monkeypatch.setattr(
-            mod,
-            "decide_update_popup",
-            lambda **kw: SimpleNamespace(should_show=True, release=release),
-        )
-
-        show_calls: list[ReleaseInfo] = []
-
-        def _fake_show(*, release):
-            show_calls.append(release)
-            return True
-
-        controller._show_popup = _fake_show
-
-        result = controller._on_check_finished(release, "", automatic=True)
-
-        assert result is False
-        assert show_calls == [release]
-
     def test_no_release_no_popup(self, monkeypatch):
         window = MagicMock()
         config = MagicMock()
@@ -585,7 +550,7 @@ class TestUpdateCheckOnCheckFinished:
             lambda **kw: SimpleNamespace(should_show=False, release=None),
         )
 
-        result = controller._on_check_finished(None, "")
+        result = controller._on_check_finished(None, "", automatic=True)
 
         assert result is False
         assert len(save_called) == 1
@@ -604,7 +569,7 @@ class TestUpdateCheckOnCheckFinished:
             lambda **kw: SimpleNamespace(should_show=False, release=None),
         )
 
-        controller._on_check_finished(None, "Network error")
+        controller._on_check_finished(None, "Network error", automatic=True)
 
         assert saved_states[0].last_result == "error"
         assert saved_states[0].last_error == "Network error"

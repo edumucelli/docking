@@ -8,6 +8,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -17,6 +18,7 @@ assert spec and spec.loader
 publisher = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = publisher
 spec.loader.exec_module(publisher)
+DEB = publisher.FORMATS["deb"]
 
 
 def build_deb(tmp_path, architecture, version="2.13.6-1", name="docking", suffix=""):
@@ -40,7 +42,7 @@ def build_deb(tmp_path, architecture, version="2.13.6-1", name="docking", suffix
 def packages(tmp_path):
     build_deb(tmp_path, "amd64")
     build_deb(tmp_path, "arm64")
-    return publisher.release_packages(tmp_path / "incoming", "2.13.6")
+    return publisher.release_packages(tmp_path / "incoming", "2.13.6", DEB)
 
 
 def remote(package, **changes):
@@ -67,7 +69,7 @@ def test_validates_metadata_independently_of_asset_names(packages):
 def test_missing_architecture_fails_before_publication(tmp_path):
     build_deb(tmp_path, "amd64")
     with pytest.raises(ValueError, match="exactly one"):
-        publisher.release_packages(tmp_path / "incoming", "2.13.6")
+        publisher.release_packages(tmp_path / "incoming", "2.13.6", DEB)
 
 
 def test_duplicate_architecture_is_rejected(tmp_path):
@@ -75,7 +77,7 @@ def test_duplicate_architecture_is_rejected(tmp_path):
     build_deb(tmp_path, "amd64", suffix="-duplicate")
     build_deb(tmp_path, "arm64")
     with pytest.raises(ValueError, match="exactly one"):
-        publisher.release_packages(tmp_path / "incoming", "2.13.6")
+        publisher.release_packages(tmp_path / "incoming", "2.13.6", DEB)
 
 
 @pytest.mark.parametrize(
@@ -89,14 +91,14 @@ def test_duplicate_architecture_is_rejected(tmp_path):
 def test_rejects_unexpected_release_packages(tmp_path, name, version, architecture):
     build_deb(tmp_path, architecture, version, name)
     with pytest.raises(ValueError):
-        publisher.release_packages(tmp_path / "incoming", "2.13.6")
+        publisher.release_packages(tmp_path / "incoming", "2.13.6", DEB)
 
 
 def test_rejects_different_debian_revisions(tmp_path):
     build_deb(tmp_path, "amd64")
     build_deb(tmp_path, "arm64", version="2.13.6-2")
     with pytest.raises(ValueError, match="same Debian package version"):
-        publisher.release_packages(tmp_path / "incoming", "2.13.6")
+        publisher.release_packages(tmp_path / "incoming", "2.13.6", DEB)
 
 
 def test_partial_retry_uploads_only_missing_architecture(monkeypatch, packages):
@@ -106,7 +108,7 @@ def test_partial_retry_uploads_only_missing_architecture(monkeypatch, packages):
     monkeypatch.setattr(
         publisher.subprocess, "run", lambda command, **_: uploads.append(command)
     )
-    publisher.publish("workspace/docking-stable", packages)
+    publisher.publish("workspace/docking-stable", packages, fmt=DEB)
     assert len(uploads) == 1
     assert str(packages[1].path) in uploads[0]
     assert "--republish" not in uploads[0]
@@ -123,7 +125,7 @@ def test_conflicting_second_architecture_prevents_first_upload(monkeypatch, pack
         publisher.subprocess, "run", lambda *_, **__: uploads.append(True)
     )
     with pytest.raises(ValueError, match="Conflicting published bytes"):
-        publisher.publish("workspace/docking-stable", packages)
+        publisher.publish("workspace/docking-stable", packages, fmt=DEB)
     assert not uploads
 
 
@@ -138,7 +140,7 @@ def test_conflicting_second_architecture_prevents_first_upload(monkeypatch, pack
 )
 def test_rejects_unusable_remote_packages(packages, changes):
     with pytest.raises(ValueError):
-        publisher.existing_package(packages[0], [remote(packages[0], **changes)])
+        publisher.existing_package(packages[0], [remote(packages[0], **changes)], DEB)
 
 
 def test_waits_for_existing_package_to_be_indexed(monkeypatch, packages):
@@ -149,7 +151,7 @@ def test_waits_for_existing_package_to_be_indexed(monkeypatch, packages):
     monkeypatch.setattr(publisher, "remote_packages", lambda *_: next(responses))
     sleeps = []
     monkeypatch.setattr(publisher.time, "sleep", sleeps.append)
-    publisher.publish("workspace/docking-stable", packages)
+    publisher.publish("workspace/docking-stable", packages, fmt=DEB)
     assert sleeps == [10]
 
 
@@ -159,8 +161,10 @@ def test_verification_times_out_on_unindexed_packages(monkeypatch, packages):
         "remote_packages",
         lambda *_: [remote(package, indexed=False) for package in packages],
     )
+    clock = iter([0, 300])
+    monkeypatch.setattr(publisher, "time", SimpleNamespace(monotonic=clock.__next__))
     with pytest.raises(TimeoutError):
-        publisher.publish("workspace/docking-stable", packages, timeout=0)
+        publisher.publish("workspace/docking-stable", packages, fmt=DEB)
 
 
 RPM_PAIR = [

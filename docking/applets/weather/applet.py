@@ -143,19 +143,17 @@ class WeatherApplet(Applet):
                         weather=self._weather,
                         temperature_unit=self._temperature_unit,
                     ),
-                    gtk=Gtk,
                 )
             )
             status.append(
                 disabled_menu_item(
                     cadence_label(seconds=REFRESH_INTERVAL),
-                    gtk=Gtk,
                 )
             )
             state_status = self._live_status()
             state_label = live_state_label(state_status)
             if state_label:
-                status.append(disabled_menu_item(state_label, gtk=Gtk))
+                status.append(disabled_menu_item(state_label))
             error = live_state_error(
                 status=state_status,
                 error=self._fetch_error,
@@ -164,7 +162,6 @@ class WeatherApplet(Applet):
                 status.append(
                     disabled_menu_item(
                         _("Error: {msg}").format(msg=error),
-                        gtk=Gtk,
                     )
                 )
 
@@ -190,7 +187,6 @@ class WeatherApplet(Applet):
                 on_selected=lambda _widget, value: self._on_temperature_unit_selected(
                     temperature_unit=value,
                 ),
-                gtk=Gtk,
             ),
         ]
 
@@ -207,7 +203,6 @@ class WeatherApplet(Applet):
             refresh=refresh,
             display=display,
             destructive=destructive,
-            gtk=Gtk,
         )
 
     def start(self, notify: Callable[[], None]) -> None:

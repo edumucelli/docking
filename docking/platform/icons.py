@@ -114,7 +114,7 @@ class IconLoader:
     def __init__(
         self,
         *,
-        desktop_service: DesktopServices | None = None,
+        desktop_service: DesktopServices,
     ) -> None:
         self._desktop_service = desktop_service
         self._icon_cache: dict[tuple[str, int], GdkPixbuf.Pixbuf | None] = {}
@@ -153,11 +153,8 @@ class IconLoader:
         self, info: ApplicationInfo, size: int
     ) -> GdkPixbuf.Pixbuf | None:
         if not self._icon_source_selected:
-            desktop = self._desktop_service
-            self._application_icon_source = (
-                desktop.create_icon_source(self._native_icon_ready)
-                if desktop is not None
-                else None
+            self._application_icon_source = self._desktop_service.create_icon_source(
+                self._native_icon_ready
             )
             self._icon_source_selected = True
         if self._application_icon_source is None:

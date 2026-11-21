@@ -294,7 +294,7 @@ def test_start_disabled_does_not_schedule(fake_gtk):
         config=_config(enabled=False),
     )
 
-    controller.start()
+    controller.start(lambda _source: None, lambda _source, _visible: None)
 
     assert fake_gtk.scheduled == []
 

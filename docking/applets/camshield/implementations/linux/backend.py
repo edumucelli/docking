@@ -17,8 +17,8 @@ from ..unix.devices import device_locked, enumerate_video_devices, normalized_pa
 
 def _probe_camera_state(
     *,
-    dev_root: Path | str = "/dev",
-    proc_root: Path | str = "/proc",
+    dev_root: Path | str,
+    proc_root: Path | str,
 ) -> CamshieldState:
     """Return whether any process currently holds a ``/dev/video*`` device."""
     video_devices = enumerate_video_devices(Path(dev_root))

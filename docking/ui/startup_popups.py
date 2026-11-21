@@ -30,6 +30,7 @@ priority sources can expire rather than appearing long after startup.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -46,7 +47,11 @@ class StartupPopupSource(Protocol):
     priority: int
     max_wait_seconds: int | None
 
-    def start(self, request_show, visibility_changed) -> None:
+    def start(
+        self,
+        request_show: Callable[[str], None],
+        visibility_changed: Callable[[str, bool], None],
+    ) -> None:
         """Start source-specific startup work."""
 
     def stop(self) -> None:
@@ -65,8 +70,7 @@ class _PendingRequest:
 class StartupPopupCoordinator:
     """Own startup popup priority, queueing, and source lifecycle."""
 
-    def __init__(self, *, clock=time.monotonic) -> None:
-        self._clock = clock
+    def __init__(self) -> None:
         self._sources: dict[str, StartupPopupSource] = {}
         self._pending: dict[str, _PendingRequest] = {}
         self._active_source_id = ""
@@ -93,7 +97,7 @@ class StartupPopupCoordinator:
         if source is None:
             return
         if source_id not in self._pending:
-            self._pending[source_id] = _PendingRequest(requested_at=self._clock())
+            self._pending[source_id] = _PendingRequest(requested_at=time.monotonic())
             self._schedule_expiry(source=source)
         self._try_show_next()
 
@@ -144,7 +148,7 @@ class StartupPopupCoordinator:
             source = self._sources.get(source_id)
             if source is None or source.max_wait_seconds is None:
                 continue
-            if self._clock() - request.requested_at >= source.max_wait_seconds:
+            if time.monotonic() - request.requested_at >= source.max_wait_seconds:
                 self._clear_pending(source_id)
 
     def _clear_pending(self, source_id: str) -> None:

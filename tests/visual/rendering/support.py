@@ -79,10 +79,9 @@ def assert_surface_matches_baseline(
     request,
     case_name: str,
     surface: cairo.ImageSurface,
-    thresholds: VisualThresholds | None = None,
 ) -> VisualMetrics:
     """Compare a rendered surface against its baseline, or update it."""
-    thresholds = thresholds or VisualThresholds()
+    thresholds = VisualThresholds()
     baseline_path = BASELINE_DIR / f"{case_name}.png"
     actual = surface_image(surface=surface)
 

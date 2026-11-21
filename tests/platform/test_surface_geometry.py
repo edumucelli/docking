@@ -7,7 +7,7 @@ from docking.platform.backends.base import MonitorSnapshot, Rect
 from docking.platform.backends.gtk_surface import logical_screen_rectangle
 from docking.platform.backends.reduced.services import ReducedSurfaceService
 from docking.platform.backends.windows.appbar import ScreenMapping
-from docking.platform.backends.windows.surface import WindowsSurfaceService
+from tests.platform_factories import make_windows_surface
 
 
 def window(*, mapped=True, origin=(1, 10, 50)):
@@ -46,7 +46,7 @@ def test_windows_projection_uses_popup_monitor_scale_and_negative_physical_origi
     display.get_monitor_at_window.return_value = monitor
     display.get_n_monitors.return_value = 1
     display.get_monitor.return_value = monitor
-    surface = WindowsSurfaceService()
+    surface = make_windows_surface()
     surface._appbar = Mock()
     surface._appbar.mapping.return_value = ScreenMapping(
         Rect(0, 0, 1280, 720), Rect(-2560, 0, 2560, 1440), Rect(-2560, 0, 2560, 1344), 2
@@ -59,9 +59,7 @@ def test_windows_projection_uses_popup_monitor_scale_and_negative_physical_origi
 
 
 def test_windows_unrealized_surface_has_no_guessed_screen_coordinates():
-    assert (
-        WindowsSurfaceService().screen_rectangle(window(), Rect(0, 0, 24, 24)) is None
-    )
+    assert make_windows_surface().screen_rectangle(window(), Rect(0, 0, 24, 24)) is None
 
 
 def test_monitor_workarea_defaults_to_the_toolkit_reservations():
@@ -69,7 +67,7 @@ def test_monitor_workarea_defaults_to_the_toolkit_reservations():
         index=0, geometry=Rect(0, 0, 1280, 800), workarea=Rect(0, 0, 1280, 699)
     )
     assert ReducedSurfaceService().monitor_workarea(monitor) == monitor.workarea
-    assert WindowsSurfaceService().monitor_workarea(monitor) == monitor.workarea
+    assert make_windows_surface().monitor_workarea(monitor) == monitor.workarea
 
 
 def test_windows_workarea_includes_own_live_reservation_with_scaled_negative_origin():
@@ -79,7 +77,7 @@ def test_windows_workarea_includes_own_live_reservation_with_scaled_negative_ori
         workarea=Rect(-1280, 0, 1280, 720),
         scale=2,
     )
-    surface = WindowsSurfaceService()
+    surface = make_windows_surface()
     surface._window = window()
     surface._appbar = Mock()
     surface._appbar.mapping.return_value = ScreenMapping(
@@ -94,7 +92,7 @@ def test_windows_workarea_includes_own_live_reservation_with_scaled_negative_ori
 
 def test_windows_workarea_query_failure_allows_toolkit_fallback():
     monitor = MonitorSnapshot(index=0, geometry=Rect(0, 0, 1280, 800))
-    surface = WindowsSurfaceService()
+    surface = make_windows_surface()
     surface._window = window()
     surface._appbar = Mock()
     surface._appbar.mapping.side_effect = OSError("Monitor removed")

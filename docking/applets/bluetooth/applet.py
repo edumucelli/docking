@@ -168,7 +168,7 @@ class BluetoothApplet(PlatformServicesApplet):
         self._poll_generation += 1
         # Only try to stop discovery if we own a local discovery session.
         # This avoids noisy NotReady calls when scanning is externally owned.
-        self._stop_local_discovery(quiet=True)
+        self._stop_local_discovery()
         self._backend.close()
         if self._poll_id:
             GLib.source_remove(self._poll_id)
@@ -196,17 +196,15 @@ class BluetoothApplet(PlatformServicesApplet):
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         if not self._state.available:
             return menu_sections(
-                status=[disabled_menu_item(_("Bluetooth unavailable"), gtk=Gtk)],
+                status=[disabled_menu_item(_("Bluetooth unavailable"))],
                 settings=self._desktop_items(),
-                gtk=Gtk,
             )
 
         adapter = self._active_adapter()
         if adapter is None:
             return menu_sections(
-                status=[disabled_menu_item(_("No Bluetooth adapter"), gtk=Gtk)],
+                status=[disabled_menu_item(_("No Bluetooth adapter"))],
                 settings=self._desktop_items(),
-                gtk=Gtk,
             )
 
         powered_label = (
@@ -229,7 +227,6 @@ class BluetoothApplet(PlatformServicesApplet):
                     powered=powered_label,
                     connected=len(connected_devices),
                 ),
-                gtk=Gtk,
             )
         ]
 
@@ -256,7 +253,6 @@ class BluetoothApplet(PlatformServicesApplet):
             display=display,
             manage=manage,
             settings=settings,
-            gtk=Gtk,
         )
 
     def _build_action_sections(
@@ -363,7 +359,6 @@ class BluetoothApplet(PlatformServicesApplet):
             ),
             active_value=self._active_adapter_path,
             on_selected=self._on_select_adapter,
-            gtk=Gtk,
         )
 
     def _build_devices_sections(self, *, adapter_path: str) -> list[Gtk.MenuItem]:
@@ -542,7 +537,7 @@ class BluetoothApplet(PlatformServicesApplet):
             ),
         )
 
-    def _sync_selected_adapter(self, persist: bool = True) -> None:
+    def _sync_selected_adapter(self) -> None:
         selected = adapter_from_state(
             state=self._state,
             preferred_path=self._active_adapter_path,
@@ -551,8 +546,7 @@ class BluetoothApplet(PlatformServicesApplet):
             if selected == self._active_adapter_path:
                 return
             self._active_adapter_path = selected
-            if persist:
-                self._save_prefs()
+            self._save_prefs()
 
     def _active_adapter(self) -> BluetoothAdapterState | None:
         return next(
@@ -652,7 +646,7 @@ class BluetoothApplet(PlatformServicesApplet):
         ):
             self._worker.run(
                 name="bluetooth-discovery-cleanup",
-                fn=lambda: self._stop_discovery_path(adapter_path, quiet=True),
+                fn=lambda: self._stop_discovery_path(adapter_path),
                 on_result=lambda stopped: self._ensure_discovery() if stopped else None,
             )
         return False
@@ -682,7 +676,7 @@ class BluetoothApplet(PlatformServicesApplet):
         ):
             self._worker.run(
                 name="bluetooth-adapter-cleanup",
-                fn=lambda: self._stop_discovery_path(previous_path, quiet=True),
+                fn=lambda: self._stop_discovery_path(previous_path),
                 on_result=lambda _ok: (
                     self._refresh_now() if not self._stopped else None
                 ),
@@ -775,18 +769,18 @@ class BluetoothApplet(PlatformServicesApplet):
         if self._continuous_discovery:
             self._ensure_discovery()
         else:
-            self._run_async(lambda: self._stop_local_discovery(quiet=True))
+            self._run_async(self._stop_local_discovery)
 
-    def _stop_local_discovery(self, *, quiet: bool = True) -> bool:
+    def _stop_local_discovery(self) -> bool:
         """Stop discovery only when this applet owns a discovery session."""
         stopped = True
         for adapter_path in tuple(self._local_discovery_paths):
-            if not self._stop_discovery_path(adapter_path, quiet=quiet):
+            if not self._stop_discovery_path(adapter_path):
                 stopped = False
         return stopped
 
-    def _stop_discovery_path(self, adapter_path: str, *, quiet: bool) -> bool:
-        stopped = self._backend.stop_discovery(adapter_path=adapter_path, quiet=quiet)
+    def _stop_discovery_path(self, adapter_path: str) -> bool:
+        stopped = self._backend.stop_discovery(adapter_path=adapter_path, quiet=True)
         if stopped:
             self._local_discovery_paths.discard(adapter_path)
         return stopped

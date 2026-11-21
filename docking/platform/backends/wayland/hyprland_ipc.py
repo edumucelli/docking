@@ -551,7 +551,7 @@ def load_hyprland_window_service(
     model,
     application_registry: ApplicationRegistry,
     process_identity_service: ProcessIdentityService,
-    preview_handle_source: object | None = None,
+    preview_handle_source: object | None,
 ) -> HyprlandWindowService | None:
     """Return a Hyprland WindowService when IPC sockets are detectable."""
     paths = hyprland_socket_paths()

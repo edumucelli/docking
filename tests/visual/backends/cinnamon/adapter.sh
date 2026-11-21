@@ -82,8 +82,7 @@ adapter_wait_ready() {
     # Two gates, because a Wayland socket existing is not the same as the shell
     # being up: org.Cinnamon has no owner until the JS shell finishes starting.
     # (docs/HEADLESS_WAYLAND_TESTING.local.md:502-512)
-    local attempts="${1:-120}"
-    for _ in $(seq "$attempts"); do
+    for _ in $(seq 120); do
         kill -0 "$ADAPTER_COMPOSITOR_PID"
         if /usr/bin/python3 "$PROBE" geometry >/dev/null 2>&1; then
             # Missing optional system services generate startup banners that

@@ -247,7 +247,7 @@ def test_gnome_shell_bridge_surface_retries_latest_position_request(monkeypatch)
     shell_bridge = _bridge()
     service = GnomeShellBridgeSurfaceService(bridge=shell_bridge)
     window = MagicMock()
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
 
     service.position_or_anchor(_placement(0, 1000, 1920, 80))
     service.position_or_anchor(_placement(0, 990, 1920, 90))
@@ -270,7 +270,7 @@ def test_gnome_shell_bridge_surface_stop_removes_pending_position_retry(monkeypa
         lambda source_id: removed.append(source_id),
     )
     service = GnomeShellBridgeSurfaceService(bridge=_bridge())
-    service.configure_before_realize(MagicMock())
+    service.configure_before_realize(MagicMock(), keep_above=True)
 
     service.position_or_anchor(_placement(0, 1000, 1920, 80))
     service.stop()
@@ -291,7 +291,7 @@ def test_surface_reconnect_retries_latest_placement_after_initial_budget(monkeyp
     bridge.subscribe_available = MagicMock(return_value=99)
     bridge.unsubscribe_available = MagicMock()
     service = GnomeShellBridgeSurfaceService(bridge=bridge)
-    service.configure_before_realize(MagicMock())
+    service.configure_before_realize(MagicMock(), keep_above=True)
     service.start()
     service.position_or_anchor(_placement(0, 0, 163, 720))
     while service._position_retry_attempts_remaining:

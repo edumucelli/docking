@@ -116,7 +116,6 @@ class PlantCareApplet(Applet):
         status = [
             disabled_menu_item(
                 menu_status_text(state=self._state, today=today),
-                gtk=Gtk,
             )
         ]
         primary = self._due_menu_items(current=current)
@@ -133,7 +132,6 @@ class PlantCareApplet(Applet):
             primary=primary,
             manage=[add, manage],
             refresh=[refresh],
-            gtk=Gtk,
         )
 
     def _due_menu_items(
@@ -176,7 +174,6 @@ class PlantCareApplet(Applet):
                         "{count} more due tasks",
                         hidden,
                     ).format(count=hidden),
-                    gtk=Gtk,
                 )
             )
         return items

@@ -75,7 +75,6 @@ def draw_count_badge(
     badge_count: int,
     background_rgba: RGBA = (0.89, 0.17, 0.19, 1.0),
     text_rgba: RGBA = (1.0, 1.0, 1.0, 1.0),
-    font_family: str = "Sans",
 ) -> None:
     """Draw a rounded count badge with centered text."""
     x, y, width, height = _snap_badge_rect(
@@ -88,7 +87,7 @@ def draw_count_badge(
     corner = min(height / 2, max(height * 0.35, 4.0))
 
     cr.save()
-    cr.select_font_face(font_family, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    cr.select_font_face("Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
     if badge_count <= 9:
         font_size = height * 0.58
     elif badge_count <= 99:

@@ -8,6 +8,7 @@ import pytest
 from docking.platform.backends.base import Rect
 from docking.platform.backends.windows.surface import WindowsSurfaceService
 from docking.platform.desktop.implementations.windows.geometry import ScreenMapping
+from tests.platform_factories import make_windows_surface
 
 
 @pytest.mark.parametrize(
@@ -17,7 +18,7 @@ from docking.platform.desktop.implementations.windows.geometry import ScreenMapp
 def test_hidden_edge_uses_scaled_negative_monitor_geometry_without_focus(
     physical, inside
 ):
-    service = WindowsSurfaceService()
+    service = make_windows_surface()
     service._mapping = ScreenMapping(
         Rect(0, 0, 1280, 800), Rect(-2560, 0, 2560, 1600), Rect(-2560, 0, 2560, 1504), 2
     )
@@ -44,7 +45,7 @@ def test_pointer_fallback_releases_hover_after_reveal_and_stop_removes_its_sourc
     removed = []
     monkeypatch.setattr(module.GLib, "timeout_add", lambda *_args: 100)
     monkeypatch.setattr(module.GLib, "source_remove", removed.append)
-    service = WindowsSurfaceService()
+    service = make_windows_surface()
     service._mapping = ScreenMapping(
         Rect(0, 0, 1280, 800), Rect(0, 0, 1280, 800), Rect(0, 0, 1280, 752), 1
     )
@@ -70,7 +71,9 @@ def test_surface_delegates_scope_only_after_native_window_exists(monkeypatch):
     from docking.platform.native.windows import ffi
 
     workspaces = Mock(supported=True)
-    service = WindowsSurfaceService(workspaces=workspaces)
+    service = WindowsSurfaceService(
+        workspaces=workspaces, file_drag_source_factory=Mock()
+    )
     handle = Mock(return_value=0x100000001)
     monkeypatch.setattr(ffi, "window_handle", handle)
     service.set_workspace_scope(current_workspace_only=False)

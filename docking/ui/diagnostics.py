@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -25,6 +24,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gdk, GLib, Gtk, Pango
 
+from docking.core.config import effective_edge_gap
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.diagnostics import (
@@ -36,9 +36,9 @@ from docking.platform.diagnostics import (
 )
 
 if TYPE_CHECKING:
-    from docking.core.config import Config
     from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.backends.base import SessionBackend
+    from docking.ui.dock_window import DockWindow
 
 DIAGNOSTICS_WINDOW_WIDTH_PX = 720
 DIAGNOSTICS_WINDOW_HEIGHT_PX = 560
@@ -58,16 +58,12 @@ class DiagnosticsDialogController:
     def __init__(
         self,
         *,
-        parent: Gtk.Window,
+        parent: DockWindow,
         backend: SessionBackend,
-        config: Config | None = None,
-        edge_gap_provider: Callable[[], int] | None = None,
         application_registry: ApplicationRegistry,
     ) -> None:
         self._parent = parent
         self._backend = backend
-        self._config = config
-        self._edge_gap_provider = edge_gap_provider
         self._application_registry = application_registry
         self._window: Gtk.Window | None = None
         self._snapshot: DiagnosticsSnapshot | None = None
@@ -370,8 +366,8 @@ class DiagnosticsDialogController:
         return collect_diagnostics(
             backend=self._backend,
             display=self._parent.get_display(),
-            config=self._config,
-            edge_gap=self._edge_gap_provider() if self._edge_gap_provider else None,
+            config=self._parent.config,
+            edge_gap=effective_edge_gap(self._parent.theme, self._parent.config),
             application_registry=self._application_registry,
         )
 

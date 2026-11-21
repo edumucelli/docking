@@ -117,8 +117,7 @@ adapter_start() {
 # Sway has no shell API, but the IPC socket answering get_outputs proves the
 # compositor itself is up, which is the check that matters here.
 adapter_wait_ready() {
-    local attempts="${1:-40}"
-    for _ in $(seq "$attempts"); do
+    for _ in $(seq 40); do
         kill -0 "$ADAPTER_COMPOSITOR_PID"
         if swaymsg -t get_outputs >/dev/null 2>&1; then
             return 0
@@ -151,7 +150,7 @@ adapter_geometry() {
 }
 
 adapter_scene() {
-    local scene="${1:-}"
+    local scene="$1"
     swaymsg 'output HEADLESS-1 enable scale 1 transform normal' >/dev/null
     swaymsg "output HEADLESS-1 resolution ${LAB_WIDTH:-1280}x${LAB_HEIGHT:-720} position 0 0" >/dev/null
     if swaymsg -t get_outputs | jq -e 'any(.[]; .name == "HEADLESS-2")' >/dev/null; then

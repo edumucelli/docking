@@ -75,9 +75,7 @@ def identity_fixture(tmp_path):
     (gufw / "cmdline").write_bytes(
         b"/usr/bin/python3\0/usr/share/gufw/gufw.py\0PRIVATE\0"
     )
-    processes = make_process_identity(
-        LaunchProvenanceStore(), proc_root=proc, executable_resolver=lambda _pid: None
-    )
+    processes = make_process_identity(LaunchProvenanceStore(), proc_root=proc)
     return registry, processes
 
 

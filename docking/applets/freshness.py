@@ -45,9 +45,9 @@ def cadence_label(*, seconds: int, verb: str | None = None) -> str:
     )
 
 
-def on_demand_label(*, verb: str | None = None) -> str:
+def on_demand_label(*, verb: str) -> str:
     """Return "<Verb> on demand" for manual applets."""
-    return _("{verb} on demand").format(verb=verb or _("Updates"))
+    return _("{verb} on demand").format(verb=verb)
 
 
 def updated_label(

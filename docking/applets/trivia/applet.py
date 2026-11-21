@@ -34,7 +34,6 @@ from docking.log import get_logger, with_context
 
 from .render import draw_trivia_icon
 from .state import (
-    DEFAULT_FETCH_LIMIT,
     TriviaEntry,
     answer_entry,
     fallback_trivia,
@@ -81,7 +80,7 @@ class TriviaApplet(Applet):
         self._fetch_async(show_first=True)
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        status: list[Gtk.MenuItem] = [disabled_menu_item("Open Trivia DB", gtk=Gtk)]
+        status: list[Gtk.MenuItem] = [disabled_menu_item("Open Trivia DB")]
 
         primary: list[Gtk.MenuItem] = []
         if self._current is not None:
@@ -91,7 +90,6 @@ class TriviaApplet(Applet):
                         category=self._current.category,
                         difficulty=self._current.difficulty.title(),
                     ),
-                    gtk=Gtk,
                 )
             )
 
@@ -109,7 +107,6 @@ class TriviaApplet(Applet):
                         _("Correct answer: {answer}").format(
                             answer=self._current.correct_answer
                         ),
-                        gtk=Gtk,
                     )
                 )
                 if self._current.selected_answer != self._current.correct_answer:
@@ -118,7 +115,6 @@ class TriviaApplet(Applet):
                             _("Your answer: {answer}").format(
                                 answer=self._current.selected_answer
                             ),
-                            gtk=Gtk,
                         )
                     )
 
@@ -133,7 +129,6 @@ class TriviaApplet(Applet):
             primary=primary,
             navigation=[next_item],
             refresh=[refresh_item],
-            gtk=Gtk,
         )
 
     def _select_answer(self, answer: str) -> None:
@@ -153,7 +148,7 @@ class TriviaApplet(Applet):
             self.present()
 
         def worker() -> None:
-            entries = fetch_trivia(limit=DEFAULT_FETCH_LIMIT)
+            entries = fetch_trivia()
             GLib.idle_add(self._on_fetch_result, entries, show_first)
 
         threading.Thread(target=worker, daemon=True).start()

@@ -125,7 +125,7 @@ class RecentApplications:
         self._loaded = False
         self._enabled = self._persistence.enabled
 
-    def load(self, *, pinned_ids: Iterable[str] = ()) -> None:
+    def load(self, *, pinned_ids: Iterable[str]) -> None:
         """Load, filter, and memory-sync records without flushing config."""
         self._loaded = True
         self._enabled = self._persistence.enabled
@@ -151,7 +151,7 @@ class RecentApplications:
         self._records = records[: self._persistence.max_count]
         self._persistence.replace(self._records)
 
-    def reload_policy(self, *, pinned_ids: Iterable[str] = ()) -> None:
+    def reload_policy(self, *, pinned_ids: Iterable[str]) -> None:
         """Apply an enabled-state transition or announce a policy change.
 
         Max-count and retention changes intentionally do not prune or save here.
@@ -176,7 +176,7 @@ class RecentApplications:
         self,
         running_ids: Iterable[str],
         *,
-        pinned_ids: Iterable[str] = (),
+        pinned_ids: Iterable[str],
     ) -> None:
         """Record closures and suppress records for applications now running."""
         current_ids = set(running_ids)
@@ -205,7 +205,7 @@ class RecentApplications:
         self,
         desktop_id: str,
         *,
-        pinned_ids: Iterable[str] = (),
+        pinned_ids: Iterable[str],
     ) -> bool:
         """Record one newly closed application, saving before policy pruning."""
         if desktop_id in set(pinned_ids):

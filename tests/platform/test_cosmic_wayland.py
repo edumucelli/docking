@@ -185,6 +185,7 @@ def test_cosmic_session_replays_initial_windows_with_workspace_ids(protocol_id) 
     runtime.cosmic_toplevel._on_cosmic_workspace_enter(toplevel, workspace)
     toplevel.dispatcher["done"](toplevel)
     backend = CosmicSessionBackend(
+        config=Config(),
         layer_shell=SimpleNamespace(),
         model=_model(),
         **identity_services(application("foot.desktop", wm_class="foot")),
@@ -288,6 +289,7 @@ def test_cosmic_session_reports_only_delivered_toplevel_capabilities(
         stop=MagicMock(),
     )
     backend = CosmicSessionBackend(
+        config=Config(),
         layer_shell=SimpleNamespace(),
         model=_model(),
         **identity_services(application("foot.desktop", wm_class="foot")),
@@ -325,6 +327,7 @@ def test_cosmic_session_does_not_claim_unavailable_state_or_actions(
     adapter._capabilities = {1, 2}  # Close and activate; minimization denied.
     adapter._seat = object()
     backend = CosmicSessionBackend(
+        config=Config(),
         layer_shell=SimpleNamespace(),
         model=_model(),
         **identity_services(),
@@ -505,7 +508,6 @@ def test_cosmic_unknown_workspace_never_hides_dock_and_cannot_cross_gtk_connecti
         )
         monitor.evaluate_now()
         assert changes == []
-        assert backend.surface._on_layer_surface_ready is None
     finally:
         backend.stop()
 
@@ -514,6 +516,7 @@ def test_cosmic_raw_overlap_global_does_not_claim_gtk_dodge_without_window_geome
     runtime = WaylandProtocolRuntime()
     runtime.cosmic_overlap.available = True
     backend = CosmicSessionBackend(
+        config=Config(),
         layer_shell=SimpleNamespace(),
         model=_model(),
         **identity_services(),
@@ -521,7 +524,6 @@ def test_cosmic_raw_overlap_global_does_not_claim_gtk_dodge_without_window_geome
         screen_capture=MagicMock(),
     )
     assert backend.capabilities.supports_any_overlap is False
-    assert backend.surface._on_layer_surface_ready is None
     backend.stop()
 
 

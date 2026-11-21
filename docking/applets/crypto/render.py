@@ -119,7 +119,7 @@ def _draw_sparkline(
     cr: cairo.Context,
     size: int,
     points: tuple[CryptoPoint, ...],
-    pulse_phase: float | None = None,
+    pulse_phase: float | None,
 ) -> None:
     values = [point.price for point in points if point.price > 0]
     if not values:

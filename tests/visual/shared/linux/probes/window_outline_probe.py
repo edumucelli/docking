@@ -317,6 +317,7 @@ class Probe:
             icon.x + icon.w / 2 - 24,
             48,
             output["height"] - frame.window_rect.h + icon.y,
+            self.dock.config.pos,
         )
         yield from self.wait(preview.get_mapped, "preview popup did not map")
         popup_only = yield from self.shot("popup")

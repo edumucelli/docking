@@ -72,14 +72,14 @@ class UsbWatchApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         if not self._devices:
-            return [disabled_menu_item(_("No mounted USB devices"), gtk=Gtk)]
+            return [disabled_menu_item(_("No mounted USB devices"))]
 
         status: list[Gtk.MenuItem] = []
         manage: list[Gtk.MenuItem] = []
         for device in self._devices:
-            status.append(disabled_menu_item(device.name, gtk=Gtk))
+            status.append(disabled_menu_item(device.name))
             if device.mount_path:
-                status.append(disabled_menu_item(device.mount_path, gtk=Gtk))
+                status.append(disabled_menu_item(device.mount_path))
             remove_item = Gtk.MenuItem(
                 label=_("Safely Remove {name}").format(name=device.name)
             )
@@ -89,7 +89,7 @@ class UsbWatchApplet(Applet):
                 lambda _widget, d=device: self._safe_remove(device=d),
             )
             manage.append(remove_item)
-        return menu_sections(status=status, manage=manage, gtk=Gtk)
+        return menu_sections(status=status, manage=manage)
 
     def start(self, notify: Callable[[], None]) -> None:
         """Monitor mount/device changes."""

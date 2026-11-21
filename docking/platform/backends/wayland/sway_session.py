@@ -24,9 +24,7 @@ if TYPE_CHECKING:
 
 
 class SwaySessionBackend(WaylandLayerShellSessionBackend):
-    def __init__(
-        self, *, socket_path: str, config: Config | None = None, **kwargs
-    ) -> None:
+    def __init__(self, *, socket_path: str, config: Config, **kwargs) -> None:
         super().__init__(**kwargs)
         client = SwayIpcClient(socket_path)
         runtime = self._services.protocol_runtime

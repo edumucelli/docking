@@ -21,6 +21,8 @@ from gi.repository import Gdk, GdkPixbuf, Gtk
 
 import docking.search.ui.window as window_mod
 from docking.platform.backends.base import Rect
+from docking.platform.backends.reduced.services import ReducedSurfaceService
+from docking.search.icons import SearchResultIcons
 from docking.search.types import SearchAction, SearchIdentity, SearchPreview
 from docking.search.ui.window import SearchWindow
 from docking.ui.display import ScreenPosition
@@ -93,7 +95,10 @@ def _fitted_palette(monkeypatch):
     bounds = [Rect(0, 0, 640, 349)]
     positions = []
     window = SearchWindow(
-        icon_loader=MagicMock(load_icon=MagicMock(return_value=None)),
+        surface_service=ReducedSurfaceService(),
+        result_icons=MagicMock(
+            spec=SearchResultIcons, load=MagicMock(return_value=None)
+        ),
         on_query_changed=MagicMock(),
         on_result_selected=MagicMock(),
         on_result_activated=MagicMock(),

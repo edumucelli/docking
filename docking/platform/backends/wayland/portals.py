@@ -136,7 +136,8 @@ def load_portal_color_picker() -> WaylandPortalColorPickerService | None:
     return WaylandPortalColorPickerService(picker=XdgDesktopPortalColorPicker())
 
 
-def _portal_frontend_available(*, timeout_ms: int = 250) -> bool:
+def _portal_frontend_available() -> bool:
+    timeout_ms = 250
     try:
         from gi.repository import Gio, GLib
     except (ImportError, ValueError):

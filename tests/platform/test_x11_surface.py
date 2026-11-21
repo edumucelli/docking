@@ -39,7 +39,7 @@ def test_configure_before_realize_applies_x11_dock_hints():
     window = MagicMock()
     service = X11SurfaceService()
 
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
 
     window.set_skip_taskbar_hint.assert_called_once_with(True)
     window.set_skip_pager_hint.assert_called_once_with(True)
@@ -131,7 +131,7 @@ def test_stop_releases_barrier_and_external_workarea_tracker():
 def test_set_workspace_scope_toggles_x11_stickiness():
     window = MagicMock()
     service = X11SurfaceService()
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
 
     service.set_workspace_scope(current_workspace_only=True)
     service.set_workspace_scope(current_workspace_only=False)
@@ -143,7 +143,7 @@ def test_set_workspace_scope_toggles_x11_stickiness():
 def test_position_or_anchor_moves_and_resizes_window():
     window = MagicMock()
     service = X11SurfaceService()
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
 
     service.position_or_anchor(
         PlacementRequest(
@@ -170,7 +170,7 @@ def test_set_reservation_writes_struts_for_x11_window(monkeypatch):
     window.get_window.return_value = x11_window
     window.get_screen.return_value = screen
     service = X11SurfaceService()
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
 
     service.set_reservation(
         ReservationRequest(
@@ -205,7 +205,7 @@ def test_clear_reservation_clears_x11_struts(monkeypatch):
     window = MagicMock()
     window.get_window.return_value = x11_window
     service = X11SurfaceService()
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
 
     service.clear_reservation()
 
@@ -257,7 +257,7 @@ def test_update_input_region_applies_shape_to_window():
     window = MagicMock()
     window.get_window.return_value = x11_window
     service = X11SurfaceService()
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
 
     service.update_input_region(Rect(x=1, y=2, width=30, height=40))
 
@@ -276,7 +276,7 @@ def test_set_blur_region_uses_window_theme_and_config(monkeypatch):
     window.theme = SimpleNamespace(roundness=4.0, round_bottom=True)
     window.config = SimpleNamespace(pos=Position.BOTTOM)
     service = X11SurfaceService()
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
 
     service.set_blur_region(Rect(x=1, y=2, width=30, height=40))
 
@@ -294,7 +294,7 @@ def test_set_blur_region_none_clears_hint(monkeypatch):
     window = MagicMock()
     window.get_window.return_value = x11_window
     service = X11SurfaceService()
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
 
     service.set_blur_region(None)
 

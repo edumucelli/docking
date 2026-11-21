@@ -168,7 +168,7 @@ class ScreenshotApplet(PlatformServicesApplet):
                 lambda _w, d=delay_s: self._run_mode(mode="full", delay_seconds=d),
             )
             manage.append(mi)
-        return menu_sections(primary=primary, manage=manage, gtk=Gtk)
+        return menu_sections(primary=primary, manage=manage)
 
     def _run_mode(self, *, mode: Mode, delay_seconds: int = 0) -> None:
         if not self._available or self._stopped:

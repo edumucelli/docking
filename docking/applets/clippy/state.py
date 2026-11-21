@@ -133,11 +133,11 @@ def normalize_max_entries(value: object) -> int:
     return max(MIN_MAX_ENTRIES, min(MAX_MAX_ENTRIES, parsed))
 
 
-def _truncate(text: str, max_len: int = MAX_DISPLAY_LEN) -> str:
+def _truncate(text: str) -> str:
     """Truncate text for menu display, replacing newlines with spaces."""
     clean = text.replace("\n", " ").replace("\t", " ").strip()
-    if len(clean) > max_len:
-        return clean[:max_len] + "..."
+    if len(clean) > MAX_DISPLAY_LEN:
+        return clean[:MAX_DISPLAY_LEN] + "..."
     return clean
 
 

@@ -21,7 +21,7 @@ adapter_start() {
 }
 
 adapter_wait_ready() {
-    for _ in $(seq "${1:-60}"); do
+    for _ in $(seq 60); do
         kill -0 "$ADAPTER_COMPOSITOR_PID" 2>/dev/null || { report_compositor_failure; return 1; }
         if [ "$(session_probe_json | jq -r .gtk_display_is_wayland)" = true ]; then
             sleep 1

@@ -134,11 +134,9 @@ class HydrationApplet(Applet):
             ),
             active_value=self._state.interval_min,
             on_selected=lambda _widget, value: self._set_interval(minutes=value),
-            gtk=Gtk,
         )
         return menu_sections(
             display=[show, Gtk.SeparatorMenuItem(), *intervals],
-            gtk=Gtk,
         )
 
     def _on_toggle_timer(self, widget: Gtk.CheckMenuItem) -> None:

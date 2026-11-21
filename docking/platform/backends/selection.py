@@ -403,7 +403,7 @@ def _create_wayland_layer_shell_backend(
 
 def _create_gnome_shell_bridge_backend(
     *,
-    config: Config | None = None,
+    config: Config,
     model: DockModel,
     reason: str,
     application_registry: ApplicationRegistry,
@@ -461,7 +461,7 @@ def _create_treeland_backend(
 
 def _create_cinnamon_wayland_backend(
     *,
-    config: Config | None = None,
+    config: Config,
     model: DockModel,
     reason: str,
     application_registry: ApplicationRegistry,
@@ -542,7 +542,7 @@ def _create_x11_backend(
 
 def _create_cosmic_backend(
     *,
-    config: Config | None = None,
+    config: Config,
     model: DockModel,
     reason: str,
     application_registry: ApplicationRegistry,
@@ -576,7 +576,7 @@ def _create_cosmic_backend(
 
 def _create_hyprland_backend(
     *,
-    config: Config | None = None,
+    config: Config,
     model: DockModel,
     reason: str,
     application_registry: ApplicationRegistry,
@@ -614,7 +614,7 @@ def _create_hyprland_backend(
 
 def _create_kwin_backend(
     *,
-    config: Config | None = None,
+    config: Config,
     model: DockModel,
     reason: str,
     application_registry: ApplicationRegistry,
@@ -699,7 +699,7 @@ def _create_sway_backend(
 
 def _create_niri_backend(
     *,
-    config: Config | None = None,
+    config: Config,
     model: DockModel,
     reason: str,
     application_registry: ApplicationRegistry,

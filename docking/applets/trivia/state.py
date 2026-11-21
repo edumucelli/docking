@@ -16,7 +16,6 @@
 from __future__ import annotations
 
 import random
-from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Any
 
@@ -121,21 +120,7 @@ def format_trivia(entry: TriviaEntry) -> str:
     return "\n".join(lines)
 
 
-def _shuffle_answers(
-    answers: list[str],
-    shuffle: Callable[[list[str]], None] | None = None,
-) -> tuple[str, ...]:
-    shuffle_fn = shuffle or random.shuffle
-    shuffled = list(answers)
-    shuffle_fn(shuffled)
-    return tuple(shuffled)
-
-
-def _parse_results(
-    data: Any,
-    limit: int,
-    shuffle_answers: Callable[[list[str]], None] | None = None,
-) -> list[TriviaEntry]:
+def _parse_results(data: Any, limit: int) -> list[TriviaEntry]:
     if not isinstance(data, dict):
         return []
     if data.get("response_code") != 0:
@@ -171,16 +156,14 @@ def _parse_results(
         ]
         if not category or not difficulty or not question or not correct_answer:
             continue
-        answers = _shuffle_answers(
-            [correct_answer, *incorrect_answers],
-            shuffle=shuffle_answers,
-        )
+        answers = [correct_answer, *incorrect_answers]
+        random.shuffle(answers)
         entries.append(
             TriviaEntry(
                 category=category,
                 difficulty=difficulty,
                 question=question,
-                answers=answers,
+                answers=tuple(answers),
                 correct_answer=correct_answer,
             )
         )
@@ -189,17 +172,10 @@ def _parse_results(
     return entries
 
 
-def fetch_trivia(
-    limit: int = DEFAULT_FETCH_LIMIT,
-    shuffle_answers: Callable[[list[str]], None] | None = None,
-) -> list[TriviaEntry]:
+def fetch_trivia() -> list[TriviaEntry]:
     try:
-        data = http_get_json(_TRIVIA_ENDPOINT.format(limit=limit))
-        return _parse_results(
-            data=data,
-            limit=limit,
-            shuffle_answers=shuffle_answers,
-        )
+        data = http_get_json(_TRIVIA_ENDPOINT.format(limit=DEFAULT_FETCH_LIMIT))
+        return _parse_results(data=data, limit=DEFAULT_FETCH_LIMIT)
     except Exception as exc:
         log.bind(action="fetch_trivia").debug(
             "Failed to fetch trivia questions: %s",

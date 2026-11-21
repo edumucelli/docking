@@ -122,7 +122,7 @@ class RecentFilesApplet(TargetServicesApplet):
         clear_item.set_sensitive(bool(self._entries))
         clear_item.connect("activate", lambda _: self._clear_recent())
 
-        return menu_sections(primary=primary, destructive=[clear_item], gtk=Gtk)
+        return menu_sections(primary=primary, destructive=[clear_item])
 
     def _refresh_entries(self) -> None:
         """Select the newest existing files without statting older history."""

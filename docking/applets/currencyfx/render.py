@@ -135,7 +135,7 @@ def _draw_sparkline(
     cr: cairo.Context,
     size: int,
     points: tuple[FxPoint, ...],
-    pulse_phase: float | None = None,
+    pulse_phase: float | None,
 ) -> None:
     """Draw the rate sparkline scaled to the available middle area.
 

@@ -255,8 +255,6 @@ def input_service_ready(
     journal: dict[str, object],
     publish: Callable[[], None],
     trace: Mapping[str, object] | None = None,
-    seconds: float = 20,
-    attempts: int = 3,
     cancelled: threading.Event | None = None,
 ) -> None:
     """Bound owned-editor setup separately from the twelve measured controls.
@@ -264,6 +262,8 @@ def input_service_ready(
     An unavailable cold read is evidence, never a passed measured request.
     Native/API exceptions, target loss and cancellation remain fatal.
     """
+    seconds = 20
+    attempts = 3
     rows: list[dict[str, object]] = []
     journal.update(ready=False, seconds=seconds, limit=attempts, attempts=rows)
     requests = (

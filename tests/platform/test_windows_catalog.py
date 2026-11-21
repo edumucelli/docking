@@ -10,7 +10,15 @@ import pytest
 from docking.platform.applications.implementations.windows import (
     native_catalog as catalog,
 )
+from docking.platform.applications.implementations.windows.export import (
+    WindowsApplicationExport,
+)
 from tests.platform.application_fakes import application
+
+
+@pytest.fixture
+def exporter(tmp_path):
+    return WindowsApplicationExport(tmp_path)
 
 
 def _shell(monkeypatch, *, fail_next=False, fail_string=False):
@@ -116,7 +124,9 @@ def test_failed_property_read_still_frees_the_returned_string_and_interfaces(
     assert set(freed) == {ctypes.addressof(b) for b in allocations}
 
 
-def test_metadata_filters_explicit_hidden_entries_in_both_sources(monkeypatch):
+def test_metadata_filters_explicit_hidden_entries_in_both_sources(
+    monkeypatch, exporter
+):
     visible, hidden = application("Main"), application("Widget")
     monkeypatch.setattr(catalog, "read_shell_applications", lambda: (visible, hidden))
     requested = []
@@ -125,31 +135,38 @@ def test_metadata_filters_explicit_hidden_entries_in_both_sources(monkeypatch):
         "hidden_application_ids",
         lambda ids: requested.append(set(ids)) or frozenset(("Widget",)),
     )
-    result = catalog.read_application_metadata(("GioOnly",))
+    result = catalog.read_application_metadata(
+        ("GioOnly",), registrations=(), cancelled=lambda: False, exporter=exporter
+    )
     assert requested == [{"Main", "Widget", "GioOnly"}]
     assert result.applications == (visible,)
     assert result.hidden_ids == {"Widget"}
 
 
-def test_unavailable_catalog_is_distinct_from_a_successful_empty_catalog(monkeypatch):
+def test_unavailable_catalog_is_distinct_from_a_successful_empty_catalog(
+    monkeypatch, exporter
+):
     monkeypatch.setattr(catalog, "hidden_application_ids", lambda _ids: frozenset())
 
     def failed():
         raise OSError("Shell restarting")
 
     monkeypatch.setattr(catalog, "read_shell_applications", failed)
-    assert catalog.read_application_metadata(()).applications is None
+    result = catalog.read_application_metadata(
+        (), registrations=(), cancelled=lambda: False, exporter=exporter
+    )
+    assert result.applications is None
     monkeypatch.setattr(catalog, "read_shell_applications", lambda: ())
-    assert catalog.read_application_metadata(()).applications == ()
+    result = catalog.read_application_metadata(
+        (), registrations=(), cancelled=lambda: False, exporter=exporter
+    )
+    assert result.applications == ()
 
 
 def test_exports_use_selected_registration_and_never_prepare_hidden_components(
     monkeypatch,
+    exporter,
 ):
-    from docking.platform.applications.implementations.windows.export import (
-        WindowsApplicationExport,
-    )
-
     visible, hidden = application("Main"), application("Widget")
     selected = replace(
         visible,
@@ -169,7 +186,9 @@ def test_exports_use_selected_registration_and_never_prepare_hidden_components(
         return tuple(replace(app, export_file=Path("prepared.lnk")) for app in apps)
 
     monkeypatch.setattr(WindowsApplicationExport, "prepare", prepare)
-    result = catalog.read_application_metadata((), registrations=(selected,))
+    result = catalog.read_application_metadata(
+        (), registrations=(selected,), cancelled=lambda: False, exporter=exporter
+    )
     assert len(prepared) == 1
     assert prepared[0].desktop_id == "Main"
     assert prepared[0].launch_target == selected.launch_target
@@ -179,14 +198,10 @@ def test_exports_use_selected_registration_and_never_prepare_hidden_components(
 
 @pytest.mark.parametrize("stage", ["catalog", "hidden", "sources", "documents"])
 def test_stop_between_native_catalog_phases_prevents_subsequent_export_work(
-    monkeypatch, stage
+    monkeypatch, stage, exporter
 ):
     from threading import Event
     from unittest.mock import Mock
-
-    from docking.platform.applications.implementations.windows.export import (
-        WindowsApplicationExport,
-    )
 
     closed = Event()
     visible = replace(
@@ -216,6 +231,8 @@ def test_stop_between_native_catalog_phases_prevents_subsequent_export_work(
     )
     export = Mock(side_effect=AssertionError("No native export after stop"))
     monkeypatch.setattr(WindowsApplicationExport, "prepare", export)
-    result = catalog.read_application_metadata((), cancelled=closed.is_set)
+    result = catalog.read_application_metadata(
+        (), registrations=(), cancelled=closed.is_set, exporter=exporter
+    )
     assert closed.is_set() and result.applications is None
     export.assert_not_called()

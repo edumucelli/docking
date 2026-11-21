@@ -40,7 +40,7 @@ def test_visible_dock_stays_top_and_reservation_follows_foreign_top_panels(posit
     service = PhocLayerShellSurfaceService(
         layer_shell=layer, reservation_window_factory=factory
     )
-    service.configure_before_realize(main)
+    service.configure_before_realize(main, keep_above=True)
     service.position_or_anchor(
         PlacementRequest(
             monitor=monitor,

@@ -11,6 +11,7 @@ import pytest
 
 from docking.platform.desktop.implementations.windows import menus
 from docking.platform.native.windows import close_hook
+from tests.platform_factories import make_windows_surface
 
 
 @pytest.mark.parametrize(
@@ -416,11 +417,10 @@ def test_foreground_hook_reports_identity_and_is_unhooked_before_callback_releas
 
 
 def test_surface_owns_and_stops_one_menu_session(monkeypatch):
-    from docking.platform.backends.windows.surface import WindowsSurfaceService
 
     factory = MagicMock()
     monkeypatch.setattr(menus, "WindowsMenuSession", factory)
-    service = WindowsSurfaceService()
+    service = make_windows_surface()
     menu = Menu()
     service.prepare_menu_popup(menu)
     factory.assert_not_called()
@@ -438,12 +438,11 @@ def test_surface_starts_foreground_observation_at_realize_before_first_menu(
     monkeypatch,
 ):
     from docking.platform.backends.windows import appbar
-    from docking.platform.backends.windows.surface import WindowsSurfaceService
 
     factory = MagicMock()
     monkeypatch.setattr(menus, "WindowsMenuSession", factory)
     monkeypatch.setattr(appbar, "WindowsAppBar", MagicMock())
-    service = WindowsSurfaceService()
+    service = make_windows_surface()
     parent = MagicMock()
     service.on_realize(parent)
     service.on_realize(parent)

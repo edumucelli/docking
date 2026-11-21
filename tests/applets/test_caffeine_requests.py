@@ -13,7 +13,7 @@ from docking.applets.caffeine.state import CaffeineState
 from docking.core.config import Config
 from tests.applets.deferred_worker import DeferredWorker
 from tests.applets.test_caffeine import FakeInhibitor
-from tests.platform_factories import make_applet_platform
+from tests.platform_factories import TestAppletBackendFactories, make_applet_platform
 
 
 @pytest.fixture
@@ -25,9 +25,8 @@ def setup(monkeypatch):
     )
     monkeypatch.setattr(mod, "GLib", timers)
     backend = FakeInhibitor()
-    applet = mod.CaffeineApplet(
-        48, Config(), inhibitor=backend, platform_services=make_applet_platform()
-    )
+    monkeypatch.setattr(TestAppletBackendFactories, "caffeine", lambda _self: backend)
+    applet = mod.CaffeineApplet(48, Config(), platform_services=make_applet_platform())
     monkeypatch.setattr(applet, "save_prefs", Mock())
     try:
         yield applet, backend, queue, timers

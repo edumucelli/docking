@@ -71,7 +71,9 @@ class TestState:
         assert first_uploadable_file([str(path)]) == path
         assert file_path_from_uri(path.as_uri()) == path
 
-    def test_newlines_in_filename_stay_inside_multipart_filename(self, tmp_path):
+    def test_newlines_in_filename_stay_inside_multipart_filename(
+        self, tmp_path, monkeypatch
+    ):
         path = tmp_path / "report\r\nX-Extra: header.txt"
         path.write_text("payload")
         captured = []
@@ -80,7 +82,8 @@ class TestState:
             captured.append(request.data)
             return _Response(b'{"data":{"url":"https://tmpfiles.org/shared"}}')
 
-        upload_file(path, opener=opener)
+        monkeypatch.setattr("docking.applets.dragshare.state.urlopen", opener)
+        upload_file(path)
 
         header, body = captured[0].split(b"\r\n\r\n", 1)
         assert b"report%0D%0AX-Extra: header.txt" in header
@@ -112,13 +115,14 @@ class TestState:
             == file_path
         )
 
-    def test_upload_file_posts_multipart_and_returns_url(self, tmp_path):
+    def test_upload_file_posts_multipart_and_returns_url(self, tmp_path, monkeypatch):
         file_path = tmp_path / 'my "file".txt'
         file_path.write_text("hello", encoding="utf-8")
         seen = {}
 
         def opener(request, timeout):
             seen["timeout"] = timeout
+            seen["endpoint"] = request.full_url
             seen["method"] = request.get_method()
             seen["content_type"] = request.headers["Content-type"]
             seen["body"] = request.data
@@ -126,37 +130,43 @@ class TestState:
                 b'{"status":"success","data":{"url":"https://tmpfiles.org/abc.txt"}}'
             )
 
-        result = upload_file(file_path, endpoint="https://upload.test", opener=opener)
+        monkeypatch.setattr("docking.applets.dragshare.state.urlopen", opener)
+        result = upload_file(file_path)
 
         assert result == UploadResult(
             url="https://tmpfiles.org/abc.txt",
             file_name='my "file".txt',
         )
         assert seen["method"] == "POST"
+        assert seen["endpoint"] == "https://tmpfiles.org/api/v1/upload"
+        assert seen["timeout"] == 60
         assert "multipart/form-data" in seen["content_type"]
         assert b'name="file"' in seen["body"]
         assert b"hello" in seen["body"]
 
-    def test_upload_file_rejects_invalid_response(self, tmp_path):
+    def test_upload_file_rejects_invalid_response(self, tmp_path, monkeypatch):
         file_path = tmp_path / "share.txt"
         file_path.write_text("payload", encoding="utf-8")
 
+        monkeypatch.setattr(
+            "docking.applets.dragshare.state.urlopen",
+            lambda _request, timeout: _Response(b"nope"),
+        )
         with pytest.raises(UploadError):
-            upload_file(file_path, opener=lambda _request, timeout: _Response(b"nope"))
+            upload_file(file_path)
 
-    def test_upload_file_rejects_response_without_url(self, tmp_path):
+    def test_upload_file_rejects_response_without_url(self, tmp_path, monkeypatch):
         file_path = tmp_path / "share.txt"
         file_path.write_text("payload", encoding="utf-8")
 
+        monkeypatch.setattr(
+            "docking.applets.dragshare.state.urlopen",
+            lambda _request, timeout: _Response(b'{"status":"success","data":{}}'),
+        )
         with pytest.raises(UploadError, match="invalid URL"):
-            upload_file(
-                file_path,
-                opener=lambda _request, timeout: _Response(
-                    b'{"status":"success","data":{}}'
-                ),
-            )
+            upload_file(file_path)
 
-    def test_upload_file_reports_http_error(self, tmp_path):
+    def test_upload_file_reports_http_error(self, tmp_path, monkeypatch):
         file_path = tmp_path / "share.txt"
         file_path.write_text("payload", encoding="utf-8")
 
@@ -170,8 +180,9 @@ class TestState:
                 fp=io.BytesIO(b"too large"),
             )
 
+        monkeypatch.setattr("docking.applets.dragshare.state.urlopen", opener)
         with pytest.raises(UploadError, match="too large"):
-            upload_file(file_path, opener=opener)
+            upload_file(file_path)
 
 
 class TestRender:

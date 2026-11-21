@@ -22,6 +22,7 @@ from docking.platform.backends.base import (
     WindowId,
     WindowSnapshot,
 )
+from docking.platform.backends.reduced.services import ReducedSurfaceService
 from docking.search.app_identity import application_id
 from docking.search.controller import GlobalSearchController
 from docking.search.services.global_shortcuts import GlobalShortcutService
@@ -228,6 +229,7 @@ def _make_controller(
         application_launcher=MagicMock(),
         icon_loader=icon_loader,
         target_service=target_service,
+        surface_service=ReducedSurfaceService(),
     )
     return controller, created[0], active_registry, recent, shortcuts
 

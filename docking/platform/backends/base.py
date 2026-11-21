@@ -413,9 +413,7 @@ class SurfaceService(Service):
     # satisfy that narrower SurfaceWindow contract, while SurfaceService should
     # depend only on that contract instead of importing the UI-layer DockWindow.
     @abstractmethod
-    def configure_before_realize(
-        self, window: object, *, keep_above: bool = True
-    ) -> None:
+    def configure_before_realize(self, window: object, *, keep_above: bool) -> None:
         """Configure platform surface role before the GTK window is realized."""
 
     @abstractmethod

@@ -91,8 +91,8 @@ class StartupTipsController:
 
     def start(
         self,
-        request_show: Callable[[str], None] | None = None,
-        visibility_changed: Callable[[str, bool], None] | None = None,
+        request_show: Callable[[str], None],
+        visibility_changed: Callable[[str, bool], None],
     ) -> None:
         """Schedule the startup tip check once per process."""
         if self._start_source_id or not self._config.startup_tips_enabled:
@@ -115,10 +115,8 @@ class StartupTipsController:
         self._start_source_id = 0
         if not self._config.startup_tips_enabled:
             return False
-        if self._request_show is not None:
-            self._request_show(self.source_id)
-        else:
-            self.show_pending()
+        assert self._request_show is not None
+        self._request_show(self.source_id)
         return False
 
     def show_pending(self) -> bool:

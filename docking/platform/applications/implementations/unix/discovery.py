@@ -724,8 +724,8 @@ def _make_application(
     categories_raw: str,
     keywords: tuple[str, ...],
     actions: tuple[ApplicationAction, ...],
-    terminal: bool = False,
-    working_directory: str = "",
+    terminal: bool,
+    working_directory: str,
 ) -> ApplicationInfo:
     return ApplicationInfo(
         desktop_id=desktop_id,

@@ -86,9 +86,7 @@ class X11SurfaceService(SurfaceService):
         self._workarea.stop()
         self._barrier.shutdown()
 
-    def configure_before_realize(
-        self, window: object, *, keep_above: bool = True
-    ) -> None:
+    def configure_before_realize(self, window: object, *, keep_above: bool) -> None:
         """Configure the GTK window as an X11 dock before realization."""
         window = cast("Gtk.Window", window)
         self._window = window

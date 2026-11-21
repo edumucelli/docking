@@ -229,26 +229,25 @@ class NewsApplet(Applet):
         destructive: list[Gtk.MenuItem] = []
 
         if source is None:
-            status.append(disabled_menu_item(_("No news source selected"), gtk=Gtk))
+            status.append(disabled_menu_item(_("No news source selected")))
         else:
             status.extend(
                 [
-                    disabled_menu_item(source_label(source), gtk=Gtk),
-                    disabled_menu_item(source_detail(source), gtk=Gtk),
+                    disabled_menu_item(source_label(source)),
+                    disabled_menu_item(source_detail(source)),
                     disabled_menu_item(
                         cadence_label(
                             seconds=REFRESH_INTERVAL_S,
                             verb=_("Refreshes"),
                         ),
-                        gtk=Gtk,
                     ),
                 ]
             )
             if current is not None:
-                status.append(disabled_menu_item(current.title, gtk=Gtk))
+                status.append(disabled_menu_item(current.title))
                 age = article_age(article=current)
                 if age:
-                    status.append(disabled_menu_item(age, gtk=Gtk))
+                    status.append(disabled_menu_item(age))
 
                 open_headline = Gtk.MenuItem(label=_("Open Headline"))
                 open_headline.connect(
@@ -268,13 +267,12 @@ class NewsApplet(Applet):
             state_status = self._live_status()
             state_text = live_state_label(state_status)
             if state_text:
-                status.append(disabled_menu_item(state_text, gtk=Gtk))
+                status.append(disabled_menu_item(state_text))
             error = live_state_error(status=state_status, error=self._error)
             if error:
                 status.append(
                     disabled_menu_item(
                         _("Error: {msg}").format(msg=error),
-                        gtk=Gtk,
                     )
                 )
 
@@ -315,7 +313,6 @@ class NewsApplet(Applet):
                         ),
                         active_value=self._active_source_index,
                         on_selected=lambda _widget, index: self._set_source(index),
-                        gtk=Gtk,
                     )
                 )
 
@@ -335,7 +332,6 @@ class NewsApplet(Applet):
             display=display,
             manage=[add],
             destructive=destructive,
-            gtk=Gtk,
         )
 
     def _live_status(self):
