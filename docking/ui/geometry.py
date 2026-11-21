@@ -172,12 +172,13 @@ This module separates runtime capture from pure geometry math:
 
 - DockGeometryBuilder
   Lives at the UI boundary and knows how to ask the dock window for live state.
+  Reuses zoom limits across frames as the pointer moves.
 
 - DockGeometryInputs
   An explicit snapshot of those live inputs.
 
 - build_geometry_frame(...)
-  Pure geometry math that can be tested without GTK.
+  Builds a single frame from explicit inputs.
 
 That split prevents geometry code from gradually turning into another
 "everything knows about DockWindow" layer.
@@ -233,8 +234,9 @@ the geometry frame here, not to patch individual consumers elsewhere.
 from __future__ import annotations
 
 import math
+from bisect import bisect_left
 from collections.abc import Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from itertools import pairwise
 from typing import TYPE_CHECKING, NamedTuple
 
@@ -246,6 +248,7 @@ from docking.core.layout import (
     compute_layout,
     content_bounds,
 )
+from docking.core.math import clamp
 from docking.core.position import Position, aligned_main_axis_start, is_horizontal
 from docking.ui.autohide import HideState
 
@@ -458,11 +461,20 @@ class DockGeometryInputs:
     constrain_main_axis: bool = False
 
 
+@dataclass
+class _AlignedZoomCache:
+    """Reuse clickability probes while only the pointer is moving."""
+
+    signature: tuple[object, ...] = ()
+    limits: dict[int, float] = field(default_factory=dict)
+
+
 class DockGeometryBuilder:
     """Window-bound adapter that builds geometry frames from live runtime state."""
 
     def __init__(self, window: DockWindow) -> None:
         self._window = window
+        self._zoom_cache = _AlignedZoomCache()
 
     def build_frame(
         self,
@@ -479,7 +491,7 @@ class DockGeometryBuilder:
             cursor_y=cursor_y,
             drop_insert_index=drop_insert_index,
         )
-        return build_geometry_frame(
+        return _build_cached_geometry_frame(
             items=list(inputs.items),
             config=inputs.config,
             theme=inputs.theme,
@@ -492,6 +504,7 @@ class DockGeometryBuilder:
             drop_insert_index=inputs.drop_insert_index,
             pointer_reveal_enabled=inputs.pointer_reveal_enabled,
             constrain_main_axis=inputs.constrain_main_axis,
+            zoom_cache=self._zoom_cache,
         )
 
 
@@ -574,25 +587,60 @@ def build_geometry_frame(
     constrain_main_axis: bool = False,
     pointer_reveal_enabled: bool = True,
 ) -> DockGeometryFrame:
-    """Build shared geometry, limiting corner zoom before it loses the target."""
+    """Build a single frame from explicit inputs."""
+    return _build_cached_geometry_frame(
+        items=items,
+        config=config,
+        theme=theme,
+        window_w=window_w,
+        window_h=window_h,
+        cursor_main=cursor_main,
+        autohide_state=autohide_state,
+        zoom_progress=zoom_progress,
+        hide_offset=hide_offset,
+        drop_insert_index=drop_insert_index,
+        constrain_main_axis=constrain_main_axis,
+        pointer_reveal_enabled=pointer_reveal_enabled,
+        zoom_cache=_AlignedZoomCache(),
+    )
 
-    def build(progress: float) -> DockGeometryFrame:
+
+def _build_cached_geometry_frame(
+    *,
+    items: list[DockItem],
+    config: Config,
+    theme: Theme,
+    window_w: int,
+    window_h: int,
+    cursor_main: float,
+    autohide_state: HideState | None,
+    zoom_progress: float,
+    hide_offset: float,
+    drop_insert_index: int,
+    constrain_main_axis: bool,
+    pointer_reveal_enabled: bool,
+    zoom_cache: _AlignedZoomCache,
+) -> DockGeometryFrame:
+    """Build shared geometry with smoothly varying zoom limits on aligned docks."""
+    resting_center: float | None = None
+
+    def build(progress: float, *, cursor: float = cursor_main) -> DockGeometryFrame:
         return _build_geometry_frame(
             items=items,
             config=config,
             theme=theme,
             window_w=window_w,
             window_h=window_h,
-            cursor_main=cursor_main,
+            cursor_main=cursor,
             autohide_state=autohide_state,
             zoom_progress=progress,
             hide_offset=hide_offset,
             drop_insert_index=drop_insert_index,
             pointer_reveal_enabled=pointer_reveal_enabled,
             constrain_main_axis=constrain_main_axis,
+            resting_center=resting_center,
         )
 
-    frame = build(zoom_progress)
     if (
         cursor_main < 0
         or zoom_progress <= 0
@@ -600,55 +648,87 @@ def build_geometry_frame(
         or autohide_state == HideState.HIDDEN
         or getattr(config, "dock_alignment", 0.5) == 0.5
     ):
-        return frame
+        return build(zoom_progress)
 
     horizontal = is_horizontal(config.pos)
     resting = build(0.0)
-    target = next(
-        (
-            geometry.item
-            for geometry in resting.item_geometries
-            if (
-                geometry.hover_rect.x
-                <= cursor_main
-                < geometry.hover_rect.x + geometry.hover_rect.w
-                if horizontal
-                else geometry.hover_rect.y
-                <= cursor_main
-                < geometry.hover_rect.y + geometry.hover_rect.h
-            )
-        ),
-        None,
+    if 0.0 < config.dock_alignment < 1.0:
+        # Measure the painted shelf once at rest. Every zoom probe then uses
+        # the same center, even when the probe uses a different cursor position.
+        resting_center = resting.shelf_main_pos + resting.shelf_main_extent / 2
+    centers = [
+        (_item_main_center(item_geometry=geometry, pos=config.pos), index)
+        for index, geometry in enumerate(resting.item_geometries)
+        if geometry.scaled_size > 0
+    ]
+    if not centers:
+        return build(zoom_progress)
+
+    signature = (
+        config.pos,
+        config.dock_alignment,
+        config.icon_size,
+        config.zoom_percent,
+        theme,
+        effective_edge_gap(theme, config),
+        window_w,
+        window_h,
+        zoom_progress,
+        hide_offset,
+        drop_insert_index,
+        constrain_main_axis,
+        tuple((item.main_size, item.insert_factor, item.allow_zoom) for item in items),
     )
-    if target is None:
-        return frame
+    if zoom_cache.signature != signature:
+        zoom_cache.signature = signature
+        zoom_cache.limits.clear()
 
-    def keeps_target(candidate: DockGeometryFrame) -> bool:
-        geometry = candidate.geometry_for_item(target)
-        if geometry is None:
-            return False
-        rect = geometry.draw_rect
-        x, y = (
-            (cursor_main, rect.y + rect.h / 2)
-            if horizontal
-            else (rect.x + rect.w / 2, cursor_main)
-        )
-        return candidate.item_at_point(x, y) is target
+    def find_safe_zoom(center: float, index: int) -> float:
+        target = resting.item_geometries[index].item
 
-    if keeps_target(frame) or not keeps_target(resting):
-        return frame
-    # Extreme zoom can expand inward past the original pointer position.
-    # Keep the largest safe zoom instead of letting a click hit a neighbour.
-    low, high = 0.0, zoom_progress
-    best = resting
-    for _ in range(8):
-        progress = (low + high) / 2
-        candidate = build(progress)
-        if keeps_target(candidate):
-            low, best = progress, candidate
-        else:
-            high = progress
-    return best
+        def keeps_target(frame: DockGeometryFrame) -> bool:
+            rect = frame.item_geometries[index].draw_rect
+            x, y = (
+                (center, rect.y + rect.h / 2)
+                if horizontal
+                else (rect.x + rect.w / 2, center)
+            )
+            return frame.item_at_point(x, y) is target
+
+        if keeps_target(build(zoom_progress, cursor=center)) or not keeps_target(
+            resting
+        ):
+            return zoom_progress
+
+        low, high = 0.0, zoom_progress
+        for _ in range(8):
+            progress = (low + high) / 2
+            if keeps_target(build(progress, cursor=center)):
+                low = progress
+            else:
+                high = progress
+        return low
+
+    def safe_zoom(center: float, index: int) -> float:
+        if index not in zoom_cache.limits:
+            zoom_cache.limits[index] = find_safe_zoom(center, index)
+        return zoom_cache.limits[index]
+
+    # Interpolate limits between resting centers so crossing a hit boundary
+    # cannot suddenly switch the zoom off or back on.
+    slot = bisect_left(centers, cursor_main, key=lambda entry: entry[0])
+    right_center, right_index = centers[min(slot, len(centers) - 1)]
+    left_center, left_index = centers[max(0, slot - 1)]
+    if cursor_main >= right_center:
+        return build(safe_zoom(right_center, right_index))
+    if cursor_main <= left_center:
+        return build(safe_zoom(left_center, left_index))
+
+    fraction = (cursor_main - left_center) / (right_center - left_center)
+    weight = fraction * fraction * (3 - 2 * fraction)
+    left_zoom = safe_zoom(left_center, left_index)
+    right_zoom = safe_zoom(right_center, right_index)
+    return build(left_zoom + (right_zoom - left_zoom) * weight)
 
 
 def _build_geometry_frame(
@@ -660,6 +740,7 @@ def _build_geometry_frame(
     window_h: int,
     cursor_main: float,
     autohide_state: HideState | None,
+    resting_center: float | None,
     zoom_progress: float,
     hide_offset: float,
     drop_insert_index: int,
@@ -762,6 +843,7 @@ def _build_geometry_frame(
         main_size=main_size,
         start=background_rect.x if horizontal else background_rect.y,
         extent=background_rect.w if horizontal else background_rect.h,
+        resting_center=resting_center,
     )
     if shift:
         dx, dy = (shift, 0) if horizontal else (0, shift)
@@ -1003,12 +1085,46 @@ def _local_cursor_main(
 
 
 def _main_axis_alignment_shift(
-    *, config: Config, main_size: int, start: float, extent: float
+    *,
+    config: Config,
+    main_size: int,
+    start: float,
+    extent: float,
+    resting_center: float | None = None,
 ) -> int:
-    """Translate a shelf while preserving the existing centered pixel layout."""
+    """Place the shelf along its main axis.
+
+    At rest, the alignment fraction divides the space left over after the
+    shelf is placed. A 200 px shelf on a 400 px surface at 25% alignment
+    starts 50 px from the left and leaves 150 px on the right.
+
+    During hover zoom, an intermediate alignment keeps the resting center
+    fixed while there is room to grow. Reapplying the alignment fraction to
+    the reduced free space would move the center on every frame. In the same 25%
+    example, a 40 px increase would then add 10 px on the left and 30 px on
+    the right. Keeping the center gives each side 20 px of growth.
+
+    The bars below mark the surface edges and the plus marks the shelf center.
+    Each column is 10 px. For a vertical dock, read the diagram along the Y axis.
+
+        Resting  |    [=========+=========]              |
+        Zoomed   |  [===========+===========]            |
+        Clamped  [================+================]     |
+
+    The preferred start is the resting center minus half the zoomed extent.
+    Clamp it to the range from zero to the surface length minus the zoomed
+    extent. Once the shelf reaches an edge, further growth goes toward the
+    other edge and the center moves with it. Full left or right alignment
+    keeps the corresponding edge attached throughout zoom.
+
+    The caller applies the resulting shift to the painted shelf, item hit
+    regions, and popup anchors so they move together.
+    """
     alignment = getattr(config, "dock_alignment", 0.5)
-    if alignment == 0.5:
-        desired = min(max(0.0, main_size - extent), max(0.0, start))
+    if resting_center is not None:
+        desired = clamp(resting_center - extent / 2, 0.0, max(0.0, main_size - extent))
+    elif alignment == 0.5:
+        desired = clamp(start, 0.0, max(0.0, main_size - extent))
     else:
         desired = aligned_main_axis_start(
             available=main_size,

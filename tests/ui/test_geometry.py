@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from itertools import pairwise
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
@@ -13,8 +14,10 @@ from docking.core.layout import content_bounds
 from docking.core.position import Position
 from docking.core.theme import Theme
 from docking.platform.model import DockItem
+from docking.ui import geometry as geometry_mod
 from docking.ui.autohide import HideState
 from docking.ui.geometry import (
+    DockGeometryBuilder,
     Rect,
     build_geometry_frame,
     compute_dock_cross_metrics,
@@ -203,6 +206,25 @@ class TestDockAlignment:
             )
 
     @pytest.mark.parametrize("position", list(Position))
+    @pytest.mark.parametrize("alignment", [0.0, 0.04, 0.29, 0.71, 0.96, 1.0])
+    def test_zoom_expands_around_resting_center_until_screen_edge(
+        self, position, alignment
+    ):
+        config = Config(position=position.value, dock_alignment=alignment)
+        items = [DockItem(desktop_id=f"app-{i}.desktop") for i in range(3)]
+        resting = self.frame(config, items)
+        center = resting.shelf_main_pos + resting.shelf_main_extent / 2
+
+        hovered = self.frame(config, items, cursor=center)
+
+        assert hovered.shelf_main_extent > resting.shelf_main_extent
+        ideal_start = center - hovered.shelf_main_extent / 2
+        last_start = 420 - hovered.shelf_main_extent
+        assert hovered.shelf_main_pos == pytest.approx(
+            min(max(ideal_start, 0), last_start), abs=1
+        )
+
+    @pytest.mark.parametrize("position", list(Position))
     @pytest.mark.parametrize("alignment", [0.0, 1.0])
     @pytest.mark.parametrize("zoom", [1.5, 4.0])
     @pytest.mark.parametrize("index", [0, -1])
@@ -229,6 +251,70 @@ class TestDockAlignment:
         )
         assert frame.item_at_point(x, y) is items[index]
         assert frame.item_geometries[index].layout_item.scale > 1.0
+
+    @pytest.mark.parametrize("position", [Position.BOTTOM, Position.LEFT])
+    @pytest.mark.parametrize("alignment", [0.0, 0.25, 0.75, 1.0])
+    @pytest.mark.parametrize(("zoom", "max_pixel_step"), [(1.5, 1.0), (4.0, 5.0)])
+    def test_aligned_zoom_stays_smooth_across_icons(
+        self, position, alignment, zoom, max_pixel_step
+    ):
+        config = Config(
+            position=position.value, dock_alignment=alignment, zoom_percent=zoom
+        )
+        items = [DockItem(desktop_id=f"app-{i}.desktop") for i in range(4)]
+        resting = self.frame(config, items, zoom_progress=0.0)
+        rects = [geometry.draw_rect for geometry in resting.item_geometries]
+        if position == Position.BOTTOM:
+            start, end = rects[0].x, rects[-1].x + rects[-1].w
+        else:
+            start, end = rects[0].y, rects[-1].y + rects[-1].h
+
+        sizes = []
+        for cursor in range(start, end):
+            frame = self.frame(config, items, cursor=cursor)
+            sizes.append([geometry.scaled_size for geometry in frame.item_geometries])
+        assert all(max(frame_sizes) > config.icon_size for frame_sizes in sizes)
+        assert all(
+            abs(before - after) <= max_pixel_step
+            for earlier, later in pairwise(sizes)
+            for before, after in zip(earlier, later, strict=True)
+        )
+
+    def test_live_zoom_reuses_limits_until_icon_width_changes(self, monkeypatch):
+        items = [DockItem(desktop_id=f"app-{i}.desktop") for i in range(4)]
+        config = Config(dock_alignment=0.0, zoom_percent=4.0)
+        theme = Theme.load("default", 48)
+        window = SimpleNamespace(
+            config=config,
+            theme=theme,
+            get_size=lambda: (420, 187),
+            model=SimpleNamespace(visible_items=lambda: items),
+            autohide=SimpleNamespace(enabled=False),
+            zoom_animator=SimpleNamespace(progress=1.0),
+            surface_service=SimpleNamespace(compositor_sizes_main_axis=False),
+        )
+        builder = DockGeometryBuilder(window)
+        build_geometry = Mock(wraps=geometry_mod._build_geometry_frame)
+        monkeypatch.setattr(geometry_mod, "_build_geometry_frame", build_geometry)
+
+        original = builder.build_frame(main_cursor=145)
+        initial_builds = build_geometry.call_count
+        build_geometry.reset_mock()
+        builder.build_frame(main_cursor=146)
+        assert build_geometry.call_count < initial_builds
+
+        items[1].main_size = 96
+        resized = builder.build_frame(main_cursor=145)
+        assert resized.layout != original.layout
+        assert resized == build_geometry_frame(
+            items=items,
+            config=config,
+            theme=theme,
+            window_w=420,
+            window_h=187,
+            cursor_main=145,
+            autohide_state=None,
+        )
 
     @pytest.mark.parametrize("position", list(Position))
     def test_hidden_reveal_region_moves_with_alignment(self, position):
