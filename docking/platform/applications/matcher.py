@@ -274,21 +274,10 @@ class AppIdMatcher:
         self,
         app_id: str,
         *,
-        instance_hint: str | None = None,
-        prefer_raw_app_id: bool = True,
-        defer_wm_class_lookup: bool = False,
         process_id: int | None = None,
-        application_ids: tuple[str, ...] = (),
     ) -> ApplicationMatch | None:
         """Return the selected ID, canonical metadata, and exact evidence route."""
-        return self.match_attempt(
-            app_id,
-            instance_hint=instance_hint,
-            prefer_raw_app_id=prefer_raw_app_id,
-            defer_wm_class_lookup=defer_wm_class_lookup,
-            process_id=process_id,
-            application_ids=application_ids,
-        ).match
+        return self.match_attempt(app_id, process_id=process_id).match
 
     def match_attempt(
         self,

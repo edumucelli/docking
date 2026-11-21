@@ -455,7 +455,7 @@ class WindowsWindowService(SnapshotWindowService):
         model: DockModel,
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
-        config: Config | None = None,
+        config: Config,
         native: Win32WindowAPI | None = None,
         workspaces: WindowsWorkspaceService,
     ) -> None:
@@ -524,8 +524,7 @@ class WindowsWindowService(SnapshotWindowService):
         # manager contract or while Explorer recovers. Only a known other
         # desktop establishes that a taskbar entry should be filtered out.
         return not window.skip_taskbar and (
-            self._config is None
-            or not self._config.current_workspace_only
+            not self._config.current_workspace_only
             or window.on_current_workspace is not False
         )
 

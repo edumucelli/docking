@@ -105,9 +105,9 @@ class SearchQuery:
         """Whether the query contains no non-whitespace text."""
         return not self.text.strip()
 
-    def context_value(self, key: str, default: str = "") -> str:
+    def context_value(self, key: str) -> str:
         """Return one context value without exposing mutable query state."""
-        return dict(self.context).get(key, default)
+        return dict(self.context).get(key, "")
 
 
 @dataclass(frozen=True, slots=True)

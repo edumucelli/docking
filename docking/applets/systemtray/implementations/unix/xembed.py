@@ -177,10 +177,10 @@ class XEmbedTrayHost:
     def start(
         self,
         *,
-        force: bool = False,
-        anchor_x: int = 0,
-        anchor_y: int = 0,
-        position: Position | None = None,
+        force: bool,
+        anchor_x: int,
+        anchor_y: int,
+        position: Position | None,
     ) -> bool:
         if self._active:
             self.position_near(anchor_x=anchor_x, anchor_y=anchor_y, position=position)
@@ -291,9 +291,9 @@ class XEmbedTrayHost:
     def position_near(
         self,
         *,
-        anchor_x: int = 0,
-        anchor_y: int = 0,
-        position: Position | None = None,
+        anchor_x: int,
+        anchor_y: int,
+        position: Position | None,
     ) -> None:
         if self._window is None:
             return
@@ -329,9 +329,9 @@ class XEmbedTrayHost:
     def toggle_visible(
         self,
         *,
-        anchor_x: int = 0,
-        anchor_y: int = 0,
-        position: Position | None = None,
+        anchor_x: int,
+        anchor_y: int,
+        position: Position | None,
     ) -> bool:
         if not self._active or self._window is None:
             return False

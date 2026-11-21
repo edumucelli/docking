@@ -283,7 +283,7 @@ class PreviewPopup(Gtk.Window):
         anchor_x: float,
         icon_w: float,
         anchor_y: float,
-        position: Position = Position.BOTTOM,
+        position: Position,
     ) -> None:
         """Show preview popup near a dock icon.
 

@@ -272,17 +272,12 @@ class FolderStackController(StackPopupController):
         *,
         folder_item: DockItem,
         target: str,
-        icon_px: int | None = None,
     ) -> list[FolderRow]:
         return self._list_directory_rows(
             folder_item=folder_item,
             target=target,
-            icon_px=icon_px,
+            icon_px=FOLDER_SMALL_ICON_PX,
         )
-
-    def icon_px(self, folder_item: DockItem) -> int:
-        _ = folder_item
-        return FOLDER_SMALL_ICON_PX
 
     def update_folder_pref(self, item: DockItem, key: str, value: Any) -> None:
         if key not in {"sort", "show_hidden"}:
@@ -306,7 +301,7 @@ class FolderStackController(StackPopupController):
         *,
         folder_item: DockItem,
         target: str,
-        icon_px: int | None = None,
+        icon_px: int,
         icon_limit: int | None = None,
     ) -> list[FolderRow]:
         return self._browser.list_directory(

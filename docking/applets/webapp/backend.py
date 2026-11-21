@@ -144,7 +144,7 @@ class NotificationBackend(ABC, Generic[NativeNotification]):
     def stop(self) -> None: ...
 
 
-def session_directories(session_name: str = "whatsapp") -> tuple[Path, Path]:
+def session_directories(session_name: str) -> tuple[Path, Path]:
     data_dir = ensure_dir(docking_data_dir() / session_name)
     cache_dir = ensure_dir(docking_cache_dir() / session_name)
     for directory in (data_dir, cache_dir):

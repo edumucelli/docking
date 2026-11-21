@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from docking.core.config import Config
 from docking.core.position import Position
 from docking.platform.backends.base import (
     DisplayServer,
@@ -291,6 +292,7 @@ def test_hyprland_session_uses_ipc_windows_and_layer_shell_capabilities():
         event_stream_factory=lambda _callback: None,
     )
     backend = HyprlandSessionBackend(
+        config=Config(),
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
         **identity_services(),
@@ -326,6 +328,7 @@ def test_hyprland_session_falls_back_to_reduced_windows_when_ipc_unavailable(
         lambda **_: None,
     )
     backend = HyprlandSessionBackend(
+        config=Config(),
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
         **identity_services(),
@@ -535,6 +538,7 @@ def test_niri_session_uses_ipc_windows_and_layer_shell_capabilities():
         event_stream_factory=lambda _callback: None,
     )
     backend = NiriSessionBackend(
+        config=Config(),
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
         **identity_services(),
@@ -568,6 +572,7 @@ def test_niri_session_falls_back_to_reduced_windows_when_ipc_unavailable(
         lambda **_: None,
     )
     backend = NiriSessionBackend(
+        config=Config(),
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
         **identity_services(),
@@ -581,6 +586,7 @@ def test_niri_session_falls_back_to_reduced_windows_when_ipc_unavailable(
 
 def test_sway_session_supports_window_outline():
     backend = SwaySessionBackend(
+        config=Config(),
         socket_path="/tmp/unused-sway.sock",
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
@@ -607,6 +613,7 @@ def test_niri_session_exposes_and_stops_native_picker():
     picker = NiriWindowPickService(windows=windows, socket_path="/unused")
     picker.stop = MagicMock()
     backend = NiriSessionBackend(
+        config=Config(),
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
         **identity_services(),

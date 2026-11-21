@@ -189,7 +189,7 @@ from docking.platform.applications.recent_documents import recent_documents_for
 from docking.ui.about import AboutDialogController
 from docking.ui.diagnostics import DiagnosticsDialogController
 from docking.ui.file_actions import FileActionsController
-from docking.ui.folder.browser import FolderRow
+from docking.ui.folder.browser import FOLDER_SMALL_ICON_PX, FolderRow
 from docking.ui.folder.stack import FolderStackController
 from docking.ui.geometry import DockGeometryFrame
 from docking.ui.runtime import DockRuntime
@@ -738,7 +738,7 @@ class MenuHandler:
         """Compute pinned insertion index from cursor position."""
         return frame.insertion_index_for_main(cursor_main, pos=self._config.pos)
 
-    def _build_dock_menu(self, menu: Gtk.Menu, insert_index: int = -1) -> None:
+    def _build_dock_menu(self, menu: Gtk.Menu, insert_index: int) -> None:
         """Build context menu for the dock background (no item under cursor).
 
         Sections: add actions plus preferences/about/quit.
@@ -1024,23 +1024,21 @@ class MenuHandler:
             return False
         self._tracker.close(window_id)
         if self._tracker.defer_menu_row_removal(window_id):
-            GLib.idle_add(self._remove_window_row_deferred, widget, event)
+            GLib.idle_add(self._remove_window_row_deferred, widget)
         else:
             self._remove_window_row(widget=widget, event=event)
         self._runtime.hide_hover_ui()
         return True
 
-    def _remove_window_row_deferred(
-        self, widget: Gtk.Widget, event: Gdk.EventButton | None = None
-    ) -> bool:
-        self._remove_window_row(widget=widget, event=event, refresh_popup=False)
+    def _remove_window_row_deferred(self, widget: Gtk.Widget) -> bool:
+        self._remove_window_row(widget=widget, event=None)
         return False
 
     def _remove_window_row(
         self,
         widget: Gtk.Widget,
-        event: Gdk.EventButton | None = None,
-        refresh_popup: bool = True,
+        *,
+        event: Gdk.EventButton | None,
     ) -> None:
         parent = widget.get_parent()
         if parent is None or not isinstance(parent, Gtk.Menu):
@@ -1056,13 +1054,13 @@ class MenuHandler:
                     parent.remove(child)
                     child.destroy()
                     break
-        if refresh_popup:
+        if event is not None:
             parent.popdown()
         parent.show_all()
         parent.queue_resize()
         parent.check_resize()
         parent.queue_draw()
-        if refresh_popup:
+        if event is not None:
             self._open_menus.add(parent)
             self._runtime.menu_popup_opened()
             self._runtime.prepare_menu_popup(parent)
@@ -1094,7 +1092,7 @@ class MenuHandler:
             item=row,
             label=child.name,
             pixbuf=child.icon,
-            icon_px=self._folder_stack.icon_px(folder_item=folder_item),
+            icon_px=FOLDER_SMALL_ICON_PX,
         )
         if child.is_dir and child.has_children:
             submenu = Gtk.Menu()

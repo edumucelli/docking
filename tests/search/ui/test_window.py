@@ -13,6 +13,7 @@ import pytest
 from gi.repository import Gdk, GdkPixbuf, Gtk
 
 import docking.search.ui.window as window_mod
+from docking.platform.backends.reduced.services import ReducedSurfaceService
 from docking.search.coordinator import SearchSnapshot
 from docking.search.icons import SearchResultIcons
 from docking.search.types import (
@@ -91,6 +92,7 @@ def _key_event(keyval: int, state: Gdk.ModifierType) -> Gdk.EventKey:
 def input_palette():
     activated = MagicMock()
     window = SearchWindow(
+        surface_service=ReducedSurfaceService(),
         result_icons=MagicMock(
             spec=SearchResultIcons, load=MagicMock(return_value=None)
         ),
@@ -412,6 +414,7 @@ def test_results_primary_action_and_action_panel() -> None:
     actioned = MagicMock()
     refined = MagicMock()
     window = SearchWindow(
+        surface_service=ReducedSurfaceService(),
         result_icons=MagicMock(
             spec=SearchResultIcons, load=MagicMock(return_value=None)
         ),
@@ -496,6 +499,7 @@ def test_icon_completion_updates_current_rows_without_changing_query_selection_o
     loader = MagicMock()
     resolver = SearchResultIcons(model=model, registry=MagicMock(), loader=loader)
     window = SearchWindow(
+        surface_service=ReducedSurfaceService(),
         result_icons=resolver,
         on_query_changed=MagicMock(),
         on_result_selected=MagicMock(),
@@ -627,6 +631,7 @@ def test_image_preview_shows_thumbnail_and_metadata(
         errors=(),
     )
     window = SearchWindow(
+        surface_service=ReducedSurfaceService(),
         result_icons=MagicMock(
             spec=SearchResultIcons, load=MagicMock(return_value=None)
         ),
@@ -698,6 +703,7 @@ def test_dynamic_window_preview_loader_populates_panel() -> None:
         errors=(),
     )
     window = SearchWindow(
+        surface_service=ReducedSurfaceService(),
         result_icons=MagicMock(
             spec=SearchResultIcons, load=MagicMock(return_value=None)
         ),
@@ -734,6 +740,7 @@ def test_partial_results_do_not_override_waiting_selection() -> None:
         errors=(),
     )
     window = SearchWindow(
+        surface_service=ReducedSurfaceService(),
         result_icons=MagicMock(
             spec=SearchResultIcons, load=MagicMock(return_value=None)
         ),
@@ -760,6 +767,7 @@ def test_asynchronous_window_preview_arrives_after_initial_miss_and_stops_on_hid
 
     loader = MagicMock(return_value=None)
     window = SearchWindow(
+        surface_service=ReducedSurfaceService(),
         result_icons=MagicMock(
             spec=SearchResultIcons, load=MagicMock(return_value=None)
         ),

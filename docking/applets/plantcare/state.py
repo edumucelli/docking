@@ -330,10 +330,9 @@ def snooze_task(
     plant_id: str,
     kind: CareKind,
     today: dt.date,
-    days: int = DEFAULT_SNOOZE_DAYS,
 ) -> PlantCareState:
     """Delay one due task without recording care as completed."""
-    snoozed_until = today + dt.timedelta(days=max(1, int(days)))
+    snoozed_until = today + dt.timedelta(days=DEFAULT_SNOOZE_DAYS)
     return _replace_task(
         state=state,
         plant_id=plant_id,

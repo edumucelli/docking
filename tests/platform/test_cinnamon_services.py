@@ -431,7 +431,7 @@ def test_session_services_and_capabilities_follow_native_feature_probes(
     monkeypatch.setattr(CinnamonIdleService, "connect", lambda: None)
     client = CinnamonShellClient(proxy=_proxy({}))
     client.features = NATIVE_FEATURES if supported else frozenset()
-    common = dict(model=_model(), **identity_services())
+    common = dict(model=_model(), config=Config(), **identity_services())
     backend = (
         CinnamonWaylandSessionBackend(
             layer_shell=_layer_shell(), shell_client=client, **common

@@ -172,10 +172,10 @@ def _parse_results(data: Any, limit: int) -> list[TriviaEntry]:
     return entries
 
 
-def fetch_trivia(limit: int = DEFAULT_FETCH_LIMIT) -> list[TriviaEntry]:
+def fetch_trivia() -> list[TriviaEntry]:
     try:
-        data = http_get_json(_TRIVIA_ENDPOINT.format(limit=limit))
-        return _parse_results(data=data, limit=limit)
+        data = http_get_json(_TRIVIA_ENDPOINT.format(limit=DEFAULT_FETCH_LIMIT))
+        return _parse_results(data=data, limit=DEFAULT_FETCH_LIMIT)
     except Exception as exc:
         log.bind(action="fetch_trivia").debug(
             "Failed to fetch trivia questions: %s",

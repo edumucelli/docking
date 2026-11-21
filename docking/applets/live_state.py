@@ -127,7 +127,7 @@ def live_freshness_lines(
 
 
 def stale_label(
-    updated_at: dt.datetime | str | None = None,
+    updated_at: dt.datetime | str | None,
     *,
     now: dt.datetime | None = None,
 ) -> str:

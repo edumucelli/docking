@@ -213,12 +213,13 @@ def main():
             )
             applet = call(lambda: shared["model"].get_applet("applet://caffeine"))
             shared["applet"] = applet
-            assert isinstance(applet._inhibitor, WindowsInhibitor)
+            inhibitor = applet._session._inhibitor
+            assert isinstance(inhibitor, WindowsInhibitor)
             assert (
                 "docking.applets.caffeine.implementations.unix.backend"
                 not in sys.modules
             )
-            assert applet._inhibitor._api is None and not report["native_calls"]
+            assert inhibitor._api is None and not report["native_calls"]
             expect_requests(False)
             assert not call(lambda: applet._data.active)
             stage("lazy-inactive-startup")
@@ -419,7 +420,8 @@ def main():
             lambda: not applet._session.pending, "Cleanup worker did not finish"
         )
         expect_requests(False)
-        assert not applet._inhibitor.active and applet._inhibitor._handle is None
+        inhibitor = applet._session._inhibitor
+        assert not inhibitor.active and inhibitor._handle is None
         assert native.workarea() == baseline and native.explorer() == explorer
         creates = [v for v in report["native_calls"] if v["operation"] == "create"]
         closes = [v for v in report["native_calls"] if v["operation"] == "close"]

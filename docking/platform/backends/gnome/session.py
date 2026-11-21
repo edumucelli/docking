@@ -74,7 +74,7 @@ class GnomeShellBridgeSessionBackend(SessionBackend):
         bridge: GnomeShellBridgeClient,
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
-        config: Config | None = None,
+        config: Config,
     ) -> None:
         windows = GnomeShellBridgeWindowService(
             model=model,

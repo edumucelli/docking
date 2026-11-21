@@ -35,7 +35,6 @@ from docking.ui.tooltip import wrapped_tooltip_label
 
 from .render import render_icon
 from .state import (
-    DEFAULT_FETCH_LIMIT,
     HistoryEvent,
     fallback_today_in_history,
     fetch_today_in_history,
@@ -181,11 +180,7 @@ class TodayInHistoryApplet(Applet):
             self.present()
 
         def worker() -> None:
-            entries = fetch_today_in_history(
-                month=month,
-                day=day,
-                limit=DEFAULT_FETCH_LIMIT,
-            )
+            entries = fetch_today_in_history(month=month, day=day)
             GLib.idle_add(self._on_fetch_result, month, day, entries, show_first)
 
         threading.Thread(target=worker, daemon=True).start()

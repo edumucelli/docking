@@ -27,9 +27,9 @@ class CalendarSnapshot(NamedTuple):
     tooltip: str
 
 
-def snapshot_from(now: time.struct_time | None = None) -> CalendarSnapshot:
+def snapshot_from() -> CalendarSnapshot:
     """Build applet snapshot from local time."""
-    current = now or time.localtime()
+    current = time.localtime()
     return CalendarSnapshot(
         day=current.tm_mday,
         weekday=time.strftime("%a", current),

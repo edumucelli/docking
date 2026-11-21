@@ -71,7 +71,9 @@ def test_native_window_service_projects_identity_and_checks_stale_ids():
     bridge = MagicMock(spec=KWinBridgeClient)
     bridge.list_windows.return_value = snapshots_from_json(json.dumps([row()]))
     bridge.action.return_value = ActionResult.OK
-    service = KWinWindowService(bridge=bridge, model=_model(), **identity_services())
+    service = KWinWindowService(
+        bridge=bridge, model=_model(), **identity_services(), config=Config()
+    )
     service.start()
     window = service.list_windows("Alacritty.desktop")[0]
     assert service.activate(window.id) is ActionResult.OK
@@ -92,7 +94,9 @@ def test_skip_taskbar_dialog_retains_geometry_without_a_running_icon():
         json.dumps([row(taskbar=False, dialog=True)])
     )
     model = _model()
-    service = KWinWindowService(bridge=bridge, model=model, **identity_services())
+    service = KWinWindowService(
+        bridge=bridge, model=model, **identity_services(), config=Config()
+    )
     service.start()
     try:
         assert service.list_all_windows()[0].skip_taskbar
@@ -234,6 +238,7 @@ def test_kwin_backend_native_or_atspi_fallback_capabilities(monkeypatch, native)
     monkeypatch.setattr(session.KWinDesktopActionService, "connect", lambda: None)
     monkeypatch.setattr(session, "load_portal_color_picker", lambda: None)
     backend = session.KWinSessionBackend(
+        config=Config(),
         layer_shell=_layer_shell(),
         model=_model(),
         protocol_runtime=_empty_runtime(),

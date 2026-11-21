@@ -56,8 +56,8 @@ class UnixTrayMenu(TrayMenuClient):
 class UnixTrayBackend(TrayBackend):
     initial_state = staticmethod(unavailable_state)
 
-    def __init__(self, *, backend: StatusNotifierBackend | None = None) -> None:
-        self._backend = backend if backend is not None else StatusNotifierBackend()
+    def __init__(self) -> None:
+        self._backend = StatusNotifierBackend()
         self._clients: dict[str, UnixTrayMenu] = {}
 
     def get_state(self) -> TrayState:

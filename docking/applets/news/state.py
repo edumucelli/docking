@@ -248,9 +248,7 @@ def parse_news_feed(
     return tuple(articles)
 
 
-def fetch_news_articles(
-    *, source: NewsSource, limit: int = DEFAULT_FETCH_LIMIT
-) -> tuple[NewsArticle, ...]:
+def fetch_news_articles(*, source: NewsSource) -> tuple[NewsArticle, ...]:
     """Fetch and parse one configured publication feed."""
     payload = http_get_bytes(
         source.feed_url,
@@ -258,7 +256,7 @@ def fetch_news_articles(
         user_agent=NEWS_USER_AGENT,
         max_bytes=MAX_FEED_BYTES,
     )
-    return parse_news_feed(payload, source=source, limit=limit)
+    return parse_news_feed(payload, source=source, limit=DEFAULT_FETCH_LIMIT)
 
 
 def article_rank(*, index: int, count: int) -> str:

@@ -143,8 +143,8 @@ def test_evidence_routes_and_removed_launch_provenance() -> None:
         ]
     )
     visible = matcher.match_result("Example")
-    instance = matcher.match_result("unknown", instance_hint="Example")
-    wine = matcher.match_result("wine", instance_hint=r"C:\Example.exe")
+    instance = matcher.match_attempt("unknown", instance_hint="Example").match
+    wine = matcher.match_attempt("wine", instance_hint=r"C:\Example.exe").match
 
     assert direct is not None
     assert direct.evidence.method is MatchMethod.DESKTOP_ID
@@ -272,15 +272,19 @@ def test_wine_ignores_conflicting_process_path_and_preserves_tie_breaks(
         ]
     )
 
-    visible = visible_matcher.match_result(
+    visible = visible_matcher.match_attempt(
         "wine",
         instance_hint=r"C:\Games\Tool.exe",
         process_id=57,
-    )
-    installed = AppIdMatcher(registry, processes).match_result(
-        "wine",
-        instance_hint=r"C:\Games\Tool.exe",
-        process_id=57,
+    ).match
+    installed = (
+        AppIdMatcher(registry, processes)
+        .match_attempt(
+            "wine",
+            instance_hint=r"C:\Games\Tool.exe",
+            process_id=57,
+        )
+        .match
     )
 
     assert visible is not None

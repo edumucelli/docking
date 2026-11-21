@@ -80,7 +80,7 @@ def _matcher(registry=None, *, cache_missed_desktop_ids: bool = False):
 
 
 def _match_id(matcher, app_id, **kwargs):
-    result = matcher.match_result(app_id, **kwargs)
+    result = matcher.match_attempt(app_id, **kwargs).match
     return result.desktop_id if result is not None else None
 
 

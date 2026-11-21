@@ -379,7 +379,7 @@ class MusicApplet(ApplicationServicesApplet):
         state: MusicState,
         art: GdkPixbuf.Pixbuf | None,
         *,
-        force: bool = False,
+        force: bool,
     ) -> bool:
         if has_active_media(state):
             self._pending_media_launch = False

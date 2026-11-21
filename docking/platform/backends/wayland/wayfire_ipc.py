@@ -371,7 +371,7 @@ class WayfireWindowService(WindowService):
         process_identity_service: ProcessIdentityService,
         client: WayfireIpcClient,
         watcher: WayfireEventWatcher | None = None,
-        config: Config | None = None,
+        config: Config,
     ) -> None:
         self._model = model
         self._matcher = AppIdMatcher(
@@ -650,8 +650,7 @@ class WayfireWindowService(WindowService):
 
     def _in_scope(self, record: WayfireWindowRecord) -> bool:
         return (
-            self._config is None
-            or not self._config.current_workspace_only
+            not self._config.current_workspace_only
             or self._snapshot_for(record).on_current_workspace is not False
         )
 

@@ -92,7 +92,7 @@ class NiriSessionBackend(SessionBackend):
         protocol_runtime: WaylandProtocolRuntime | None = None,
         screen_capture: ScreenCaptureService | None = None,
         window_service: WindowService | None = None,
-        config: Config | None = None,
+        config: Config,
         window_picker: WindowPickService | None = None,
     ) -> None:
         runtime = protocol_runtime

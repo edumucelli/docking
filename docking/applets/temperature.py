@@ -63,7 +63,7 @@ def format_temperature(
 def format_temperature_compact(
     celsius: float | None,
     *,
-    temperature_unit: TemperatureUnit | object = TemperatureUnit.CELSIUS,
+    temperature_unit: TemperatureUnit | object,
 ) -> str:
     """Format the tiny icon label: rounded value plus degree sign."""
     if celsius is None:
@@ -77,18 +77,13 @@ def format_temperature_range(
     *,
     low_celsius: float,
     high_celsius: float,
-    temperature_unit: TemperatureUnit | object = TemperatureUnit.CELSIUS,
-    precision: int = 0,
+    temperature_unit: TemperatureUnit | object,
 ) -> str:
     """Format a min/max temperature range in the selected unit."""
     unit = normalize_temperature_unit(temperature_unit)
     low = temperature_value(celsius=low_celsius, temperature_unit=unit)
     high = temperature_value(celsius=high_celsius, temperature_unit=unit)
-    decimals = max(0, precision)
-    return (
-        f"{low:.{decimals}f}/{high:.{decimals}f}"
-        f"\N{DEGREE SIGN}{temperature_suffix(unit)}"
-    )
+    return f"{low:.0f}/{high:.0f}\N{DEGREE SIGN}{temperature_suffix(unit)}"
 
 
 def temperature_value(

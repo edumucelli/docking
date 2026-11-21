@@ -135,7 +135,7 @@ def should_check_for_updates(
     enabled: bool,
     interval_hours: int,
     state: UpdateState,
-    now: datetime | None = None,
+    now: datetime,
 ) -> bool:
     """Return true when an automatic update check is due."""
     if not enabled:
@@ -153,7 +153,7 @@ def decide_update_popup(
     current_version: str,
     release: ReleaseInfo | None,
     state: UpdateState,
-    now: datetime | None = None,
+    now: datetime,
 ) -> UpdateDecision:
     """Decide whether a fetched release should be shown to the user."""
     if release is None:
@@ -252,7 +252,7 @@ def parse_timestamp(value: str | None) -> datetime | None:
     return _aware_utc(parsed)
 
 
-def utc_now_iso(now: datetime | None = None) -> str:
+def utc_now_iso(now: datetime) -> str:
     """Return a UTC ISO timestamp suitable for update state."""
     return _aware_utc(now).isoformat()
 
@@ -270,11 +270,10 @@ def _version_parts(version: str) -> tuple[int, ...]:
     return tuple(parts)
 
 
-def _aware_utc(value: datetime | None) -> datetime:
-    timestamp = datetime.now(timezone.utc) if value is None else value
-    if timestamp.tzinfo is None:
-        timestamp = timestamp.replace(tzinfo=timezone.utc)
-    return timestamp.astimezone(timezone.utc)
+def _aware_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def _coerce_str(value: object) -> str:

@@ -34,7 +34,7 @@ class SnapshotWindowService(WindowService):
         model: DockModel,
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
-        config: Config | None = None,
+        config: Config,
         allow_unlisted_executables: bool = False,
     ) -> None:
         self._model = model
@@ -108,8 +108,7 @@ class SnapshotWindowService(WindowService):
 
     def _taskbar_window(self, window: WindowSnapshot) -> bool:
         return not window.skip_taskbar and (
-            self._config is None
-            or not self._config.current_workspace_only
+            not self._config.current_workspace_only
             or window.on_current_workspace is True
         )
 

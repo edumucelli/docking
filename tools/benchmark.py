@@ -58,11 +58,11 @@ WARMUP = 40
 
 
 class FakePixbuf:
-    def __init__(self, width: int = 64, height: int = 64) -> None:
-        self._width = width
-        self._height = height
+    def __init__(self) -> None:
+        self._width = 64
+        self._height = 64
         pixel = bytes((180, 120, 240, 255))
-        self._pixels = pixel * width * height
+        self._pixels = pixel * self._width * self._height
 
     def get_width(self) -> int:
         return self._width

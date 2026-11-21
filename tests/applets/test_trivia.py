@@ -73,7 +73,7 @@ class TestFetchTrivia:
         }
 
         monkeypatch.setattr("docking.applets.trivia.state.random.shuffle", list.reverse)
-        entries = fetch_trivia(limit=5)
+        entries = fetch_trivia()
 
         assert len(entries) == 1
         assert entries[0].category == "Science"
@@ -85,7 +85,7 @@ class TestFetchTrivia:
         side_effect=RuntimeError("boom"),
     )
     def test_fetch_failure_returns_empty(self, _mock_get):
-        assert fetch_trivia(limit=5) == []
+        assert fetch_trivia() == []
 
     def test_fallback_has_entries(self):
         assert len(fallback_trivia()) >= 3
@@ -212,7 +212,7 @@ class TestTriviaAppletBranches:
         monkeypatch.setattr(
             trivia_mod,
             "fetch_trivia",
-            lambda limit: [ENTRY],
+            lambda: [ENTRY],
         )
         calls = []
         monkeypatch.setattr(

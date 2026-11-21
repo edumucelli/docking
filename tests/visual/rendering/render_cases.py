@@ -21,6 +21,7 @@ from docking.core.items import FOLDER_KIND, DockItem
 from docking.core.position import Position
 from docking.core.theme import Theme
 from docking.platform.backends.base import PreviewImage, Rect, WindowId, WindowSnapshot
+from docking.platform.backends.reduced.services import ReducedSurfaceService
 from docking.search.coordinator import SearchSnapshot
 from docking.search.types import (
     SearchAction,
@@ -800,6 +801,7 @@ def _draw_search_case(*, panel: str | None) -> cairo.ImageSurface:
         errors=(),
     )
     window = SearchWindow(
+        surface_service=ReducedSurfaceService(),
         result_icons=_ResultIcons(),
         on_query_changed=lambda _query: None,
         on_result_selected=lambda _identity: None,

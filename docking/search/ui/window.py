@@ -154,10 +154,10 @@ class SearchWindow:
             Callable[[SearchPreview, int, int], LoadedSearchImage | None]
         ),
         preview_resolver: Callable[[SearchResult], SearchPreview | None],
+        surface_service: SurfaceService,
         refresh_dynamic_previews: bool = False,
         opaque_action_panel: bool = False,
         window_focus: WindowFocus | None = None,
-        surface_service: SurfaceService | None = None,
     ) -> None:
         """Construct the reusable toplevel and bind controller callbacks."""
         self._result_icons = result_icons

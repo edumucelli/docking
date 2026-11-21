@@ -114,7 +114,7 @@ class GlobalSearchController(ShortcutController):
         application_launcher: ApplicationLauncher,
         icon_loader: IconLoader,
         target_service: TargetService,
-        surface_service: SurfaceService | None = None,
+        surface_service: SurfaceService,
     ) -> None:
         """Compose providers and services around the injected Docking runtime."""
         self._integration = integration

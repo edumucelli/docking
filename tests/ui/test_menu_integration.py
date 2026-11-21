@@ -1339,7 +1339,7 @@ class TestItemMenus:
         handler._runtime.hide_hover_ui.assert_called_once()
         assert row in menu.children
         assert row.hidden is False
-        assert idle_calls == [(handler._remove_window_row_deferred, (row, close_event))]
+        assert idle_calls == [(handler._remove_window_row_deferred, (row,))]
 
         assert idle_calls[0][0](*idle_calls[0][1]) is False
         assert row.hidden is True
@@ -1368,7 +1368,7 @@ class TestItemMenus:
             menu, "popdown", lambda: (menu.emit("hide"), menu.emit("deactivate"))
         )
 
-        handler._remove_window_row(row)
+        handler._remove_window_row(row, event=SimpleNamespace())
 
         assert len(pending) == 1
         callback, args = pending.pop()
@@ -2831,8 +2831,6 @@ class TestMenuCallbacks:
         assert handler._folder_stack._browser.sort_key(row, "modified") == (4, "b")
         assert handler._folder_stack._browser.sort_key(row, "name") == ("b",)
 
-        assert handler._folder_stack.icon_px(folder_item) == 16
-
     def test_directory_has_visible_children_and_sort_callback_paths(
         self, handler, monkeypatch
     ):
@@ -3062,7 +3060,7 @@ def test_closing_the_last_window_removes_its_separator_after_gtk_takes_ownership
     try:
         row = menu.get_children()[0]
         handler = object.__new__(menu_mod.MenuHandler)
-        handler._remove_window_row(row, refresh_popup=False)
+        handler._remove_window_row(row, event=None)
         assert menu.get_children() == []
     finally:
         menu.destroy()

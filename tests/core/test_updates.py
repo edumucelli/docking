@@ -226,6 +226,7 @@ class TestUpdateDecision:
             current_version="1.15.0",
             release=None,
             state=UpdateState(),
+            now=datetime(2026, 5, 1, tzinfo=timezone.utc),
         )
         assert decision.should_show is False
         assert decision.reason == "no-release"
@@ -236,6 +237,7 @@ class TestUpdateDecision:
             current_version="1.16.0",
             release=release,
             state=UpdateState(),
+            now=datetime(2026, 5, 1, tzinfo=timezone.utc),
         )
         assert decision.should_show is False
         assert decision.reason == "not-newer"

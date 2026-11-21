@@ -39,6 +39,7 @@ from docking.platform.backends.base import (
     ActionResult,
     DesktopActionService,
     DisplayServer,
+    MonitorSnapshot,
     PlacementRequest,
     PreviewImage,
     PreviewService,
@@ -789,10 +790,10 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
     def update_pointer_barrier(
         self,
         *,
-        monitor: Any = None,
-        position: Any = None,
-        enabled: bool = False,
-        pressure_callback: Any = None,
+        monitor: MonitorSnapshot | None,
+        position: object,
+        enabled: bool,
+        pressure_callback: Callable[[], None] | None = None,
         pressure_threshold: int = 1,
     ) -> None:
         pass

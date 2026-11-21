@@ -150,7 +150,7 @@ adapter_geometry() {
 }
 
 adapter_scene() {
-    local scene="${1:-}"
+    local scene="$1"
     swaymsg 'output HEADLESS-1 enable scale 1 transform normal' >/dev/null
     swaymsg "output HEADLESS-1 resolution ${LAB_WIDTH:-1280}x${LAB_HEIGHT:-720} position 0 0" >/dev/null
     if swaymsg -t get_outputs | jq -e 'any(.[]; .name == "HEADLESS-2")' >/dev/null; then

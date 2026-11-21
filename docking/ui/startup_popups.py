@@ -30,6 +30,7 @@ priority sources can expire rather than appearing long after startup.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -46,7 +47,11 @@ class StartupPopupSource(Protocol):
     priority: int
     max_wait_seconds: int | None
 
-    def start(self, request_show, visibility_changed) -> None:
+    def start(
+        self,
+        request_show: Callable[[str], None],
+        visibility_changed: Callable[[str, bool], None],
+    ) -> None:
         """Start source-specific startup work."""
 
     def stop(self) -> None:
