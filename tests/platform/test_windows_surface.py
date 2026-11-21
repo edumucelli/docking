@@ -10,17 +10,21 @@ from docking.core.position import Position
 from docking.platform.backends.base import MonitorSnapshot, PlacementRequest, Rect, Size
 from docking.platform.backends.reduced.services import ReducedSurfaceService
 from docking.platform.backends.windows.surface import WindowsSurfaceService
+from tests.platform_factories import (
+    make_unsupported_windows_workspaces,
+    make_windows_surface,
+)
 
 
 def test_interactive_windows_popups_use_managed_gtk_windows():
-    assert WindowsSurfaceService().popups_require_managed_windows()
+    assert make_windows_surface().popups_require_managed_windows()
     assert not ReducedSurfaceService().popups_require_managed_windows()
 
 
 def test_window_lost_after_geometry_observation_does_not_query_its_monitor(monkeypatch):
     from docking.platform.backends.windows import surface
 
-    service = WindowsSurfaceService()
+    service = make_windows_surface()
     service._appbar = Mock()
     rect = Rect(10, 20, 30, 40)
     monkeypatch.setattr(surface, "logical_screen_rectangle", lambda *_args: rect)
@@ -36,7 +40,7 @@ def popup_return(monkeypatch):
     from docking.platform.desktop.implementations.windows import menus
     from docking.platform.native.windows import ffi
 
-    service = WindowsSurfaceService()
+    service = make_windows_surface()
     service._window = Mock()
     service._appbar = Mock()
     focus = Mock(spec=menus.WindowsMenuFocus)
@@ -228,7 +232,7 @@ def test_ineligible_surface_cannot_consume_a_popup_return(popup_return, missing)
 
 
 def test_fullscreen_lowers_the_native_dock_and_exit_restores_topmost():
-    service = WindowsSurfaceService()
+    service = make_windows_surface()
     service._window = window = Mock()
 
     service._fullscreen_changed(True)
@@ -246,7 +250,7 @@ def test_fullscreen_lowers_the_native_dock_and_exit_restores_topmost():
 
 
 def test_fullscreen_notification_before_realization_has_no_native_window():
-    service = WindowsSurfaceService()
+    service = make_windows_surface()
     service._window = window = Mock()
     window.get_window.return_value = None
     service._fullscreen_changed(True)
@@ -254,7 +258,7 @@ def test_fullscreen_notification_before_realization_has_no_native_window():
 
 
 def test_initial_fullscreen_is_checked_after_the_mapped_window_is_placed():
-    service = WindowsSurfaceService()
+    service = make_windows_surface()
     service._window = window = Mock()
     service._appbar = appbar = Mock()
     service._mapping = mapping = Mock()
@@ -283,7 +287,7 @@ def test_initial_fullscreen_is_checked_after_the_mapped_window_is_placed():
 
 
 def test_unregistered_modes_do_not_inherit_appbar_fullscreen_stacking():
-    service = WindowsSurfaceService()
+    service = make_windows_surface()
     service._window = Mock()
     service._appbar = appbar = Mock()
     service._mapping = Mock()
@@ -307,7 +311,7 @@ def test_always_behind_stacking_survives_fullscreen_remapping_and_releases_timer
     removed = Mock()
     monkeypatch.setattr(surface.GLib, "timeout_add", added)
     monkeypatch.setattr(surface.GLib, "source_remove", removed)
-    service = WindowsSurfaceService()
+    service = make_windows_surface()
     window = Mock()
     service.configure_before_realize(window, keep_above=False)
     service._appbar = appbar = Mock()
@@ -351,7 +355,7 @@ def fullscreen_poll(monkeypatch):
     removed = Mock()
     monkeypatch.setattr(surface.GLib, "timeout_add", added)
     monkeypatch.setattr(surface.GLib, "source_remove", removed)
-    service = WindowsSurfaceService()
+    service = make_windows_surface()
     service._window = Mock()
     service._appbar = Mock()
     service._mapping = Mock()
@@ -433,7 +437,7 @@ def test_windows_surface_preserves_gtk_hints_and_placement_without_reduced_servi
 ):
     forbidden = Mock(side_effect=AssertionError("Reduced surface must be independent"))
     monkeypatch.setattr(ReducedSurfaceService, "__init__", forbidden)
-    service = WindowsSurfaceService()
+    service = make_windows_surface()
     window = Mock()
     placement = PlacementRequest(
         monitor=MonitorSnapshot(index=0, geometry=Rect(0, 0, 1280, 800)),
@@ -445,7 +449,7 @@ def test_windows_surface_preserves_gtk_hints_and_placement_without_reduced_servi
     service.start()
     service.position_or_anchor(placement)
     window.move.assert_not_called()
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
     # Native resources are tested separately; this check exercises the GTK
     # lifecycle on every host without loading Windows DLLs.
     service._appbar = appbar = Mock()
@@ -487,7 +491,7 @@ def topmost_poll(monkeypatch):
     added, removed = Mock(return_value=11), Mock()
     monkeypatch.setattr(surface.GLib, "timeout_add", added)
     monkeypatch.setattr(surface.GLib, "source_remove", removed)
-    service = WindowsSurfaceService()
+    service = make_windows_surface()
     service._window = Mock()
     service._appbar = Mock()
     service._mapping = Mock()
@@ -576,7 +580,10 @@ def test_application_drag_adapter_is_lazy_owned_and_recreated_for_a_surface_life
 
     source, second = Mock(), Mock()
     create = Mock(side_effect=(source, second))
-    surface = WindowsSurfaceService(file_drag_source_factory=create)
+    surface = WindowsSurfaceService(
+        workspaces=make_unsupported_windows_workspaces(),
+        file_drag_source_factory=create,
+    )
     widget, window = object(), object()
     data = (("Shell IDList Array", b"owned-shell-data"),)
     assert not surface.prepare_file_drag_source(widget, application_id="App", data=data)

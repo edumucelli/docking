@@ -20,6 +20,8 @@ except ModuleNotFoundError:  # pragma: no cover
     sys.modules.setdefault("gi", gi_mock)
     sys.modules.setdefault("gi.repository", gi_mock.repository)
 
+from docking.core.config import Config
+from docking.core.theme import Theme
 from docking.platform.backends.diagnostics import WindowTrackingDiagnostic
 from docking.platform.diagnostics import DiagnosticCheck, DiagnosticFeature
 from docking.ui.diagnostics import DiagnosticsDialogController
@@ -264,6 +266,8 @@ def _make_snapshot(**overrides):
 
 def _fake_window_and_backend():
     parent = MagicMock()
+    parent.config = Config()
+    parent.theme = Theme()
     backend = MagicMock()
     backend.windows.diagnostic_snapshot.return_value = WindowTrackingDiagnostic()
     parent.get_display.return_value = MagicMock()
@@ -333,20 +337,17 @@ class TestDiagnosticsShow:
         self, monkeypatch
     ):
         import docking.ui.diagnostics as mod
-        from docking.core.config import Config, effective_edge_gap
-        from docking.core.theme import Theme
         from docking.platform.diagnostics import collect_diagnostics
 
         parent, backend = _fake_window_and_backend()
         parent.get_display.return_value = None
         config = Config(position="bottom", additional_distance_from_edge=3)
+        parent.config = config
         parent.theme = Theme(distance_from_edge=5)
         controller = DiagnosticsDialogController(
             parent=parent,
             backend=backend,
             application_registry=make_application_registry(),
-            config=config,
-            edge_gap_provider=lambda: effective_edge_gap(parent.theme, config),
         )
         backend.name = "test-backend"
         backend.reset_mock()

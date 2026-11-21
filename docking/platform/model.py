@@ -230,7 +230,6 @@ class LauncherEntryState:
     """Normalized Unity LauncherEntry overlay state for one sender."""
 
     sender_name: str
-    app_uri: str
     desktop_id: str | None
     badge_count: int = 0
     badge_visible: bool = False
@@ -963,12 +962,11 @@ class DockModel:
     def apply_launcher_entry(
         self,
         *,
-        sender_name: str,
-        app_uri: str,
         state: LauncherEntryState,
-        create_transient: bool = False,
+        create_transient: bool,
     ) -> bool:
         """Apply LauncherEntry state to a visible item or create a transient one."""
+        sender_name = state.sender_name
         self._launcher_entries.pop(sender_name, None)
         self._launcher_entries[sender_name] = state
         item = self._find_launcher_target(

@@ -68,9 +68,8 @@ adapter_start() {
 }
 
 adapter_wait_ready() {
-    local attempts="${1:-60}"
     local probe="$XDG_RUNTIME_DIR/.ready.png"
-    for _ in $(seq "$attempts"); do
+    for _ in $(seq 60); do
         kill -0 "$ADAPTER_COMPOSITOR_PID"
         if grim "$probe" 2>/dev/null; then
             rm -f "$probe"

@@ -145,12 +145,9 @@ class UnixPlatformProvider(PlatformProvider):
         from docking.platform.applications.implementations.unix.registration import (
             UnixExecutableRegistrationBackend,
         )
-        from docking.platform.applications.implementations.unix.steam import (
-            SteamDiscovery,
-        )
 
         return ApplicationSources(
-            catalog=UnixApplicationCatalogBackend(steam_source=SteamDiscovery()),
+            catalog=UnixApplicationCatalogBackend(),
             associations=UnixApplicationAssociationBackend(),
             registrations=UnixExecutableRegistrationBackend(),
         )

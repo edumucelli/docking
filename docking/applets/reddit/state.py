@@ -272,7 +272,6 @@ def fetch_reddit_posts(
     subreddit: str,
     sort: RedditSort,
     top_period: RedditTopPeriod,
-    limit: int = DEFAULT_FETCH_LIMIT,
 ) -> tuple[RedditPost, ...]:
     """Fetch and parse one public Reddit RSS listing."""
     url = feed_url(
@@ -285,7 +284,7 @@ def fetch_reddit_posts(
         timeout=FETCH_TIMEOUT_S,
         user_agent=REDDIT_USER_AGENT,
     )
-    return parse_reddit_feed(payload, subreddit=subreddit, limit=limit)
+    return parse_reddit_feed(payload, subreddit=subreddit, limit=DEFAULT_FETCH_LIMIT)
 
 
 def post_rank(*, index: int, count: int) -> str:

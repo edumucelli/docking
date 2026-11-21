@@ -35,7 +35,6 @@ from docking.ui.tooltip import wrapped_tooltip_label
 
 from .render import render_icon
 from .state import (
-    DEFAULT_FETCH_LIMIT,
     HistoryEvent,
     fallback_today_in_history,
     fetch_today_in_history,
@@ -93,7 +92,7 @@ class TodayInHistoryApplet(Applet):
         self.present()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
-        status = [disabled_menu_item(self._source_label(), gtk=Gtk)]
+        status = [disabled_menu_item(self._source_label())]
 
         primary: list[Gtk.MenuItem] = []
         if self._current is not None and self._current.article_url:
@@ -112,7 +111,6 @@ class TodayInHistoryApplet(Applet):
             primary=primary,
             navigation=[next_item],
             refresh=[refresh_item],
-            gtk=Gtk,
         )
 
     def refresh_tooltip(self) -> None:
@@ -182,11 +180,7 @@ class TodayInHistoryApplet(Applet):
             self.present()
 
         def worker() -> None:
-            entries = fetch_today_in_history(
-                month=month,
-                day=day,
-                limit=DEFAULT_FETCH_LIMIT,
-            )
+            entries = fetch_today_in_history(month=month, day=day)
             GLib.idle_add(self._on_fetch_result, month, day, entries, show_first)
 
         threading.Thread(target=worker, daemon=True).start()

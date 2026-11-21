@@ -36,9 +36,9 @@ OUTLINE_RGBA = (0.39, 0.71, 1.0, 0.95)
 class WindowOutline(Gtk.Window):
     """Transparent, input-less window that strokes a rectangle border."""
 
-    def __init__(self, surface: SurfaceService | None = None) -> None:
+    def __init__(self, surface: SurfaceService) -> None:
         self._surface = surface
-        layered = surface is not None and surface.overlay_uses_toplevel
+        layered = surface.overlay_uses_toplevel
         super().__init__(
             type=Gtk.WindowType.TOPLEVEL if layered else Gtk.WindowType.POPUP
         )
@@ -60,8 +60,7 @@ class WindowOutline(Gtk.Window):
         # widget (not the GdkWindow) so GTK reapplies it on every realize/map.
         self.input_shape_combine_region(cairo.Region([]))
         self.connect("draw", self._on_draw)
-        if surface is not None:
-            surface.prepare_overlay_window(self)
+        surface.prepare_overlay_window(self)
 
     def show_around(self, rect: Rect) -> None:
         """Outline ``rect`` (root coordinates in backend units); empty rects hide."""
@@ -74,12 +73,7 @@ class WindowOutline(Gtk.Window):
         if not (self._has_rgba_visual and self.get_screen().is_composited()):
             self.hide()
             return
-        if self._surface is not None:
-            self._surface.place_overlay(self, rect)
-        else:
-            logical = rect.device_to_logical(self.get_scale_factor())
-            self.move(logical.x, logical.y)
-            self.resize(logical.width, logical.height)
+        self._surface.place_overlay(self, rect)
         self.show()
         self.queue_draw()
 

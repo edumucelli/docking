@@ -362,7 +362,7 @@ class KWinWindowService(SnapshotWindowService):
         model: DockModel,
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
-        config: Config | None = None,
+        config: Config,
     ) -> None:
         super().__init__(
             model=model,

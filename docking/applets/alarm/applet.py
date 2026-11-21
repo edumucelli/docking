@@ -114,7 +114,7 @@ class AlarmApplet(Applet):
         manage: list[Gtk.MenuItem] = [add_alarm]
         manage.extend(self._preset_menu_items())
 
-        return menu_sections(status=status, primary=primary, manage=manage, gtk=Gtk)
+        return menu_sections(status=status, primary=primary, manage=manage)
 
     def _preset_menu_items(self) -> list[Gtk.MenuItem]:
         items: list[Gtk.MenuItem] = []

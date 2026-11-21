@@ -10,8 +10,8 @@ import pytest
 from docking.core.config import HideMode
 from docking.platform.backends.base import DisplayServer, Rect, WindowId, WindowSnapshot
 from docking.platform.backends.windows.appbar import ScreenMapping
-from docking.platform.backends.windows.surface import WindowsSurfaceService
 from docking.platform.backends.windows.visibility import WindowsVisibilityService
+from tests.platform_factories import make_windows_surface
 
 
 @pytest.mark.parametrize(
@@ -24,7 +24,7 @@ from docking.platform.backends.windows.visibility import WindowsVisibilityServic
     ],
 )
 def test_scaled_negative_monitor_overlap_and_minimize_use_projected_geometry(mode):
-    surface = WindowsSurfaceService()
+    surface = make_windows_surface()
     surface._mapping = ScreenMapping(
         Rect(0, 0, 1280, 720), Rect(-2560, 0, 2560, 1440), Rect(-2560, 0, 2560, 1344), 2
     )
@@ -59,7 +59,7 @@ def test_scaled_negative_monitor_overlap_and_minimize_use_projected_geometry(mod
 
 
 def test_unavailable_monitor_mapping_never_establishes_overlap():
-    surface = WindowsSurfaceService()
+    surface = make_windows_surface()
     windows = MagicMock()
     windows.list_all_windows.return_value = (
         WindowSnapshot(
@@ -84,7 +84,7 @@ def test_unavailable_monitor_mapping_never_establishes_overlap():
 
 
 def test_owned_dialog_participates_in_maximized_policy_without_taskbar_entry():
-    surface = WindowsSurfaceService()
+    surface = make_windows_surface()
     surface._mapping = ScreenMapping(
         Rect(1280, 0, 1280, 720), Rect(0, 0, 2560, 1440), Rect(0, 0, 2560, 1344), 2
     )

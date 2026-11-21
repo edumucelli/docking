@@ -458,7 +458,7 @@ class WindowsDesktop:
         handle = self.user.WindowFromPoint(wintypes.POINT(int(x), int(y)))
         return self.user.GetAncestor(handle, 2) if handle else None
 
-    def scroll(self, amount=120):
+    def scroll(self, amount):
         self._send([Input(type=0, data=Data(mouse=Mouse(data=amount, flags=0x800)))])
         time.sleep(0.2)
 

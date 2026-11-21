@@ -114,7 +114,7 @@ class GlobalSearchController(ShortcutController):
         application_launcher: ApplicationLauncher,
         icon_loader: IconLoader,
         target_service: TargetService,
-        surface_service: SurfaceService | None = None,
+        surface_service: SurfaceService,
     ) -> None:
         """Compose providers and services around the injected Docking runtime."""
         self._integration = integration
@@ -123,7 +123,6 @@ class GlobalSearchController(ShortcutController):
         self._windows = windows
         self._preview_service = preview_service
         self._application_registry = application_registry
-        self._icon_loader = icon_loader
         self._target_service = target_service
         self._application_launcher = application_launcher
         self._application_registry_unsubscribe: Callable[[], None] | None = None
@@ -184,11 +183,10 @@ class GlobalSearchController(ShortcutController):
         self._enabled_provider_ids: tuple[str, ...] = ()
         self._coordinator = self._new_coordinator()
         self.window = SearchWindow(
-            icon_loader=self._icon_loader,
             result_icons=SearchResultIcons(
                 model=self._model,
                 registry=self._application_registry,
-                loader=self._icon_loader,
+                loader=icon_loader,
             ),
             on_query_changed=self._search,
             on_result_selected=self._select,
@@ -379,9 +377,9 @@ class GlobalSearchController(ShortcutController):
         self,
         snapshot: SearchSnapshot,
         *,
-        coordinator: SearchCoordinator | None = None,
+        coordinator: SearchCoordinator,
     ) -> None:
-        if coordinator is not None and (
+        if (
             coordinator is not self._coordinator
             or snapshot.generation != coordinator.generation
         ):

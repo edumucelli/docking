@@ -56,7 +56,7 @@ class TestSearchValues:
             context=(("intent_kind", "global"),),
         )
         assert query.context_value("intent_kind") == "global"
-        assert query.context_value("missing", "fallback") == "fallback"
+        assert query.context_value("missing") == ""
 
         with pytest.raises(ValueError, match="greater than zero"):
             SearchQuery("fire", limit=0)

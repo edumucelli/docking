@@ -14,9 +14,8 @@ def main() -> None:
     """Prepare the platform display, then start the dock runtime."""
     prepare_display()
     from docking.app import main as run_app
-    from docking.platform.composition.selection import platform_provider
 
-    run_app(platform_provider())
+    run_app()
 
 
 if __name__ == "__main__":

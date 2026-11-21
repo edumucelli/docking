@@ -100,7 +100,6 @@ class DeskpresenceApplet(Applet):
                 _("{status}").format(
                     status=_presence_text(self._state.presence),
                 ),
-                gtk=Gtk,
             )
         ]
 
@@ -113,7 +112,6 @@ class DeskpresenceApplet(Applet):
             active_value=self._state.idle_threshold_s,
             is_active=lambda value: abs(self._state.idle_threshold_s - value) < 0.5,
             on_selected=lambda _widget, value: self._set_threshold(seconds=value),
-            gtk=Gtk,
         )
 
         reset = Gtk.MenuItem(label=_("Reset Today"))
@@ -123,7 +121,6 @@ class DeskpresenceApplet(Applet):
             status=status,
             display=[threshold],
             destructive=[reset],
-            gtk=Gtk,
         )
 
     def start(self, notify: Callable[[], None]) -> None:

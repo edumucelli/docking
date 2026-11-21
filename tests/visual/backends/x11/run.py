@@ -54,7 +54,7 @@ MINIMUM_CASES = (
 )
 
 
-def private_environment(directory: Path, desktop: str = "xfce") -> dict[str, str]:
+def private_environment(directory: Path, desktop: str) -> dict[str, str]:
     """Isolate service activation as well as direct children from host settings."""
     env = dict(os.environ)
     for key in (
@@ -203,7 +203,7 @@ class Pointer:
 
 
 class Observer:
-    def __init__(self, output: Path, dock_command: str | None = None):
+    def __init__(self, output: Path, dock_command: str | None):
         import gi
 
         for namespace, version in (("Gtk", "3.0"), ("Gdk", "3.0"), ("Wnck", "3.0")):

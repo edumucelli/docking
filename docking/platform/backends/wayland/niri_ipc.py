@@ -959,22 +959,17 @@ def load_niri_preview_service() -> NiriPreviewService | None:
     return NiriPreviewService(socket_path=str(socket_path))
 
 
-def niri_pick_color(
-    socket_path: str | None = None, *, timeout: float = 10.0
-) -> tuple[int, int, int] | None:
+def niri_pick_color(socket_path: str) -> tuple[int, int, int] | None:
     """Pick a screen colour via Niri's ``PickColor`` IPC request.
 
     Returns an ``(r, g, b)`` tuple of byte values (0-255), or ``None`` when
     the picker is unavailable or the user cancels.
     """
-    path = socket_path or niri_socket_path()
-    if path is None:
-        return None
     try:
         raw = b'{"PickColor":null}\n'
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
-            sock.settimeout(timeout)
-            sock.connect(str(path))
+            sock.settimeout(10.0)
+            sock.connect(socket_path)
             sock.sendall(raw)
             sock.shutdown(socket.SHUT_WR)
             chunks: list[bytes] = []
@@ -1009,9 +1004,8 @@ def niri_pick_color(
 class NiriScreenCaptureService(ScreenCaptureService):
     """ScreenCaptureService using Niri's native ``PickColor`` IPC."""
 
-    def __init__(self, socket_path: str, *, timeout: float = 10.0) -> None:
+    def __init__(self, socket_path: str) -> None:
         self._socket_path = socket_path
-        self._timeout = timeout
 
     def start(self) -> None:
         """No persistent state."""
@@ -1021,7 +1015,7 @@ class NiriScreenCaptureService(ScreenCaptureService):
 
     def pick_color(self, *, x: int, y: int) -> tuple[int, int, int] | None:
         del x, y  # Niri's interactive picker ignores coordinates.
-        return niri_pick_color(socket_path=self._socket_path, timeout=self._timeout)
+        return niri_pick_color(socket_path=self._socket_path)
 
 
 # ---------------------------------------------------------------------------
@@ -1135,7 +1129,7 @@ def _drain_socket(sock: socket.socket) -> None:
         pass
 
 
-def _wait_for_nonempty_file(path: str, *, timeout: float = 2.0) -> bool:
+def _wait_for_nonempty_file(path: str, *, timeout: float) -> bool:
     """Poll *path* until it exists and has non-zero size, or *timeout* expires."""
     import time
 

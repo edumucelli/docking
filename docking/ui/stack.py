@@ -852,7 +852,7 @@ class StackPopupController:
         action: StackAction | None,
         empty_label: str,
         icon_px: int,
-        label_max_width: int = FOLDER_STACK_LABEL_MAX_WIDTH_PX,
+        label_max_width: int,
     ) -> StackLayout:
         """Lay out stack cards along a stable, bottom-anchored curve.
 
@@ -1395,9 +1395,7 @@ class StackPopupController:
             + 10,
         )
 
-    def _stack_label_width(
-        self, *, label: str, max_width: int = FOLDER_STACK_LABEL_MAX_WIDTH_PX
-    ) -> int:
+    def _stack_label_width(self, *, label: str, max_width: int) -> int:
         return min(
             max_width,
             max(

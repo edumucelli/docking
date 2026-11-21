@@ -121,9 +121,8 @@ class SystemMonitorApplet(PlatformServicesApplet):
                 widget=widget,
                 temperature_unit=value,
             ),
-            gtk=Gtk,
         )
-        return menu_sections(display=[show_disk, temperature_unit], gtk=Gtk)
+        return menu_sections(display=[show_disk, temperature_unit])
 
     def _on_toggle_disk(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_disk = widget.get_active()

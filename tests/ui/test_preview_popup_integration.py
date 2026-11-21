@@ -474,14 +474,18 @@ class TestPreviewPopupIntegration:
         popup.hide = MagicMock()
         remove = MagicMock()
         monkeypatch.setattr(preview_mod.GLib, "source_remove", remove)
-        monkeypatch.setattr(preview_mod.GLib, "timeout_add", lambda _ms, _cb: 88)
+        schedule = MagicMock(return_value=88)
+        monkeypatch.setattr(preview_mod.GLib, "timeout_add", schedule)
 
         # When
-        preview_mod.PreviewPopup._schedule_hide(popup, delay_ms=123)
+        preview_mod.PreviewPopup._schedule_hide(popup)
         result = preview_mod.PreviewPopup._do_hide(popup)
 
         # Then
         remove.assert_called_once_with(77)
+        schedule.assert_called_once_with(
+            preview_mod.PREVIEW_HIDE_DELAY_MS, popup._do_hide
+        )
         assert popup._hide_timer_id == 0
         assert popup._current_desktop_id == ""
         assert result is False

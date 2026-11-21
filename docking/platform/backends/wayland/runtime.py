@@ -762,14 +762,6 @@ class WaylandProtocolRuntime:
         self,
         *,
         factories: WaylandProtocolFactories | None = None,
-        foreign_adapter: ForeignToplevelProtocolAdapter | None = None,
-        workspace_adapter: WorkspaceProtocolAdapter | None = None,
-        preview_adapter: PreviewProtocolAdapter | None = None,
-        hyprland_preview_adapter: HyprlandPreviewProtocolAdapter | None = None,
-        phoc_preview_adapter: PhocPreviewProtocolAdapter | None = None,
-        idle_adapter: IdleProtocolAdapter | None = None,
-        cosmic_toplevel_adapter: CosmicToplevelAdapter | None = None,
-        cosmic_overlap_adapter: CosmicOverlapAdapter | None = None,
     ) -> None:
         from docking.platform.backends.wayland.cosmic import (
             CosmicOverlapAdapter,
@@ -781,16 +773,14 @@ class WaylandProtocolRuntime:
         )
 
         self._factories = factories
-        self.foreign_toplevel = foreign_adapter or ForeignToplevelProtocolAdapter()
-        self.workspaces = workspace_adapter or WorkspaceProtocolAdapter()
-        self.previews = preview_adapter or PreviewProtocolAdapter()
-        self.hyprland_previews = (
-            hyprland_preview_adapter or HyprlandPreviewProtocolAdapter()
-        )
-        self.phoc_previews = phoc_preview_adapter or PhocPreviewProtocolAdapter()
-        self.idle = idle_adapter or IdleProtocolAdapter()
-        self.cosmic_toplevel = cosmic_toplevel_adapter or CosmicToplevelAdapter()
-        self.cosmic_overlap = cosmic_overlap_adapter or CosmicOverlapAdapter()
+        self.foreign_toplevel = ForeignToplevelProtocolAdapter()
+        self.workspaces = WorkspaceProtocolAdapter()
+        self.previews = PreviewProtocolAdapter()
+        self.hyprland_previews = HyprlandPreviewProtocolAdapter()
+        self.phoc_previews = PhocPreviewProtocolAdapter()
+        self.idle = IdleProtocolAdapter()
+        self.cosmic_toplevel = CosmicToplevelAdapter()
+        self.cosmic_overlap = CosmicOverlapAdapter()
         self.treeland_overlap = TreelandOverlapAdapter()
         self.treeland_window_management = TreelandWindowManagementAdapter()
         self.cosmic_toplevel.set_output_origin_probe(

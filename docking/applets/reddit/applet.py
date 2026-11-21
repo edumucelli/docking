@@ -166,21 +166,19 @@ class RedditApplet(Applet):
             top_period=self._top_period,
         )
         status: list[Gtk.MenuItem] = [
-            disabled_menu_item(source, gtk=Gtk),
+            disabled_menu_item(source),
             disabled_menu_item(
                 cadence_label(seconds=REFRESH_INTERVAL_S, verb=_("Refreshes")),
-                gtk=Gtk,
             ),
         ]
         current = self._current_post
         primary: list[Gtk.MenuItem] = []
         if current is not None:
-            status.append(disabled_menu_item(current.title, gtk=Gtk))
+            status.append(disabled_menu_item(current.title))
             if current.author:
                 status.append(
                     disabled_menu_item(
                         _("Posted by u/{author}").format(author=current.author),
-                        gtk=Gtk,
                     )
                 )
             open_post = Gtk.MenuItem(label=_("Open Post"))
@@ -190,13 +188,12 @@ class RedditApplet(Applet):
         state_status = self._live_status()
         state_text = live_state_label(state_status)
         if state_text:
-            status.append(disabled_menu_item(state_text, gtk=Gtk))
+            status.append(disabled_menu_item(state_text))
         error = live_state_error(status=state_status, error=self._error)
         if error:
             status.append(
                 disabled_menu_item(
                     _("Error: {msg}").format(msg=error),
-                    gtk=Gtk,
                 )
             )
 
@@ -227,14 +224,12 @@ class RedditApplet(Applet):
                 ),
                 active_value=self._active_subreddit_index,
                 on_selected=lambda _widget, index: self._set_subreddit(index=index),
-                gtk=Gtk,
             ),
             radio_submenu(
                 label=_("Sort"),
                 choices=tuple((sort_label(value), value) for value in RedditSort),
                 active_value=self._sort,
                 on_selected=lambda _widget, value: self._set_sort(sort=value),
-                gtk=Gtk,
             ),
         ]
         if self._sort is RedditSort.TOP:
@@ -248,7 +243,6 @@ class RedditApplet(Applet):
                     on_selected=lambda _widget, value: self._set_top_period(
                         period=value
                     ),
-                    gtk=Gtk,
                 )
             )
 
@@ -271,7 +265,6 @@ class RedditApplet(Applet):
             display=display,
             manage=[add],
             destructive=[remove],
-            gtk=Gtk,
         )
 
     def _live_status(self):

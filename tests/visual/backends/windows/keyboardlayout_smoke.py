@@ -361,7 +361,7 @@ def main(monitor):
 
     original_select = KeyboardLayoutApplet._select_layout
 
-    def trace_selection(applet, code, *, context=None):
+    def trace_selection(applet, code, *, context):
         entry = {"code": code, "context": context, "before": applet._layout._asdict()}
         report.setdefault("selection_callbacks", []).append(entry)
         try:

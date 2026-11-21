@@ -136,7 +136,7 @@ class MoonApplet(Applet):
         refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _: self._fetch_async())
 
-        return menu_sections(refresh=[refresh], display=[show], gtk=Gtk)
+        return menu_sections(refresh=[refresh], display=[show])
 
     def _on_toggle_phase(self, widget: Gtk.CheckMenuItem) -> None:
         self._show_phase = widget.get_active()

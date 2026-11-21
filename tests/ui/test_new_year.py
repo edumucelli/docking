@@ -219,8 +219,8 @@ def test_start_is_idempotent_and_stop_cleans_sources(fake_gtk):
     controller = NewYearGreetingController(window=_FakeWindow())
     controller._popup = _FakePopup()
 
-    controller.start()
-    controller.start()
+    controller.start(lambda _source: None, lambda _source, _visible: None)
+    controller.start(lambda _source: None, lambda _source, _visible: None)
 
     assert len(fake_gtk.scheduled) == 1
     assert controller._start_source_id
@@ -234,37 +234,41 @@ def test_start_is_idempotent_and_stop_cleans_sources(fake_gtk):
     assert controller._popup is None
 
 
-def test_startup_complete_consumes_greeting_and_shows_popup(monkeypatch):
+def test_startup_complete_consumes_greeting_and_queues_popup(fake_gtk, monkeypatch):
     controller = NewYearGreetingController(
         window=_FakeWindow(),
         state_path="/tmp/state.json",
         now_fn=lambda: datetime(2026, 1, 2),
     )
     shown: list[int] = []
+    requested: list[str] = []
 
     monkeypatch.setattr(
         new_year_mod,
         "consume_new_year_greeting",
         lambda **kwargs: 2026,
     )
-    monkeypatch.setattr(controller, "_show_popup", lambda *, year: shown.append(year))
+    monkeypatch.setattr(
+        controller, "_show_popup", lambda *, year: shown.append(year) or True
+    )
 
-    controller._start_source_id = 42
-    assert controller._on_startup_complete() is False
+    controller.start(requested.append, lambda _source, _visible: None)
+    assert fake_gtk.scheduled[0][1]() is False
     assert controller._start_source_id == 0
+    assert requested == [new_year_mod.NEW_YEAR_POPUP_ID]
+    assert shown == []
+    assert controller.show_pending() is True
     assert shown == [2026]
 
 
-def test_startup_complete_noops_when_not_due(monkeypatch):
+def test_startup_complete_noops_when_not_due(fake_gtk, monkeypatch):
     controller = NewYearGreetingController(window=_FakeWindow())
+    requested: list[str] = []
     monkeypatch.setattr(new_year_mod, "consume_new_year_greeting", lambda **_k: None)
-    monkeypatch.setattr(
-        controller,
-        "_show_popup",
-        lambda **_k: (_ for _ in ()).throw(AssertionError("unexpected")),
-    )
 
-    assert controller._on_startup_complete() is False
+    controller.start(requested.append, lambda _source, _visible: None)
+    assert fake_gtk.scheduled[0][1]() is False
+    assert requested == []
 
 
 def test_show_popup_skips_unrealized_window(fake_gtk):

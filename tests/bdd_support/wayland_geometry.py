@@ -40,7 +40,7 @@ class ConfiguredLayerDock:
             autohide=SimpleNamespace(enabled=False),
             zoom_animator=SimpleNamespace(progress=1.0),
         )
-        self.surface.configure_before_realize(self.window)
+        self.surface.configure_before_realize(self.window, keep_above=True)
         self.builder = DockGeometryBuilder(self.window)
         self.place(position)
 

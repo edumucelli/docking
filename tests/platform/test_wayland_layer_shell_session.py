@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from docking.core.config import Config
 from docking.core.position import Position
 from docking.platform.backends.base import (
     DisplayServer,
@@ -291,6 +292,7 @@ def test_hyprland_session_uses_ipc_windows_and_layer_shell_capabilities():
         event_stream_factory=lambda _callback: None,
     )
     backend = HyprlandSessionBackend(
+        config=Config(),
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
         **identity_services(),
@@ -326,6 +328,7 @@ def test_hyprland_session_falls_back_to_reduced_windows_when_ipc_unavailable(
         lambda **_: None,
     )
     backend = HyprlandSessionBackend(
+        config=Config(),
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
         **identity_services(),
@@ -359,7 +362,7 @@ def test_configure_before_realize_assigns_layer_shell_role():
     window = MagicMock()
     service = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
 
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
 
     window.set_accept_focus.assert_called_once_with(False)
     window.set_focus_on_map.assert_called_once_with(False)
@@ -384,7 +387,7 @@ def test_position_or_anchor_maps_placement_to_layer_shell():
     window = MagicMock()
     window.get_display.return_value = display
     service = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
 
     service.position_or_anchor(
         PlacementRequest(
@@ -447,7 +450,7 @@ def test_layer_shell_releases_only_the_compositor_sized_axis(position):
     layer_shell = _layer_shell()
     window = MagicMock()
     service = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
     horizontal = position in (Position.TOP, Position.BOTTOM)
     size = Size(800, 187) if horizontal else Size(187, 600)
 
@@ -466,7 +469,7 @@ def test_layer_shell_releases_only_the_compositor_sized_axis(position):
 
 def test_layer_shell_surface_position_clears_on_stop():
     service = WaylandLayerShellSurfaceService(layer_shell=_layer_shell())
-    service.configure_before_realize(MagicMock())
+    service.configure_before_realize(MagicMock(), keep_above=True)
 
     service.position_or_anchor(
         PlacementRequest(
@@ -486,7 +489,7 @@ def test_reservation_updates_layer_shell_exclusive_zone():
     layer_shell = _layer_shell()
     window = MagicMock()
     service = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
 
     service.set_reservation(
         ReservationRequest(
@@ -505,7 +508,7 @@ def test_update_input_region_uses_gtk_input_shape():
     layer_shell = _layer_shell()
     window = MagicMock()
     service = WaylandLayerShellSurfaceService(layer_shell=layer_shell)
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
 
     service.update_input_region(Rect(x=1, y=2, width=30, height=40))
 
@@ -535,6 +538,7 @@ def test_niri_session_uses_ipc_windows_and_layer_shell_capabilities():
         event_stream_factory=lambda _callback: None,
     )
     backend = NiriSessionBackend(
+        config=Config(),
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
         **identity_services(),
@@ -568,6 +572,7 @@ def test_niri_session_falls_back_to_reduced_windows_when_ipc_unavailable(
         lambda **_: None,
     )
     backend = NiriSessionBackend(
+        config=Config(),
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
         **identity_services(),
@@ -581,6 +586,7 @@ def test_niri_session_falls_back_to_reduced_windows_when_ipc_unavailable(
 
 def test_sway_session_supports_window_outline():
     backend = SwaySessionBackend(
+        config=Config(),
         socket_path="/tmp/unused-sway.sock",
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
@@ -607,6 +613,7 @@ def test_niri_session_exposes_and_stops_native_picker():
     picker = NiriWindowPickService(windows=windows, socket_path="/unused")
     picker.stop = MagicMock()
     backend = NiriSessionBackend(
+        config=Config(),
         layer_shell=_layer_shell(),
         model=SimpleNamespace(),
         **identity_services(),

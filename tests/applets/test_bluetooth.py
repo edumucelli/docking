@@ -1134,7 +1134,7 @@ class TestBluetoothApplet:
         timeout_calls: list[int] = []
         removed: list[int] = []
         applet._ensure_discovery = lambda: timeout_calls.append(99)  # type: ignore[assignment]
-        applet._stop_local_discovery = lambda quiet=True: True  # type: ignore[assignment]
+        applet._stop_local_discovery = lambda: True  # type: ignore[assignment]
         monkeypatch.setattr(
             bluetooth_applet_mod.GLib,
             "timeout_add_seconds",
@@ -1321,7 +1321,7 @@ class TestBluetoothApplet:
         applet._state = _state(adapters=(_adapter(powered=True),))
         applet._active_adapter_path = "/org/bluez/hci0"
         monkeypatch.setattr(bluetooth_applet_mod.time, "monotonic", lambda: 10.0)
-        applet._stop_local_discovery = lambda quiet=True: True  # type: ignore[assignment]
+        applet._stop_local_discovery = lambda: True  # type: ignore[assignment]
         applet.present = lambda: None  # type: ignore[assignment]
         power_item.activate()
         assert backend.power_calls == [("/org/bluez/hci0", False)]
@@ -1350,12 +1350,12 @@ class TestBluetoothApplet:
         assert calls == ["ensure", "run"]
 
         applet._local_discovery_paths = set()
-        assert applet._stop_local_discovery(quiet=True) is True
+        assert applet._stop_local_discovery() is True
         applet._local_discovery_paths = {"/org/bluez/hci0"}
         applet._backend.stop_discovery = (  # type: ignore[attr-defined]
             lambda adapter_path, quiet=True: False
         )
-        assert applet._stop_local_discovery(quiet=True) is False
+        assert applet._stop_local_discovery() is False
 
         assert bluetooth_applet_mod._as_pref_bool(True, default=False) is True
         assert bluetooth_applet_mod._as_pref_bool("yes", default=False) is True

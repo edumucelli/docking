@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from docking.core.config import Config
 from docking.core.items import DockItem
 from docking.platform.applications.types import (
     ApplicationMatch,
@@ -199,6 +200,7 @@ def test_cinnamon_session_advertises_only_available_window_capabilities(monkeypa
         lambda _runtime: False,
     )
     backend = CinnamonWaylandSessionBackend(
+        config=Config(),
         layer_shell=_layer_shell(),
         model=_model(),
         **identity_services(),

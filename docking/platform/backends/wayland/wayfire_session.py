@@ -87,13 +87,6 @@ class WayfireSessionBackend(SessionBackend):
         process_identity_service: ProcessIdentityService,
         config: Config,
         protocol_runtime: WaylandProtocolRuntime | None = None,
-        screen_capture: ScreenCaptureService | None = None,
-        window_service: WindowService | None = None,
-        workspace_service: WorkspaceService | None = None,
-        window_picker: WindowPickService | None = None,
-        visibility_service: VisibilityService | None = None,
-        desktop_action_service: DesktopActionService | None = None,
-        preview_service: PreviewService | None = None,
     ) -> None:
         runtime = protocol_runtime
         if runtime is None:
@@ -101,7 +94,7 @@ class WayfireSessionBackend(SessionBackend):
             if candidate_runtime.start():
                 runtime = candidate_runtime
 
-        windows = window_service or load_wayfire_window_service(
+        windows = load_wayfire_window_service(
             model=model,
             application_registry=application_registry,
             process_identity_service=process_identity_service,
@@ -110,19 +103,15 @@ class WayfireSessionBackend(SessionBackend):
         if windows is None:
             windows = ReducedWindowService()
 
-        workspaces = workspace_service or load_wayfire_workspace_service()
-        picker = window_picker or load_wayfire_window_pick_service()
-        desktop_actions = (
-            desktop_action_service or load_wayfire_desktop_action_service()
-        )
+        workspaces = load_wayfire_workspace_service()
+        picker = load_wayfire_window_pick_service()
+        desktop_actions = load_wayfire_desktop_action_service()
 
-        visibility = visibility_service
-        if visibility is None:
-            visibility = load_wayfire_visibility_service(config=config)
+        visibility = load_wayfire_visibility_service(config=config)
         if visibility is None:
             visibility = ReducedVisibilityService()
 
-        previews = preview_service or load_wayfire_preview_service()
+        previews = load_wayfire_preview_service()
         if previews is None:
             from docking.platform.backends.reduced.services import (
                 ReducedPreviewService,
@@ -137,9 +126,7 @@ class WayfireSessionBackend(SessionBackend):
             visibility=visibility,
             workspaces=workspaces,
             desktop_actions=desktop_actions,
-            screen_capture=screen_capture
-            if screen_capture is not None
-            else load_portal_color_picker(),
+            screen_capture=load_portal_color_picker(),
             window_picker=picker,
             protocol_runtime=runtime,
             idle=WaylandIdleService(protocol=runtime.idle_protocol)

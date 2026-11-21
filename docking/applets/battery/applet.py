@@ -129,7 +129,6 @@ class BatteryApplet(PlatformServicesApplet):
             ),
             active_value=self._overlay,
             on_selected=lambda _widget, value: self._set_overlay(mode=value),
-            gtk=Gtk,
         )
 
         settings: list[Gtk.MenuItem] = []
@@ -139,7 +138,7 @@ class BatteryApplet(PlatformServicesApplet):
                 "activate", lambda _widget: self._backend.open_settings()
             )
             settings.append(power_settings)
-        return menu_sections(display=overlay, settings=settings, gtk=Gtk)
+        return menu_sections(display=overlay, settings=settings)
 
     def _set_overlay(self, mode: str) -> None:
         self._overlay = mode

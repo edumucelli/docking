@@ -455,9 +455,9 @@ class WindowsWindowService(SnapshotWindowService):
         model: DockModel,
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
-        config: Config | None = None,
+        config: Config,
         native: Win32WindowAPI | None = None,
-        workspaces: WindowsWorkspaceService | None = None,
+        workspaces: WindowsWorkspaceService,
     ) -> None:
         super().__init__(
             model=model,
@@ -477,19 +477,14 @@ class WindowsWindowService(SnapshotWindowService):
             return
         if self._native is None:
             self._native = Win32WindowAPI(
-                workspace_membership=self._workspaces.membership
-                if self._workspaces is not None
-                else None
+                workspace_membership=self._workspaces.membership,
             )
-        if self._workspaces is not None:
-            self._workspace_watch = self._workspaces.watch_active_workspace(
-                self.refresh
-            )
+        self._workspace_watch = self._workspaces.watch_active_workspace(self.refresh)
         self.refresh()
         self._timer = GLib.timeout_add(500, self._poll)
 
     def stop(self) -> None:
-        if self._workspaces is not None and self._workspace_watch is not None:
+        if self._workspace_watch is not None:
             self._workspaces.unwatch_active_workspace(self._workspace_watch)
             self._workspace_watch = None
         if self._timer:
@@ -529,8 +524,7 @@ class WindowsWindowService(SnapshotWindowService):
         # manager contract or while Explorer recovers. Only a known other
         # desktop establishes that a taskbar entry should be filtered out.
         return not window.skip_taskbar and (
-            self._config is None
-            or not self._config.current_workspace_only
+            not self._config.current_workspace_only
             or window.on_current_workspace is not False
         )
 
@@ -543,7 +537,6 @@ class WindowsWindowService(SnapshotWindowService):
             action == "activate"
             and window.on_current_workspace is False
             and window.workspace_id is not None
-            and self._workspaces is not None
         ):
             return self._workspaces.activate_then(
                 window.workspace_id, lambda: native.perform(window, action)

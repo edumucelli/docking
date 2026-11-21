@@ -174,14 +174,12 @@ def _refresh_screen(screen: Wnck.Screen) -> None:
     screen.force_update()
 
 
-def _dock_window(screen: Wnck.Screen, *, pid: int | None = None) -> Wnck.Window | None:
+def _dock_window(screen: Wnck.Screen) -> Wnck.Window | None:
     _refresh_screen(screen)
     for window in screen.get_windows():
         if window.get_window_type() != Wnck.WindowType.DOCK:
             continue
         if window.get_name() != "Docking":
-            continue
-        if pid is not None and window.get_pid() != pid:
             continue
         return window
     return None
