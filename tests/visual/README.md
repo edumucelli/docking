@@ -54,9 +54,8 @@ Linux native evidence goes under `artifacts/visual/`. Renderer failures go under
 their artifact paths and formats. Baseline updates remain explicit; moving a
 suite does not change its PNGs, thresholds or provenance.
 
-The native Linux Actions workflow runs every registered Linux target on all
-PRs, relevant pushes, weekly and manual runs. Windows and BSD retain their existing native
-Actions workflows. Renderer comparisons run in the main CI under Xvfb. Ordinary
+The native Linux Actions workflow also runs on relevant pushes, weekly and on
+manual dispatch. Renderer comparisons run in the main CI under Xvfb. Ordinary
 pytest and pre-commit run harness unit tests, without launching native desktops;
 tests marked `visual` remain excluded by default.
 
@@ -77,5 +76,34 @@ Pantheon and Unity, are outside this visual target list. Distribution aliases do
 not create additional desktop targets. Windows 11 hosted coverage uses AMD64
 emulation on the ARM runner; it does not establish a native ARM64 distribution.
 
-See [the compositor investigation](../../docs/VISUAL_COMPOSITOR_TESTING.md) for
-the deeper scenarios, capture contracts and historical findings.
+## Linux compositor diagnostics
+
+Use the matrix script for one placement or behavior case, or the native service
+runner for a compositor's service checks. The installed-compositor runner uses
+a private local session.
+
+```sh
+bash tests/visual/shared/linux/matrix.sh --compositor sway --case placement-bottom --geometry-only --require-supported
+bash tests/visual/shared/linux/matrix.sh --compositor sway --behavior stacks --geometry-only --require-supported
+bash tests/visual/shared/linux/native_services.sh sway always-behind
+bash tests/visual/shared/linux/local_run.sh matrix weston --case placement-bottom
+```
+
+The matrix uses Docker and the project's Python imaging dependencies. The native
+service runner uses an existing `docking-lab:<compositor>` image by default.
+The matrix script's `--help` shows usage, and
+[`scenarios.py`](shared/linux/scenarios.py) defines available cases.
+
+`--geometry-only` checks independently captured pixels and behavior without
+comparing PNG baselines. `--require-supported` fails when a case lacks required
+capabilities. To compare baselines, use the same compositor image and scene
+recorded in the baseline metadata. Review the captures before using
+`--update-baselines` in the intended environment.
+
+Add native targets in [`targets.py`](targets.py) and keep compositor-specific
+adapters under `backends/`. Use [`adapters/common.sh`](shared/linux/adapters/common.sh)
+for the shared process lifecycle. Require compositor readiness after socket
+discovery and clean up only processes started by the run.
+
+See the [historical compositor investigation](https://github.com/edumucelli/docking/blob/a787504b1ebc837961eef6d92a2c1793160616cf/docs/VISUAL_COMPOSITOR_TESTING.md)
+for the original failures, reproductions, and dated results.

@@ -13,7 +13,8 @@ def test_catalog_icon_and_documentation_are_packaged() -> None:
 
     assert "docking-search" not in project
     assert (ROOT / "docking/assets/icons/applets/search.png").is_file()
-    assert (ROOT / "docs/SEARCH.md").is_file()
+    guide = (ROOT / "docs/CONFIGURATION.md").read_text()
+    assert "\n## Global Search\n" in guide
 
 
 def test_flatpak_owns_package_bus_name_without_external_search_action() -> None:

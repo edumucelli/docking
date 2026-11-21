@@ -44,6 +44,7 @@ packaging/deb/debian/docking/
 uv.lock
 docking/locale/*/LC_MESSAGES/*.mo
 *.po~
+/.notes/
 docs/ARCHITECTURE.md
 docs/APPLET_DISPLAY_CONSISTENCY.md
 docs/APPLET_IDEAS.md
