@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import time
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 from docking.applets import get_applet_catalog
@@ -44,10 +45,10 @@ LIVE_EVIDENCE = {
     "bluetooth": r"\b[1-9]\d* (?:paired|connected)\b|(?:Paired|Connected): [1-9]",
     "hackernews": r"\b(?:points?|comments?)\b",
     "network": r"\b(?:IP|WiFi|Ethernet):",
-    "telegram": r"\bscan the QR code\b",
+    "telegram": r"\bTelegram: scan the QR code\b",
     "volume": r"\bVolume: \d+%|\bMuted\b",
     "weather": r"\d+°[CF]",
-    "whatsapp": r"\bscan the QR code\b",
+    "whatsapp": r"\bWhatsApp: scan the QR code\b",
 }
 
 
@@ -90,6 +91,15 @@ def live_hover(desktop: Desktop, applet: str) -> None:
         )
 
     wait_for(populated, f"Live {applet} data did not appear", timeout=25)
+
+
+def prepare_live_applets(desktop: Desktop, applet_ids: Iterable[str]) -> None:
+    # Wait for live data before recording the shelf or its tooltips.
+    for applet in applet_ids:
+        if applet in LIVE_EVIDENCE:
+            desktop.scene_name = f"Preparing {applet}"
+            live_hover(desktop, applet)
+    desktop.dismiss()
 
 
 def overview_shelf(desktop: Desktop, folder: str) -> None:

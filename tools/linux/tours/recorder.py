@@ -688,11 +688,13 @@ def join_chapters(directory: Path, chapters: list[tuple[str, Path]]) -> Path:
 def session(directory: Path, tours: list[str]) -> None:
     from docking.applets.identity import applet_desktop_id
     from tools.linux.tours.scenes import (
+        OVERVIEW_APPLETS,
         OVERVIEW_ITEMS,
         applet_chapters,
         applets,
         overview,
         preferences,
+        prepare_live_applets,
     )
 
     config = Path(os.environ["XDG_CONFIG_HOME"]) / "docking" / "dock.json"
@@ -743,11 +745,12 @@ def session(directory: Path, tours: list[str]) -> None:
                             clip_dir = directory / f"chapter-{len(chapters) + 1}"
                             clip_dir.mkdir()
                             pins = [applet_desktop_id(meta.id) for meta in items]
-                            with (
-                                dock(desktop, clip_dir, base, pins),
-                                capture(desktop, clip_dir),
-                            ):
-                                applets(desktop, items)
+                            with dock(desktop, clip_dir, base, pins):
+                                prepare_live_applets(
+                                    desktop, (meta.id for meta in items)
+                                )
+                                with capture(desktop, clip_dir):
+                                    applets(desktop, items)
                             chapters.append((name, clip_dir / "clip.mp4"))
                         join_chapters(directory, chapters)
                     else:
@@ -760,20 +763,20 @@ def session(directory: Path, tours: list[str]) -> None:
                             entries.extend(
                                 map(applet_desktop_id, ("applications", "clock"))
                             )
-                        with (
-                            dock(
-                                desktop,
-                                clip_dir,
-                                base,
-                                entries,
-                                tooltips=tour != "preferences",
-                            ),
-                            capture(desktop, clip_dir),
+                        with dock(
+                            desktop,
+                            clip_dir,
+                            base,
+                            entries,
+                            tooltips=tour != "preferences",
                         ):
                             if tour == "overview":
-                                overview(desktop, folder)
-                            else:
-                                preferences(desktop)
+                                prepare_live_applets(desktop, OVERVIEW_APPLETS)
+                            with capture(desktop, clip_dir):
+                                if tour == "overview":
+                                    overview(desktop, folder)
+                                else:
+                                    preferences(desktop)
                         (clip_dir / "clip.mp4").rename(directory / f"{tour}.mp4")
                 except Exception as error:
                     try:
