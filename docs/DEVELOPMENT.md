@@ -5,7 +5,8 @@
 Run commands from the repository root. Install the
 [source requirements](INSTALLATION.md#source-requirements) before setting up
 the development environment. For native Wayland protocol clients, also install
-the `[wayland]` extra described there.
+the `[wayland]` extra described there. On Windows, follow the
+[UCRT64 setup instructions](WINDOWS.md#source-development).
 
 Shared development scripts live directly in `tools/`; platform-specific scripts
 live in `tools/linux/` and `tools/bsd/`. Visual suites live together in
@@ -194,16 +195,175 @@ as well as pytest fixtures. The shared test factories deliberately construct
 Linux adapters for deterministic filesystem/command fixtures; tests reading the
 real host must explicitly use the native backend from composition.
 
-## D-Bus Remote Control
+## Writing Custom Applets
 
-Docking exposes the `org.docking.Docking.Items1` session-bus interface for item
-inspection and control. See [D-Bus Remote Control](DBUS.md) for the method
-reference, examples, and expected responses.
+See the [built-in applets](APPLETS.md) for examples.
+
+Applets are discovered from `AppletMeta` metadata and loaded lazily when
+enabled. They inherit the common lifecycle and UI hooks from
+`docking/applets/base.py`, including `create_icon()`, click, scroll, and menu
+handling, plus optional `start()` and `stop()` methods. Keep package imports
+cheap and separate GTK wiring from pure state and rendering helpers so most
+logic remains testable without a live desktop session.
+
+```text
+docking/applets/myapplet/
+  __init__.py   # metadata only: AppletMeta declaration
+  applet.py     # GTK wiring and lifecycle
+  state.py      # pure state/logic helpers
+  render.py     # icon rendering helpers
+```
+
+`__init__.py`:
+
+```python
+from docking.applets.identity import AppletCategory, AppletMeta
+
+meta = AppletMeta(
+    id="myapplet",
+    name="My Applet",
+    category=AppletCategory.PRODUCTIVITY,
+)
+
+__all__ = ["meta"]
+```
+
+`applet.py`:
+
+```python
+from docking.applets.base import Applet, load_theme_icon
+from docking.core.config import Config
+from docking.i18n import _
+
+from . import meta
+
+
+class MyApplet(Applet):
+    id = meta.id
+    name = _("My Applet")
+    icon_name = "utilities-terminal"
+
+    def __init__(self, icon_size: int, config: Config) -> None:
+        super().__init__(icon_size, config)
+        self.present()
+
+    def create_icon(self, size: int):
+        return load_theme_icon(name=self.icon_name, size=size)
+
+    def refresh_tooltip(self) -> None:
+        self.item.name = _("Useful status")
+```
+
+Use `self.present()` after state changes to refresh icon, tooltip, and dock UI.
+Keep parsing/state logic in plain Python modules so tests do not need a display.
+
+Native applets follow the [platform boundaries](#platform-boundaries). Keep
+`state.py` focused on values, parsing, preferences, and presentation policy.
+Desktop settings groups use `operations.py` for contracts shared across
+reader/control backends. In Music, the hybrid controller implements
+`MusicBackend` and delegates to the MPRIS and playerctl helpers.
+
+Inherit `PlatformServicesApplet` when an applet needs native backends. Its
+constructor requires `platform_services: AppletPlatformServices`; obtain a backend
+from the corresponding typed `platform_services.backends` factory before the
+first read, and pass the services to `super().__init__`. Add a typed factory to
+`applets/platform.py` and implement it in `platform/composition/` when introducing
+a new native domain. Constructors and package metadata must not start workers or
+register subscriptions unnecessarily. Use fresh factories for new owned client
+lifetimes and release subscriptions, timers, and workers in `stop()`.
+
+Applications, Run Command, and Music use `ApplicationServicesApplet` for the
+application registry, launcher, and `platform_services`. Pass late session/UI
+dependencies through `set_services()`. System Tray borrows the shared service
+at construction. Browser applets provide a `BrowserProfile` and obtain a
+`BrowserFactory`.
+
+Supply these dependencies explicitly in tests. Cover stop/restart and late
+replies for backends that own state or asynchronous work.
+
+## Translations
+
+Docking uses gettext catalogs in `docking/locale/` and falls back to English.
+Package compilation is documented in [Translation Ownership](../packaging/README.md#translation-ownership).
+
+The dock automatically uses your system locale. To test a specific language:
+
+```bash
+LANGUAGE=pt_BR python run.py
+```
+
+### Adding a new translation
+
+Create a catalog from the template, edit it with a PO editor such as Poedit or
+Lokalize, run the validation workflow below, and submit the `.po` file in a pull
+request.
+
+```bash
+mkdir -p docking/locale/XX/LC_MESSAGES
+msginit --input=docking/locale/docking.pot \
+  --locale=XX \
+  --output=docking/locale/XX/LC_MESSAGES/docking.po
+```
+
+### Changing translatable strings
+
+After adding or modifying a user-visible `_("...")` string, regenerate the
+template and run the same checks as CI:
+
+```bash
+./tools/i18n.sh --extract
+./tools/i18n.sh --check-pot-sync
+./tools/i18n.sh --check-catalogs --allow-incomplete
+./tools/i18n.sh --compile
+```
+
+Regular feature commits only update `docking/locale/docking.pot`; they do not
+need to refresh every catalog or fill every new `msgstr`.
+
+### Translation maintenance
+
+Translation-only updates merge the current template into every catalog and can
+apply the stricter completeness check:
+
+```bash
+./tools/i18n.sh --update-translations
+./tools/i18n.sh --check-catalogs --require-complete
+```
 
 ## Building Packages
 
 Build dependencies, commands, output paths, and local installation steps for
 every package format live in the [packaging guide](../packaging/README.md).
+
+## D-Bus Remote Control
+
+Scripts can inspect and control dock items through the `org.docking.Docking.Items1`
+interface on the session bus. The bus name is `org.docking.Docking` and the
+object path is `/org/docking/Docking`.
+
+```bash
+gdbus introspect --session --dest org.docking.Docking --object-path /org/docking/Docking
+
+gdbus call --session --dest org.docking.Docking --object-path /org/docking/Docking \
+  --method org.docking.Docking.Items1.ListTransientIds
+gdbus call --session --dest org.docking.Docking --object-path /org/docking/Docking \
+  --method org.docking.Docking.Items1.Pin firefox.desktop
+```
+
+Use exact IDs from the list methods, such as `firefox.desktop` or `applet://clock`.
+Mutations return `false` when the requested operation cannot be applied.
+
+| Method | Result |
+| --- | --- |
+| `GetCount()` | Visible item count. |
+| `ListPinnedIds()` | Persistent item IDs. |
+| `ListTransientIds()` | Visible transient item IDs. |
+| `Pin(id)` | `true` when the transient item is pinned. |
+| `Unpin(id)`, `Remove(id)` | `true` when the pinned item is removed from the persistent dock. A running app can remain as a transient item. |
+| `GetHoverAnchor(id)` | `(true, x, y, edge)` with screen coordinates and `top`, `bottom`, `left` or `right`. Returns `(false, -1, -1, '')` when no anchor is available. |
+
+The service emits `Changed()` when the dock item set changes. See the
+[interface definition](../docking/ipc/introspection.py) for the method signatures.
 
 ## Website
 
@@ -264,10 +424,6 @@ checks and browser checks on relevant changes.
 4. Run `ruff format docking/ tests/` for formatting
 5. Ensure `ruff check && ty check && pytest tests/` passes
 6. Submit a pull request
-
-See also [custom applet development](APPLET_DEVELOPMENT.md),
-[translations](TRANSLATIONS.md), and [visual compositor testing](VISUAL_COMPOSITOR_TESTING.md).
-
 
 ## BSD package and desktop checks
 
