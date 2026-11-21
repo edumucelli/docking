@@ -26,7 +26,11 @@ ARG ARCH_IMAGE=archlinux@sha256:b21322c663be387c0ed9cbc7bbbfe18e41633ad4e7b7c77c
 ARG ARCH_SNAPSHOT=2026/10/02
 FROM ${ARCH_IMAGE} AS archive
 ARG ARCH_SNAPSHOT
-RUN printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "$ARCH_SNAPSHOT" >/etc/pacman.d/mirrorlist
+RUN printf 'Server = https://%s/repos/%s/$repo/os/$arch\n' \
+        umea.archive.pkgbuild.com "$ARCH_SNAPSHOT" \
+        archive.archlinux.org "$ARCH_SNAPSHOT" >/etc/pacman.d/mirrorlist \
+    && sed -i '/^\[options\]$/a XferCommand = /usr/local/bin/fetch-arch-archive %u %o' /etc/pacman.conf
+COPY --chmod=0755 fetch-arch-archive.sh /usr/local/bin/fetch-arch-archive
 COPY --chmod=0755 install-arch-packages.sh /usr/local/bin/install-arch-packages
 
 FROM archive AS pywayland-builder
