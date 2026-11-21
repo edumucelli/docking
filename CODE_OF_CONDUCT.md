@@ -16,7 +16,7 @@ are unacceptable.
 
 ## Reporting and enforcement
 
-Report conduct concerns privately to the [Docking maintainer](mailto:edumucelli@gmail.com).
+Report conduct concerns privately to the [Docking maintainer](mailto:hello@docking.cc).
 Include what happened and any relevant links or context. The maintainer will
 handle reports discreetly and share details only as needed to respond.
 

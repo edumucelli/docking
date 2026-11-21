@@ -4,6 +4,7 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
+- Updated the private reporting contact in the security policy and code of conduct.
 - Added contributor guidance, a code of conduct, and a security reporting policy.
 - Moved developer requirements under `tools/` and updated setup commands.
 

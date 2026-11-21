@@ -7,7 +7,7 @@ Security fixes are made for the latest stable [Docking release](https://github.c
 ## Reporting a vulnerability
 
 Use **Report a vulnerability** on the [GitHub Security Advisories page](https://github.com/edumucelli/docking/security/advisories)
-when the option is available. You can also email the [Docking maintainer](mailto:edumucelli@gmail.com).
+when the option is available. You can also email the [Docking maintainer](mailto:hello@docking.cc).
 Keep vulnerability reports private while the maintainer investigates and
 coordinates disclosure with you.
 
