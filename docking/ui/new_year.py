@@ -89,8 +89,8 @@ class NewYearGreetingController:
 
     def start(
         self,
-        request_show: Callable[[str], None] | None = None,
-        visibility_changed: Callable[[str, bool], None] | None = None,
+        request_show: Callable[[str], None],
+        visibility_changed: Callable[[str, bool], None],
     ) -> None:
         """Start the delayed startup greeting check once per process."""
         if self._start_source_id:
@@ -129,10 +129,8 @@ class NewYearGreetingController:
         log.debug("New Year greeting evaluation at %s returned %r", now, year)
         if year is not None:
             self._pending_year = year
-            if self._request_show is not None:
-                self._request_show(self.source_id)
-            else:
-                self.show_pending()
+            assert self._request_show is not None
+            self._request_show(self.source_id)
         return False
 
     def show_pending(self) -> bool:

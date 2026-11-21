@@ -135,7 +135,7 @@ def should_check_for_updates(
     enabled: bool,
     interval_hours: int,
     state: UpdateState,
-    now: datetime | None = None,
+    now: datetime,
 ) -> bool:
     """Return true when an automatic update check is due."""
     if not enabled:
@@ -153,7 +153,7 @@ def decide_update_popup(
     current_version: str,
     release: ReleaseInfo | None,
     state: UpdateState,
-    now: datetime | None = None,
+    now: datetime,
 ) -> UpdateDecision:
     """Decide whether a fetched release should be shown to the user."""
     if release is None:
@@ -168,20 +168,16 @@ def decide_update_popup(
     return UpdateDecision(True, "newer", release)
 
 
-def fetch_latest_release(
-    *,
-    url: str = GITHUB_LATEST_RELEASE_URL,
-    timeout: int = DEFAULT_UPDATE_TIMEOUT_S,
-) -> ReleaseInfo:
+def fetch_latest_release() -> ReleaseInfo:
     """Fetch latest GitHub release metadata."""
     request = urllib.request.Request(
-        url,
+        GITHUB_LATEST_RELEASE_URL,
         headers={
             "Accept": "application/vnd.github+json",
             "User-Agent": UPDATE_USER_AGENT,
         },
     )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    with urllib.request.urlopen(request, timeout=DEFAULT_UPDATE_TIMEOUT_S) as response:
         payload = response.read()
     data = json.loads(payload.decode("utf-8"))
     return parse_github_release(data)
@@ -256,7 +252,7 @@ def parse_timestamp(value: str | None) -> datetime | None:
     return _aware_utc(parsed)
 
 
-def utc_now_iso(now: datetime | None = None) -> str:
+def utc_now_iso(now: datetime) -> str:
     """Return a UTC ISO timestamp suitable for update state."""
     return _aware_utc(now).isoformat()
 
@@ -274,11 +270,10 @@ def _version_parts(version: str) -> tuple[int, ...]:
     return tuple(parts)
 
 
-def _aware_utc(value: datetime | None) -> datetime:
-    timestamp = datetime.now(timezone.utc) if value is None else value
-    if timestamp.tzinfo is None:
-        timestamp = timestamp.replace(tzinfo=timezone.utc)
-    return timestamp.astimezone(timezone.utc)
+def _aware_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def _coerce_str(value: object) -> str:

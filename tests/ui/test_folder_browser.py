@@ -193,11 +193,9 @@ def test_production_stack_requests_only_visible_icons_and_menu_requests_all(
     assert len(content.entries) == 9
     assert content.action is not None and "21" in content.action.label
     assert loader.resolve_file_icon.call_count == 9
-    assert (
-        len(controller.list_directory(folder_item=item, target=item.target, icon_px=64))
-        == 30
-    )
-    assert loader.resolve_file_icon.call_count == 30
+    assert len(controller.list_directory(folder_item=item, target=item.target)) == 30
+    icon_calls = loader.resolve_file_icon.call_args_list
+    assert [call.kwargs["size"] for call in icon_calls] == [64] * 9 + [16] * 30
 
 
 @pytest.mark.parametrize("key,value", [("sort", "size"), ("show_hidden", True)])

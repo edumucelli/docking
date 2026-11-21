@@ -1057,7 +1057,7 @@ def _integer_value(value: object) -> int:
 
 def _binding_from_results(
     results: Mapping[str, object],
-    shortcut_id: str = TOGGLE_SEARCH_SHORTCUT_ID,
+    shortcut_id: str,
 ) -> GlobalShortcutBinding | None:
     return _binding_from_shortcuts(results.get("shortcuts", ()), shortcut_id)
 
@@ -1073,7 +1073,7 @@ def _binding_was_reassigned(
 
 
 def _binding_from_shortcuts(
-    value: object, requested_id: str = TOGGLE_SEARCH_SHORTCUT_ID
+    value: object, requested_id: str
 ) -> GlobalShortcutBinding | None:
     for item in _sequence_value(value):
         if not isinstance(item, (tuple, list)) or len(item) != 2:

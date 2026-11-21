@@ -135,10 +135,9 @@ class WindowsScreenshotBackend(ScreenshotBackend):
         self,
         *,
         api_factory: Callable[[], WindowsScreenshotAPI],
-        api: WindowsScreenshotAPI | None = None,
     ) -> None:
         self._api_factory = api_factory
-        self._api = api
+        self._api: WindowsScreenshotAPI | None = None
         self._cancelled = threading.Event()
         self._excluded: tuple[int, ...] = ()
         self._source: WindowSnapshot | None = None

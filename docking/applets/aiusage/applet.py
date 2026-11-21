@@ -144,7 +144,6 @@ class AiUsageApplet(Applet):
             ),
             active_value=self._selected_provider,
             on_selected=lambda _widget, value: self._set_provider(provider=value),
-            gtk=Gtk,
         )
 
         display_items = radio_menu_items(
@@ -154,7 +153,6 @@ class AiUsageApplet(Applet):
             ),
             active_value=self._display_mode,
             on_selected=lambda _widget, value: self._set_display_mode(mode=value),
-            gtk=Gtk,
         )
 
         mi = Gtk.MenuItem(label=_("Reset Today"))
@@ -162,7 +160,6 @@ class AiUsageApplet(Applet):
         return menu_sections(
             display=[*provider_items, Gtk.SeparatorMenuItem(), *display_items],
             destructive=[mi],
-            gtk=Gtk,
         )
 
     # ------------------------------------------------------------------

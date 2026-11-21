@@ -90,7 +90,7 @@ class CosmicWindowService(WaylandForeignToplevelWindowService):
     def __init__(
         self,
         *,
-        config: Config | None,
+        config: Config,
         workspaces: WorkspaceService | None,
         protocol: CosmicToplevelAdapter,
         **kwargs,
@@ -134,7 +134,6 @@ class CosmicWindowService(WaylandForeignToplevelWindowService):
     def _taskbar_state(self, state: ToplevelState) -> bool:
         return (
             not self.supports_workspace_visibility
-            or self._config is None
             or not self._config.current_workspace_only
             or self._on_current_workspace(state) is True
         )
@@ -263,7 +262,7 @@ class CosmicSessionBackend(SessionBackend):
         process_identity_service: ProcessIdentityService,
         protocol_runtime: WaylandProtocolRuntime | None = None,
         screen_capture: ScreenCaptureService | None = None,
-        config: Config | None = None,
+        config: Config,
     ) -> None:
         runtime = protocol_runtime
         if runtime is None:

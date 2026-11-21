@@ -2,6 +2,7 @@
 
 from types import SimpleNamespace
 
+import docking.applets.menu as applet_menu
 import docking.applets.separator.applet as separator_applet_mod
 from docking.applets.identity import applet_id_from
 from docking.applets.separator.applet import SeparatorApplet
@@ -98,6 +99,7 @@ class TestSeparatorApplet:
             SeparatorMenuItem=FakeSeparatorMenuItem,
         )
         monkeypatch.setattr(separator_applet_mod, "Gtk", fake_gtk)
+        monkeypatch.setattr(applet_menu, "Gtk", fake_gtk)
 
     def test_creates_with_icon(self):
         applet = SeparatorApplet(48, config=Config())

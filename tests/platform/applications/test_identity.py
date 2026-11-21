@@ -6,9 +6,11 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
+from docking.platform.applications.backend import ProcessBackend
 from docking.platform.applications.identity import (
     APP_URI_PREFIX,
     LaunchProvenanceStore,
@@ -39,28 +41,26 @@ def test_application_uri_parser_preserves_unity_validation(app_uri, expected):
 
 @pytest.mark.parametrize("pid", [None, 0, -1, True, False, 1.5, "1"])
 def test_process_identity_rejects_non_positive_exact_int_pids(pid):
-    resolver_calls: list[object] = []
-    service = make_process_identity(
-        LaunchProvenanceStore(),
-        executable_resolver=lambda value: resolver_calls.append(value) or None,
-    )
+    backend = Mock(spec=ProcessBackend)
+    service = make_process_identity(LaunchProvenanceStore(), backend=backend)
 
     assert service.identity_for_pid(pid) is None
-    assert resolver_calls == []
+    assert backend.mock_calls == []
 
 
-def test_service_uses_injected_executable_resolver_and_shared_store():
-    executable = Path("/opt/example/bin/tool")
+def test_service_uses_process_backend_and_shared_store(tmp_path):
+    executable = tmp_path / "tool"
+    executable.touch()
+    process = tmp_path / "42"
+    process.mkdir()
+    (process / "exe").symlink_to(executable)
     store = LaunchProvenanceStore()
     store.record_launch(
         process=SimpleNamespace(pid=42, poll=lambda: None),
         desktop_id="tool.desktop",
         executable_path=executable,
     )
-    service = make_process_identity(
-        store,
-        executable_resolver=lambda pid: executable if pid == 42 else None,
-    )
+    service = make_process_identity(store, proc_root=tmp_path)
 
     identity = service.identity_for_pid(42)
 
@@ -109,7 +109,6 @@ def test_process_metadata_survives_unavailable_executable(tmp_path):
     service = make_process_identity(
         LaunchProvenanceStore(),
         proc_root=tmp_path,
-        executable_resolver=lambda _pid: None,
     )
     result = service.identity_for_pid(42)
     assert result.executable_path is None
@@ -137,7 +136,6 @@ def test_invalid_flatpak_process_metadata_does_not_create_identity(tmp_path, met
     service = make_process_identity(
         LaunchProvenanceStore(),
         proc_root=tmp_path,
-        executable_resolver=lambda _pid: None,
     )
     assert service.identity_for_pid(42).sandbox_app_id is None
 
@@ -160,7 +158,6 @@ def test_script_metadata_rejects_unconfirmed_script_names(tmp_path, cmdline):
     service = make_process_identity(
         LaunchProvenanceStore(),
         proc_root=tmp_path,
-        executable_resolver=lambda _pid: None,
     )
     assert service.identity_for_pid(42).script_basename is None
 
@@ -207,7 +204,6 @@ def test_process_metadata_failure_is_optional(tmp_path, monkeypatch):
     service = make_process_identity(
         LaunchProvenanceStore(),
         proc_root=tmp_path,
-        executable_resolver=lambda _pid: None,
     )
     identity = service.identity_for_pid(42)
     assert identity.sandbox_app_id is None and identity.script_basename is None

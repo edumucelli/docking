@@ -214,7 +214,7 @@ class MusicApplet(ApplicationServicesApplet):
         if not self._state.available:
             return [
                 disabled_menu_item(
-                    _("Unavailable") if self._error else _("No active player"), gtk=Gtk
+                    _("Unavailable") if self._error else _("No active player")
                 )
             ]
 
@@ -247,7 +247,6 @@ class MusicApplet(ApplicationServicesApplet):
             primary=[play_pause_item],
             navigation=[previous_item, next_item],
             display=[volume_up_item, volume_down_item],
-            gtk=Gtk,
         )
 
     def _action_previous(self) -> None:
@@ -380,7 +379,7 @@ class MusicApplet(ApplicationServicesApplet):
         state: MusicState,
         art: GdkPixbuf.Pixbuf | None,
         *,
-        force: bool = False,
+        force: bool,
     ) -> bool:
         if has_active_media(state):
             self._pending_media_launch = False

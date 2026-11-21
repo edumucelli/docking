@@ -106,13 +106,11 @@ class StretchCoachApplet(Applet):
             ),
             active_value=self._state.interval_min,
             on_selected=lambda _widget, value: self._set_interval(value),
-            gtk=Gtk,
         )
 
         return menu_sections(
             primary=[take_break, preview],
             display=[cards, Gtk.SeparatorMenuItem(), *intervals],
-            gtk=Gtk,
         )
 
     def _tick(self) -> bool:

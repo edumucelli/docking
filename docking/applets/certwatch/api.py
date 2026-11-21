@@ -94,12 +94,7 @@ def _flatten_name(parts: object) -> str:
     return ", ".join(pieces)
 
 
-def fetch_cert(
-    *,
-    host: str,
-    port: int,
-    timeout: float = DEFAULT_TIMEOUT_S,
-) -> CertInfo:
+def fetch_cert(*, host: str, port: int) -> CertInfo:
     """Fetch the peer certificate for ``host:port``.
 
     Returns a CertInfo with either populated fields or a non-empty ``error``.
@@ -110,7 +105,7 @@ def fetch_cert(
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     try:
         with (
-            socket.create_connection((host, port), timeout=timeout) as raw,
+            socket.create_connection((host, port), timeout=DEFAULT_TIMEOUT_S) as raw,
             context.wrap_socket(raw, server_hostname=host) as tls,
         ):
             peer = tls.getpeercert()

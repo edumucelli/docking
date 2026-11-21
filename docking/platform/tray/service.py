@@ -176,7 +176,7 @@ class TrayService:
         *,
         point: tuple[int, int] | None = None,
         anchor: Rect | None = None,
-        generation: int | None = None,
+        generation: int,
     ) -> bool:
         backend = self._backend
         return (
@@ -190,26 +190,22 @@ class TrayService:
         identifier: str,
         *,
         anchor: Rect | None = None,
-        generation: int | None = None,
+        generation: int,
     ) -> bool:
         backend = self._backend
         return (
             backend is not None
             and self._command_current(generation)
-            and (
-                backend.double_click(identifier, anchor=anchor)
-                if anchor is not None
-                else backend.double_click(identifier)
-            )
+            and backend.double_click(identifier, anchor=anchor)
         )
 
-    def _command_current(self, generation: int | None) -> bool:
+    def _command_current(self, generation: int) -> bool:
         # Capture the backend before this check: a subsequent restart may
         # close that backend, but must never reroute old work to its replacement.
         return (
             self._backend is not None
             and self._ready_to_read.is_set()
-            and (generation is None or generation == self._generation)
+            and generation == self._generation
         )
 
     def start(self) -> None:
@@ -278,7 +274,7 @@ class TrayService:
         *,
         anchor: Rect | None = None,
         keyboard: bool = False,
-        generation: int | None = None,
+        generation: int,
     ) -> bool:
         backend = self._backend
         return (
@@ -293,7 +289,7 @@ class TrayService:
         *,
         anchor: Rect | None = None,
         keyboard: bool = False,
-        generation: int | None = None,
+        generation: int,
     ) -> bool:
         backend = self._backend
         return (
@@ -307,8 +303,8 @@ class TrayService:
             self._backend.menu_client(identifier) if self._backend is not None else None
         )
 
-    def _tick(self, generation: int | None = None) -> bool:
-        if generation is not None and generation != self._generation:
+    def _tick(self, generation: int) -> bool:
+        if generation != self._generation:
             return False
         self.refresh()
         return self._running

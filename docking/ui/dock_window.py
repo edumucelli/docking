@@ -208,7 +208,7 @@ from docking.platform.backends.base import (
     SurfaceService,
     WindowService,
 )
-from docking.platform.environment import detect_desktop, log_runtime_snapshot
+from docking.platform.environment import log_runtime_snapshot
 from docking.ui import geometry
 from docking.ui.autohide import AutoHideController, HideState
 from docking.ui.display import window_screen_position, window_size
@@ -383,7 +383,7 @@ class DockWindow(Gtk.Window):
         screen = self.get_screen()
         visual = screen.get_rgba_visual() or screen.get_system_visual()
         self.set_visual(visual)
-        log_runtime_snapshot(display=self.get_display(), desktop=detect_desktop())
+        log_runtime_snapshot(display=self.get_display())
 
         self.placement.attach_screen_signals(screen)
         self.connect("realize", self.placement.on_realize)

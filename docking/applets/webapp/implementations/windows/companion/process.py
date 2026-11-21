@@ -38,7 +38,7 @@ class BrowserProcess:
         *,
         on_packet: Callable[[Event], None],
         on_closed: Callable[[], None],
-        entrypoint: Path | None = None,
+        entrypoint: Path | None,
     ) -> None:
         self._executable, self._configuration = executable, configuration
         self._entrypoint = entrypoint or Path(__file__).with_name("__main__.py")

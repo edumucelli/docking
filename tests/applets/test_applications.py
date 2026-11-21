@@ -160,7 +160,12 @@ class TestApplicationsApplet:
             export_data=(("Native file format", b"native file bytes"),),
         )
         item = applications_applet_mod._application_menu_item(
-            app_info=app, config=Config(), registry=MagicMock(), launcher=MagicMock()
+            app_info=app,
+            config=Config(),
+            registry=MagicMock(),
+            launcher=MagicMock(),
+            artwork=None,
+            surface=None,
         )
         targets = item.drag_source_args[1]
         assert [target.target for target in targets] == [
@@ -198,6 +203,7 @@ class TestApplicationsApplet:
             config=Config(),
             registry=MagicMock(),
             launcher=MagicMock(),
+            artwork=None,
             surface=surface,
         )
         surface.prepare_file_drag_source.assert_called_once_with(
@@ -210,7 +216,12 @@ class TestApplicationsApplet:
         self._fake_gtk(monkeypatch)
         app = _application("Microsoft.WindowsNotepad_8wekyb3d8bbwe!App", "Notepad")
         item = applications_applet_mod._application_menu_item(
-            app_info=app, config=Config(), registry=MagicMock(), launcher=MagicMock()
+            app_info=app,
+            config=Config(),
+            registry=MagicMock(),
+            launcher=MagicMock(),
+            artwork=None,
+            surface=None,
         )
         assert item.drag_source_args is not None
         target = item.drag_source_args[1][0]
@@ -501,6 +512,8 @@ class TestApplicationsApplet:
             config=SimpleNamespace(lock_icons=False),
             registry=MagicMock(),
             launcher=MagicMock(),
+            artwork=None,
+            surface=None,
         )
 
         menu_item = submenu.get_children()[0]
@@ -543,6 +556,8 @@ class TestApplicationsApplet:
             config=SimpleNamespace(lock_icons=False),
             registry=registry,  # ty: ignore[invalid-argument-type]
             launcher=MagicMock(),
+            artwork=None,
+            surface=None,
         )
 
         menu_item = submenu.get_children()[0]
@@ -574,6 +589,8 @@ class TestApplicationsApplet:
             ),
             registry=MagicMock(),
             launcher=MagicMock(),
+            artwork=None,
+            surface=None,
         )
 
         assert submenu.get_children()[0].drag_source_args is None
@@ -594,6 +611,8 @@ class TestApplicationsApplet:
             config=SimpleNamespace(lock_icons=False),
             registry=MagicMock(),
             launcher=launcher,
+            artwork=None,
+            surface=None,
         )
 
         callback, args = item._signals["activate"][0]

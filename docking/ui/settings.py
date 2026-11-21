@@ -296,7 +296,7 @@ class SettingsWindowController:
         model: DockModel,
         config: Config,
         window_outline_supported: bool = False,
-        application_registry: ApplicationRegistry | None = None,
+        application_registry: ApplicationRegistry,
     ) -> None:
         self._parent = parent
         self._actions = actions
@@ -429,8 +429,7 @@ class SettingsWindowController:
         stack.add_titled(self._build_behavior_tab(), "behavior", _("Behavior"))
         stack.add_titled(self._build_applets_tab(), "applets", _("Applets"))
         stack.add_titled(self._build_updates_tab(), "updates", _("Updates"))
-        if self._application_registry is not None:
-            stack.add_titled(self._build_import_tab(), "import", _("Import"))
+        stack.add_titled(self._build_import_tab(), "import", _("Import"))
 
         outer.pack_start(switcher, False, False, 0)
         outer.pack_start(stack, True, True, 0)
@@ -869,7 +868,6 @@ class SettingsWindowController:
             ],
         )
         edit_layout = Gtk.Button(label=_("Edit Layout…"))
-        edit_layout.set_sensitive(self._application_registry is not None)
         edit_layout.connect("clicked", self._edit_layout)
         self._append_section(
             outer=outer,
@@ -905,9 +903,11 @@ class SettingsWindowController:
         return self._new_tab_scroller(outer, propagate_natural_width=True)
 
     def _edit_layout(self, _button: Gtk.Button) -> None:
-        parent, registry = self._window, self._application_registry
-        if parent is not None and registry is not None:
-            editor = DockLayoutEditor(parent, self._config, self._model, registry)
+        parent = self._window
+        if parent is not None:
+            editor = DockLayoutEditor(
+                parent, self._config, self._model, self._application_registry
+            )
             if editor.run() and self._window is parent:
                 self._rebuild_applet_tab()
 
@@ -1153,8 +1153,8 @@ class SettingsWindowController:
         return self._new_tab_scroller(outer, propagate_natural_width=True)
 
     def _import_dock(self, tab: Gtk.Box, kind: DockImportKind | None) -> None:
-        parent, registry = self._window, self._application_registry
-        if parent is None or registry is None:
+        parent = self._window
+        if parent is None:
             return
         tab.set_sensitive(False)
         try:
@@ -1166,7 +1166,7 @@ class SettingsWindowController:
             imported = review_dock_import(
                 parent,
                 self._config,
-                registry,
+                self._application_registry,
                 first_run=False,
                 kind=kind,
                 file_path=file_path,

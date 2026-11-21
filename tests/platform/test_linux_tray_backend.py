@@ -1,11 +1,12 @@
 """Neutral tray and menu projection preserves the Linux provider contract."""
 
-from unittest.mock import Mock, call
+from unittest.mock import Mock
 
 import pytest
+from gi.repository import GLib
 
 from docking.platform.backends.base import Rect
-from docking.platform.tray.implementations.unix.backend import UnixTrayBackend
+from docking.platform.tray.implementations.unix import backend
 from docking.platform.tray.implementations.unix.dbusmenu import (
     DBusMenuItem,
     DBusMenuLayout,
@@ -32,9 +33,12 @@ def test_linux_actions_preserve_status_notifier_default_coordinates(
     )
     provider = StatusNotifierBackend()
     provider._last_items[item.identifier] = item
-    send = Mock(return_value=accepted)
-    monkeypatch.setattr(provider, "_call_item_method", send)
-    adapter = UnixTrayBackend(backend=provider)
+    bus = Mock()
+    if not accepted:
+        bus.call_sync.side_effect = GLib.Error("Item rejected action")
+    monkeypatch.setattr(provider, "_connection", lambda: bus)
+    monkeypatch.setattr(backend, "StatusNotifierBackend", lambda: provider)
+    adapter = backend.UnixTrayBackend()
     assert (
         adapter.activate(item.identifier, anchor=anchor, keyboard=keyboard) is accepted
     )
@@ -42,15 +46,19 @@ def test_linux_actions_preserve_status_notifier_default_coordinates(
         adapter.context_menu(item.identifier, anchor=anchor, keyboard=keyboard)
         is accepted
     )
-    assert send.call_args_list == [
-        call(item=item, method="ContextMenu" if item_is_menu else "Activate", x=0, y=0),
-        call(item=item, method="ContextMenu", x=0, y=0),
+    assert [
+        (request.args[3], request.args[4].unpack())
+        for request in bus.call_sync.call_args_list
+    ] == [
+        ("ContextMenu" if item_is_menu else "Activate", (0, 0)),
+        ("ContextMenu", (0, 0)),
     ]
 
 
-def test_linux_geometry_hover_and_native_focus_do_not_contact_sni():
+def test_linux_geometry_hover_and_native_focus_do_not_contact_sni(monkeypatch):
     provider = Mock(spec=StatusNotifierBackend)
-    adapter = UnixTrayBackend(backend=provider)
+    monkeypatch.setattr(backend, "StatusNotifierBackend", lambda: provider)
+    adapter = backend.UnixTrayBackend()
     adapter.set_geometry({"item": Rect(10, 10, 24, 24)})
     adapter.set_focus_handler(lambda _request: None)
     assert not adapter.pointer("item", point=(12, 15), anchor=Rect(10, 10, 24, 24))
@@ -59,7 +67,9 @@ def test_linux_geometry_hover_and_native_focus_do_not_contact_sni():
     assert not provider.mock_calls
 
 
-def test_linux_projection_preserves_metadata_and_prepares_menu_clients_off_ui():
+def test_linux_projection_preserves_metadata_and_prepares_menu_clients_off_ui(
+    monkeypatch,
+):
     item = tray_item_from_properties(
         address=RegisteredItemAddress("org.example.Tray", "/Item"),
         properties={
@@ -89,7 +99,8 @@ def test_linux_projection_preserves_metadata_and_prepares_menu_clients_off_ui():
         ),
     )
     client.event.return_value = True
-    adapter = UnixTrayBackend(backend=provider)
+    monkeypatch.setattr(backend, "StatusNotifierBackend", lambda: provider)
+    adapter = backend.UnixTrayBackend()
     state = adapter.get_state()
     assert (
         isinstance(state, TrayState)

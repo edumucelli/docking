@@ -43,7 +43,7 @@ class WindowSearchProvider:
     provider_id = "windows"
 
     def __init__(
-        self, *, windows: WindowService, registry: ApplicationRegistry | None = None
+        self, *, windows: WindowService, registry: ApplicationRegistry
     ) -> None:
         """Retain the active backend-neutral service used for window actions."""
         self._windows = windows
@@ -93,11 +93,7 @@ class WindowSearchProvider:
                 )
             if not result_actions:
                 continue
-            application = (
-                self._registry.get(window.desktop_id)
-                if self._registry is not None
-                else None
-            )
+            application = self._registry.get(window.desktop_id)
             application_name = application.name if application is not None else ""
             results.append(
                 SearchResult(

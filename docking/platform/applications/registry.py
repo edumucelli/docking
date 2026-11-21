@@ -566,7 +566,7 @@ def _build_state(
     unidentified: Iterable[TransientApplicationInfo],
     unidentified_handles: Mapping[str, object],
     presentation_order: Iterable[str],
-    directories: tuple[Path, ...] = (),
+    directories: tuple[Path, ...],
 ) -> _RegistryState:
     applications_by_id: dict[str, ApplicationInfo] = {}
     for application in applications:

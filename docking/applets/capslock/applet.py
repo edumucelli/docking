@@ -90,24 +90,18 @@ class CapslockApplet(PlatformServicesApplet):
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         status: list[Gtk.MenuItem] = []
         if not self._state.available:
-            status.append(
-                disabled_menu_item(_("Keyboard lock state unavailable"), gtk=Gtk)
-            )
+            status.append(disabled_menu_item(_("Keyboard lock state unavailable")))
         else:
             status.append(
-                disabled_menu_item(
-                    menu_label(_("Caps Lock"), self._state.caps_lock), gtk=Gtk
-                )
+                disabled_menu_item(menu_label(_("Caps Lock"), self._state.caps_lock))
             )
             status.append(
-                disabled_menu_item(
-                    menu_label(_("Num Lock"), self._state.num_lock), gtk=Gtk
-                )
+                disabled_menu_item(menu_label(_("Num Lock"), self._state.num_lock))
             )
 
         refresh = Gtk.MenuItem(label=_("Refresh Now"))
         refresh.connect("activate", lambda _w: self._refresh_now())
-        return menu_sections(status=status, refresh=[refresh], gtk=Gtk)
+        return menu_sections(status=status, refresh=[refresh])
 
     def _refresh_now(self) -> None:
         self._state = self._backend.get_state()

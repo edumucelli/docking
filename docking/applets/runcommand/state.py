@@ -54,15 +54,14 @@ def updated_history(
     *,
     history: Iterable[str],
     command: str,
-    limit: int = HISTORY_LIMIT,
 ) -> list[str]:
     """Add command at the front while preserving a bounded unique history."""
     normalized = command.strip()
     if not normalized:
-        return list(history)[:limit]
+        return list(history)[:HISTORY_LIMIT]
     result = [normalized]
     result.extend(item for item in history if item != normalized)
-    return result[:limit]
+    return result[:HISTORY_LIMIT]
 
 
 def app_display_name(app: ApplicationListing) -> str:

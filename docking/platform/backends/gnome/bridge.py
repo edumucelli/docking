@@ -39,6 +39,7 @@ from docking.platform.backends.base import (
     ActionResult,
     DesktopActionService,
     DisplayServer,
+    MonitorSnapshot,
     PlacementRequest,
     PreviewImage,
     PreviewService,
@@ -124,7 +125,7 @@ class GnomeShellBridgeClient:
         return self._call_window_action("Close", bridge_id)
 
     def position_dock(
-        self, x: int, y: int, width: int, height: int, *, keep_above: bool = True
+        self, x: int, y: int, width: int, height: int, *, keep_above: bool
     ) -> bool:
         """Ask the GNOME Shell extension to position the dock window via Mutter."""
         result = self._call(
@@ -753,9 +754,7 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
             return self._surface_x, self._surface_y
         return None
 
-    def configure_before_realize(
-        self, window: object, *, keep_above: bool = True
-    ) -> None:
+    def configure_before_realize(self, window: object, *, keep_above: bool) -> None:
         self._window = window
         self._keep_above = keep_above
         _apply_dock_window_hints(window, keep_above=keep_above)
@@ -791,10 +790,10 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
     def update_pointer_barrier(
         self,
         *,
-        monitor: Any = None,
-        position: Any = None,
-        enabled: bool = False,
-        pressure_callback: Any = None,
+        monitor: MonitorSnapshot | None,
+        position: object,
+        enabled: bool,
+        pressure_callback: Callable[[], None] | None = None,
         pressure_threshold: int = 1,
     ) -> None:
         pass
@@ -849,7 +848,7 @@ class GnomeShellBridgeSurfaceService(SurfaceService):
 # -- surface helpers (mirror reduced/services.py) ----------------------------
 
 
-def _apply_dock_window_hints(window: object, *, keep_above: bool = True) -> None:
+def _apply_dock_window_hints(window: object, *, keep_above: bool) -> None:
     _call_method(window, "set_skip_taskbar_hint", True)
     _call_method(window, "set_skip_pager_hint", True)
     _call_method(window, "set_accept_focus", False)

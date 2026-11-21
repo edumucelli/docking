@@ -244,8 +244,8 @@ def _populate_app_submenu(
     config: Config,
     registry: ApplicationRegistry,
     launcher: ApplicationLauncher,
-    artwork: MenuIcons | None = None,
-    surface: SurfaceService | None = None,
+    artwork: MenuIcons | None,
+    surface: SurfaceService | None,
 ) -> None:
     _clear_menu(menu=submenu)
     for app_info in apps:
@@ -268,8 +268,8 @@ def _application_menu_item(
     config: Config,
     registry: ApplicationRegistry,
     launcher: ApplicationLauncher,
-    artwork: MenuIcons | None = None,
-    surface: SurfaceService | None = None,
+    artwork: MenuIcons | None,
+    surface: SurfaceService | None,
 ) -> Gtk.MenuItem:
     image = Gtk.Image() if artwork is not None else None
     menu_item = make_menu_item_with_icon(
@@ -303,8 +303,8 @@ def _configure_drag_source(
     app_info: ApplicationListing,
     config: Config,
     registry: ApplicationRegistry,
-    artwork: MenuIcons | None = None,
-    surface: SurfaceService | None = None,
+    artwork: MenuIcons | None,
+    surface: SurfaceService | None,
 ) -> None:
     """Offer a desktop URI or a canonical ID for listings without a file."""
     if config.lock_icons:
@@ -349,7 +349,7 @@ def _on_drag_begin(
     context: Gdk.DragContext,
     app_info: ApplicationListing,
     registry: ApplicationRegistry,
-    artwork: MenuIcons | None = None,
+    artwork: MenuIcons | None,
 ) -> None:
     """Show the application's icon beside the pointer while it is dragged."""
     if artwork is not None:
@@ -381,7 +381,7 @@ def _on_application_drag_data_get(
     info: int,
     _time: int,
     desktop_id: str,
-    uri: str | None = None,
+    uri: str | None,
 ) -> None:
     if info == APPLICATION_DRAG_INFO:
         selection.set(selection.get_target(), 8, desktop_id.encode("utf-8"))

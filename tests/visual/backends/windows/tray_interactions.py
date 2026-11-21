@@ -222,8 +222,8 @@ def verify_interactions(
     capture,
     report,
     output,
-    notification_point=None,
-    hover_snapshot=None,
+    notification_point,
+    hover_snapshot,
 ):
     from gi.repository import Gdk, Gtk
     from PIL import ImageGrab

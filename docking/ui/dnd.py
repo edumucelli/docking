@@ -280,7 +280,7 @@ class DnDHandler:
         da = self._drawing_area
 
         if not self._config.lock_icons:
-            self._enable_dnd(da=da)
+            self._enable_dnd()
 
         da.connect("drag-begin", self._on_drag_begin)
         da.connect("drag-motion", self._on_drag_motion)
@@ -289,9 +289,9 @@ class DnDHandler:
         da.connect("drag-data-received", self._on_drag_data_received)
         da.connect("drag-leave", self._on_drag_leave)
 
-    def _enable_dnd(self, da: Gtk.DrawingArea | None = None) -> None:
+    def _enable_dnd(self) -> None:
         """Enable drag source and dest on the drawing area."""
-        da = da or self._drawing_area
+        da = self._drawing_area
         da.drag_source_set(
             Gdk.ModifierType.BUTTON1_MASK,
             [_DOCK_ITEM_TARGET],
@@ -303,11 +303,10 @@ class DnDHandler:
             Gdk.DragAction.MOVE | Gdk.DragAction.COPY,
         )
 
-    def _disable_dnd(self, da: Gtk.DrawingArea | None = None) -> None:
+    def _disable_dnd(self) -> None:
         """Disable drag source and dest on the drawing area."""
-        da = da or self._drawing_area
-        da.drag_source_unset()
-        da.drag_dest_unset()
+        self._drawing_area.drag_source_unset()
+        self._drawing_area.drag_dest_unset()
 
     def set_locked(self, locked: bool) -> None:
         """Toggle DnD based on lock state."""

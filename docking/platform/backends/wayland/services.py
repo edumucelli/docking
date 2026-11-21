@@ -95,17 +95,11 @@ OVERLAY_LAYER = "TOP"
 class WaylandLayerShellSurfaceService(SurfaceService):
     """Layer-shell implementation for the main dock surface."""
 
-    def __init__(
-        self,
-        *,
-        layer_shell: object,
-        on_layer_surface_ready: Callable[[object], None] | None = None,
-    ) -> None:
+    def __init__(self, *, layer_shell: object) -> None:
         self._layer_shell = cast(_LayerShell, layer_shell)
         self._window: object | None = None
         self._keep_above = True
         self._exclusive_zone: int = 0
-        self._on_layer_surface_ready = on_layer_surface_ready
         self._surface_x: int | None = None
         self._surface_y: int | None = None
         self._monitor: MonitorSnapshot | None = None
@@ -136,9 +130,7 @@ class WaylandLayerShellSurfaceService(SurfaceService):
             return self._surface_x, self._surface_y
         return None
 
-    def configure_before_realize(
-        self, window: object, *, keep_above: bool = True
-    ) -> None:
+    def configure_before_realize(self, window: object, *, keep_above: bool) -> None:
         """Assign the layer-shell role before the GTK window is mapped."""
         self._window = window
         self._keep_above = keep_above
@@ -176,12 +168,8 @@ class WaylandLayerShellSurfaceService(SurfaceService):
         # commit.
 
     def on_realize(self, window: object) -> None:
-        """Remember the realized GTK window and signal layer-surface readiness."""
+        """Remember the realized GTK window."""
         self._window = window
-        if self._on_layer_surface_ready is not None:
-            layer_surface = get_layer_surface(self._layer_shell, window)
-            if layer_surface is not None:
-                self._on_layer_surface_ready(layer_surface)
 
     def set_workspace_scope(self, *, current_workspace_only: bool) -> None:
         """Layer-shell surfaces are compositor-managed shell components."""
@@ -440,18 +428,3 @@ def call_if_available(
     if callable(method):
         return method(*args)
     return None
-
-
-def get_layer_surface(layer_shell: object, window: object) -> object | None:
-    """Return the zwlr_layer_surface_v1 for a layer-shell GTK window.
-
-    Returns None before layer-shell initialization or when the compositor
-    does not support the protocol.
-    """
-    getter = getattr(layer_shell, "get_zwlr_layer_surface_v1", None)
-    if not callable(getter):
-        return None
-    try:
-        return getter(window)
-    except Exception:
-        return None

@@ -73,9 +73,8 @@ class DeskpresencePrefs:
     history: tuple[DayEntry, ...] = ()
 
 
-def _today_utc(now: datetime | None = None) -> date:
-    current = now or datetime.now(timezone.utc)
-    return current.date()
+def _today_utc() -> date:
+    return datetime.now(timezone.utc).date()
 
 
 def presence_from_idle(*, idle_ms: int | None, threshold_s: float) -> Presence:

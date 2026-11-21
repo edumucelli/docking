@@ -79,7 +79,7 @@ def test_record_is_keyword_only_frozen_and_snapshots_are_immutable():
 
     config = _Config(recent_apps=_wire(("app.desktop", NOW)))
     service = _service(config, "app.desktop")
-    service.load()
+    service.load(pinned_ids=())
 
     assert service.snapshot() == (record,)
     assert isinstance(service.snapshot(), tuple)
@@ -167,7 +167,7 @@ def test_load_applies_maximum_and_retention_without_saving():
         "second.desktop",
     )
 
-    service.load()
+    service.load(pinned_ids=())
 
     assert service.snapshot() == (
         RecentAppRecord(desktop_id="first.desktop", last_closed=NOW),
@@ -186,7 +186,7 @@ def test_saved_history_waits_for_initial_catalog_but_excludes_runtime_records():
     registry.initial_discovery_pending = True
     service = _service(config, registry=registry)
 
-    service.load()
+    service.load(pinned_ids=())
 
     assert [record.desktop_id for record in service.snapshot()] == [
         "Native.Late",
@@ -194,7 +194,7 @@ def test_saved_history_waits_for_initial_catalog_but_excludes_runtime_records():
     ]
     registry.origins["Native.Late"] = ApplicationOrigin.INSTALLED
     registry.initial_discovery_pending = False
-    service.load()
+    service.load(pinned_ids=())
     assert service.snapshot() == (
         RecentAppRecord(desktop_id="Native.Late", last_closed=NOW),
     )
@@ -206,7 +206,7 @@ def test_disabled_load_keeps_persisted_history_but_exposes_no_records():
     config = _Config(show_recent_apps=False, recent_apps=list(persisted))
     service = _service(config, "app.desktop")
 
-    service.load()
+    service.load(pinned_ids=())
 
     assert service.snapshot() == ()
     assert config.recent_apps == persisted
@@ -220,10 +220,10 @@ def test_close_and_unpin_save_before_pruning(operation: str):
         recent_apps=_wire(("old.desktop", NOW - 1)),
     )
     service = _service(config, "old.desktop", "new.desktop")
-    service.load()
+    service.load(pinned_ids=())
 
     if operation == "close":
-        changed = service.record_closed("new.desktop")
+        changed = service.record_closed("new.desktop", pinned_ids=())
     else:
         changed = service.record_unpinned("new.desktop")
 
@@ -245,9 +245,9 @@ def test_record_closed_reorders_existing_record_and_skips_pinned_or_unresolvable
         )
     )
     service = _service(config, "first.desktop", "second.desktop")
-    service.load()
+    service.load(pinned_ids=())
 
-    assert service.record_closed("first.desktop") is True
+    assert service.record_closed("first.desktop", pinned_ids=()) is True
     assert [record.desktop_id for record in service.snapshot()] == [
         "first.desktop",
         "second.desktop",
@@ -256,14 +256,14 @@ def test_record_closed_reorders_existing_record_and_skips_pinned_or_unresolvable
     assert (
         service.record_closed("second.desktop", pinned_ids={"second.desktop"}) is False
     )
-    assert service.record_closed("missing.desktop") is False
+    assert service.record_closed("missing.desktop", pinned_ids=()) is False
     assert len(config.saved_values) == 1
 
 
 def test_discard_models_pinning_and_syncs_without_saving():
     config = _Config(recent_apps=_wire(("app.desktop", NOW)))
     service = _service(config, "app.desktop")
-    service.load()
+    service.load(pinned_ids=())
 
     assert service.discard("app.desktop") is True
     assert service.discard("app.desktop") is False
@@ -276,9 +276,9 @@ def test_discard_models_pinning_and_syncs_without_saving():
 def test_running_removal_syncs_memory_without_saving():
     config = _Config(recent_apps=_wire(("app.desktop", NOW)))
     service = _service(config, "app.desktop")
-    service.load()
+    service.load(pinned_ids=())
 
-    service.reconcile_running({"app.desktop"})
+    service.reconcile_running({"app.desktop"}, pinned_ids=())
 
     assert service.snapshot() == ()
     assert config.recent_apps == []
@@ -288,10 +288,10 @@ def test_running_removal_syncs_memory_without_saving():
 def test_simultaneous_closures_are_saved_one_at_a_time_in_current_set_order():
     config = _Config()
     service = _service(config, "a.desktop", "b.desktop")
-    service.load()
-    service.reconcile_running({"a.desktop", "b.desktop"})
+    service.load(pinned_ids=())
+    service.reconcile_running({"a.desktop", "b.desktop"}, pinned_ids=())
 
-    service.reconcile_running(set())
+    service.reconcile_running(set(), pinned_ids=())
 
     assert len(config.saved_values) == 2
     assert [len(value) for value in config.saved_values] == [1, 2]
@@ -305,11 +305,11 @@ def test_simultaneous_closures_are_saved_one_at_a_time_in_current_set_order():
 def test_previous_running_ids_are_retained_while_disabled():
     config = _Config(show_recent_apps=False)
     service = _service(config, "app.desktop")
-    service.load()
+    service.load(pinned_ids=())
 
-    service.reconcile_running({"app.desktop"})
+    service.reconcile_running({"app.desktop"}, pinned_ids=())
     config.show_recent_apps = True
-    service.reconcile_running(set())
+    service.reconcile_running(set(), pinned_ids=())
 
     assert service.snapshot() == (
         RecentAppRecord(desktop_id="app.desktop", last_closed=NOW),
@@ -321,16 +321,16 @@ def test_runtime_only_closure_is_excluded_until_generated_entry_resolves():
     config = _Config()
     registry = _Registry({"runtime.desktop": ApplicationOrigin.RUNTIME})
     service = _service(config, registry=registry)
-    service.load()
+    service.load(pinned_ids=())
 
-    service.reconcile_running({"runtime.desktop"})
-    service.reconcile_running(set())
+    service.reconcile_running({"runtime.desktop"}, pinned_ids=())
+    service.reconcile_running(set(), pinned_ids=())
     assert service.snapshot() == ()
     assert config.saved_values == []
 
     registry.origins["runtime.desktop"] = ApplicationOrigin.GENERATED
-    service.reconcile_running({"runtime.desktop"})
-    service.reconcile_running(set())
+    service.reconcile_running({"runtime.desktop"}, pinned_ids=())
+    service.reconcile_running(set(), pinned_ids=())
 
     assert service.snapshot() == (
         RecentAppRecord(desktop_id="runtime.desktop", last_closed=NOW),
@@ -345,10 +345,10 @@ def test_reload_policy_does_not_eagerly_prune_or_save():
         )
     )
     service = _service(config, "first.desktop", "second.desktop")
-    service.load()
+    service.load(pinned_ids=())
 
     config.recent_apps_max = 1
-    service.reload_policy()
+    service.reload_policy(pinned_ids=())
 
     assert len(service.snapshot()) == 2
     assert len(config.recent_apps) == 2
@@ -358,10 +358,10 @@ def test_reload_policy_does_not_eagerly_prune_or_save():
 def test_disabling_and_clear_save_immediately_then_reenable_loads():
     config = _Config(recent_apps=_wire(("app.desktop", NOW)))
     service = _service(config, "app.desktop")
-    service.load()
+    service.load(pinned_ids=())
 
     config.show_recent_apps = False
-    service.reload_policy()
+    service.reload_policy(pinned_ids=())
 
     assert service.snapshot() == ()
     assert config.recent_apps == []
@@ -369,7 +369,7 @@ def test_disabling_and_clear_save_immediately_then_reenable_loads():
 
     config.show_recent_apps = True
     config.recent_apps = _wire(("app.desktop", NOW))
-    service.reload_policy()
+    service.reload_policy(pinned_ids=())
 
     assert service.snapshot() == (
         RecentAppRecord(desktop_id="app.desktop", last_closed=NOW),

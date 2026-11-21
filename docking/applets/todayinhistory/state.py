@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib import resources
 from typing import Any
@@ -208,14 +208,10 @@ def _parse_wikipedia_events(data: Any, limit: int) -> list[HistoryEvent]:
     return events
 
 
-def fetch_today_in_history(
-    month: int,
-    day: int,
-    limit: int = DEFAULT_FETCH_LIMIT,
-) -> list[HistoryEvent]:
+def fetch_today_in_history(month: int, day: int) -> list[HistoryEvent]:
     try:
         data = http_get_json(_WIKIPEDIA_ENDPOINT.format(month=month, day=day))
-        return _parse_wikipedia_events(data=data, limit=limit)
+        return _parse_wikipedia_events(data=data, limit=DEFAULT_FETCH_LIMIT)
     except Exception as exc:
         log.bind(action="fetch_today_in_history").debug(
             "Failed to fetch history events for %s: %s",
@@ -267,12 +263,8 @@ def _load_fallback_catalog() -> dict[str, list[HistoryEvent]]:
     return catalog
 
 
-def fallback_today_in_history(
-    month: int,
-    day: int,
-    catalog: Mapping[str, Sequence[HistoryEvent]] | None = None,
-) -> list[HistoryEvent]:
-    entries_by_day = catalog or _load_fallback_catalog()
+def fallback_today_in_history(month: int, day: int) -> list[HistoryEvent]:
+    entries_by_day = _load_fallback_catalog()
     exact = entries_by_day.get(_date_key(month=month, day=day))
     if exact:
         return list(exact)

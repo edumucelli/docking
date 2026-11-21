@@ -196,7 +196,7 @@ def test_cinnamon_shell_reports_pending_tracking_without_querying_shell():
 
     client = SimpleNamespace(list_windows=MagicMock(), features=frozenset())
     backend = CinnamonShellSessionBackend(
-        client=client, model=MagicMock(), **identity_services()
+        config=Config(), client=client, model=MagicMock(), **identity_services()
     )
     snapshot = collect_diagnostics(
         backend=backend, application_registry=make_application_registry()

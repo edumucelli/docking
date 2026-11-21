@@ -591,10 +591,11 @@ class TestPowerProfilesApplet:
         refresh_calls: list[str] = []
         applet.present = lambda: refresh_calls.append("refresh")  # type: ignore[assignment]
         state = _state()
-        assert applet._on_poll_result(state) is False
+        generation = applet._poll_generation
+        assert applet._on_poll_result(state, generation=generation) is False
         assert refresh_calls == []
         changed = _state(active_profile="performance")
-        assert applet._on_poll_result(changed) is False
+        assert applet._on_poll_result(changed, generation=generation) is False
         assert refresh_calls == ["refresh"]
 
     def test_set_result_sets_error_on_failure(self, monkeypatch):
@@ -718,7 +719,12 @@ class TestPowerProfilesApplet:
             is False
         )
         assert applet._on_set_error("performance", RuntimeError()) is False
-        assert applet._on_poll_result(_state(active_profile="performance")) is False
+        assert (
+            applet._on_poll_result(
+                _state(active_profile="performance"), generation=applet._poll_generation
+            )
+            is False
+        )
         applet._set_profile_async(profile="power-saver")
         assert applet._state.active_profile == "balanced"
         assert not backend.set_calls

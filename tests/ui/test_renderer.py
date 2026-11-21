@@ -200,10 +200,11 @@ class TestShelfSnapDuringHide:
 class TestSlideOffsets:
     def test_membership_change_resets_slide_offsets(self):
         renderer = DockRenderer()
+        context = (Position.BOTTOM, 1280)
         first = MagicMock()
         first.desktop_id = "firefox.desktop"
         layout1 = [MagicMock(x=90.0, width=48)]
-        renderer._update_slide_offsets([first], layout1, 846.0)
+        renderer._update_slide_offsets([first], layout1, 846.0, layout_context=context)
         assert renderer.prev_positions == {"firefox.desktop": 936.0}
 
         renderer.slide_offsets = {"firefox.desktop": 67.5}
@@ -225,6 +226,7 @@ class TestSlideOffsets:
             [first, second, third, fourth],
             layout2,
             846.0,
+            layout_context=context,
         )
 
         assert renderer.slide_offsets == {}

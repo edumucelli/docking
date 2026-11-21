@@ -93,7 +93,7 @@ class CinnamonVisibilityMonitor(VisibilityMonitor):
         self,
         *,
         windows: CinnamonWindowService,
-        config: Config | None,
+        config: Config,
         get_dock_rect: Callable[[], Rect | None],
         on_change: Callable[[bool], None],
     ) -> None:
@@ -119,7 +119,7 @@ class CinnamonVisibilityMonitor(VisibilityMonitor):
         if shell.last_query_failed:
             return
         rect = self._get_rect()
-        mode = self._config.hide_mode_enum if self._config else HideMode.NONE
+        mode = self._config.hide_mode_enum
         active_workspace = next(
             (w.id for w in shell.workspace_snapshots if w.active), None
         )
@@ -188,9 +188,7 @@ class CinnamonVisibilityMonitor(VisibilityMonitor):
 
 
 class CinnamonVisibilityService(VisibilityService):
-    def __init__(
-        self, *, windows: CinnamonWindowService, config: Config | None
-    ) -> None:
+    def __init__(self, *, windows: CinnamonWindowService, config: Config) -> None:
         self._windows = windows
         self._config = config
         self._monitors: list[CinnamonVisibilityMonitor] = []

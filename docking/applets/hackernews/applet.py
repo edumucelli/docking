@@ -159,11 +159,10 @@ class HackerNewsApplet(Applet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         status: list[Gtk.MenuItem] = [
-            disabled_menu_item(HN_SOURCE_LABEL, gtk=Gtk),
-            disabled_menu_item(feed_label(self._feed), gtk=Gtk),
+            disabled_menu_item(HN_SOURCE_LABEL),
+            disabled_menu_item(feed_label(self._feed)),
             disabled_menu_item(
                 cadence_label(seconds=REFRESH_INTERVAL_S, verb=_("Refreshes")),
-                gtk=Gtk,
             ),
         ]
 
@@ -172,26 +171,24 @@ class HackerNewsApplet(Applet):
         if current is not None:
             status.extend(
                 [
-                    disabled_menu_item(current.title, gtk=Gtk),
+                    disabled_menu_item(current.title),
                     disabled_menu_item(
                         _("{score} points, {comments} comments").format(
                             score=current.score,
                             comments=current.comments,
                         ),
-                        gtk=Gtk,
                     ),
                 ]
             )
             state_status = self._live_status()
             state_label = live_state_label(state_status)
             if state_label:
-                status.append(disabled_menu_item(state_label, gtk=Gtk))
+                status.append(disabled_menu_item(state_label))
             error = live_state_error(status=state_status, error=self._error)
             if error:
                 status.append(
                     disabled_menu_item(
                         _("Error: {msg}").format(msg=error),
-                        gtk=Gtk,
                     )
                 )
 
@@ -216,7 +213,6 @@ class HackerNewsApplet(Applet):
                 choices=tuple((feed_label(feed), feed) for feed in HackerNewsFeed),
                 active_value=self._feed,
                 on_selected=lambda _widget, feed: self._set_feed(feed=feed),
-                gtk=Gtk,
             )
         ]
 
@@ -226,7 +222,6 @@ class HackerNewsApplet(Applet):
             navigation=[next_item],
             refresh=[refresh],
             display=display,
-            gtk=Gtk,
         )
 
     def _live_status(self):

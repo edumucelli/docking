@@ -199,7 +199,6 @@ class ClippyApplet(Applet):
             choices=((_("Disabled") if n == 0 else str(n), n) for n in limits),
             active_value=self._max_entries,
             on_selected=lambda _widget, value: self._set_max_entries(value),
-            gtk=Gtk,
         )
         destructive: list[Gtk.MenuItem] = []
         if self._clips:
@@ -211,7 +210,6 @@ class ClippyApplet(Applet):
             primary=primary,
             display=[enabled, selections, images, maximum],
             destructive=destructive,
-            gtk=Gtk,
         )
 
     def start(self, notify: Callable[[], None]) -> None:

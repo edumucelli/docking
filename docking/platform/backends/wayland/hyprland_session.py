@@ -90,7 +90,7 @@ class HyprlandSessionBackend(SessionBackend):
         protocol_runtime: WaylandProtocolRuntime | None = None,
         screen_capture: ScreenCaptureService | None = None,
         window_service: WindowService | None = None,
-        config: Config | None = None,
+        config: Config,
     ) -> None:
         runtime = protocol_runtime
         if runtime is None:

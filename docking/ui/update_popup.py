@@ -84,14 +84,10 @@ class UpdateCheckController:
         self._request_show: Callable[[str], None] | None = None
         self._visibility_changed: Callable[[str, bool], None] | None = None
 
-    def set_window(self, window: DockWindow) -> None:
-        """Attach the dock window used as popup parent and anchor."""
-        self._window = window
-
     def start(
         self,
-        request_show: Callable[[str], None] | None = None,
-        visibility_changed: Callable[[str, bool], None] | None = None,
+        request_show: Callable[[str], None],
+        visibility_changed: Callable[[str, bool], None],
     ) -> None:
         """Schedule an automatic update check if user preferences allow it."""
         if self._start_source_id or not self._config.update_check_enabled:
@@ -156,7 +152,7 @@ class UpdateCheckController:
         self,
         release: ReleaseInfo | None,
         error: str,
-        automatic: bool = True,
+        automatic: bool,
     ) -> bool:
         now = datetime.now(timezone.utc)
         current_state = load_state()
@@ -178,7 +174,8 @@ class UpdateCheckController:
         )
         save_state(state)
         if decision.should_show and decision.release is not None:
-            if automatic and self._request_show is not None:
+            if automatic:
+                assert self._request_show is not None
                 self._pending_release = decision.release
                 self._request_show(self.source_id)
             else:

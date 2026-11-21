@@ -102,7 +102,7 @@ def test_reduced_surface_service_applies_generic_move_and_resize():
     )
     window.set_size_request.assert_not_called()
 
-    service.configure_before_realize(window)
+    service.configure_before_realize(window, keep_above=True)
     service.on_realize(window)
 
     assert window.set_skip_taskbar_hint.call_args_list == [call(True), call(True)]

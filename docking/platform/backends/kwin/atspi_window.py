@@ -78,7 +78,7 @@ _STATE_ACTIVE = 0
 _STATE_FOCUSED = 3
 
 
-def _at_spi_address(cancellable: Gio.Cancellable | None = None) -> str:
+def _at_spi_address(cancellable: Gio.Cancellable | None) -> str:
     """Honor AT-SPI's explicit override, otherwise discover the session bus."""
     address = os.environ.get("AT_SPI_BUS_ADDRESS", "")
     if address:
@@ -580,9 +580,6 @@ class AtspiWindowService(WindowService):
 
             if role in _WINDOW_ROLES:
                 self._collect_window(conn, c_svc, c_path, role, app_name, out)
-            elif role == "application":
-                # Walk one level deeper: application → windows
-                self._walk_children(conn, c_svc, c_path, app_name, out, depth=1)
             else:
                 # Walk deeper in case windows are nested
                 self._walk_children(conn, c_svc, c_path, app_name, out, depth=1)
@@ -594,7 +591,7 @@ class AtspiWindowService(WindowService):
         path: str,
         app_name: str,
         out: dict[str, _AtspiWindow],
-        depth: int = 0,
+        depth: int,
     ) -> None:
         """Recurse into children up to *depth* looking for window objects."""
         if depth > 2:

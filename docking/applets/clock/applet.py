@@ -142,7 +142,6 @@ class ClockApplet(Applet):
             display=[digital, military, date, seconds],
             manage=manage,
             destructive=destructive,
-            gtk=Gtk,
         )
 
     def _on_toggle_digital(self, widget: Gtk.CheckMenuItem) -> None:

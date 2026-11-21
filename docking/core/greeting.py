@@ -124,23 +124,22 @@ def save_state(
 def consume_new_year_greeting(
     *,
     path: Path | str | None = None,
-    now: datetime | None = None,
+    now: datetime,
 ) -> int | None:
     """Mark one successful launch and return the year to greet, if any.
 
     Returns the current year when the greeting should be shown on this launch,
     otherwise *None*.
     """
-    current = now or datetime.now()
     state = load_state(path=path)
 
     show_year: int | None = None
-    current_year = current.year
+    current_year = now.year
 
     if (
         state.completed_first_launch
-        and current.month == 1
-        and current.day <= NEW_YEAR_GREETING_LAST_DAY
+        and now.month == 1
+        and now.day <= NEW_YEAR_GREETING_LAST_DAY
         and state.last_year_greeted < current_year
     ):
         show_year = current_year

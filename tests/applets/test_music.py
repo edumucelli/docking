@@ -1301,9 +1301,11 @@ class TestMusicApplet:
         applet.present = MagicMock()
         applet._state = polled
         applet._album_art = art
-        assert applet._apply_poll_result(polled, art) is False
+        assert applet._apply_poll_result(polled, art, force=False) is False
         applet.present.assert_not_called()
-        assert applet._apply_poll_result(_state(title="Other"), None) is False
+        assert (
+            applet._apply_poll_result(_state(title="Other"), None, force=False) is False
+        )
         applet.present.assert_called_once()
 
     def test_scroll_sync_and_tooltip_widget(self, monkeypatch):
@@ -2083,7 +2085,7 @@ def test_pending_media_launch_coalesces_clicks_and_cancels_when_no_longer_valid(
     elif cancel == "stop":
         applet.stop()
     elif cancel == "media-appears":
-        applet._apply_poll_result(_state(), None)
+        applet._apply_poll_result(_state(), None, force=False)
     registry.preferred_listing_for_content_types.return_value = AssociationResolution(
         AssociationStatus.READY, _application_listing()
     )

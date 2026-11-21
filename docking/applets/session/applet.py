@@ -80,4 +80,4 @@ class SessionApplet(PlatformServicesApplet):
                 primary.append(mi)
             else:
                 destructive.append(mi)
-        return menu_sections(primary=primary, destructive=destructive, gtk=Gtk)
+        return menu_sections(primary=primary, destructive=destructive)

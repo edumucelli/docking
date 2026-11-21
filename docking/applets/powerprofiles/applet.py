@@ -154,10 +154,10 @@ class PowerProfilesApplet(PlatformServicesApplet):
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         """Build context menu with radio-selector profile entries."""
         if not self._state.available:
-            return [disabled_menu_item(_("Power Profiles unavailable"), gtk=Gtk)]
+            return [disabled_menu_item(_("Power Profiles unavailable"))]
 
         display = [
-            disabled_menu_item(_("Select Profile"), gtk=Gtk),
+            disabled_menu_item(_("Select Profile")),
             *radio_menu_items(
                 choices=tuple(
                     (profile_label(profile), profile)
@@ -165,7 +165,6 @@ class PowerProfilesApplet(PlatformServicesApplet):
                 ),
                 active_value=self._state.active_profile,
                 on_selected=self._on_profile_toggled,
-                gtk=Gtk,
             ),
         ]
 
@@ -174,11 +173,10 @@ class PowerProfilesApplet(PlatformServicesApplet):
             status.append(
                 disabled_menu_item(
                     _("Limited: {reason}").format(reason=self._state.degraded_reason),
-                    gtk=Gtk,
                 )
             )
 
-        return menu_sections(status=status, display=display, gtk=Gtk)
+        return menu_sections(status=status, display=display)
 
     def _ordered_profiles(self) -> tuple[str, ...]:
         """Resolve safe ordered profile list for menu/cycle actions."""
@@ -207,14 +205,12 @@ class PowerProfilesApplet(PlatformServicesApplet):
         """Background thread: fetch backend state, then hand off to GTK loop."""
         return self._backend.get_state()
 
-    def _on_poll_result(
-        self, state: PowerProfilesState, *, generation: int | None = None
-    ) -> bool:
+    def _on_poll_result(self, state: PowerProfilesState, *, generation: int) -> bool:
         """GTK-thread state update from periodic polling."""
         if (
             self._stopped
             or self._set_in_progress
-            or (generation is not None and generation != self._poll_generation)
+            or generation != self._poll_generation
         ):
             return False
         changed = state != self._state

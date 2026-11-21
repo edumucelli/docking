@@ -166,7 +166,7 @@ class NotificationsApplet(PlatformServicesApplet):
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
         if not self._state.available:
-            return [disabled_menu_item(_("No notification backend available"), gtk=Gtk)]
+            return [disabled_menu_item(_("No notification backend available"))]
 
         dnd = Gtk.CheckMenuItem(label=_("Do Not Disturb"))
         dnd.set_active(self._state.paused)
@@ -178,7 +178,6 @@ class NotificationsApplet(PlatformServicesApplet):
             status.append(
                 disabled_menu_item(
                     _("Pending: {n}").format(n=self._state.pending),
-                    gtk=Gtk,
                 )
             )
 

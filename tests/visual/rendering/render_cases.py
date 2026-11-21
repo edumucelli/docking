@@ -21,6 +21,7 @@ from docking.core.items import FOLDER_KIND, DockItem
 from docking.core.position import Position
 from docking.core.theme import Theme
 from docking.platform.backends.base import PreviewImage, Rect, WindowId, WindowSnapshot
+from docking.platform.backends.reduced.services import ReducedSurfaceService
 from docking.search.coordinator import SearchSnapshot
 from docking.search.types import (
     SearchAction,
@@ -110,10 +111,8 @@ class _FakeWidget:
         return self._allocation
 
 
-def _rgba_fill(red: int, green: int, blue: int, alpha: int = 255) -> int:
-    return (
-        (red & 0xFF) << 24 | (green & 0xFF) << 16 | (blue & 0xFF) << 8 | (alpha & 0xFF)
-    )
+def _rgba_fill(red: int, green: int, blue: int) -> int:
+    return (red & 0xFF) << 24 | (green & 0xFF) << 16 | (blue & 0xFF) << 8 | 0xFF
 
 
 def _pixbuf(size: int, *, red: int, green: int, blue: int) -> GdkPixbuf.Pixbuf:
@@ -684,16 +683,20 @@ def _draw_preview_layout_case(case_name: str) -> cairo.ImageSurface:
 
 
 def _draw_search_case(*, panel: str | None) -> cairo.ImageSurface:
-    class _Launcher:
+    class _ResultIcons:
         @staticmethod
-        def load_icon(*, icon_name: str, size: int):
+        def load(result: SearchResult, size: int) -> GdkPixbuf.Pixbuf:
             colors = {
                 "firefox": (235, 94, 55),
                 "org.gnome.Terminal": (70, 74, 86),
                 "document-open-recent": (60, 132, 241),
             }
-            red, green, blue = colors.get(icon_name, (120, 120, 120))
+            red, green, blue = colors.get(result.icon_name, (120, 120, 120))
             return _pixbuf(size, red=red, green=green, blue=blue)
+
+        @staticmethod
+        def subscribe(_changed):
+            return lambda: None
 
     firefox = SearchIdentity("applications", "firefox.desktop")
     terminal = SearchIdentity("windows", "terminal-window")
@@ -798,7 +801,8 @@ def _draw_search_case(*, panel: str | None) -> cairo.ImageSurface:
         errors=(),
     )
     window = SearchWindow(
-        icon_loader=_Launcher(),
+        surface_service=ReducedSurfaceService(),
+        result_icons=_ResultIcons(),
         on_query_changed=lambda _query: None,
         on_result_selected=lambda _identity: None,
         on_result_activated=lambda _result: None,

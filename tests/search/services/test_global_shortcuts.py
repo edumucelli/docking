@@ -781,7 +781,8 @@ class TestPortalPayloadParsing:
                         "trigger_description": "Super+Space",
                     },
                 ),
-            ]
+            ],
+            TOGGLE_SEARCH_SHORTCUT_ID,
         )
 
         assert binding is not None
@@ -790,11 +791,23 @@ class TestPortalPayloadParsing:
         assert binding.trigger_description == "Super+Space"
 
     def test_binding_extraction_returns_none_without_the_toggle_entry(self):
-        assert shortcuts_mod._binding_from_shortcuts([("other-id", {})]) is None
-        assert shortcuts_mod._binding_from_shortcuts("not-a-sequence") is None
+        assert (
+            shortcuts_mod._binding_from_shortcuts(
+                [("other-id", {})], TOGGLE_SEARCH_SHORTCUT_ID
+            )
+            is None
+        )
+        assert (
+            shortcuts_mod._binding_from_shortcuts(
+                "not-a-sequence", TOGGLE_SEARCH_SHORTCUT_ID
+            )
+            is None
+        )
 
     def test_binding_from_results_tolerates_a_missing_shortcuts_key(self):
-        assert shortcuts_mod._binding_from_results({}) is None
+        assert (
+            shortcuts_mod._binding_from_results({}, TOGGLE_SEARCH_SHORTCUT_ID) is None
+        )
 
     def test_expected_request_path_uses_the_connection_unique_name(self):
         connection = SimpleNamespace(get_unique_name=lambda: ":1.42")

@@ -182,9 +182,9 @@ def read_shell_applications() -> tuple[ApplicationInfo, ...]:
 def read_application_metadata(
     ids: tuple[str, ...],
     *,
-    registrations: tuple[ApplicationInfo, ...] = (),
-    cancelled: Callable[[], bool] = lambda: False,
-    exporter: WindowsApplicationExport | None = None,
+    registrations: tuple[ApplicationInfo, ...],
+    cancelled: Callable[[], bool],
+    exporter: WindowsApplicationExport,
 ) -> ApplicationMetadata:
     if cancelled():
         return ApplicationMetadata()
@@ -218,10 +218,6 @@ def read_application_metadata(
     if cancelled():
         return ApplicationMetadata()
     if applications is not None:
-        from docking.platform.applications.implementations.windows.export import (
-            WindowsApplicationExport,
-        )
-
         visible = tuple(app for app in applications if app.desktop_id not in hidden)
         identifiers = frozenset(
             app.desktop_id
@@ -236,8 +232,6 @@ def read_application_metadata(
             sources = {}
         if cancelled():
             return ApplicationMetadata()
-        if exporter is None:
-            exporter = WindowsApplicationExport()
         prepared = exporter.prepare_documents(visible, sources, cancelled=cancelled)
         if cancelled():
             return ApplicationMetadata()

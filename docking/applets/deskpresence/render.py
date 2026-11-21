@@ -93,7 +93,7 @@ def _draw_presence(
     cr: cairo.Context,
     size: int,
     presence: Presence,
-    pulse_phase: float | None = None,
+    pulse_phase: float | None,
 ) -> None:
     """Person + two broadcast arcs, tinted by presence."""
     cx = size / 2

@@ -16,8 +16,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from types import ModuleType
-from typing import TypeVar, cast
+from typing import TypeVar
 
 import gi
 
@@ -27,10 +26,9 @@ from gi.repository import Gtk
 T = TypeVar("T")
 
 
-def disabled_menu_item(label: str, *, gtk: ModuleType = Gtk) -> Gtk.MenuItem:
+def disabled_menu_item(label: str) -> Gtk.MenuItem:
     """Build a non-interactive status/header row."""
-    # gtk is a GI module: its attributes are invisible to the checker.
-    item = cast(Gtk.MenuItem, gtk.MenuItem(label=label))
+    item = Gtk.MenuItem(label=label)
     item.set_sensitive(False)
     return item
 
@@ -45,7 +43,6 @@ def menu_sections(
     manage: Iterable[Gtk.MenuItem] = (),
     destructive: Iterable[Gtk.MenuItem] = (),
     settings: Iterable[Gtk.MenuItem] = (),
-    gtk: ModuleType = Gtk,
 ) -> list[Gtk.MenuItem]:
     """Return menu items in the standard applet section order.
 
@@ -64,11 +61,10 @@ def menu_sections(
         tuple(settings),
     )
     visible_sections = [section for section in ordered_sections if section]
-    separator_menu_item = getattr(gtk, "SeparatorMenuItem", Gtk.SeparatorMenuItem)
     items: list[Gtk.MenuItem] = []
     for index, section in enumerate(visible_sections):
         if index > 0:
-            items.append(separator_menu_item())
+            items.append(Gtk.SeparatorMenuItem())
         items.extend(section)
     return items
 
@@ -79,13 +75,12 @@ def radio_menu_items(
     active_value: T,
     on_selected: Callable[[Gtk.RadioMenuItem, T], None],
     is_active: Callable[[T], bool] | None = None,
-    gtk: ModuleType = Gtk,
 ) -> list[Gtk.RadioMenuItem]:
     """Build one radio group from ``(label, value)`` menu choices."""
     items: list[Gtk.RadioMenuItem] = []
     group_head: Gtk.RadioMenuItem | None = None
     for label, value in choices:
-        item = cast(Gtk.RadioMenuItem, gtk.RadioMenuItem(label=label))
+        item = Gtk.RadioMenuItem(label=label)
         if group_head is None:
             group_head = item
         else:
@@ -103,17 +98,15 @@ def radio_submenu(
     active_value: T,
     on_selected: Callable[[Gtk.RadioMenuItem, T], None],
     is_active: Callable[[T], bool] | None = None,
-    gtk: ModuleType = Gtk,
 ) -> Gtk.MenuItem:
     """Build a menu item whose submenu is one exclusive radio group."""
-    root = cast(Gtk.MenuItem, gtk.MenuItem(label=label))
-    menu = cast(Gtk.Menu, gtk.Menu())
+    root = Gtk.MenuItem(label=label)
+    menu = Gtk.Menu()
     for item in radio_menu_items(
         choices=choices,
         active_value=active_value,
         on_selected=on_selected,
         is_active=is_active,
-        gtk=gtk,
     ):
         menu.append(item)
     root.set_submenu(menu)

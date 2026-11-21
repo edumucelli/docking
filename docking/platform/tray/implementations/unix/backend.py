@@ -42,7 +42,7 @@ class UnixTrayMenu(TrayMenuClient):
     def __init__(self, client: DBusMenuClient) -> None:
         self._client = client
 
-    def about_to_show(self, item_id: int = 0) -> bool:
+    def about_to_show(self, item_id: int) -> bool:
         return self._client.about_to_show(item_id)
 
     def get_layout(self) -> TrayMenuLayout | None:
@@ -56,8 +56,8 @@ class UnixTrayMenu(TrayMenuClient):
 class UnixTrayBackend(TrayBackend):
     initial_state = staticmethod(unavailable_state)
 
-    def __init__(self, *, backend: StatusNotifierBackend | None = None) -> None:
-        self._backend = backend if backend is not None else StatusNotifierBackend()
+    def __init__(self) -> None:
+        self._backend = StatusNotifierBackend()
         self._clients: dict[str, UnixTrayMenu] = {}
 
     def get_state(self) -> TrayState:

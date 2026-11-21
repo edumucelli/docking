@@ -76,15 +76,18 @@ def test_failed_artwork_lookups_keep_retry_cache_bounded(monkeypatch):
         "https://example.test/\ud800",
     ],
 )
-def test_upload_response_cannot_claim_success_for_invalid_url(tmp_path, url):
+def test_upload_response_cannot_claim_success_for_invalid_url(
+    tmp_path, url, monkeypatch
+):
     path = tmp_path / "selected.txt"
     path.write_text("selected file")
 
     def opener(_request, *, timeout):
         return _Response(json.dumps({"data": {"url": url}}).encode())
 
+    monkeypatch.setattr("docking.applets.dragshare.state.urlopen", opener)
     with pytest.raises(UploadError):
-        upload_file(path, opener=opener)
+        upload_file(path)
 
 
 @pytest.mark.parametrize(

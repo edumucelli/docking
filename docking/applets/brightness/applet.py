@@ -115,7 +115,7 @@ class BrightnessApplet(PlatformServicesApplet):
         show = Gtk.CheckMenuItem(label=_("Show Level"))
         show.set_active(self._show_level)
         show.connect("toggled", self._on_toggle_level)
-        return menu_sections(display=[show], gtk=Gtk)
+        return menu_sections(display=[show])
 
     def _on_toggle_level(self, widget) -> None:
         self._show_level = widget.get_active()
@@ -207,13 +207,11 @@ class BrightnessApplet(PlatformServicesApplet):
         )
         return True
 
-    def _on_poll_result(
-        self, state: BrightnessState, *, generation: int | None = None
-    ) -> bool:
+    def _on_poll_result(self, state: BrightnessState, *, generation: int) -> bool:
         if (
             self._stopped
             or self._set_in_progress
-            or (generation is not None and generation != self._poll_generation)
+            or generation != self._poll_generation
         ):
             return False
         if state != replace(self._state, level=self._brightness):

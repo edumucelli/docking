@@ -9,6 +9,9 @@ import pytest
 from docking.platform.applications.identity import (
     LaunchProvenanceStore,
 )
+from docking.platform.applications.implementations.unix.catalog import (
+    UnixApplicationCatalogBackend,
+)
 from docking.platform.applications.implementations.unix.steam import (
     SteamDiscovery,
     default_steam_roots,
@@ -54,6 +57,7 @@ def steam_fixture(tmp_path):
     apps.mkdir()
     proc = tmp_path / "proc"
     (proc / "41").mkdir(parents=True)
+    (proc / "41" / "exe").symlink_to(executable)
     source = SteamDiscovery(((root, False),))
     registry = make_application_registry(
         application_source=lambda: (),
@@ -66,7 +70,6 @@ def steam_fixture(tmp_path):
     processes = make_process_identity(
         LaunchProvenanceStore(),
         proc_root=proc,
-        executable_resolver=lambda _pid: executable,
     )
     return SimpleNamespace(
         root=root,
@@ -103,6 +106,19 @@ def test_tf2_report_matches_without_shortcut_or_environment(steam_fixture):
         fixture.registry.diagnostic_snapshot().applications[0].steam_manifest
         == fixture.manifest
     )
+
+
+def test_unix_catalog_discovers_steam_by_default(monkeypatch, tmp_path):
+    root = tmp_path / "Steam"
+    _manifest(root)
+    monkeypatch.setattr(
+        "docking.platform.applications.implementations.unix.steam.default_steam_roots",
+        lambda: ((root, False),),
+    )
+
+    assert [game.app_id for game in UnixApplicationCatalogBackend().steam().games] == [
+        "440"
+    ]
 
 
 @pytest.mark.parametrize("flatpak", [False, True])
@@ -161,7 +177,10 @@ def test_proton_and_flatpak_identity_precedence(steam_fixture):
     (process_dir / "root/.flatpak-info").write_text(
         "[Application]\nname=com.valvesoftware.Steam\n"
     )
-    fixture.processes._executable_resolver = lambda _pid: Path("/runtime/wine64")
+    wine = fixture.proc / "wine64"
+    wine.touch()
+    (process_dir / "exe").unlink()
+    (process_dir / "exe").symlink_to(wine)
     matcher = AppIdMatcher(fixture.registry, fixture.processes)
     result = matcher.match_attempt("game.exe", process_id=41)
     assert result.match.desktop_id == "steam-440.desktop"
@@ -179,7 +198,10 @@ def test_conflicting_ids_are_not_used_and_unknown_windows_stay_unmatched(steam_f
     (fixture.proc / "41/environ").write_bytes(b"SteamAppId=570\0")
     matcher = AppIdMatcher(fixture.registry, fixture.processes)
     assert matcher.match_result("tf_linux64", process_id=41) is None
-    fixture.processes._executable_resolver = lambda _pid: Path("/opt/unrelated")
+    unrelated = fixture.proc / "unrelated"
+    unrelated.touch()
+    (fixture.proc / "41/exe").unlink()
+    (fixture.proc / "41/exe").symlink_to(unrelated)
     (fixture.proc / "41/environ").unlink()
     assert matcher.match_result("unknown", process_id=41) is None
 
