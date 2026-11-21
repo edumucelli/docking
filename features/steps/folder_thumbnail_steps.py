@@ -61,11 +61,11 @@ def visible_thumbnails(context):
 @when("its full directory menu is opened twice")
 def full_menu(context):
     item = context.thumbnail_item
+    context.thumbnail_loader.resolve_file_icon.reset_mock()
     for _ in range(2):
         context.thumbnail_rows = context.thumbnail_stack.list_directory(
             folder_item=item,
             target=item.target,
-            icon_px=48,
         )
 
 
