@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "@tailwindcss/cli": "4.3.5",
-    "parse5": "8.1.0",
+    "parse5": "8.1.1",
     "playwright": "1.65.0",
     "tailwindcss": "4.3.5"
   }
