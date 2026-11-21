@@ -38,7 +38,7 @@ A lightweight, feature-rich dock for Linux, FreeBSD, OpenBSD, NetBSD, and [Windo
 
 Release packages include or depend on the required runtime libraries. See the
 [installation guide](docs/INSTALLATION.md) for source dependencies and the
-[Wayland guide](docs/WAYLAND_SUPPORT.md) for compositor requirements and feature coverage.
+[Wayland guide](docs/INSTALLATION.md#wayland-support) for compositor requirements and feature coverage.
 
 The [Windows 11 x64 version](docs/INSTALLATION.md#windows-preview) has a per-user
 installer and portable ZIP with Python and GTK included. Windows packages are
@@ -71,7 +71,7 @@ docking
 For other package formats, follow the
 [package-specific commands](docs/INSTALLATION.md#release-downloads).
 Docking selects a backend from the desktop session. GNOME Wayland uses the
-companion Shell extension; see the [Wayland guide](docs/WAYLAND_SUPPORT.md) for setup.
+companion Shell extension; see the [GNOME Shell bridge setup](docs/INSTALLATION.md#gnome-shell-bridge).
 Source launches and debug logging are covered in the
 [development guide](docs/DEVELOPMENT.md#running).
 
@@ -98,7 +98,7 @@ Search applications, windows, files, calculations, conversions, dates, and the w
 
 Try `Firefox`, `Time in Sao Paulo`, `10 USD to EUR`, or `10 + pi`.
 Press **Enter** to open a result, **Ctrl+P** to preview it, or **Ctrl+J** for actions.
-See the [Global Search guide](docs/SEARCH.md) for providers and shortcuts.
+See [Global Search](docs/CONFIGURATION.md#global-search) for providers and shortcuts.
 
 ## Configuration
 
@@ -117,7 +117,7 @@ Docking includes thirteen built-in themes and supports custom JSON themes. A few
 |---|---|---|
 | ![Default theme](images/themes/default.png) | ![Glass theme](images/themes/glass.png) | ![Olive theme](images/themes/olive.png) |
 
-See the [Themes guide](docs/THEMES.md) for the complete gallery, custom-theme
+See [Themes](docs/CONFIGURATION.md#themes) for the complete gallery, custom-theme
 instructions, and theme field reference.
 
 ## Applets
@@ -144,21 +144,13 @@ preferences, update intervals, and integration requirements.
 
 | Guide | Contents |
 |---|---|
-| [Installation](docs/INSTALLATION.md) | Package repositories, downloads, and source dependencies |
-| [Wayland](docs/WAYLAND_SUPPORT.md) | Backend support matrix and compositor setup |
-| [BSD](docs/INSTALLATION.md#freebsd-and-openbsd) | FreeBSD/OpenBSD/NetBSD package installation |
+| [Installation](docs/INSTALLATION.md) | Linux, BSD and Windows packages, source dependencies, and compositor setup |
 | [Windows](docs/WINDOWS.md) | Windows 11 x64, feature coverage, and limitations |
-| [Configuration](docs/CONFIGURATION.md) | First use, preferences, and saved settings |
-| [Global Search](docs/SEARCH.md) | Providers, examples, and keyboard controls |
+| [Configuration](docs/CONFIGURATION.md) | First use, preferences, Global Search, and themes |
 | [Applets](docs/APPLETS.md) | Built-in catalog and applet preferences |
-| [Themes](docs/THEMES.md) | Theme gallery and custom JSON themes |
-| [Development](docs/DEVELOPMENT.md) | Source setup, tests, and contribution workflow |
-| [Custom Applets](docs/APPLET_DEVELOPMENT.md) | Metadata, lifecycle, and implementation examples |
-| [Translations](docs/TRANSLATIONS.md) | Locale catalogs and gettext workflows |
-| [D-Bus Remote Control](docs/DBUS.md) | Item inspection and control API |
-| [Icon Assets and Packaging](docs/ICONS.md) | Application icons and packaging conventions |
+| [Development](docs/DEVELOPMENT.md) | Source setup, tests, custom applets, translations, and D-Bus remote control |
 | [Packaging](packaging/README.md) | Build commands for all package formats |
-| [Visual Compositor Testing](docs/VISUAL_COMPOSITOR_TESTING.md) | Wayland integration testing and findings |
+| [Visual Testing](tests/visual/README.md) | Rendering and native desktop checks |
 
 ## Contributing
 

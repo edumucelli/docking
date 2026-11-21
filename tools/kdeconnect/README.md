@@ -4,7 +4,14 @@ This disposable Debian 13 image installs the real distribution KDE Connect
 package and runs Qt offscreen. It does not require a Plasma desktop or change
 the host's packages, configuration, or session bus.
 
-From the repository root:
+See the [KDE Connect applet](../../docs/APPLETS.md#kde-connect) for desktop and
+phone setup. A source checkout can run the unit and private-bus tests directly.
+
+```sh
+.venv/bin/python -m pytest tests/applets/test_kdeconnect.py tests/integration/test_kdeconnect_bus.py
+```
+
+From the repository root, run the container checks with:
 
 ```sh
 docker build -t docking-kdeconnect-test:debian13 tools/kdeconnect
@@ -26,3 +33,12 @@ No physical phone is connected by these checks. Attempts to pair two headless
 desktop daemons in the container environment did not produce reliable pairing
 or end-to-end file delivery. Those operations must still be verified with a real
 paired phone; a successful share method call alone does not confirm receipt.
+
+The D-Bus contract follows KDE Connect's upstream
+[daemon](https://invent.kde.org/network/kdeconnect-kde/-/blob/master/core/daemon.h),
+[device](https://invent.kde.org/network/kdeconnect-kde/-/blob/master/core/device.h),
+[battery](https://invent.kde.org/network/kdeconnect-kde/-/blob/master/plugins/battery/batteryplugin.h),
+[find-my-phone](https://invent.kde.org/network/kdeconnect-kde/-/blob/master/plugins/findmyphone/findmyphoneplugin.h),
+and [share](https://invent.kde.org/network/kdeconnect-kde/-/blob/master/plugins/share/shareplugin.h)
+interfaces. The client supports the older `isTrusted` device property as well
+as `isPaired`.

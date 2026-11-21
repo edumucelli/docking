@@ -71,13 +71,9 @@ The application icon remains beside the pointer during the drag.
 
 Search for applications, files, open windows, and more from the dock.
 
-**Click:** Open the search window. Find applications, dock items, open windows,
-recent files, calculations, unit/currency conversions, dates, time zones,
-websites, and file or folder paths. Press `Ctrl+Right` to explore an app's
-actions, windows, and recent documents. Use `Ctrl+P` for previews or `Ctrl+J`
-for more actions.
-
-Removing the applet leaves your global search keyboard shortcut available.
+**Click:** Open [Global Search](CONFIGURATION.md#global-search) for providers,
+previews, and keyboard controls. Removing the applet leaves your global search
+keyboard shortcut available.
 
 ### Desktop
 
@@ -460,24 +456,40 @@ Shows Docker availability and container status when Docker is installed.
 
 ### KDE Connect
 
-Connect a paired phone or another KDE Connect device to the dock. The icon shows
-the selected device's battery percentage and charging status. Paired devices
-remain in the menu when they go offline.
+Shows a paired device's connection, battery percentage and charging status.
+KDE Connect runs on the host and provides the session D-Bus service used by the
+applet. A Plasma desktop is optional.
+
+1. Install the host package and the [KDE Connect app](https://kdeconnect.kde.org/download.html)
+   on your phone.
+2. Connect both devices to the same network, pair them in KDE Connect and accept
+   the request. See [KDE Connect troubleshooting](https://userbase.kde.org/KDEConnect#Troubleshooting)
+   if discovery fails.
+3. Add the applet and select the paired device from its menu. Enable the battery,
+   find-my-phone and file-sharing plugins in KDE Connect as needed.
+
+| Distribution | Host installation |
+| --- | --- |
+| Debian / Ubuntu | `sudo apt install kdeconnect` |
+| Arch Linux | `sudo pacman -S kdeconnect` |
+| Fedora | `sudo dnf install kde-connect` |
+| openSUSE | `sudo zypper install kdeconnect-kde` |
 
 **Click:** Open KDE Connect's device settings and pairing interface.
 
-**Right-click:** Choose a paired device, Ring Phone, Send Files, Refresh Now, or
-Open KDE Connect / Pair Device. Actions are enabled only when the selected
-device is online and the corresponding feature is enabled in KDE Connect.
+**Right-click:** Choose a paired device, **Ring Phone**, **Send Files...**, or
+**Refresh Now**. Offline devices stay in the list. Ring and share require an
+online device with the corresponding plugin enabled.
 
-**Drop files:** Drop one or more local files onto the icon to send them to the
-selected device. The destination stays the same if that device goes offline or
-is unpaired; choose another device explicitly to send files elsewhere. Use KDE
-Connect to check transfer progress and confirm receipt.
+**Drop files:** Drop existing local files onto the icon. The recipient stays
+the device selected when the action started, including while the file chooser
+is open. Docking checks pairing, reachability and plugin availability before
+requesting a transfer. Use KDE Connect's transfer UI or check the receiving
+device to confirm delivery.
 
-**Requires:** Install KDE Connect on the computer and phone, pair the devices,
-and enable the battery, find-phone, and file-sharing features you want to use in
-KDE Connect's settings. A KDE Plasma desktop is not required.
+**Flatpak:** Install and run KDE Connect on the host. Choose files with paths
+the host daemon can read. The applet uses the `org.kde.kdeconnect` session-bus
+service and opens host settings through `flatpak-spawn --host`.
 
 ### Keyboard Layout
 

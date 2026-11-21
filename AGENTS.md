@@ -13,8 +13,8 @@ Linux, BSD, and Windows, with desktop features varying by backend. Start with th
   `implementations/`. Window-management and display-session integrations live
   in `docking/platform/backends/`.
 - `docking/applets/` contains built-in applets. Follow the
-  [applet development guide](docs/APPLET_DEVELOPMENT.md) for lifecycle, rendering,
-  and native service integration.
+  [applet development guide](docs/DEVELOPMENT.md#writing-custom-applets) for
+  lifecycle, rendering, and native service integration.
 - `tests/` contains pytest coverage, `features/` contains Behave scenarios, and
   [`tests/visual/`](tests/visual/README.md) covers rendering and native desktop
   behavior. Build and release instructions live in the
@@ -30,7 +30,7 @@ Linux, BSD, and Windows, with desktop features varying by backend. Start with th
   relevant [visual or native backend suite](tests/visual/README.md). Check the
   affected backend when behavior depends on the compositor or host platform.
 - Keep user-facing strings translatable. Update the gettext template and check
-  catalogs using the [translation workflow](docs/TRANSLATIONS.md#changing-translatable-strings).
+  catalogs using the [translation workflow](docs/DEVELOPMENT.md#changing-translatable-strings).
 - Run `npm --prefix website test` for website changes. The
   [website development guide](docs/DEVELOPMENT.md#website) covers the generated
   language pages and browser tests.

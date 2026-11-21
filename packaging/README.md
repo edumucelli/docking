@@ -75,9 +75,12 @@ docking
 - **Assets**: theme JSON files, clock SVG layers, and weather city database are
   declared as package data in `pyproject.toml`. Installed to
   `/usr/lib/docking/python/docking/assets/`.
-- **Application icon**: add `org.docking.Docking` icon files under
-  `packaging/deb/icons/hicolor/<size>x<size>/apps/org.docking.Docking.png` (and
-  optional `packaging/deb/icons/hicolor/scalable/apps/org.docking.Docking.svg`).
+- **Application icon**: the [desktop entry](shared/org.docking.Docking.desktop)
+  uses `Icon=org.docking.Docking`. Generate app PNGs from
+  [`images/docking.png`](../images/docking.png) at 16, 24, 32, 48, 64, 128, 256
+  and 512 px. Store them as `hicolor/<size>x<size>/apps/org.docking.Docking.png`
+  under `packaging/deb/icons/`. The symbolic SVG is shipped in
+  `hicolor/symbolic/apps/` and `hicolor/symbolic/status/`.
   The deb build copies this tree to `/usr/share/icons/hicolor/`.
   Do not ship `status/org.docking.Docking.png`; status icons should use
   `org.docking.Docking-symbolic` only to avoid launcher/app-menu icon collisions.
