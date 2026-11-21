@@ -232,20 +232,26 @@ __all__ = ["meta"]
 
 ```python
 from docking.applets.base import Applet, load_theme_icon
+from docking.core.config import Config
+from docking.i18n import _
+
+from . import meta
+
 
 class MyApplet(Applet):
-    def create_icon(self, size):
-        return load_theme_icon(name="my-icon", size=size)
+    id = meta.id
+    name = _("My Applet")
+    icon_name = "utilities-terminal"
 
-    def refresh_tooltip(self):
-        self.item.name = "My Applet"
-        self.item.tooltip_text = "Useful status"
+    def __init__(self, icon_size: int, config: Config) -> None:
+        super().__init__(icon_size, config)
+        self.present()
 
-    def start(self, notify):
-        super().start(notify)
+    def create_icon(self, size: int):
+        return load_theme_icon(name=self.icon_name, size=size)
 
-    def stop(self):
-        super().stop()
+    def refresh_tooltip(self) -> None:
+        self.item.name = _("Useful status")
 ```
 
 Use `self.present()` after state changes to refresh icon, tooltip, and dock UI.
@@ -293,6 +299,7 @@ Lokalize, run the validation workflow below, and submit the `.po` file in a pull
 request.
 
 ```bash
+mkdir -p docking/locale/XX/LC_MESSAGES
 msginit --input=docking/locale/docking.pot \
   --locale=XX \
   --output=docking/locale/XX/LC_MESSAGES/docking.po
