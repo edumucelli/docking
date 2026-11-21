@@ -16,7 +16,7 @@ are unacceptable.
 
 ## Reporting and enforcement
 
-Report conduct concerns privately to the [Docking maintainer](mailto:hello@docking.cc).
+Report conduct concerns privately to the [Docking maintainer](mailto:hello@eazy.bike).
 Include what happened and any relevant links or context. The maintainer will
 handle reports discreetly and share details only as needed to respond.
 
