@@ -7,6 +7,7 @@ platform-specific tools live under the corresponding platform directory.
 | --- | --- |
 | [`../tests/visual/`](../tests/visual/README.md) | All renderer and native desktop visual suites, adapters, probes, fixtures and baselines. |
 | `linux/` | Linux integration utilities and the pinned software-GPU VM controller. |
+| [`linux/tours/`](../docs/TOURS.md) | Record the overview, applet, and Preferences tours from a private X11 desktop. |
 | `bsd/` | BSD VM/package setup, checksum pins and installed acceptance orchestration. |
 | `windows/lab/` | General Windows VM controls, input and capture transport. |
 | `windows/` | Windows CI, packaging, release validation and runtime setup. |

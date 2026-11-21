@@ -6,6 +6,7 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 - Added contributor guidance, a code of conduct, and a security reporting policy.
 - Moved developer requirements under `tools/` and updated setup commands.
+- Added a tool to regenerate Docking's overview, applet, and Preferences tour videos.
 
 ## [2.34.0](https://github.com/edumucelli/docking/releases/tag/v2.34.0) (2026-11-21)
 
