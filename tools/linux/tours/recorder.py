@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shlex
 import shutil
 import subprocess
 import sys
@@ -16,6 +15,7 @@ from contextlib import contextmanager, nullcontext, suppress
 from dataclasses import dataclass
 from pathlib import Path
 
+from docking.applets.identity import applet_desktop_id
 from tests.visual.backends.x11.run import (
     ROOT,
     Observer,
@@ -30,10 +30,8 @@ WIDTH, HEIGHT = 1920, 1080
 ICON_SIZE = 48
 BAR_WIDTH, BAR_HEIGHT = 830, 100
 TOURS = ("overview", "applets", "preferences")
-DEMO_APP = "docking-tour.desktop"
-DEMO_APP_NAME = "Tour Demo"
 FOLDER_NAME = "Tour files"
-DEMO_WINDOWS = ("Tour Notes", "Tour Checklist")
+NOTES_FOLDER_NAME = "Tour notes"
 
 
 @dataclass(frozen=True)
@@ -84,9 +82,17 @@ def ass_time(seconds: float) -> str:
 def subtitle_events(cue: Cue) -> str:
     bar = cue.bar
     start, end = ass_time(cue.start), ass_time(cue.end)
+    width, height = bar.width, bar.height
+    radius, bend = 18, 10
     box = (
         rf"{{\an7\pos({bar.x},{bar.y})\p1\c&H201B18&\alpha&H18&}}"
-        rf"m 0 0 l {bar.width} 0 {bar.width} {bar.height} 0 {bar.height}"
+        f"m {radius} 0 l {width - radius} 0 "
+        f"b {width - radius + bend} 0 {width} {radius - bend} {width} {radius} "
+        f"l {width} {height - radius} b {width} {height - radius + bend} "
+        f"{width - radius + bend} {height} {width - radius} {height} "
+        f"l {radius} {height} b {radius - bend} {height} 0 {height - radius + bend} "
+        f"0 {height - radius} l 0 {radius} "
+        f"b 0 {radius - bend} {radius - bend} 0 {radius} 0"
     )
     # The strings are checked-in captions and catalog names. ASS treats braces
     # and physical newlines as override syntax and event boundaries.
@@ -196,6 +202,9 @@ class Desktop:
     def point(self, desktop_id: str, button: int = 0) -> None:
         self.move(*self.item(desktop_id))
         if button:
+            # Hover zoom can shift the item between the first move and the click.
+            time.sleep(0.15)
+            self.move(*self.item(desktop_id))
             self.pointer.click(button)
 
     def key(self, name: str) -> None:
@@ -213,12 +222,8 @@ class Desktop:
         self.key("Escape")
         self.move(WIDTH // 2, HEIGHT // 2)
 
-    def launch_demo(self) -> None:
-        self.point(DEMO_APP, 1)
-
-    def shelf_menu(self) -> None:
-        x, y = self.item(DEMO_APP)
-        self.move(x - ICON_SIZE // 2 - 2, y)
+    def shelf_menu(self, anchor: str = applet_desktop_id("applications")) -> None:
+        self.point(anchor)
         control = self.observer.Gdk.KEY_Control_L
         keycode = self.pointer.xlib.XKeysymToKeycode(self.pointer.display, control)
         self.pointer.xtst.XTestFakeKeyEvent(self.pointer.display, keycode, 1, 0)
@@ -504,19 +509,16 @@ def capture(desktop: Desktop, directory: Path) -> Iterator[None]:
 
 def seed_desktop() -> str:
     data = Path(os.environ["XDG_DATA_HOME"])
-    applications = data / "applications"
-    applications.mkdir(parents=True, exist_ok=True)
-    executable = shlex.quote(sys.executable)
-    (applications / DEMO_APP).write_text(
-        f"[Desktop Entry]\nType=Application\nName={DEMO_APP_NAME}\n"
-        f"Exec={executable} -m tools.linux.tours --demo\n"
-        "Icon=accessories-text-editor\nStartupWMClass=DockingTour\n",
-        encoding="utf-8",
-    )
     folder = Path.home() / FOLDER_NAME
     folder.mkdir(exist_ok=True)
-    for name in ("Ideas.txt", "Reading list.txt", "Tour checklist.txt"):
-        (folder / name).write_text(f"{name.removesuffix('.txt')}\n", encoding="utf-8")
+    notes = folder / NOTES_FOLDER_NAME
+    notes.mkdir(exist_ok=True)
+    for file in (
+        notes / "Ideas.txt",
+        folder / "Reading list.txt",
+        folder / "Tour checklist.txt",
+    ):
+        file.write_text(f"{file.stem}\n", encoding="utf-8")
     trash = data / "Trash"
     for name in ("files", "info"):
         (trash / name).mkdir(parents=True, exist_ok=True)
@@ -527,49 +529,15 @@ def seed_desktop() -> str:
     return folder.as_uri()
 
 
-def demo_windows() -> None:
-    import gi
-
-    gi.require_version("Gtk", "3.0")
-    from gi.repository import GLib, Gtk
-
-    GLib.set_prgname("DockingTour")
-    windows = set()
-
-    def close(window):
-        windows.remove(window)
-        if not windows:
-            Gtk.main_quit()
-
-    for index, (title, content) in enumerate(
-        zip(
-            DEMO_WINDOWS,
-            (
-                "Tour notes\n\nTry the window previews and folder stacks.",
-                "Tour checklist\n\n• Open an app\n• Switch between its windows",
-            ),
-            strict=True,
-        )
-    ):
-        window = Gtk.Window(title=title)
-        window.set_wmclass("DockingTour", "DockingTour")
-        window.set_default_size(480, 270)
-        window.move(430 + 570 * index, 265 + 130 * index)
-        window.add(Gtk.Label(label=content))
-        window.connect("destroy", close)
-        windows.add(window)
-        window.show_all()
-    Gtk.main()
-
-
 def background_window() -> None:
     import gi
 
     gi.require_version("Gtk", "3.0")
     gi.require_version("Gdk", "3.0")
-    from gi.repository import Gdk, Gtk
+    gi.require_version("GdkPixbuf", "2.0")
+    from gi.repository import Gdk, GdkPixbuf, Gtk
 
-    window = Gtk.Window()
+    window = Gtk.Window(title="Docking tour desktop")
     window.set_type_hint(Gdk.WindowTypeHint.DESKTOP)
     window.set_decorated(False)
     window.set_accept_focus(False)
@@ -580,6 +548,20 @@ def background_window() -> None:
     window.get_style_context().add_provider(
         color, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
     )
+    if wallpaper := os.environ.get("DOCKING_TOUR_WALLPAPER"):
+        image = GdkPixbuf.Pixbuf.new_from_file(wallpaper)
+        width, height = image.get_width(), image.get_height()
+        scale = max(WIDTH / width, HEIGHT / height)
+
+        def draw(_widget, cr):
+            cr.translate((WIDTH - width * scale) / 2, (HEIGHT - height * scale) / 2)
+            cr.scale(scale, scale)
+            Gdk.cairo_set_source_pixbuf(cr, image, 0, 0)
+            cr.paint()
+
+        area = Gtk.DrawingArea()
+        area.connect("draw", draw)
+        window.add(area)
     window.show_all()
     Gtk.main()
 
@@ -601,7 +583,7 @@ def dock(
         "icon_size": ICON_SIZE,
         "position": "bottom",
         "hide_mode": "none",
-        "zoom_enabled": False,
+        "zoom_enabled": True,
         "tooltips_enabled": tooltips,
         "stack_unfold": "click",
         "window_preview_thumbnails_enabled": True,
@@ -620,7 +602,8 @@ def dock(
     ) as child:
         desktop.dock_pid = child.pid
         try:
-            desktop.item(items[0])
+            for item in items:
+                desktop.item(item)
             yield
             if child.poll() is not None:
                 raise RuntimeError(f"Docking exited with status {child.returncode}")
@@ -686,7 +669,6 @@ def join_chapters(directory: Path, chapters: list[tuple[str, Path]]) -> Path:
 
 
 def session(directory: Path, tours: list[str]) -> None:
-    from docking.applets.identity import applet_desktop_id
     from tools.linux.tours.scenes import (
         OVERVIEW_APPLETS,
         OVERVIEW_ITEMS,
@@ -725,7 +707,7 @@ def session(directory: Path, tours: list[str]) -> None:
             [sys.executable, "-m", "tools.linux.tours", "--background"],
             directory / "background.log",
             env,
-        ),
+        ) as background,
         process([startup], directory / "startup.log", env)
         if startup
         else nullcontext(),
@@ -735,6 +717,18 @@ def session(directory: Path, tours: list[str]) -> None:
             wait_for(observer.composited, "Marco did not start compositing")
             observer.check_window_mapping()
             desktop = Desktop(observer)
+
+            def background_ready():
+                if background.poll() is not None:
+                    raise RuntimeError(
+                        f"Desktop background failed. See {directory / 'background.log'}"
+                    )
+                return any(
+                    window.get_name() == "Docking tour desktop"
+                    for window in observer.windows()
+                )
+
+            wait_for(background_ready, "Desktop background did not appear")
             for tour in tours:
                 desktop.scene_name = f"Starting the {tour} tour"
                 print(desktop.scene_name, flush=True)
@@ -756,13 +750,14 @@ def session(directory: Path, tours: list[str]) -> None:
                     else:
                         clip_dir = directory / tour
                         clip_dir.mkdir()
-                        entries = [DEMO_APP, folder]
                         if tour == "overview":
-                            entries.extend(OVERVIEW_ITEMS)
+                            entries = [item or folder for item in OVERVIEW_ITEMS]
                         else:
-                            entries.extend(
-                                map(applet_desktop_id, ("applications", "clock"))
-                            )
+                            entries = [
+                                applet_desktop_id("applications"),
+                                folder,
+                                applet_desktop_id("clock"),
+                            ]
                         with dock(
                             desktop,
                             clip_dir,
@@ -771,7 +766,14 @@ def session(directory: Path, tours: list[str]) -> None:
                             tooltips=tour != "preferences",
                         ):
                             if tour == "overview":
-                                prepare_live_applets(desktop, OVERVIEW_APPLETS)
+                                prepare_live_applets(
+                                    desktop,
+                                    (
+                                        app
+                                        for app in OVERVIEW_APPLETS
+                                        if app != "volume"
+                                    ),
+                                )
                             with capture(desktop, clip_dir):
                                 if tour == "overview":
                                     overview(desktop, folder)
@@ -825,23 +827,22 @@ def copy_profile(source: Path, target: Path, env: dict[str, str]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", type=Path, help="Prepared demo profile directory")
+    parser.add_argument(
+        "--wallpaper", type=Path, help="Image for the recording desktop"
+    )
     parser.add_argument("--output", type=Path, default=ROOT / "artifacts" / "tours")
     parser.add_argument(
         "--tour", choices=TOURS, action="append", help="Record selected tours"
     )
     parser.add_argument("--session", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--demo", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--background", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     output = args.output.resolve()
     tours = list(dict.fromkeys(args.tour or TOURS))
-    if (args.session or args.demo or args.background) and os.environ.get(
+    if (args.session or args.background) and os.environ.get(
         "DOCKING_TOUR_PRIVATE"
     ) != "1":
         parser.error("The internal entry point requires a private tour session")
-    if args.demo:
-        demo_windows()
-        return 0
     if args.background:
         background_window()
         return 0
@@ -856,6 +857,7 @@ def main() -> int:
         "marco",
         "ffmpeg",
         "ffprobe",
+        *(("caja",) if "overview" in tours else ()),
     ):
         if shutil.which(executable) is None:
             parser.error(f"Missing executable: {executable}")
@@ -864,6 +866,9 @@ def main() -> int:
     profile = args.profile.resolve() if args.profile else None
     if profile and not profile.is_dir():
         parser.error(f"Demo profile does not exist: {profile}")
+    wallpaper = args.wallpaper.resolve() if args.wallpaper else None
+    if wallpaper and not wallpaper.is_file():
+        parser.error(f"Wallpaper file does not exist: {wallpaper}")
     output.mkdir(parents=True, exist_ok=True)
     run = Path(tempfile.mkdtemp(prefix="recording-", dir=output))
     with SessionDirectory(prefix="docking-tour-") as private:
@@ -876,13 +881,28 @@ def main() -> int:
             "SSH_AUTH_SOCK",
             "GNOME_KEYRING_CONTROL",
             "DOCKING_TOUR_STARTUP",
+            "DOCKING_TOUR_WALLPAPER",
         ):
             env.pop(key, None)
         env["DOCKING_TOUR_PRIVATE"] = "1"
         env["DOCKING_LOG_LEVEL"] = "INFO"
+        if wallpaper:
+            env["DOCKING_TOUR_WALLPAPER"] = str(wallpaper)
         try:
             if profile:
                 copy_profile(profile, Path(private), env)
+            if "overview" in tours:
+                from tools.linux.tours.scenes import OVERVIEW_LAUNCHERS
+
+                source = Path(
+                    os.environ.get("XDG_DATA_HOME") or Path.home() / ".local/share"
+                )
+                applications = Path(env["XDG_DATA_HOME"]) / "applications"
+                applications.mkdir(exist_ok=True)
+                for item in OVERVIEW_LAUNCHERS:
+                    entry = source / "applications" / item
+                    if entry.is_file() and not (applications / item).exists():
+                        shutil.copyfile(entry, applications / item)
             subprocess.run(
                 [
                     "xvfb-run",

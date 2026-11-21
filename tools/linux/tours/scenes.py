@@ -2,19 +2,23 @@
 
 from __future__ import annotations
 
+import os
 import re
 import time
 from collections.abc import Iterable
+from contextlib import ExitStack
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from docking.applets import get_applet_catalog
 from docking.applets.identity import (
     APPLET_CATEGORY_ORDER,
+    AppletCategory,
     AppletMeta,
     applet_desktop_id,
 )
-from tests.visual.backends.x11.run import wait_for
-from tools.linux.tours.recorder import DEMO_APP, DEMO_APP_NAME, DEMO_WINDOWS
+from tests.visual.backends.x11.run import process, wait_for
+from tools.linux.tours.recorder import FOLDER_NAME, NOTES_FOLDER_NAME
 
 if TYPE_CHECKING:
     from tools.linux.tours.recorder import Desktop
@@ -25,18 +29,53 @@ OVERVIEW_APPLETS = (
     "weather",
     "hackernews",
     "whatsapp",
+    "telegram",
     "network",
     "bluetooth",
     "volume",
     "screenshot",
     "trash",
 )
-OVERVIEW_ITEMS = tuple(map(applet_desktop_id, OVERVIEW_APPLETS))
+OVERVIEW_ITEMS = (
+    applet_desktop_id("applications"),
+    "google-chrome.desktop",
+    "firefox-stable.desktop",
+    "sublime_text.desktop",
+    "terminator.desktop",
+    applet_desktop_id("aiusage"),
+    "pycharm.desktop",
+    "caja.desktop",
+    applet_desktop_id("systemmonitor"),
+    applet_desktop_id("thermals"),
+    None,  # The demo folder stack.
+    applet_desktop_id("devices"),
+    applet_desktop_id("hydration"),
+    applet_desktop_id("screenshot"),
+    applet_desktop_id("weather"),
+    applet_desktop_id("clock"),
+    applet_desktop_id("session"),
+    applet_desktop_id("currencyfx"),
+    applet_desktop_id("trash"),
+    applet_desktop_id("network"),
+    applet_desktop_id("bluetooth"),
+    applet_desktop_id("hackernews"),
+    applet_desktop_id("reddit"),
+    applet_desktop_id("battery"),
+    applet_desktop_id("certwatch"),
+    applet_desktop_id("keyboardlayout"),
+    applet_desktop_id("desktop"),
+    "eom.desktop",
+    applet_desktop_id("whatsapp"),
+    applet_desktop_id("telegram"),
+)
+OVERVIEW_LAUNCHERS = tuple(
+    item for item in OVERVIEW_ITEMS if item and item.endswith(".desktop")
+)
 UNAVAILABLE = re.compile(
     r"^(?:.*\bunavailable\b|loading\b|error:|not connected$|"
     r"no (?:data|battery|city selected|paired devices|mounted usb devices|"
     r"microphone source|camera devices|active player|hacker news stories|"
-    r"domains configured|mounted devices|networks found)\b|"
+    r"domains configured|plants configured|mounted devices|networks found)\b|"
     r".*\b(?:sign in required|offline|waiting for sign.in)\b)",
     re.IGNORECASE | re.MULTILINE,
 )
@@ -104,37 +143,57 @@ def prepare_live_applets(desktop: Desktop, applet_ids: Iterable[str]) -> None:
 
 def overview_shelf(desktop: Desktop, folder: str) -> None:
     with desktop.scene("Docking", "Your apps, files and tools on one shelf."):
-        for item in (DEMO_APP, folder, *OVERVIEW_ITEMS):
+        items = [item or folder for item in OVERVIEW_ITEMS]
+        for item in (*items[::3], items[-1]):
             desktop.point(item)
         desktop.hold()
 
     with desktop.scene(
         "Application menus", "Open actions for an application from the shelf."
     ):
-        desktop.point(DEMO_APP, 3)
+        desktop.point("caja.desktop", 3)
         desktop.wait_role("menu")
         desktop.hold()
         desktop.key("Escape")
 
-    with desktop.scene(
-        "Window previews", "Hover a thumbnail, then click to switch windows."
+    with (
+        desktop.scene(
+            "Window previews", "Hover a thumbnail, then click to switch windows."
+        ),
+        ExitStack() as apps,
     ):
-        desktop.launch_demo()
-        target, starting_window = DEMO_WINDOWS
-        desktop.window(target)
+        target, starting_window = FOLDER_NAME, NOTES_FOLDER_NAME
+        for title, position in ((target, "330+240"), (starting_window, "960+340")):
+            path = Path.home() / FOLDER_NAME
+            if title == starting_window:
+                path /= title
+            apps.enter_context(
+                process(
+                    [
+                        "caja",
+                        "--no-desktop",
+                        "--browser",
+                        f"--geometry=530x360+{position}",
+                        str(path),
+                    ],
+                    desktop.observer.output / f"caja-{title}.log",
+                    dict(os.environ),
+                )
+            )
+            desktop.window(title)
         x, y, width, height = desktop.window(starting_window).get_geometry()
         desktop.move(x + width // 2, y + height // 2)
         desktop.pointer.click()
         desktop.wait_active(starting_window)
         desktop.hold(0.4)
-        desktop.point(DEMO_APP)
+        desktop.point("caja.desktop")
         thumbnail = desktop.find(target)
         desktop.move(*thumbnail.center)
         desktop.hold()
         desktop.pointer.click()
         desktop.wait_active(target)
         desktop.hold()
-        for title in DEMO_WINDOWS:
+        for title in (target, starting_window):
             desktop.window(title).close(0)
 
     with desktop.scene("Folder stacks", "Open a pinned folder and browse its files."):
@@ -146,9 +205,9 @@ def overview_shelf(desktop: Desktop, folder: str) -> None:
     with desktop.scene("Applications", "Find installed apps by category or by name."):
         desktop.point(applet_desktop_id("applications"), 1)
         desktop.wait_role("menu")
-        for key in "tour":
+        for key in "caja":
             desktop.key(key)
-        desktop.find(DEMO_APP_NAME, contains=True)
+        desktop.find("Caja", contains=True)
         desktop.hold()
         desktop.dismiss()
 
@@ -161,6 +220,7 @@ def overview_shelf(desktop: Desktop, folder: str) -> None:
 
 
 def web_login(desktop: Desktop, applet: str, title: str) -> None:
+    desktop.dismiss()
     live_hover(desktop, applet)
     desktop.point(applet_desktop_id(applet), 1)
     window = desktop.window(title)
@@ -188,6 +248,9 @@ def overview(desktop: Desktop, folder: str) -> None:
     with desktop.scene("WhatsApp", "Open WhatsApp and scan the QR code to connect."):
         web_login(desktop, "whatsapp", "WhatsApp")
 
+    with desktop.scene("Telegram", "Open Telegram and scan the QR code to connect."):
+        web_login(desktop, "telegram", "Telegram")
+
     with desktop.scene("Network", "See connection details and live traffic."):
         live_hover(desktop, "network")
         desktop.hold()
@@ -202,13 +265,24 @@ def overview(desktop: Desktop, folder: str) -> None:
             raise RuntimeError("No paired Bluetooth device submenu appeared")
         desktop.key("Escape")
 
-    with desktop.scene("Volume", "See the current output level and mute state."):
+    with desktop.scene("Volume", "Add Volume to see the current level and mute state."):
+        desktop.shelf_menu(applet_desktop_id("clock"))
+        desktop.move(*desktop.find("Add Applet").center)
+        desktop.move(*desktop.find(AppletCategory.SYSTEM.value).center)
+        desktop.hold(0.6)
+        desktop.click("Volume")
+        desktop.dismiss()
+        desktop.hold(0.3)
         live_hover(desktop, "volume")
         desktop.hold()
         applet_menu(desktop, "volume")
         desktop.click("Show Level")
+        desktop.dismiss()
         desktop.point(applet_desktop_id("volume"))
         desktop.hold()
+        applet_menu(desktop, "volume")
+        desktop.click("Remove from Dock")
+        desktop.dismiss()
 
     with desktop.scene("Screenshot", "Capture the whole desktop, a window or an area."):
         applet_menu(desktop, "screenshot")
@@ -219,7 +293,10 @@ def overview(desktop: Desktop, folder: str) -> None:
         desktop.dismiss()
 
     with desktop.scene("Trash", "Open the trash directly from the shelf."):
-        desktop.point(applet_desktop_id("trash"), 1)
+        desktop.hold(0.25)
+        applet_menu(desktop, "trash")
+        desktop.hold(0.6)
+        desktop.click("Open Trash")
         window = desktop.wait_active("Trash", contains=True)
         desktop.move_below_bar(window)
         desktop.hold()

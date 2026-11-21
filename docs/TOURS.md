@@ -2,9 +2,11 @@
 
 One command from the checkout generates three MP4s in a [private Linux/X11
 desktop](adr/0001-record-tours-in-a-private-x11-desktop.md). The silent videos
-show the full desktop and real pointer input. A context bar inside the frame
-gives each scene a title and one short line. Keep it above the shelf and position
-it per scene as needed to leave the menus, tooltips, stacks, and windows visible.
+show the full desktop and real pointer input. A rounded context bar inside the
+frame gives each scene a title and one short line. Keep it above the shelf and
+position it per scene as needed to leave the menus, tooltips, stacks, and windows
+visible.
+The shelf uses 48-pixel icons with hover zoom enabled and a default zoom of 150%.
 
 ## Run the recorder
 
@@ -20,7 +22,8 @@ The recorder writes `overview.mp4`, `applets.mp4`, and `preferences.mp4`
 to `artifacts/tours/`. Use `--tour preferences` to record only Preferences or
 `--tour overview` to record the overview. The overview uses Paris for Weather
 when no city is configured. `--tour` can be repeated. Use `--output` to choose
-a different directory.
+a different directory and `--wallpaper IMAGE` to set the recording desktop's
+background.
 
 ### Prepare the demo profile
 
@@ -50,21 +53,28 @@ Review recordings and failure screenshots before publishing.
 
 ## Overview tour
 
-Show the pointer moving across the shelf and opening an application context
-menu and a folder stack. Open the window preview for an application with two
-demo windows, hover a thumbnail, and click it to bring its window forward.
+Start with the shelf from the [website demo](https://docking.cc/), followed by
+WhatsApp and Telegram. Install the demo launchers before recording: Google Chrome,
+Firefox Stable, Sublime Text, Terminator, PyCharm, Caja, and Eye of MATE. Use the
+launchers' desktop IDs listed in the [Overview layout](../tools/linux/tours/scenes.py).
+The recorder can copy matching desktop entries from the recording user's local
+applications directory. Entries supplied in the demo profile take precedence.
+
+Show the pointer moving across the shelf, opening Caja's context menu and a folder
+stack, and switching between two Caja windows by hovering and clicking a thumbnail.
 
 | Applet | Scene |
 | --- | --- |
 | Screenshot | Open the capture menu, select Region, and show the screenshot tool's area selection. |
 | WhatsApp | Open the app and show the QR code for signing in. |
+| Telegram | Open the app and show the QR code for signing in. |
 | Weather | Hover to show current conditions and the forecast for a configured city. |
 | Clock | Left-click to open the calendar. |
 | Network | Show the live connection and traffic tooltip, then open the context menu. |
 | Bluetooth | Open the menu and show a paired demo device and its submenu. |
 | Hacker News | Show a live headline and scroll to the next one. |
 | Trash | Open the trash containing a sample file. |
-| Volume | Show the live volume level and its optional icon display. |
+| Volume | Add the applet from the shelf menu, show the current volume and its icon display, then restore the opening layout. |
 | Applications | Open the categorized launcher and filter applications using search. |
 
 Close with the shelf in view and this context bar cue.
@@ -75,10 +85,11 @@ Watch the Docking Applets Tour for a chapter-by-chapter walkthrough.
 
 ## Applet tour
 
-Follow the catalog categories as chapters. Show each built-in applet's menu and
-available submenus, with selected dialogs and [live, populated applet
-data](adr/0002-record-applets-with-live-data.md). Open the QR sign-in screens
-for WhatsApp and Telegram.
+Follow the catalog categories as chapters. Keep the entire category on the shelf
+throughout each chapter, and switch the shelf at the chapter boundary. Show each
+built-in applet's menu and available submenus, with selected dialogs and
+[live, populated applet data](adr/0002-record-applets-with-live-data.md). Open the
+QR sign-in screens for WhatsApp and Telegram.
 
 ## Preferences tour
 

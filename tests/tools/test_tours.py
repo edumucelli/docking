@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from docking.applets import get_applet_catalog
+from docking.applets.identity import applet_desktop_id, parse_applet_id
 from tools.linux.tours.recorder import (
     Box,
     Cue,
@@ -10,15 +11,37 @@ from tools.linux.tours.recorder import (
     copy_profile,
     write_subtitles,
 )
-from tools.linux.tours.scenes import OVERVIEW_APPLETS, applet_chapters, verify_status
+from tools.linux.tours.scenes import (
+    OVERVIEW_APPLETS,
+    OVERVIEW_ITEMS,
+    applet_chapters,
+    verify_status,
+)
 
 
 def test_tour_chapters_cover_the_catalog():
     catalog = get_applet_catalog()
-    ids = [meta.id for _, chapter in applet_chapters() for meta in chapter]
+    chapters = applet_chapters()
+    assert len({category for category, _ in chapters}) == len(chapters)
+    for category, chapter in chapters:
+        assert all(meta.category.value == category for meta in chapter)
+    ids = [meta.id for _, chapter in chapters for meta in chapter]
     assert sorted(ids) == sorted(catalog)
     assert set(OVERVIEW_APPLETS) <= catalog.keys()
-    assert len(OVERVIEW_APPLETS) == len(set(OVERVIEW_APPLETS)) == 10
+    assert len(OVERVIEW_APPLETS) == len(set(OVERVIEW_APPLETS)) == 11
+
+
+def test_overview_opens_on_the_hero_shelf_with_both_messaging_applets():
+    assert len(OVERVIEW_ITEMS) == len(set(OVERVIEW_ITEMS)) == 30
+    assert OVERVIEW_ITEMS.count(None) == 1
+    assert OVERVIEW_ITEMS[-2:] == tuple(
+        map(applet_desktop_id, ("whatsapp", "telegram"))
+    )
+    assert applet_desktop_id("volume") not in OVERVIEW_ITEMS
+    catalog = get_applet_catalog()
+    for item in OVERVIEW_ITEMS:
+        if item and (applet := parse_applet_id(item)):
+            assert applet in catalog
 
 
 def test_context_bar_avoids_windows_and_keeps_captions_in_one_event(tmp_path):
@@ -35,6 +58,7 @@ def test_context_bar_avoids_windows_and_keeps_captions_in_one_event(tmp_path):
     ]
     assert len(events) == 3
     assert all("0:00:01.20,0:00:03.40" in event for event in events)
+    assert events[0].count(" b ") == 4
     assert events[-1].endswith("Show (all) and the menus.")
 
 
@@ -59,7 +83,11 @@ def test_prepared_profile_is_copied_without_external_symlinks(tmp_path: Path):
 
 @pytest.mark.parametrize(
     "status",
-    ["Weather\nUnavailable", "No paired devices; open KDE Connect to pair your phone"],
+    [
+        "Weather\nUnavailable",
+        "No paired devices; open KDE Connect to pair your phone",
+        "No plants configured",
+    ],
 )
 def test_unavailable_applet_state_fails_the_scene(status):
     with pytest.raises(RuntimeError, match="unavailable state"):

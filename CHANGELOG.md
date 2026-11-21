@@ -8,7 +8,9 @@ Docking versions are listed in descending version order. Dates are in UTC.
 - Moved developer requirements under `tools/` and updated setup commands.
 - Consolidated the user and developer guides and moved testing instructions
   alongside the visual suites.
-- Added a tool to regenerate Docking's overview, applet, and Preferences tour videos.
+- Added a tool to regenerate Docking's overview, applet, and Preferences tour
+  videos. The overview starts with the website demo shelf plus WhatsApp and
+  Telegram, and recordings support custom desktop wallpaper.
 
 ## [2.34.0](https://github.com/edumucelli/docking/releases/tag/v2.34.0) (2026-11-21)
 
