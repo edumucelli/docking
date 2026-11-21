@@ -162,8 +162,10 @@ the dock follows the pointer at runtime.
 The displayed position is clamped to the actual available surface, which
 can vary with monitors, panels, compositor allocations, dock length, and zoom.
 The saved alignment is retained when clamped or when switching
-screen edges or monitors. Oversized docks fit within the surface; zoom near a
-boundary is limited when necessary to keep the hovered item clickable.
+screen edges or monitors. Hover zoom grows the shelf evenly around its resting
+center until it reaches an edge of the available surface. A fully aligned shelf
+grows inward. Oversized docks fit within the surface, and zoom near a boundary
+is limited when needed to keep the hovered item clickable.
 
 ### Layout
 
