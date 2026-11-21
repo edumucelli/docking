@@ -139,7 +139,7 @@ def test_upgrade_fixture_builds_owned_copy_and_preserves_source(
         "MANIFEST.in",
         "README.md",
         "LICENSE",
-        "requirements-windows-browser.txt",
+        "tools/windows/requirements-windows-browser.txt",
         "tools/windows/__init__.py",
         "tools/windows/input_runtime.py",
         "docking/__init__.py",
@@ -164,6 +164,7 @@ def test_upgrade_fixture_builds_owned_copy_and_preserves_source(
         assert not (copied / "docking/helper.dll").exists()
         assert not (copied / "docking/__pycache__").exists()
         assert (copied / "docking/locale/en.mo").read_bytes() == b"source fixture"
+        assert (copied / "tools/windows/requirements-windows-browser.txt").is_file()
         observed.append(copied)
         if failure == "build":
             raise subprocess.CalledProcessError(1, command)

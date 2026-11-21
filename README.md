@@ -165,6 +165,10 @@ preferences, update intervals, and integration requirements.
 Contributions are welcome. See the [development guide](docs/DEVELOPMENT.md#contributing)
 for the pull request workflow and required checks.
 
+See the [changelog](CHANGELOG.md) for release history and the
+[code of conduct](CODE_OF_CONDUCT.md) for community expectations. Report
+vulnerabilities privately as described in the [security policy](SECURITY.md).
+
 ## License
 
 [GPL-3.0-or-later](LICENSE)

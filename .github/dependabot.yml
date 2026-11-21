@@ -8,7 +8,7 @@ updates:
       default-days: 7
 
   - package-ecosystem: "pip"
-    directory: "/"
+    directories: ["/", "/tools/windows"]
     schedule:
       interval: "daily"
     cooldown:

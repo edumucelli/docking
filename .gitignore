@@ -18,6 +18,7 @@ htmlcov/
 .pybuild/
 .claude/
 AGENTS.md
+!/AGENTS.md
 artifacts/
 # Preserve ignored captures from checkouts predating the visual suite move.
 /tests/visual/output/

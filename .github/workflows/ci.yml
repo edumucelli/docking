@@ -27,7 +27,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-quality-pip-${{ hashFiles('tools/dependency_policy.py', 'pyproject.toml', 'requirements-typing.txt') }}
+          key: ${{ runner.os }}-quality-pip-${{ hashFiles('tools/dependency_policy.py', 'pyproject.toml', 'tools/requirements-typing.txt') }}
           restore-keys: |
             ${{ runner.os }}-quality-pip-
 
@@ -39,7 +39,7 @@ jobs:
           python tools/dependency_policy.py bootstrap
           python -m pip install -e ".[dev]"
           PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
-            python -m pip install --no-deps -r requirements-typing.txt
+            python -m pip install --no-deps -r tools/requirements-typing.txt
 
       - name: Verify POT is up to date
         run: bash tools/i18n.sh --check-pot-sync
