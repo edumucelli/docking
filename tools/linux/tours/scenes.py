@@ -180,6 +180,18 @@ def applet_menu(desktop: Desktop, applet: str, *, require_live_data: bool = True
     return None
 
 
+def music_menu(desktop: Desktop, action: str) -> None:
+    def show_expected_action() -> bool:
+        applet_menu(desktop, "music")
+        if action in desktop.menu_labels():
+            return True
+        # The menu captures the applet's state when it opens.
+        desktop.dismiss(recenter=False)
+        return False
+
+    wait_for(show_expected_action, f"Music menu did not offer {action}")
+
+
 def unavailable_status(labels: list[str], *, applet: str) -> str | None:
     lines = [line.strip() for label in labels for line in label.splitlines()]
     if applet == "hackernews":
@@ -319,13 +331,11 @@ def overview_shelf(desktop: Desktop, folder: str) -> None:
         desktop.hold()
         desktop.point(applet_desktop_id("music"), 1)
         desktop.hold(0.6)
-        applet_menu(desktop, "music")
-        desktop.find("Play")
+        music_menu(desktop, "Play")
         desktop.hold()
         desktop.click("Play")
         desktop.hold(0.6)
-        applet_menu(desktop, "music")
-        desktop.find("Pause")
+        music_menu(desktop, "Pause")
         desktop.hold(0.7)
         desktop.click("Next")
         live_hover(desktop, "music", contains=OVERVIEW_TRACKS[1])

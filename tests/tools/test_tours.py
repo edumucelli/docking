@@ -26,6 +26,7 @@ from tools.linux.tours.scenes import (
     OVERVIEW_APPLETS,
     OVERVIEW_ITEMS,
     applet_chapters,
+    music_menu,
     overview_items,
     verify_status,
 )
@@ -44,6 +45,27 @@ def test_tour_chapters_cover_the_catalog():
     assert sorted(ids) == sorted(catalog)
     assert set(OVERVIEW_APPLETS) <= catalog.keys()
     assert len(OVERVIEW_APPLETS) == len(set(OVERVIEW_APPLETS)) == 15
+
+
+@pytest.mark.parametrize(
+    ("previous", "expected"), [("Pause", "Play"), ("Play", "Pause")]
+)
+def test_music_menu_reopens_until_playback_state_changes(previous, expected):
+    desktop = Mock()
+    menus = iter(([previous, "Next"], [expected, "Next"]))
+
+    def open_menu(*_args):
+        desktop.menu_labels.return_value = next(menus)
+
+    desktop.point.side_effect = open_menu
+
+    music_menu(desktop, expected)
+
+    assert [call.args for call in desktop.point.call_args_list] == [
+        (applet_desktop_id("music"), 3),
+        (applet_desktop_id("music"), 3),
+    ]
+    desktop.dismiss.assert_called_once_with(recenter=False)
 
 
 def test_missing_gifski_fails_before_recording(tmp_path, monkeypatch, capsys):
