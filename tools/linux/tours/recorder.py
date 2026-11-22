@@ -35,6 +35,7 @@ BAR_WIDTH, BAR_HEIGHT = 830, 100
 TOURS = ("overview", "applets", "preferences", "search")
 FOLDER_NAME = "Tour files"
 NOTES_FOLDER_NAME = "Tour notes"
+OVERVIEW_TRACKS = ("Daybreak", "Afterglow")
 OVERVIEW_WEATHER_CITIES = (
     {"city_display": "Paris, France", "lat": 48.8566, "lng": 2.3522},
     {"city_display": "Belo Horizonte, Brazil", "lat": -19.92, "lng": -43.94},
@@ -800,20 +801,55 @@ def overview_audio(directory: Path) -> Iterator[str]:
         subprocess.run(
             ["pactl", "set-sink-volume", "docking_tour", "50%"], env=env, check=True
         )
-        yield server
+        shutil.copyfile(
+            ROOT / "docking/assets/icons/applets/music.png", directory / "cover.png"
+        )
+        tracks = []
+        for title, frequency in zip(OVERVIEW_TRACKS, (440, 554), strict=True):
+            track = directory / f"{title}.flac"
+            # Leave time for live applets to load before the scene changes tracks.
+            ffmpeg(
+                "-f",
+                "lavfi",
+                "-i",
+                f"sine=frequency={frequency}:sample_rate=16000:duration=600",
+                "-metadata",
+                f"title={title}",
+                "-metadata",
+                "artist=Docking Demo",
+                str(track),
+            )
+            tracks.append(str(track))
+        with process(
+            [
+                "vlc",
+                "--intf=dummy",
+                "--extraintf=dbus",
+                "--aout=pulse",
+                "--ignore-config",
+                "--no-one-instance",
+                *tracks,
+            ],
+            directory / "vlc.log",
+            env,
+        ):
+            yield server
 
 
 def session(
     directory: Path, tours: list[str], *, available_controls: bool = False
 ) -> None:
+    from docking.platform.applications.implementations.unix.catalog import (
+        UnixApplicationCatalogBackend,
+    )
     from tools.linux.tours.scenes import (
         OVERVIEW_APPLETS,
-        OVERVIEW_ITEMS,
         applet_chapters,
         applets,
         input_then_hover,
         live_hover,
         overview,
+        overview_items,
         preferences,
         prepare_live_applets,
         search,
@@ -942,7 +978,12 @@ def session(
                                     },
                                 },
                             }
-                            entries = [item or folder for item in OVERVIEW_ITEMS]
+                            catalog = UnixApplicationCatalogBackend().discover(
+                                handle_epoch=0
+                            )
+                            entries = overview_items(
+                                folder, {app.desktop_id for app in catalog.applications}
+                            )
                         else:
                             entries = [
                                 applet_desktop_id("applications"),
@@ -976,6 +1017,10 @@ def session(
                         ):
                             if tour == "overview":
                                 prepare_live_applets(desktop, OVERVIEW_APPLETS)
+                                desktop.scene_name = "Preparing music playback"
+                                live_hover(
+                                    desktop, "music", contains=OVERVIEW_TRACKS[0]
+                                )
                                 desktop.scene_name = "Preparing both weather forecasts"
                                 live_hover(desktop, "weather", contains="Paris")
                                 input_then_hover(
@@ -1120,7 +1165,7 @@ def main() -> int:
         "ffmpeg",
         "ffprobe",
         *(("caja",) if {"overview", "applets", "search"}.intersection(tours) else ()),
-        *(("gsettings", "pulseaudio", "pactl") if "overview" in tours else ()),
+        *(("gsettings", "pulseaudio", "pactl", "vlc") if "overview" in tours else ()),
         *(("setxkbmap",) if {"overview", "search"}.intersection(tours) else ()),
         *(("gifski",) if args.gif else ()),
     ):

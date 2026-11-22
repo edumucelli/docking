@@ -24,6 +24,7 @@ from tools.linux.tours.scenes import (
     OVERVIEW_APPLETS,
     OVERVIEW_ITEMS,
     applet_chapters,
+    overview_items,
     verify_status,
 )
 
@@ -156,11 +157,30 @@ def test_overview_opens_on_the_hero_shelf_with_both_messaging_applets():
     )
     assert OVERVIEW_ITEMS[-3] == applet_desktop_id("volume")
     assert "eom.desktop" not in OVERVIEW_ITEMS
-    assert applet_desktop_id("music") not in OVERVIEW_ITEMS
+    assert OVERVIEW_ITEMS[8:10] == tuple(
+        map(applet_desktop_id, ("systemmonitor", "music"))
+    )
+    assert applet_desktop_id("thermals") not in OVERVIEW_ITEMS
+    assert applet_desktop_id("news") not in OVERVIEW_ITEMS
     catalog = get_applet_catalog()
     for item in OVERVIEW_ITEMS:
         if item and (applet := parse_applet_id(item)):
             assert applet in catalog
+
+
+def test_overview_keeps_only_installed_optional_launchers():
+    folder = "file:///tmp/Tour%20files"
+
+    items = overview_items(folder, {"terminator.desktop"})
+
+    assert [item for item in items if item.endswith(".desktop")] == [
+        "terminator.desktop",
+        "caja.desktop",
+    ]
+    assert [
+        item for item in items if item != folder and not item.endswith(".desktop")
+    ] == [item for item in OVERVIEW_ITEMS if item and parse_applet_id(item)]
+    assert items.count(folder) == 1
 
 
 def test_search_chapter_enables_the_search_dialog(tmp_path, monkeypatch):

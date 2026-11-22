@@ -25,5 +25,7 @@ with a desktop image, or select `applets`, `preferences`, or `search` with
 
 The recorder needs Xvfb, xauth, D-Bus, Marco, FFmpeg, and the usual Docking
 runtime dependencies. For the Overview, install Caja, the X11 keyboard tools,
-and `pulseaudio` with `pactl`. The recorder starts its own virtual audio output.
+VLC with D-Bus support, and `pulseaudio` with `pactl`. The recorder plays two
+generated demo tracks on its own virtual audio output. Other application
+launchers appear on the Overview shelf when installed.
 Install [Gifski](https://gif.ski/) to use `--gif`.

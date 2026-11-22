@@ -18,7 +18,7 @@ from docking.applets.identity import (
     applet_desktop_id,
 )
 from tests.visual.backends.x11.run import process, wait_for
-from tools.linux.tours.recorder import FOLDER_NAME, NOTES_FOLDER_NAME
+from tools.linux.tours.recorder import FOLDER_NAME, NOTES_FOLDER_NAME, OVERVIEW_TRACKS
 
 if TYPE_CHECKING:
     from tools.linux.tours.recorder import Desktop
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 OVERVIEW_APPLETS = (
     "applications",
     "systemmonitor",
-    "thermals",
+    "music",
     "screenshot",
     "weather",
     "clock",
@@ -50,7 +50,7 @@ OVERVIEW_ITEMS = (
     "pycharm.desktop",
     "caja.desktop",
     applet_desktop_id("systemmonitor"),
-    applet_desktop_id("thermals"),
+    applet_desktop_id("music"),
     None,  # The demo folder stack.
     applet_desktop_id("devices"),
     applet_desktop_id("hydration"),
@@ -156,6 +156,16 @@ def applet_chapters() -> list[tuple[str, list[AppletMeta]]]:
                 key=lambda meta: meta.name.casefold(),
             )
         )
+    ]
+
+
+def overview_items(folder: str, installed_ids: set[str]) -> list[str]:
+    return [
+        item or folder
+        for item in OVERVIEW_ITEMS
+        if item not in OVERVIEW_LAUNCHERS
+        or item == "caja.desktop"
+        or item in installed_ids
     ]
 
 
@@ -302,8 +312,23 @@ def overview_shelf(desktop: Desktop, folder: str) -> None:
         live_hover(desktop, "systemmonitor")
         desktop.hold()
 
-    with desktop.scene("Thermals", "Hover to see current temperatures and fan speed."):
-        live_hover(desktop, "thermals")
+    with desktop.scene(
+        "Music", "Control Spotify, VLC, Rhythmbox, and other MPRIS players."
+    ):
+        live_hover(desktop, "music", contains=OVERVIEW_TRACKS[0])
+        desktop.hold()
+        desktop.point(applet_desktop_id("music"), 1)
+        desktop.hold(0.6)
+        applet_menu(desktop, "music")
+        desktop.find("Play")
+        desktop.hold()
+        desktop.click("Play")
+        desktop.hold(0.6)
+        applet_menu(desktop, "music")
+        desktop.find("Pause")
+        desktop.hold(0.7)
+        desktop.click("Next")
+        live_hover(desktop, "music", contains=OVERVIEW_TRACKS[1])
         desktop.hold()
 
     with desktop.scene("Folder stacks", "Open a pinned folder and browse its files."):
@@ -446,15 +471,15 @@ def overview(desktop: Desktop, folder: str) -> None:
         web_login(desktop, "telegram", "Telegram", recenter=False)
 
     with desktop.scene(
-        "Add Music", "Choose Add Applet, then System & Power and Music."
+        "Add News", "Choose Add Applet, then Information and Environment."
     ):
         desktop.shelf_menu(applet_desktop_id("telegram"))
         desktop.move(*desktop.find("Add Applet").center)
-        desktop.move(*desktop.find(AppletCategory.SYSTEM.value).center)
+        desktop.move(*desktop.find(AppletCategory.INFORMATION.value).center)
         desktop.hold(0.6)
-        desktop.click("Music")
+        desktop.click("News")
         desktop.dismiss(recenter=False)
-        desktop.item(applet_desktop_id("music"))
+        desktop.item(applet_desktop_id("news"))
         desktop.hold()
 
     with desktop.scene(

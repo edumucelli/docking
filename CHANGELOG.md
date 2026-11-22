@@ -12,9 +12,9 @@ Docking versions are listed in descending version order. Dates are in UTC.
 - Added a tool to regenerate Docking's Overview, Applets, Preferences, and Search tour
   videos. The overview follows the website demo shelf from left to right, adds
   WhatsApp and Telegram, and shows the certificate status for `www.eduar.do`.
-  It demonstrates System Monitor, Thermals, Keyboard Layout, and two forecast
+  It demonstrates System Monitor, Music, Keyboard Layout, and two forecast
   cities, and shows mouse buttons and the scroll wheel as they are used.
-  It demonstrates Volume controls and adds Music from the dock menu.
+  It demonstrates Volume controls and adds News from the dock menu.
   The Preferences tour shows the Ctrl+right-click dock menu shortcut. The Search
   tour demonstrates its global shortcut from the desktop, app lookup, world
   time, arithmetic, and unit conversions.
