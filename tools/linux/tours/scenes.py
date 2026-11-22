@@ -655,12 +655,17 @@ def preferences(desktop: Desktop) -> None:
         with desktop.scene(name, detail):
             desktop.click(name)
             desktop.hold()
-            if name in {"Appearance", "Behavior"}:
+            if name in {"Appearance", "Behavior", "Applets"}:
+                scrollbar = desktop.wait_role("scroll bar")
                 x, y, width, height = window.get_geometry()
                 desktop.move(x + width // 2, y + height - 100)
-                for _ in range(11):
+                for _ in range(100):
                     desktop.pointer.click(5)
                     time.sleep(0.14)
+                    if scrollbar.get_current_value() >= scrollbar.get_maximum_value():
+                        break
+                else:
+                    raise RuntimeError(f"Could not scroll to the bottom of {name}")
                 desktop.hold()
     window.close(0)
 

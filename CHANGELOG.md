@@ -16,9 +16,9 @@ Docking versions are listed in descending version order. Dates are in UTC.
   It demonstrates System Monitor, Music, Keyboard Layout, and two forecast
   cities, and shows mouse buttons and the scroll wheel as they are used.
   It demonstrates Volume controls and adds News from the dock menu.
-  The Preferences tour shows the Ctrl+right-click dock menu shortcut. The Search
-  tour demonstrates its global shortcut from the desktop, app lookup, world
-  time, arithmetic, and unit conversions.
+  The Preferences tour shows the Ctrl+right-click dock menu shortcut and scrolls
+  through the full Applets tab. The Search tour demonstrates its global shortcut
+  from the desktop, app lookup, world time, arithmetic, and unit conversions.
   The applet tour highlights both mouse buttons, moves directly between
   applets, and groups the complete catalog by category. Recordings support custom
   desktop wallpaper and optional GIF export with Gifski.
