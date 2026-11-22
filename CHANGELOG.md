@@ -4,7 +4,6 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
-- Fixed stale dock tooltips when opening or using a context menu.
 - Added contributor guidance, a code of conduct, and a security reporting policy.
 - Moved developer requirements under `tools/` and updated setup commands.
 - Consolidated the user and developer guides and moved testing instructions
@@ -22,6 +21,7 @@ Docking versions are listed in descending version order. Dates are in UTC.
   applets, and groups the complete catalog by category. Recordings support custom
   desktop wallpaper and optional GIF export with Gifski. The README links to all
   four tours.
+- Fixed stale dock tooltips when opening or using a context menu.
 
 ## [2.34.0](https://github.com/edumucelli/docking/releases/tag/v2.34.0) (2026-11-21)
 
