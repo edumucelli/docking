@@ -136,6 +136,44 @@ def test_ready_empty_is_distinct_from_pending_and_unavailable():
     )
 
 
+def test_installed_handlers_return_visible_canonical_apps_from_all_accepted_reads():
+    first = GioApplicationFake("first.desktop")
+    second = GioApplicationFake("second.desktop")
+    masked = GioApplicationFake("masked.desktop", should_show=False)
+    anonymous = GioApplicationFake("")
+    missing = GioApplicationFake("unregistered.desktop")
+    result = ApplicationRegistryHarness([first, second, masked]).registry
+    reads = {
+        "default": AssociationRead(
+            AssociationStatus.READY, application_id="first.desktop"
+        ),
+        "recommended": AssociationRead(AssociationStatus.PENDING),
+        "all": AssociationRead(
+            AssociationStatus.READY, (first, second, masked, anonymous, missing)
+        ),
+    }
+    result._associations.reads = lambda keys: ((key, reads[key.lookup]) for key in keys)
+
+    status, apps = result.installed_handlers_for_content_types(
+        ("audio/mpeg", "audio/flac")
+    )
+
+    assert status is AssociationStatus.PENDING
+    assert [app.desktop_id for app in apps] == ["first.desktop", "second.desktop"]
+    assert not result._content_gio_handles
+
+
+@pytest.mark.parametrize(
+    "status", [AssociationStatus.READY, AssociationStatus.UNAVAILABLE]
+)
+def test_installed_handlers_distinguish_empty_and_unavailable(status):
+    result = registry()
+    result._associations.reads = lambda keys: (
+        (key, AssociationRead(status)) for key in keys
+    )
+    assert result.installed_handlers_for_content_types(("audio/mpeg",)) == (status, ())
+
+
 def test_partial_failure_can_only_fall_back_to_verified_requested_handler():
     result = registry()
     app = GioApplicationFake("owned.desktop", name="Owned", commandline="owned")

@@ -814,6 +814,7 @@ def _make_applet(
     *,
     registry=None,
     launcher=None,
+    config=None,
 ):
     backend = MagicMock(spec=MusicBackend)
     backend.poll.return_value = state
@@ -838,10 +839,14 @@ def _make_applet(
         registry.preferred_listing_for_content_types.return_value = (
             AssociationResolution(AssociationStatus.READY)
         )
+        registry.installed_handlers_for_content_types.return_value = (
+            AssociationStatus.READY,
+            (),
+        )
     return (
         MusicApplet(
             48,
-            config=Config(),
+            config=config if config is not None else Config(),
             application_registry=registry,
             application_launcher=launcher or MagicMock(),
             platform_services=make_applet_platform(),
@@ -849,6 +854,124 @@ def _make_applet(
         backend,
         resolver,
     )
+
+
+def _launch_choices(applet):
+    menu = next(
+        item for item in applet.get_menu_items() if item.get_label() == "Launch App"
+    )
+    return menu.get_submenu().get_children()
+
+
+def _choose_launch_app(item):
+    item.set_active(True)
+    callback, args = item._signals["toggled"][0]
+    callback(item, *args)
+
+
+def test_installed_launch_choice_is_saved_used_when_idle_and_can_be_reset(monkeypatch):
+    system_player = GioApplicationFake("vlc.desktop", name="VLC")
+    streaming_app = GioApplicationFake(
+        "stream.desktop", name="Stream", categories="AudioVideo;Music;"
+    )
+    mixer = GioApplicationFake("mixer.desktop", categories="AudioVideo;Audio;Mixer;")
+    catalog = ApplicationRegistryHarness([system_player, streaming_app, mixer])
+    monkeypatch.setattr(
+        association_mod.Gio.AppInfo,
+        "get_default_for_type",
+        lambda *_args: system_player,
+    )
+    monkeypatch.setattr(
+        association_mod.Gio.AppInfo, "get_recommended_for_type", lambda _type: []
+    )
+    monkeypatch.setattr(
+        association_mod.Gio.AppInfo, "get_all_for_type", lambda _type: [system_player]
+    )
+    launcher = MagicMock()
+    applet, _backend, _resolver = _make_applet(
+        monkeypatch, unavailable_state(), registry=catalog.registry, launcher=launcher
+    )
+
+    default, stream, vlc = _launch_choices(applet)
+    assert [row.get_label() for row in (default, stream, vlc)] == [
+        "System Default",
+        "Stream",
+        "VLC",
+    ]
+    assert default.get_active()
+    _choose_launch_app(stream)
+    launcher.launch.assert_not_called()
+    applet.stop()
+
+    applet, backend, _resolver = _make_applet(
+        monkeypatch,
+        unavailable_state(),
+        registry=catalog.registry,
+        launcher=launcher,
+        config=Config.load(),
+    )
+    assert _launch_choices(applet)[1].get_active()
+    applet.on_clicked()
+    launcher.launch.assert_called_once_with("stream.desktop")
+
+    playing = _state(player_name="VLC")
+    backend.poll.return_value = playing
+    applet._apply_poll_result(playing, None, force=False)
+    applet.on_clicked()
+    backend.play_pause.assert_called_once_with(playing)
+    launcher.launch.assert_called_once()
+
+    catalog.publish([system_player, mixer])
+    applet._apply_poll_result(unavailable_state(), None, force=False)
+    default, vlc, missing = _launch_choices(applet)
+    assert vlc.get_label() == "VLC"
+    assert missing.get_label() == "Preferred app unavailable"
+    assert missing.get_active() and not missing.get_sensitive()
+    applet.on_clicked()
+    launcher.launch.assert_called_with("vlc.desktop")
+    assert Config.load().applet_prefs["music"]["launch_app_id"] == "stream.desktop"
+
+    _choose_launch_app(default)
+    catalog.publish([system_player, mixer, streaming_app])
+    assert _launch_choices(applet)[0].get_active()
+    assert Config.load().applet_prefs["music"]["launch_app_id"] == ""
+    applet.on_clicked()
+    launcher.launch.assert_called_with("vlc.desktop")
+    applet.stop()
+
+
+def test_launch_menu_distinguishes_names_and_cancels_pending_launch(monkeypatch):
+    catalog = ApplicationRegistryHarness(
+        [
+            GioApplicationFake(
+                "first.desktop", name="Player", categories="Audio;Player;"
+            ),
+            GioApplicationFake("second.desktop", name="Player", categories="Music;"),
+        ]
+    )
+    registry = MagicMock(wraps=catalog.registry)
+    registry.installed_handlers_for_content_types.return_value = (
+        AssociationStatus.PENDING,
+        (),
+    )
+    registry.preferred_listing_for_content_types.return_value = AssociationResolution(
+        AssociationStatus.PENDING
+    )
+    launcher = MagicMock()
+    applet, _backend, _resolver = _make_applet(
+        monkeypatch, unavailable_state(), registry=registry, launcher=launcher
+    )
+    applet.on_clicked()
+    assert applet._pending_media_launch
+    _default, first, second, loading = _launch_choices(applet)
+    assert first.get_label() == "Player (first.desktop)"
+    assert second.get_label() == "Player (second.desktop)"
+    assert loading.get_label() == "Loading..." and not loading.get_sensitive()
+    _choose_launch_app(first)
+    applet._on_associations_changed()
+    assert not applet._pending_media_launch
+    launcher.launch.assert_not_called()
+    applet.stop()
 
 
 class TestMusicApplet:
@@ -1098,9 +1221,12 @@ class TestMusicApplet:
     def test_menu_when_unavailable(self, monkeypatch):
         applet, _backend, _resolver = _make_applet(monkeypatch, unavailable_state())
         items = applet.get_menu_items()
-        assert len(items) == 1
         assert items[0].get_label() == "No active player"
         assert items[0].get_sensitive() is False
+        default, status = _launch_choices(applet)
+        assert default.get_label() == "System Default" and default.get_active()
+        assert status.get_label() == "No compatible apps found"
+        assert not status.get_sensitive()
 
     def test_menu_playing_has_pause_label(self, monkeypatch):
         applet, _backend, _resolver = _make_applet(

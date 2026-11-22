@@ -693,7 +693,9 @@ def test_association_getters_use_existing_worker_keep_gtk_alive_and_publish_reta
 
     monkeypatch.setattr(associations.Gio.AppInfo, "get_default_for_type", default)
     monkeypatch.setattr(
-        associations.Gio.AppInfo, "get_recommended_for_type", lambda _type: []
+        associations.Gio.AppInfo,
+        "get_recommended_for_type",
+        lambda _type: [worker.handles["first"]],
     )
     monkeypatch.setattr(associations.Gio.AppInfo, "get_all_for_type", lambda _type: [])
     worker.registry.start()
@@ -702,6 +704,10 @@ def test_association_getters_use_existing_worker_keep_gtk_alive_and_publish_reta
         selected = worker.registry.preferred_listing_for_content_types((".owned",))
         assert selected.status is AssociationStatus.PENDING
         assert entered.wait(1)
+        assert worker.registry.installed_handlers_for_content_types((".owned",)) == (
+            AssociationStatus.PENDING,
+            (),
+        )
         worker.loop.timeout(5, lambda: ticks.append(True) or True)
         started = monotonic()
         for _index in range(5):
@@ -728,6 +734,10 @@ def test_association_getters_use_existing_worker_keep_gtk_alive_and_publish_reta
         assert listing.name == "Owned Handler" and listing.desktop_id is None
         assert (
             worker.registry.gio_handle_for_unidentified(listing.listing_key) is handler
+        )
+        assert worker.registry.installed_handlers_for_content_types((".owned",)) == (
+            AssociationStatus.READY,
+            (worker.registry.get(_ID),),
         )
         default_result = worker.registry.default_for_content_type(".owned")
         assert default_result.status is AssociationStatus.READY

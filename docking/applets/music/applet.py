@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import replace
 from typing import TYPE_CHECKING
@@ -29,7 +30,7 @@ gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 
 from docking.applets.base import ApplicationServicesApplet
-from docking.applets.menu import disabled_menu_item, menu_sections
+from docking.applets.menu import disabled_menu_item, menu_sections, radio_menu_items
 from docking.applets.music import meta
 from docking.applets.worker import SerialWorker
 from docking.i18n import _
@@ -59,9 +60,11 @@ if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.platform.applications.launcher import ApplicationLauncher
     from docking.platform.applications.registry import ApplicationRegistry
+    from docking.platform.applications.types import ApplicationInfo
 
 POLL_INTERVAL_S = 1
 SCROLL_SYNC_DELAY_MS = 220
+LAUNCH_APP_PREF = "launch_app_id"
 MEDIA_CONTENT_TYPES = (
     "audio/mpeg",
     "audio/flac",
@@ -107,6 +110,8 @@ class MusicApplet(ApplicationServicesApplet):
         self._loading = True
         self._error = False
         self._lifetime = 0
+        launch_app_id = self.load_prefs().get(LAUNCH_APP_PREF)
+        self._launch_app_id = launch_app_id if isinstance(launch_app_id, str) else ""
         self._pending_media_launch = False
         self._association_unsubscribe: Callable[[], None] | None = (
             application_registry.subscribe(self._on_associations_changed)
@@ -182,7 +187,7 @@ class MusicApplet(ApplicationServicesApplet):
         if not has_active_media(self._state):
             if self._pending_media_launch:
                 return
-            self._launch_default_media_app()
+            self._launch_media_app()
             return
         if self._state.can_play_pause:
             self._request_action(self._backend.play_pause)
@@ -211,12 +216,16 @@ class MusicApplet(ApplicationServicesApplet):
         self._schedule_scroll_sync()
 
     def get_menu_items(self) -> list[Gtk.MenuItem]:
+        launch_menu = self._build_launch_menu()
         if not self._state.available:
-            return [
-                disabled_menu_item(
-                    _("Unavailable") if self._error else _("No active player")
-                )
-            ]
+            return menu_sections(
+                status=[
+                    disabled_menu_item(
+                        _("Unavailable") if self._error else _("No active player")
+                    )
+                ],
+                settings=[launch_menu],
+            )
 
         previous_item = Gtk.MenuItem(label=_("Previous"))
         previous_item.set_sensitive(self._state.can_go_previous)
@@ -247,7 +256,76 @@ class MusicApplet(ApplicationServicesApplet):
             primary=[play_pause_item],
             navigation=[previous_item, next_item],
             display=[volume_up_item, volume_down_item],
+            settings=[launch_menu],
         )
+
+    def _build_launch_menu(self) -> Gtk.MenuItem:
+        registry = self._application_registry
+        status, handlers = registry.installed_handlers_for_content_types(
+            MEDIA_CONTENT_TYPES
+        )
+        apps = {app.desktop_id: app for app in handlers}
+        apps.update(
+            (app.desktop_id, app)
+            for app in registry.snapshot()
+            if "Music" in app.categories
+            or (
+                "Player" in app.categories
+                and ("Audio" in app.categories or "AudioVideo" in app.categories)
+            )
+        )
+        preferred = self._visible_application(self._launch_app_id)
+        if preferred is not None:
+            apps[preferred.desktop_id] = preferred
+
+        names = Counter(app.name.casefold() for app in apps.values())
+        choices = [(_("System Default"), "")]
+        for app in sorted(
+            apps.values(), key=lambda app: (app.name.casefold(), app.desktop_id)
+        ):
+            label = app.name
+            if names[app.name.casefold()] > 1:
+                label = _("%(name)s (%(id)s)") % {
+                    "name": app.name,
+                    "id": app.desktop_id,
+                }
+            choices.append((label, app.desktop_id))
+        missing = bool(self._launch_app_id and preferred is None)
+        if missing:
+            choices.append((_("Preferred app unavailable"), self._launch_app_id))
+
+        items = radio_menu_items(
+            choices=choices,
+            active_value=self._launch_app_id,
+            on_selected=self._select_launch_app,
+        )
+        if missing:
+            items[-1].set_sensitive(False)
+        submenu = Gtk.Menu()
+        for item in items:
+            submenu.append(item)
+        if status is AssociationStatus.PENDING:
+            submenu.append(disabled_menu_item(_("Loading...")))
+        elif not apps:
+            submenu.append(
+                disabled_menu_item(
+                    _("Unavailable")
+                    if status is AssociationStatus.UNAVAILABLE
+                    else _("No compatible apps found")
+                )
+            )
+        menu = Gtk.MenuItem(label=_("Launch App"))
+        menu.set_submenu(submenu)
+        return menu
+
+    def _select_launch_app(self, _item: Gtk.RadioMenuItem, desktop_id: str) -> None:
+        if self._stopped or desktop_id == self._launch_app_id:
+            return
+        if desktop_id and self._visible_application(desktop_id) is None:
+            return
+        self._pending_media_launch = False
+        self._launch_app_id = desktop_id
+        self.save_prefs({LAUNCH_APP_PREF: desktop_id})
 
     def _action_previous(self) -> None:
         if self._state.can_go_previous:
@@ -410,7 +488,14 @@ class MusicApplet(ApplicationServicesApplet):
             return state
         return state
 
+    def _visible_application(self, desktop_id: str) -> ApplicationInfo | None:
+        app = self._application_registry.get(desktop_id) if desktop_id else None
+        return app if app is not None and app.visible else None
+
     def _find_media_application(self) -> AssociationResolution:
+        preferred = self._visible_application(self._launch_app_id)
+        if preferred is not None:
+            return AssociationResolution(AssociationStatus.READY, preferred)
         return self._application_registry.preferred_listing_for_content_types(
             MEDIA_CONTENT_TYPES
         )
@@ -420,9 +505,9 @@ class MusicApplet(ApplicationServicesApplet):
             if has_active_media(self._state):
                 self._pending_media_launch = False
             else:
-                self._launch_default_media_app()
+                self._launch_media_app()
 
-    def _launch_default_media_app(self) -> bool:
+    def _launch_media_app(self) -> bool:
         resolution = self._find_media_application()
         self._pending_media_launch = resolution.status is AssociationStatus.PENDING
         if (

@@ -309,12 +309,7 @@ class ApplicationRegistry:
         self, content_types: Iterable[str]
     ) -> AssociationResolution:
         """Preserve default/recommended/all precedence over accepted facts."""
-        types = tuple(dict.fromkeys(content_types))
-        keys = tuple(
-            AssociationKey(kind, content_type)
-            for kind in ("default", "recommended", "all")
-            for content_type in types
-        )
+        keys = _content_handler_keys(content_types)
         unavailable = False
         for _key, read in self._associations.reads(keys):
             if read.status is AssociationStatus.PENDING:
@@ -329,6 +324,37 @@ class ApplicationRegistry:
         return AssociationResolution(
             AssociationStatus.UNAVAILABLE if unavailable else AssociationStatus.READY
         )
+
+    def installed_handlers_for_content_types(
+        self, content_types: Iterable[str]
+    ) -> tuple[AssociationStatus, tuple[ApplicationInfo, ...]]:
+        """Return visible handlers with canonical IDs suitable for preferences."""
+        handlers: dict[str, ApplicationInfo] = {}
+        statuses: set[AssociationStatus] = set()
+        for _key, read in self._associations.reads(
+            _content_handler_keys(content_types)
+        ):
+            statuses.add(read.status)
+            if read.status is not AssociationStatus.READY:
+                continue
+            if read.application_id:
+                applications = (self.get(read.application_id),)
+            else:
+                applications = tuple(
+                    self._registered_application_for_content_type_result(handle)
+                    for handle in read.handles
+                    if self._associations.visible(handle)
+                )
+            for app in applications:
+                if app is not None and app.visible:
+                    handlers[app.desktop_id] = app
+
+        status = AssociationStatus.READY
+        if AssociationStatus.PENDING in statuses:
+            status = AssociationStatus.PENDING
+        elif statuses == {AssociationStatus.UNAVAILABLE}:
+            status = AssociationStatus.UNAVAILABLE
+        return status, tuple(handlers.values())
 
     def _association_resolution(self, read: AssociationRead) -> AssociationResolution:
         if read.status is not AssociationStatus.READY:
@@ -543,6 +569,15 @@ class ApplicationRegistry:
                     "Application registry listener failed: %s",
                     exc,
                 )
+
+
+def _content_handler_keys(content_types: Iterable[str]) -> tuple[AssociationKey, ...]:
+    types = tuple(dict.fromkeys(content_types))
+    return tuple(
+        AssociationKey(kind, content_type)
+        for kind in ("default", "recommended", "all")
+        for content_type in types
+    )
 
 
 def _state_content(state: _RegistryState) -> tuple[object, ...]:
