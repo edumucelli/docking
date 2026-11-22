@@ -1,5 +1,7 @@
 import json
+import signal
 from contextlib import nullcontext
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -95,21 +97,21 @@ def test_tour_publishes_after_requested_exports_finish(
 
     def run(command, **kwargs):
         assert kwargs["check"]
-        if command[0] == "xvfb-run":
-            assert "LANGUAGE" not in kwargs["env"]
-            staging = Path(command[command.index("--output") + 1])
-            for tour in tours:
-                (staging / f"{tour}.mp4").write_bytes(b"new video")
-        else:
-            assert command[0] == "gifski"
-            source = Path(command[-1])
-            assert source.read_bytes() == b"new video"
-            converted.append(source.stem)
-            if failed and source.stem == "preferences":
-                raise recorder.subprocess.CalledProcessError(1, command)
-            Path(command[command.index("--output") + 1]).write_bytes(b"new animation")
+        assert command[0] == "xvfb-run"
+        assert "LANGUAGE" not in kwargs["env"]
+        staging = Path(command[command.index("--output") + 1])
+        for tour in tours:
+            (staging / f"{tour}.mp4").write_bytes(b"new video")
+
+    def export_gif(source, destination):
+        assert source.read_bytes() == b"new video"
+        converted.append(source.stem)
+        if failed and source.stem == "preferences":
+            raise recorder.subprocess.CalledProcessError(1, ["gifski"])
+        destination.write_bytes(b"new animation")
 
     monkeypatch.setattr(recorder.subprocess, "run", run)
+    monkeypatch.setattr(recorder, "export_gif", export_gif)
 
     assert recorder.main() == int(failed)
     assert any(call.args == ("gifski",) for call in lookup.call_args_list) == gif
@@ -121,6 +123,23 @@ def test_tour_publishes_after_requested_exports_finish(
         assert (tmp_path / f"{tour}.gif").read_bytes() == (
             b"new animation" if gif and not failed else b"previous"
         )
+
+
+def test_gif_export_checks_decoder_status(tmp_path, monkeypatch):
+    decoder = Mock(stdout=BytesIO())
+    decoder.wait.return_value = 1
+    launch = Mock(return_value=nullcontext(decoder))
+    encode = Mock()
+    monkeypatch.setattr(recorder.subprocess, "Popen", launch)
+    monkeypatch.setattr(recorder.subprocess, "run", encode)
+
+    with pytest.raises(recorder.subprocess.CalledProcessError) as error:
+        recorder.export_gif(tmp_path / "overview.mp4", tmp_path / "overview.gif")
+
+    assert error.value.cmd[-2:] == ["yuv4mpegpipe", "-"]
+    assert encode.call_args.args[0][-1] == "-"
+    assert encode.call_args.kwargs == {"stdin": decoder.stdout, "check": True}
+    assert decoder.stdout.closed
 
 
 def test_publication_failure_restores_all_previous_outputs(tmp_path, monkeypatch):
@@ -147,6 +166,28 @@ def test_publication_failure_restores_all_previous_outputs(tmp_path, monkeypatch
     assert (tmp_path / "applets.mp4").read_bytes() == b"previous applets"
     assert not (tmp_path / "overview.gif").exists()
     assert all((run / name).read_bytes() == b"new" for name in filenames)
+
+
+def test_publication_finishes_before_processing_ctrl_c(tmp_path, monkeypatch):
+    run = tmp_path / "recording"
+    run.mkdir()
+    filenames = ["overview.mp4", "overview.gif"]
+    for name in filenames:
+        (run / name).write_bytes(b"new")
+        (tmp_path / name).write_bytes(b"previous")
+    replace = Path.replace
+
+    def interrupt_after_replacement(source, destination):
+        result = replace(source, destination)
+        if source.name == filenames[0]:
+            signal.raise_signal(signal.SIGINT)
+        return result
+
+    monkeypatch.setattr(Path, "replace", interrupt_after_replacement)
+    with pytest.raises(KeyboardInterrupt):
+        recorder.publish_tours(run, tmp_path, filenames)
+
+    assert all((tmp_path / name).read_bytes() == b"new" for name in filenames)
 
 
 def test_overview_opens_on_the_hero_shelf_with_both_messaging_applets():

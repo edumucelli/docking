@@ -7,6 +7,7 @@ import ctypes
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -1084,6 +1085,47 @@ def copy_profile(source: Path, target: Path, env: dict[str, str]) -> None:
         env["DOCKING_TOUR_STARTUP"] = str(private_startup)
 
 
+def export_gif(source: Path, destination: Path) -> None:
+    decode = [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-nostdin",
+        "-xerror",
+        "-i",
+        str(source),
+        "-vf",
+        "fps=8,scale=1280:-2",
+        "-pix_fmt",
+        "yuv420p",
+        "-f",
+        "yuv4mpegpipe",
+        "-",
+    ]
+    encode = [
+        "gifski",
+        "--fast",
+        "--width",
+        "1280",
+        "--fps",
+        "8",
+        "--quality",
+        "85",
+        "--repeat",
+        "0",
+        "--output",
+        str(destination),
+        "-",
+    ]
+    with subprocess.Popen(decode, stdout=subprocess.PIPE) as decoder:
+        assert decoder.stdout is not None
+        with decoder.stdout:
+            subprocess.run(encode, stdin=decoder.stdout, check=True)
+        if status := decoder.wait():
+            raise subprocess.CalledProcessError(status, decode)
+
+
 def publish_tours(run: Path, output: Path, filenames: list[str]) -> None:
     lock_path = output / ".publish.lock"
     ready, previous = run / "publish", run / "previous"
@@ -1099,6 +1141,14 @@ def publish_tours(run: Path, output: Path, filenames: list[str]) -> None:
                 os.link(output / filename, previous / filename, follow_symlinks=False)
 
         published = []
+        interrupted = False
+
+        def defer_interrupt(_number, _frame):
+            nonlocal interrupted
+            interrupted = True
+
+        # Finish replacing or restoring every export before delivering Ctrl+C.
+        previous_handler = signal.signal(signal.SIGINT, defer_interrupt)
         try:
             for filename in filenames:
                 (ready / filename).replace(output / filename)
@@ -1119,6 +1169,10 @@ def publish_tours(run: Path, output: Path, filenames: list[str]) -> None:
                     f"{error}. Could not restore: {', '.join(failed)}"
                 ) from error
             raise
+        finally:
+            signal.signal(signal.SIGINT, previous_handler)
+            if interrupted:
+                signal.raise_signal(signal.SIGINT)
 
 
 def main() -> int:
@@ -1240,24 +1294,7 @@ def main() -> int:
             if args.gif:
                 for tour in tours:
                     print(f"Encoding {tour}.gif with Gifski", flush=True)
-                    subprocess.run(
-                        [
-                            "gifski",
-                            "--fast",
-                            "--width",
-                            "1280",
-                            "--fps",
-                            "8",
-                            "--quality",
-                            "85",
-                            "--repeat",
-                            "0",
-                            "--output",
-                            str(run / f"{tour}.gif"),
-                            str(run / f"{tour}.mp4"),
-                        ],
-                        check=True,
-                    )
+                    export_gif(run / f"{tour}.mp4", run / f"{tour}.gif")
             extensions = ("mp4", "gif") if args.gif else ("mp4",)
             filenames = [
                 f"{tour}.{extension}" for tour in tours for extension in extensions

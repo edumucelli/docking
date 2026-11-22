@@ -28,4 +28,4 @@ runtime dependencies. For the Overview, install Caja, the X11 keyboard tools,
 VLC with D-Bus support, and `pulseaudio` with `pactl`. The recorder plays two
 generated demo tracks on its own virtual audio output. Other application
 launchers appear on the Overview shelf when installed.
-Install [Gifski](https://gif.ski/) to use `--gif`.
+Install [Gifski 1.32 or later](https://gif.ski/) to use `--gif`.
