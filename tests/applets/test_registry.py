@@ -110,9 +110,9 @@ class TestAppletCatalog:
     def test_contains_hackernews(self):
         assert "hackernews" in get_applet_catalog()
 
-    def test_contains_reddit(self):
-        assert "reddit" in get_applet_catalog()
-        assert load_applet_class("reddit").__name__ == "RedditApplet"
+    def test_reddit_is_temporarily_disabled(self):
+        assert "reddit" not in get_applet_catalog()
+        assert load_applet_class("reddit") is None
 
     def test_contains_news(self):
         assert "news" in get_applet_catalog()

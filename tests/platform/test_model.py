@@ -1524,6 +1524,22 @@ class TestApplyPinnedLayout:
 
 
 class TestAppletLifecycleIntegration:
+    def test_disabled_reddit_keeps_saved_pin_and_preferences(self, tmp_path):
+        reddit = PinnedEntry(APPLET_KIND, "applet://reddit")
+        prefs = {"reddit": {"subreddits": ["python"]}}
+        path = tmp_path / "dock.json"
+        Config(pinned=[reddit], applet_prefs=prefs).save(path)
+        config = Config.load(path)
+        model = _make_model(config, _make_dependencies("browser.desktop"))
+
+        assert model.pinned_items == []
+        model.add_applet("reddit")
+        assert model.get_applet(reddit.id) is None
+        assert model.pin_application("browser.desktop")
+        saved = Config.load(path)
+        assert saved.pinned == [reddit, PinnedEntry(APP_KIND, "browser.desktop")]
+        assert saved.applet_prefs == prefs
+
     def test_import_starts_only_new_applets_and_reuses_existing_items(
         self, monkeypatch
     ):

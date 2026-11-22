@@ -57,6 +57,9 @@ def get_applet_catalog() -> dict[str, AppletMeta]:
         if pkg.name in _SUPPORT_PACKAGES:
             log.debug("Skipping shared applet support package %s", pkg.name)
             continue
+        if pkg.name == "reddit":
+            # Reddit RSS is unreliable. Keep saved pins and preferences for re-enabling.
+            continue
         init_py = pkg / "__init__.py"
         if not init_py.exists():
             log.warning("Skipping %s: missing __init__.py", pkg)
