@@ -10,7 +10,9 @@
 [![License](https://img.shields.io/github/license/edumucelli/docking)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/edumucelli/docking)](https://github.com/edumucelli/docking/commits/master)
 
-A lightweight, feature-rich dock for Linux, FreeBSD, OpenBSD, NetBSD, and [Windows 11 x64](docs/INSTALLATION.md#windows-preview). Written in Python with GTK 3 and Cairo, inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
+[Website](https://docking.cc/) · Watch: [overview tour](https://docking.cc/tours/overview.mp4), [applets tour](https://docking.cc/tours/applets.mp4), [search tour](https://docking.cc/tours/search.mp4), [preferences tour](https://docking.cc/tours/preferences.mp4) · [Install](#installation) · [Features](#highlights) · [Changelog](CHANGELOG.md)
+
+A lightweight, feature-rich dock for Linux (X11 and Wayland), FreeBSD, OpenBSD, NetBSD, and Windows 11 x64. Written in Python with GTK 3 and Cairo, inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
 
 ![Docking in action](images/all.gif)
 

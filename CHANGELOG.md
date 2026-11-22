@@ -10,6 +10,20 @@ Docking versions are listed in descending version order. Dates are in UTC.
 - Moved developer requirements under `tools/` and updated setup commands.
 - Consolidated the user and developer guides and moved testing instructions
   alongside the visual suites.
+- Added a tool to regenerate Docking's Overview, Applets, Preferences, and Search tour
+  videos. The overview follows the website demo shelf from left to right, adds
+  WhatsApp and Telegram, and shows the certificate status for `www.eduar.do`.
+  It demonstrates System Monitor, Music, Keyboard Layout, and two forecast
+  cities, and shows mouse buttons and the scroll wheel as they are used.
+  It demonstrates Volume controls and adds News from the dock menu.
+  The Preferences tour shows the Ctrl+right-click dock menu shortcut and scrolls
+  through the full Applets tab. The Search tour demonstrates its global shortcut
+  from the desktop, app lookup, world time, arithmetic, and unit conversions.
+  The applet tour highlights both mouse buttons, moves directly between
+  applets, and groups the complete catalog by category. Recordings support custom
+  desktop wallpaper and optional GIF export with Gifski. The README links to all
+  four tours.
+- Fixed stale dock tooltips when opening or using a context menu.
 
 ## [2.34.0](https://github.com/edumucelli/docking/releases/tag/v2.34.0) (2026-11-21)
 

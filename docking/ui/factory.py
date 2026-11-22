@@ -230,7 +230,12 @@ def build_dock_window(
         menu=menu,
         folder_stack=folder_stack,
     )
-    window.tooltip.set_stack_owner_provider(interactions.open_stack_owner_id)
+    window.tooltip.set_popup_visibility_provider(
+        lambda: (
+            window.interaction.menu_popup_visible
+            or interactions.open_stack_owner_id() is not None
+        )
+    )
     input_controller = DockInputController(
         window=window,
         interactions=interactions,

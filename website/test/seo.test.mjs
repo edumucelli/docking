@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -67,7 +67,7 @@ for (const [lang, route] of Object.entries(languages)) {
     const image = byTag(document, "img").find((node) => attribute(node, "src")?.value === "/hero.gif");
     assert.equal(attribute(image, "fetchpriority").value, "high");
     assert.equal(attribute(image, "width").value, "960");
-    assert.equal(attribute(image, "height").value, "315");
+    assert.equal(attribute(image, "height").value, "540");
     const picture = byTag(document, "picture")[0];
     assert.ok(byTag(picture, "source").every((node) => attribute(node, "media")?.value === "(prefers-reduced-motion: reduce)"));
   });
@@ -127,4 +127,14 @@ test("sitemap includes every canonical language URL and robots allows crawling",
   assert.ok(robots.includes("Sitemap: https://docking.cc/sitemap.xml"));
   assert.ok(!/^Disallow:\s*\/$/m.test(robots));
   assert.deepEqual(await readFile(path.join(dist, "hero.gif")), await readFile(path.join(root, "hero.gif")));
+});
+
+test("the README links to all four built tours", async () => {
+  const readme = await readFile(path.join(root, "../README.md"), "utf8");
+  const links = [...readme.matchAll(/\]\(https:\/\/docking\.cc\/(tours\/[a-z]+\.mp4)\)/g)].map((match) => match[1]);
+  assert.deepEqual(links, ["overview", "applets", "search", "preferences"].map((name) => `tours/${name}.mp4`));
+  assert.deepEqual((await readdir(path.join(dist, "tours"))).sort(), links.map((video) => path.basename(video)).sort());
+  for (const video of links) {
+    assert.deepEqual(await readFile(path.join(dist, video)), await readFile(path.join(root, video)));
+  }
 });

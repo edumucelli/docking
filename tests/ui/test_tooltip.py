@@ -15,6 +15,7 @@ from docking.core.layout import LayoutItem
 from docking.core.position import Position
 from docking.platform.backends.base import Rect as SurfaceRect
 from docking.ui.geometry import DockGeometryFrame, ItemGeometry, Rect
+from docking.ui.interaction import DockInteractionCoordinator
 from docking.ui.tooltip import (
     TOOLTIP_BASE_GAP,
     WRAPPED_TOOLTIP_MAX_WIDTH_CHARS,
@@ -1161,11 +1162,42 @@ def test_open_applet_popup_suppresses_and_cancels_its_tooltip(monkeypatch):
     assert len(scheduled) == 1
 
 
+def test_dock_menu_hides_tooltip_and_blocks_hover_refresh(monkeypatch):
+    tooltip = _make_tooltip()
+    window = tooltip._window
+    window.tooltip = tooltip
+    window.autohide.enabled = False
+    window.dock_hovered = True
+    coordinator = DockInteractionCoordinator(window)
+    tooltip.set_popup_visibility_provider(lambda: coordinator.menu_popup_visible)
+    coordinator.pointer_inside_input_rect = MagicMock(return_value=True)
+    tooltip._tooltip_window = MagicMock()
+    tooltip._pending_show_source = 77
+    removed, scheduled = [], []
+    monkeypatch.setattr(tooltip_mod.GLib, "source_remove", removed.append)
+    monkeypatch.setattr(
+        tooltip_mod.GLib, "idle_add", lambda callback: scheduled.append(callback) or 78
+    )
+    item = _make_item("Telegram")
+    frame = _frame_for_item(item, anchor_x=20.0, anchor_y=10.0)
+
+    coordinator.menu_popup_opened()
+
+    assert removed == [77]
+    tooltip._tooltip_window.hide.assert_called_once()
+    tooltip.update(item, frame)
+    assert scheduled == []
+
+    coordinator.menu_popup_closed()
+    tooltip.update(item, frame)
+    assert len(scheduled) == 1
+
+
 @pytest.mark.parametrize("hovered", [False, True])
 def test_shared_stack_hides_and_cancels_tooltips_until_closed(monkeypatch, hovered):
     tooltip = _make_tooltip()
     owner = MagicMock(return_value="applet://clippy")
-    tooltip.set_stack_owner_provider(owner)
+    tooltip.set_popup_visibility_provider(lambda: owner() is not None)
     item = _make_item("report.txt")
     item.desktop_id = "applet://clippy"
     frame = _frame_for_item(item, anchor_x=20.0, anchor_y=10.0)
@@ -1190,7 +1222,7 @@ def test_shared_stack_hides_and_cancels_tooltips_until_closed(monkeypatch, hover
 def test_queued_tooltip_cannot_reappear_after_a_stack_opens(monkeypatch):
     tooltip = _make_tooltip()
     owner = MagicMock(return_value=None)
-    tooltip.set_stack_owner_provider(owner)
+    tooltip.set_popup_visibility_provider(lambda: owner() is not None)
     item = _make_item("report.txt")
     item.desktop_id = "applet://clippy"
     frame = _frame_for_item(item, anchor_x=20.0, anchor_y=10.0)
