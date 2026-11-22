@@ -13,7 +13,7 @@ from docking.applets.identity import (
     applet_desktop_id,
     parse_applet_id,
 )
-from tools.linux.tours import recorder
+from tools.linux.tours import recorder, scenes
 from tools.linux.tours.recorder import (
     Box,
     Cue,
@@ -66,6 +66,67 @@ def test_music_menu_reopens_until_playback_state_changes(previous, expected):
         (applet_desktop_id("music"), 3),
     ]
     desktop.dismiss.assert_called_once_with(recenter=False)
+
+
+def test_control_lookup_skips_disappeared_accessible_nodes():
+    desktop = recorder.Desktop.__new__(recorder.Desktop)
+    desktop.observer = Mock()
+    desktop.observer.GLib.Error = OSError
+    box = Box(0, 0, 20, 20)
+    disappeared = Mock()
+    disappeared.get_role_name.return_value = "check menu item"
+    disappeared.get_name.side_effect = OSError("Accessible object disappeared")
+    play = Mock()
+    play.get_role_name.return_value = "menu item"
+    play.get_name.return_value = "Play"
+    desktop.controls = Mock(
+        side_effect=[
+            [(disappeared, box)],
+            [(play, box)],
+            [(disappeared, box), (play, box)],
+        ]
+    )
+
+    assert desktop.find("Play") == box
+    assert desktop.menu_labels() == ["Play"]
+
+
+@pytest.mark.parametrize("require_live_data", [True, False])
+def test_messaging_applet_uses_the_recording_mode_and_moved_window_cue(
+    monkeypatch, require_live_data
+):
+    desktop = Mock(scene_start=1.0)
+    desktop.scene.return_value = nullcontext()
+    desktop.move_below_bar.side_effect = lambda _window: setattr(
+        desktop, "scene_start", 2.0
+    )
+    live_hover = Mock()
+    monkeypatch.setattr(scenes, "live_hover", live_hover)
+
+    scenes.applet_left_click(
+        desktop, get_applet_catalog()["telegram"], require_live_data=require_live_data
+    )
+
+    if require_live_data:
+        live_hover.assert_called_once_with(desktop, "telegram")
+        detail = "Left click · Show the QR sign-in screen"
+    else:
+        live_hover.assert_not_called()
+        detail = "Left click · Open Telegram"
+    desktop.scene.assert_called_once_with("Telegram", detail, button=1)
+    desktop.point.assert_called_once_with(applet_desktop_id("telegram"), 1)
+    desktop.window.return_value.close.assert_called_once_with(0)
+    assert desktop.scene_start == 2.0
+
+
+def test_messaging_window_is_optional_with_available_controls(monkeypatch):
+    desktop = Mock()
+    desktop.window.side_effect = AssertionError("Window did not open")
+    monkeypatch.setattr(scenes, "live_hover", Mock())
+
+    scenes.web_login(desktop, "whatsapp", "WhatsApp", require_live_data=False)
+    with pytest.raises(AssertionError, match="Window did not open"):
+        scenes.web_login(desktop, "whatsapp", "WhatsApp")
 
 
 def test_missing_gifski_fails_before_recording(tmp_path, monkeypatch, capsys):

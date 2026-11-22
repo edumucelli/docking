@@ -105,7 +105,10 @@ export async function build() {
   for (const asset of ["app.js", "robots.txt", "sitemap.xml", "hero.gif", "hero.png", "hero-still.webp", "social-preview.png", "social-preview.jpg"]) {
     await cp(path.join(source, asset), path.join(output, asset));
   }
-  await cp(path.join(source, "tours"), path.join(output, "tours"), { recursive: true });
+  await mkdir(path.join(output, "tours"));
+  for (const video of ["overview.mp4", "applets.mp4", "search.mp4", "preferences.mp4"]) {
+    await cp(path.join(source, "tours", video), path.join(output, "tours", video));
+  }
   await cp(path.join(source, "../docking/assets/icons/applets"), path.join(output, "icons"), { recursive: true });
   for (const [size, name] of [[48, "favicon"], [256, "logo"]]) {
     await cp(path.join(source, `../packaging/deb/icons/hicolor/${size}x${size}/apps/org.docking.Docking.png`), path.join(output, `${name}.png`));

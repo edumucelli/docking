@@ -349,12 +349,23 @@ def overview_shelf(desktop: Desktop, folder: str) -> None:
 
 
 def web_login(
-    desktop: Desktop, applet: str, title: str, *, recenter: bool = True
+    desktop: Desktop,
+    applet: str,
+    title: str,
+    *,
+    recenter: bool = True,
+    require_live_data: bool = True,
 ) -> None:
     desktop.dismiss(recenter=recenter)
-    live_hover(desktop, applet)
+    if require_live_data:
+        live_hover(desktop, applet)
     desktop.point(applet_desktop_id(applet), 1)
-    window = desktop.window(title)
+    try:
+        window = desktop.window(title)
+    except AssertionError:
+        if require_live_data:
+            raise
+        return
     desktop.move_below_bar(window)
     desktop.hold(3)
     window.close(0)
@@ -503,7 +514,9 @@ def overview(desktop: Desktop, folder: str) -> None:
         desktop.hold(4)
 
 
-def applet_left_click(desktop: Desktop, meta: AppletMeta) -> None:
+def applet_left_click(
+    desktop: Desktop, meta: AppletMeta, *, require_live_data: bool
+) -> None:
     desktop_id = applet_desktop_id(meta.id)
     action = HOST_LEFT_ACTIONS.get(meta.id)
     private_audio = (
@@ -533,12 +546,20 @@ def applet_left_click(desktop: Desktop, meta: AppletMeta) -> None:
     elif meta.id in PICKER_ACTIONS:
         detail += f" · {PICKER_ACTIONS[meta.id]}"
     elif meta.id in {"telegram", "whatsapp"}:
-        detail += " · Show the QR sign-in screen"
+        detail += (
+            " · Show the QR sign-in screen"
+            if require_live_data
+            else f" · Open {meta.name}"
+        )
     with desktop.scene(meta.name, detail, button=1):
         if meta.id in {"telegram", "whatsapp"}:
-            start = desktop.scene_start
-            web_login(desktop, meta.id, meta.name, recenter=False)
-            desktop.scene_start = start
+            web_login(
+                desktop,
+                meta.id,
+                meta.name,
+                recenter=False,
+                require_live_data=require_live_data,
+            )
             return
         if meta.id in PICKER_ACTIONS:
             desktop.point(desktop_id, 1)
@@ -592,10 +613,8 @@ def applet_left_click(desktop: Desktop, meta: AppletMeta) -> None:
                 )
         else:
             time.sleep(0.55)
-        start = desktop.scene_start
         for window in opened_windows():
             desktop.move_below_bar(window)
-        desktop.scene_start = start
         desktop.hold()
         if meta.id in CLICK_TO_CLOSE:
             desktop.point(desktop_id, 1)
@@ -612,7 +631,7 @@ def applets(
     with desktop.scene(category, "Explore the applets in this category."):
         desktop.hold()
     for meta in entries:
-        applet_left_click(desktop, meta)
+        applet_left_click(desktop, meta, require_live_data=require_live_data)
         with desktop.scene(meta.name, "Right click · Open the context menu", button=3):
             if require_live_data and meta.id != "separator":
                 live_hover(desktop, meta.id)

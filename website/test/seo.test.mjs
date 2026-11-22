@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -133,6 +133,7 @@ test("the README links to all four built tours", async () => {
   const readme = await readFile(path.join(root, "../README.md"), "utf8");
   const links = [...readme.matchAll(/\]\(https:\/\/docking\.cc\/(tours\/[a-z]+\.mp4)\)/g)].map((match) => match[1]);
   assert.deepEqual(links, ["overview", "applets", "search", "preferences"].map((name) => `tours/${name}.mp4`));
+  assert.deepEqual((await readdir(path.join(dist, "tours"))).sort(), links.map((video) => path.basename(video)).sort());
   for (const video of links) {
     assert.deepEqual(await readFile(path.join(dist, video)), await readFile(path.join(root, video)));
   }

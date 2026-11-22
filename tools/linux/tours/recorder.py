@@ -337,9 +337,10 @@ class Desktop:
     def find(self, label: str, *, contains: bool = False) -> Box:
         def match():
             for node, box in self.controls():
-                name = node.get_name()
-                if name and (label in name if contains else name == label):
-                    return box
+                with suppress(self.observer.GLib.Error):
+                    name = node.get_name()
+                    if name and (label in name if contains else name == label):
+                        return box
             return None
 
         return wait_for(match, f"Visible Docking control did not appear: {label}")
@@ -386,11 +387,14 @@ class Desktop:
         return labels
 
     def menu_labels(self) -> list[str]:
-        return [
-            node.get_name()
-            for node, _ in self.controls()
-            if node.get_role_name().endswith("menu item") and node.get_name()
-        ]
+        labels = []
+        for node, _ in self.controls():
+            with suppress(self.observer.GLib.Error):
+                if node.get_role_name().endswith("menu item") and (
+                    name := node.get_name()
+                ):
+                    labels.append(name)
+        return labels
 
     def show_submenus(self, menu=None) -> int:
         if menu is None:
@@ -924,15 +928,10 @@ def session(
                             clip_dir.mkdir()
                             pins = [applet_desktop_id(meta.id) for meta in items]
                             with dock(desktop, clip_dir, base, pins):
-                                prepare_live_applets(
-                                    desktop,
-                                    (
-                                        meta.id
-                                        for meta in items
-                                        if not available_controls
-                                        or meta.id in {"telegram", "whatsapp"}
-                                    ),
-                                )
+                                if not available_controls:
+                                    prepare_live_applets(
+                                        desktop, (meta.id for meta in items)
+                                    )
                                 desktop.point(pins[0])
                                 with capture(desktop, clip_dir):
                                     applets(

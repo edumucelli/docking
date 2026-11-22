@@ -25,8 +25,9 @@ with a desktop image, or select `applets`, `preferences`, or `search` with
 The README's Watch links use the MP4s in `website/tours/`.
 
 The recorder needs Xvfb, xauth, D-Bus, Marco, FFmpeg, and the usual Docking
-runtime dependencies. For the Overview, install Caja, the X11 keyboard tools,
-VLC with D-Bus support, and `pulseaudio` with `pactl`. The recorder plays two
-generated demo tracks on its own virtual audio output. Other application
-launchers appear on the Overview shelf when installed.
+runtime dependencies. Overview, Applets, and Search need Caja. Overview and
+Search need `setxkbmap`. Overview also needs `gsettings`, VLC with D-Bus support,
+and `pulseaudio` with `pactl`. The recorder plays two generated demo tracks on
+its own virtual audio output. Other application launchers appear on the Overview
+shelf when installed.
 Install [Gifski 1.32 or later](https://gif.ski/) to use `--gif`.
