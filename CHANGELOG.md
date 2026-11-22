@@ -4,6 +4,7 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
+- Added Checklist, a saved list with checkboxes and an unchecked item count in the dock.
 - Temporarily disabled the Reddit applet while its RSS feeds are unreliable.
   Existing Reddit pins and preferences are retained.
 - Added contributor guidance, a code of conduct, and a security reporting policy.

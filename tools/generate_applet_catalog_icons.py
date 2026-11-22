@@ -64,6 +64,7 @@ from docking.applets.capslock.render import render_icon as render_capslock
 from docking.applets.capslock.state import LockKeyState
 from docking.applets.certwatch.render import render_icon as render_certwatch
 from docking.applets.certwatch.state import CertStatus
+from docking.applets.checklist.render import render_icon as render_checklist
 from docking.applets.clippy.render import create_icon as render_clippy
 from docking.applets.clock.render import render_icon as render_clock
 from docking.applets.colorpicker.render import create_icon as render_colorpicker
@@ -297,6 +298,7 @@ def _build_pixbufs(*, size: int) -> dict[AppletId, GdkPixbuf.Pixbuf | None]:
             status=CertStatus.OK,
             label="60",
         ),
+        AppletId.CHECKLIST: render_checklist(size=size),
         AppletId.CLIPPY: render_clippy(size=size),
         AppletId.CLOCK: render_clock(
             size=size,
