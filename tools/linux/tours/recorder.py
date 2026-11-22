@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import json
 import os
 import shutil
@@ -16,6 +17,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from docking.applets.identity import applet_desktop_id
+from docking.platform.host.selection import host_services
+from docking.search.config import DEFAULT_GLOBAL_SEARCH_SHORTCUT
 from tests.visual.backends.x11.run import (
     ROOT,
     Observer,
@@ -29,9 +32,13 @@ from tests.visual.backends.x11.run import (
 WIDTH, HEIGHT = 1920, 1080
 ICON_SIZE = 48
 BAR_WIDTH, BAR_HEIGHT = 830, 100
-TOURS = ("overview", "applets", "preferences")
+TOURS = ("overview", "applets", "preferences", "search")
 FOLDER_NAME = "Tour files"
 NOTES_FOLDER_NAME = "Tour notes"
+OVERVIEW_WEATHER_CITIES = (
+    {"city_display": "Paris, France", "lat": 48.8566, "lng": 2.3522},
+    {"city_display": "Belo Horizonte, Brazil", "lat": -19.92, "lng": -43.94},
+)
 
 
 @dataclass(frozen=True)
@@ -70,6 +77,9 @@ class Cue:
     title: str
     detail: str
     bar: Box
+    button: int | None = None
+    mouse_actions: tuple[tuple[float, int], ...] = ()
+    shortcut: str = ""
 
 
 def ass_time(seconds: float) -> str:
@@ -96,16 +106,48 @@ def subtitle_events(cue: Cue) -> str:
     )
     # The strings are checked-in captions and catalog names. ASS treats braces
     # and physical newlines as override syntax and event boundaries.
-    title_text, detail_text = (
+    title_text, detail_text, shortcut_text = (
         " ".join(text.splitlines()).translate(str.maketrans("{}\\", "()／"))
-        for text in (cue.title, cue.detail)
+        for text in (cue.title, cue.detail, cue.shortcut)
     )
     title = rf"{{\pos({bar.x + 22},{bar.y + 12})\fs32}}{title_text}"
     detail = rf"{{\pos({bar.x + 23},{bar.y + 55})}}{detail_text}"
+    layers = [(0, box), (1, title), (1, detail)]
+    if shortcut_text:
+        inset = 71 if cue.button == 3 else 24
+        shortcut = rf"{{\an6\pos({bar.x + width - inset},{bar.y + 50})\fs26\b1}}"
+        layers.append((1, f"{shortcut}{shortcut_text}"))
+    highlights = []
+    if cue.button in (1, 3) or cue.mouse_actions:
+        mouse = rf"\an7\pos({bar.x + width - 61},{bar.y + 24})\p1"
+        body = (
+            "m 18 0 b 28 0 36 8 36 18 l 36 34 "
+            "b 36 44 28 52 18 52 b 8 52 0 44 0 34 l 0 18 b 0 8 8 0 18 0"
+        )
+        buttons = {
+            1: "m 16 4 b 9 5 4 11 4 18 l 4 23 16 23",
+            3: "m 20 4 b 27 5 32 11 32 18 l 32 23 20 23",
+        }
+        if cue.mouse_actions:
+            buttons[4] = "m 15 8 b 15 4 21 4 21 8 l 21 22 b 21 26 15 26 15 22"
+        layers.append((1, rf"{{{mouse}\c&HEEEEEE&}}{body}"))
+        for button, path in buttons.items():
+            color = "F5AD60" if button == cue.button else "534940"
+            layers.append((2, rf"{{{mouse}\c&H{color}&}}{path}"))
+        for index, (when, button) in enumerate(cue.mouse_actions):
+            first = max(cue.start, when)
+            until = min(cue.end, first + 1)
+            if index + 1 < len(cue.mouse_actions):
+                until = min(until, cue.mouse_actions[index + 1][0])
+            if round(first * 100) < round(until * 100):
+                path = buttons[4 if button == 5 else button]
+                highlights.append(
+                    rf"Dialogue: 3,{ass_time(first)},{ass_time(until)},Tour,"
+                    rf"{{{mouse}\c&HF5AD60&}}{path}" + "\n"
+                )
     return "".join(
-        f"Dialogue: {layer},{start},{end},Tour,{line}\n"
-        for layer, line in ((0, box), (1, title), (1, detail))
-    )
+        f"Dialogue: {layer},{start},{end},Tour,{line}\n" for layer, line in layers
+    ) + "".join(highlights)
 
 
 def write_subtitles(path: Path, cues: list[Cue]) -> None:
@@ -163,6 +205,8 @@ class Desktop:
         self.dock_pid = 0
         self.cursor = (WIDTH // 2, HEIGHT // 2)
         self.cues: list[Cue] = []
+        self.track_mouse = False
+        self.mouse_actions: list[tuple[float, int]] = []
         self.started = 0.0
         self.scene_start = 0.0
         self.scene_name = ""
@@ -183,20 +227,21 @@ class Desktop:
                     return x + offset, y + ICON_SIZE // 2
             return None
 
-        return wait_for(anchor, f"Dock item did not appear: {desktop_id}")
+        return wait_for(anchor, f"Dock item did not appear: {desktop_id}", timeout=20)
 
-    def move(self, x: int, y: int) -> None:
+    def move(self, x: int, y: int, *, duration: float = 0.225) -> None:
         start_x, start_y = self.cursor
         if self.cursor == (x, y):
             return
-        for step in range(1, 16):
-            progress = step / 15
+        steps = max(15, round(duration * 60))
+        for step in range(1, steps + 1):
+            progress = step / steps
             eased = progress**2 * (3 - 2 * progress)
             self.pointer.move(
                 round(start_x + (x - start_x) * eased),
                 round(start_y + (y - start_y) * eased),
             )
-            time.sleep(0.015)
+            time.sleep(duration / steps)
         self.cursor = x, y
 
     def point(self, desktop_id: str, button: int = 0) -> None:
@@ -205,22 +250,46 @@ class Desktop:
             # Hover zoom can shift the item between the first move and the click.
             time.sleep(0.15)
             self.move(*self.item(desktop_id))
-            self.pointer.click(button)
+            self.press(button)
 
-    def key(self, name: str) -> None:
-        keyval = self.observer.Gdk.keyval_from_name(name)
-        keycode = self.pointer.xlib.XKeysymToKeycode(self.pointer.display, keyval)
-        if not keycode:
-            raise RuntimeError(f"Key cannot be typed: {name}")
-        for pressed in (1, 0):
-            self.pointer.xtst.XTestFakeKeyEvent(
-                self.pointer.display, keycode, pressed, 0
-            )
+    def press(self, button: int = 1) -> None:
+        self.pointer.click(button)
+        if self.track_mouse and button in (1, 3, 4, 5):
+            self.mouse_actions.append((time.monotonic() - self.started, button))
+
+    def key(self, name: str, *, modifiers: tuple[str, ...] = ()) -> None:
+        keycodes = []
+        for symbol in (*modifiers, name):
+            keyval = self.observer.Gdk.keyval_from_name(symbol)
+            keycode = self.pointer.xlib.XKeysymToKeycode(self.pointer.display, keyval)
+            if not keycode:
+                raise RuntimeError(f"Key cannot be typed: {symbol}")
+            keycodes.append(keycode)
+        for keycode in keycodes:
+            self.pointer.xtst.XTestFakeKeyEvent(self.pointer.display, keycode, 1, 0)
+        for keycode in reversed(keycodes):
+            self.pointer.xtst.XTestFakeKeyEvent(self.pointer.display, keycode, 0, 0)
         self.pointer.xlib.XFlush(self.pointer.display)
 
-    def dismiss(self) -> None:
+    def dismiss(self, *, recenter: bool = True) -> None:
         self.key("Escape")
-        self.move(WIDTH // 2, HEIGHT // 2)
+        if recenter:
+            self.move(WIDTH // 2, HEIGHT // 2)
+
+    def focus_desktop(self) -> None:
+        # The X11 shortcut needs input focus even on an empty desktop.
+        xid = self.window("Docking tour desktop").get_xid()
+        self.pointer.xlib.XSetInputFocus.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_ulong,
+            ctypes.c_int,
+            ctypes.c_ulong,
+        ]
+        revert_to_pointer_root = 1
+        self.pointer.xlib.XSetInputFocus(
+            self.pointer.display, xid, revert_to_pointer_root, 0
+        )
+        self.pointer.xlib.XFlush(self.pointer.display)
 
     def shelf_menu(self, anchor: str = applet_desktop_id("applications")) -> None:
         self.point(anchor)
@@ -228,7 +297,7 @@ class Desktop:
         keycode = self.pointer.xlib.XKeysymToKeycode(self.pointer.display, control)
         self.pointer.xtst.XTestFakeKeyEvent(self.pointer.display, keycode, 1, 0)
         try:
-            self.pointer.click(3)
+            self.press(3)
         finally:
             self.pointer.xtst.XTestFakeKeyEvent(self.pointer.display, keycode, 0, 0)
             self.pointer.xlib.XFlush(self.pointer.display)
@@ -275,20 +344,20 @@ class Desktop:
 
     def click(self, label: str) -> None:
         self.move(*self.find(label).center)
-        self.pointer.click()
+        self.press()
 
-    def wait_role(self, role: str, *, popup: bool = False):
+    def wait_role(self, role: str, *, popup: bool = False, timeout: float = 12):
+        def matching_role():
+            for node, _ in self.controls():
+                with suppress(self.observer.GLib.Error):
+                    if node.get_role_name() == role and (
+                        not popup or self.in_popup(node)
+                    ):
+                        return node
+            return None
+
         return wait_for(
-            lambda: next(
-                (
-                    node
-                    for node, _ in self.controls()
-                    if node.get_role_name() == role
-                    and (not popup or self.in_popup(node))
-                ),
-                None,
-            ),
-            f"Docking {role} did not appear",
+            matching_role, f"Docking {role} did not appear", timeout=timeout
         )
 
     @staticmethod
@@ -303,13 +372,16 @@ class Desktop:
         return bool(parent and parent.get_role_name() == "window")
 
     def popup_labels(self) -> list[str]:
-        return [
-            node.get_name()
-            for node, _ in self.controls()
-            if node.get_role_name() == "label"
-            and self.in_popup(node)
-            and node.get_name()
-        ]
+        labels = []
+        for node, _ in self.controls():
+            with suppress(self.observer.GLib.Error):
+                if (
+                    node.get_role_name() == "label"
+                    and self.in_popup(node)
+                    and (name := node.get_name())
+                ):
+                    labels.append(name)
+        return labels
 
     def menu_labels(self) -> list[str]:
         return [
@@ -394,22 +466,38 @@ class Desktop:
             if not window.is_minimized()
             and window.get_window_type() == self.observer.Wnck.WindowType.NORMAL
         )
-        self.obstacles.extend(
-            box
-            for node, box in self.controls()
-            if node.get_role_name() in {"menu", "tool tip", "dialog", "window"}
-        )
+        for node, box in self.controls():
+            with suppress(self.observer.GLib.Error):
+                if node.get_role_name() in {"menu", "tool tip", "dialog", "window"}:
+                    self.obstacles.append(box)
         time.sleep(seconds)
 
     @contextmanager
-    def scene(self, title: str, detail: str) -> Iterator[None]:
+    def scene(
+        self,
+        title: str,
+        detail: str,
+        *,
+        button: int | None = None,
+        shortcut: str = "",
+    ) -> Iterator[None]:
         self.scene_name = title
         self.obstacles.clear()
+        self.mouse_actions.clear()
         self.scene_start = time.monotonic() - self.started
         yield
         end = time.monotonic() - self.started
         self.cues.append(
-            Cue(self.scene_start, end, title, detail, bar_position(self.obstacles))
+            Cue(
+                self.scene_start,
+                end,
+                title,
+                detail,
+                bar_position(self.obstacles),
+                button,
+                tuple(self.mouse_actions),
+                shortcut,
+            )
         )
 
 
@@ -489,7 +577,7 @@ def capture(desktop: Desktop, directory: Path) -> Iterator[None]:
         "-i",
         "raw.mkv",
         "-vf",
-        "ass=captions.ass",
+        "fps=30,ass=captions.ass",
         "-an",
         "-c:v",
         "libx264",
@@ -574,6 +662,7 @@ def dock(
     items: list[str],
     *,
     tooltips: bool = True,
+    pulse_server: str | None = None,
 ) -> Iterator[None]:
     path = Path(os.environ["XDG_CONFIG_HOME"]) / "docking" / "dock.json"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -591,13 +680,16 @@ def dock(
         "update_check_enabled": False,
         "startup_tips_enabled": False,
         "show_recent_apps": False,
-        "global_search_enabled": False,
+        "global_search_enabled": applet_desktop_id("search") in items,
     }
     path.write_text(json.dumps(config), encoding="utf-8")
+    env = dict(os.environ)
+    if pulse_server:
+        env["PULSE_SERVER"] = pulse_server
     with process(
         [sys.executable, str(ROOT / "run.py")],
         directory / "dock.log",
-        dict(os.environ),
+        env,
         cwd=Path.home(),
     ) as child:
         desktop.dock_pid = child.pid
@@ -668,15 +760,63 @@ def join_chapters(directory: Path, chapters: list[tuple[str, Path]]) -> Path:
     return result
 
 
-def session(directory: Path, tours: list[str]) -> None:
+@contextmanager
+def overview_audio(directory: Path) -> Iterator[str]:
+    runtime = Path(os.environ["XDG_RUNTIME_DIR"]) / "tour-audio"
+    runtime.mkdir(mode=0o700)
+    server = f"unix:{runtime / 'native'}"
+    env = dict(
+        os.environ,
+        PULSE_RUNTIME_PATH=str(runtime),
+        PULSE_STATE_PATH=str(runtime),
+        PULSE_SERVER=server,
+    )
+    with process(
+        [
+            "pulseaudio",
+            "-n",
+            "--daemonize=no",
+            "--exit-idle-time=-1",
+            "--use-pid-file=no",
+            "--load=module-null-sink sink_name=docking_tour",
+            "--load=module-native-protocol-unix auth-anonymous=1",
+        ],
+        directory / "audio.log",
+        env,
+    ):
+        wait_for(
+            lambda: (
+                subprocess.run(
+                    ["pactl", "get-default-sink"],
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=4,
+                ).stdout.strip()
+                == "docking_tour"
+            ),
+            "The private audio server did not start",
+        )
+        subprocess.run(
+            ["pactl", "set-sink-volume", "docking_tour", "50%"], env=env, check=True
+        )
+        yield server
+
+
+def session(
+    directory: Path, tours: list[str], *, available_controls: bool = False
+) -> None:
     from tools.linux.tours.scenes import (
         OVERVIEW_APPLETS,
         OVERVIEW_ITEMS,
         applet_chapters,
         applets,
+        input_then_hover,
+        live_hover,
         overview,
         preferences,
         prepare_live_applets,
+        search,
     )
 
     config = Path(os.environ["XDG_CONFIG_HOME"]) / "docking" / "dock.json"
@@ -694,10 +834,16 @@ def session(directory: Path, tours: list[str]) -> None:
         "quicknote",
         {"note": "Tour checklist\n• Open a window preview\n• Browse the applets"},
     )
-    if "overview" in tours:
+    if {"overview", "applets"}.intersection(tours):
         applet_prefs.setdefault(
             "weather", {"city_display": "Paris, France", "lat": 48.8566, "lng": 2.3522}
         )
+    if "overview" in tours:
+        applet_prefs.setdefault(
+            "certwatch", {"domains": [{"host": "www.eduar.do", "port": 443}]}
+        )
+        # MATE's keyboard backend queries settings in a separate process.
+        os.environ["GSETTINGS_BACKEND"] = "keyfile"
     folder = seed_desktop()
     env = dict(os.environ)
     startup = env.get("DOCKING_TOUR_STARTUP")
@@ -731,6 +877,7 @@ def session(directory: Path, tours: list[str]) -> None:
             wait_for(background_ready, "Desktop background did not appear")
             for tour in tours:
                 desktop.scene_name = f"Starting the {tour} tour"
+                desktop.track_mouse = tour == "overview"
                 print(desktop.scene_name, flush=True)
                 try:
                     if tour == "applets":
@@ -741,16 +888,60 @@ def session(directory: Path, tours: list[str]) -> None:
                             pins = [applet_desktop_id(meta.id) for meta in items]
                             with dock(desktop, clip_dir, base, pins):
                                 prepare_live_applets(
-                                    desktop, (meta.id for meta in items)
+                                    desktop,
+                                    (
+                                        meta.id
+                                        for meta in items
+                                        if not available_controls
+                                        or meta.id in {"telegram", "whatsapp"}
+                                    ),
                                 )
+                                desktop.point(pins[0])
                                 with capture(desktop, clip_dir):
-                                    applets(desktop, items)
+                                    applets(
+                                        desktop,
+                                        items,
+                                        require_live_data=not available_controls,
+                                    )
+                                    (pinned,) = observer.remote("ListPinnedIds")
+                                    if list(pinned) != pins:
+                                        raise RuntimeError(
+                                            f"Pinned applets changed during {name}"
+                                        )
                             chapters.append((name, clip_dir / "clip.mp4"))
                         join_chapters(directory, chapters)
                     else:
                         clip_dir = directory / tour
                         clip_dir.mkdir()
+                        settings = base
                         if tour == "overview":
+                            subprocess.run(
+                                [
+                                    "gsettings",
+                                    "set",
+                                    "org.mate.peripherals-keyboard-xkb.kbd",
+                                    "layouts",
+                                    "['us', 'br']",
+                                ],
+                                check=True,
+                            )
+                            subprocess.run(
+                                ["setxkbmap", "-layout", "us,br"], check=True
+                            )
+                            weather = applet_prefs.get("weather")
+                            settings = {
+                                **base,
+                                "applet_prefs": {
+                                    **applet_prefs,
+                                    "weather": {
+                                        **(
+                                            weather if isinstance(weather, dict) else {}
+                                        ),
+                                        "cities": OVERVIEW_WEATHER_CITIES,
+                                        "active_index": 0,
+                                    },
+                                },
+                            }
                             entries = [item or folder for item in OVERVIEW_ITEMS]
                         else:
                             entries = [
@@ -758,25 +949,49 @@ def session(directory: Path, tours: list[str]) -> None:
                                 folder,
                                 applet_desktop_id("clock"),
                             ]
-                        with dock(
-                            desktop,
-                            clip_dir,
-                            base,
-                            entries,
-                            tooltips=tour != "preferences",
+                            if tour == "search":
+                                subprocess.run(
+                                    ["setxkbmap", "-layout", "us"], check=True
+                                )
+                                entries.insert(1, applet_desktop_id("search"))
+                                settings = dict(
+                                    base,
+                                    dock_shortcut="",
+                                    global_search_shortcut=DEFAULT_GLOBAL_SEARCH_SHORTCUT,
+                                )
+                        with (
+                            (
+                                overview_audio(clip_dir)
+                                if tour == "overview"
+                                else nullcontext()
+                            ) as pulse_server,
+                            dock(
+                                desktop,
+                                clip_dir,
+                                settings,
+                                entries,
+                                tooltips=tour != "preferences",
+                                pulse_server=pulse_server,
+                            ),
                         ):
                             if tour == "overview":
-                                prepare_live_applets(
-                                    desktop,
-                                    (
-                                        app
-                                        for app in OVERVIEW_APPLETS
-                                        if app != "volume"
-                                    ),
+                                prepare_live_applets(desktop, OVERVIEW_APPLETS)
+                                desktop.scene_name = "Preparing both weather forecasts"
+                                live_hover(desktop, "weather", contains="Paris")
+                                input_then_hover(
+                                    desktop, "weather", contains="Belo Horizonte"
                                 )
+                                input_then_hover(
+                                    desktop, "weather", contains="Paris", button=4
+                                )
+                                desktop.point(entries[0])
+                            elif tour == "search":
+                                desktop.focus_desktop()
                             with capture(desktop, clip_dir):
                                 if tour == "overview":
                                     overview(desktop, folder)
+                                elif tour == "search":
+                                    search(desktop)
                                 else:
                                     preferences(desktop)
                         (clip_dir / "clip.mp4").rename(directory / f"{tour}.mp4")
@@ -824,6 +1039,43 @@ def copy_profile(source: Path, target: Path, env: dict[str, str]) -> None:
         env["DOCKING_TOUR_STARTUP"] = str(private_startup)
 
 
+def publish_tours(run: Path, output: Path, filenames: list[str]) -> None:
+    lock_path = output / ".publish.lock"
+    ready, previous = run / "publish", run / "previous"
+    ready.mkdir()
+    previous.mkdir()
+    with (
+        lock_path.open("a+b") as lock,
+        host_services().writer_lock(lock.fileno(), path=lock_path),
+    ):
+        for filename in filenames:
+            os.link(run / filename, ready / filename)
+            with suppress(FileNotFoundError):
+                os.link(output / filename, previous / filename, follow_symlinks=False)
+
+        published = []
+        try:
+            for filename in filenames:
+                (ready / filename).replace(output / filename)
+                published.append(filename)
+        except OSError as error:
+            failed = []
+            for filename in reversed(published):
+                backup, destination = previous / filename, output / filename
+                try:
+                    if os.path.lexists(backup):
+                        backup.replace(destination)
+                    else:
+                        destination.unlink(missing_ok=True)
+                except OSError:
+                    failed.append(filename)
+            if failed:
+                raise OSError(
+                    f"{error}. Could not restore: {', '.join(failed)}"
+                ) from error
+            raise
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", type=Path, help="Prepared demo profile directory")
@@ -833,6 +1085,16 @@ def main() -> int:
     parser.add_argument("--output", type=Path, default=ROOT / "artifacts" / "tours")
     parser.add_argument(
         "--tour", choices=TOURS, action="append", help="Record selected tours"
+    )
+    parser.add_argument(
+        "--gif",
+        action="store_true",
+        help="Also export GIFs using Gifski",
+    )
+    parser.add_argument(
+        "--available-controls",
+        action="store_true",
+        help="Record the full applet catalog with the current device and service setup",
     )
     parser.add_argument("--session", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--background", action="store_true", help=argparse.SUPPRESS)
@@ -847,7 +1109,7 @@ def main() -> int:
         background_window()
         return 0
     if args.session:
-        session(output, tours)
+        session(output, tours, available_controls=args.available_controls)
         return 0
     for executable in (
         "Xvfb",
@@ -857,11 +1119,14 @@ def main() -> int:
         "marco",
         "ffmpeg",
         "ffprobe",
-        *(("caja",) if "overview" in tours else ()),
+        *(("caja",) if {"overview", "applets", "search"}.intersection(tours) else ()),
+        *(("gsettings", "pulseaudio", "pactl") if "overview" in tours else ()),
+        *(("setxkbmap",) if {"overview", "search"}.intersection(tours) else ()),
+        *(("gifski",) if args.gif else ()),
     ):
         if shutil.which(executable) is None:
             parser.error(f"Missing executable: {executable}")
-    if "applets" in tours and args.profile is None:
+    if "applets" in tours and args.profile is None and not args.available_controls:
         parser.error("The complete applet tour requires --profile DIRECTORY")
     profile = args.profile.resolve() if args.profile else None
     if profile and not profile.is_dir():
@@ -875,6 +1140,7 @@ def main() -> int:
         env = private_environment(Path(private), "mate")
         for key in (
             "NO_AT_BRIDGE",
+            "LANGUAGE",
             "GIO_USE_VFS",
             "AT_SPI_BUS_ADDRESS",
             "XAUTHORITY",
@@ -919,15 +1185,41 @@ def main() -> int:
                     "--session",
                     "--output",
                     str(run),
+                    *(["--available-controls"] if args.available_controls else []),
                     *[option for tour in tours for option in ("--tour", tour)],
                 ],
                 cwd=ROOT,
                 env=env,
                 check=True,
             )
-            for tour in tours:
-                (run / f"{tour}.mp4").replace(output / f"{tour}.mp4")
-                print(output / f"{tour}.mp4")
+            if args.gif:
+                for tour in tours:
+                    print(f"Encoding {tour}.gif with Gifski", flush=True)
+                    subprocess.run(
+                        [
+                            "gifski",
+                            "--fast",
+                            "--width",
+                            "1280",
+                            "--fps",
+                            "8",
+                            "--quality",
+                            "85",
+                            "--repeat",
+                            "0",
+                            "--output",
+                            str(run / f"{tour}.gif"),
+                            str(run / f"{tour}.mp4"),
+                        ],
+                        check=True,
+                    )
+            extensions = ("mp4", "gif") if args.gif else ("mp4",)
+            filenames = [
+                f"{tour}.{extension}" for tour in tours for extension in extensions
+            ]
+            publish_tours(run, output, filenames)
+            for filename in filenames:
+                print(output / filename)
         except (OSError, RuntimeError, subprocess.SubprocessError) as error:
             for clip in run.rglob("raw.mkv"):
                 clip.unlink(missing_ok=True)

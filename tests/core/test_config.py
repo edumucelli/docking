@@ -625,6 +625,36 @@ class TestConfigLoad:
             PinnedEntry(kind=FOLDER_KIND, target=folder_uri),
         ]
 
+    def test_load_drops_retired_reddit_pins(self, tmp_path):
+        path = tmp_path / "dock.json"
+        path.write_text(
+            json.dumps(
+                {
+                    "pinned": [
+                        "applet://clock",
+                        "applet://reddit",
+                        {"kind": APPLET_KIND, "target": "applet://reddit#1"},
+                        "reddit.desktop",
+                    ],
+                    "applet_prefs": {"reddit": {"subreddits": ["linux"]}},
+                }
+            )
+        )
+
+        config = Config.load(path)
+
+        assert config.pinned == [
+            PinnedEntry(kind=APPLET_KIND, target="applet://clock"),
+            PinnedEntry(kind=APP_KIND, target="reddit.desktop"),
+        ]
+        config.save()
+        saved = json.loads(path.read_text())
+        assert saved["pinned"] == [
+            {"kind": APPLET_KIND, "target": "applet://clock"},
+            {"kind": APP_KIND, "target": "reddit.desktop"},
+        ]
+        assert saved["applet_prefs"]["reddit"] == {"subreddits": ["linux"]}
+
     def test_load_drops_malformed_pins(self, tmp_path):
         path = tmp_path / "dock.json"
         path.write_text(

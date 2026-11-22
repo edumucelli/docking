@@ -4,13 +4,23 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
+- Removed the Reddit applet because changes to Reddit's RSS feeds broke it.
 - Added contributor guidance, a code of conduct, and a security reporting policy.
 - Moved developer requirements under `tools/` and updated setup commands.
 - Consolidated the user and developer guides and moved testing instructions
   alongside the visual suites.
-- Added a tool to regenerate Docking's overview, applet, and Preferences tour
-  videos. The overview starts with the website demo shelf plus WhatsApp and
-  Telegram, and recordings support custom desktop wallpaper.
+- Added a tool to regenerate Docking's Overview, Applets, Preferences, and Search tour
+  videos. The overview follows the website demo shelf from left to right, adds
+  WhatsApp and Telegram, and shows the certificate status for `www.eduar.do`.
+  It demonstrates System Monitor, Thermals, Keyboard Layout, and two forecast
+  cities, and shows mouse buttons and the scroll wheel as they are used.
+  It demonstrates Volume controls and adds Music from the dock menu.
+  The Preferences tour shows the Ctrl+right-click dock menu shortcut. The Search
+  tour demonstrates its global shortcut from the desktop, app lookup, world
+  time, arithmetic, and unit conversions.
+  The applet tour highlights both mouse buttons, moves directly between
+  applets, and groups the complete catalog by category. Recordings support custom
+  desktop wallpaper and optional GIF export with Gifski.
 
 ## [2.34.0](https://github.com/edumucelli/docking/releases/tag/v2.34.0) (2026-11-21)
 

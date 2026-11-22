@@ -1,4 +1,4 @@
-"""The on-screen interactions and captions for the three Docking tours."""
+"""The on-screen interactions and captions for the Docking tours."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import os
 import re
 import time
 from collections.abc import Iterable
-from contextlib import ExitStack
+from contextlib import ExitStack, nullcontext, suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -25,16 +25,20 @@ if TYPE_CHECKING:
 
 OVERVIEW_APPLETS = (
     "applications",
-    "clock",
+    "systemmonitor",
+    "thermals",
+    "screenshot",
     "weather",
-    "hackernews",
-    "whatsapp",
-    "telegram",
+    "clock",
+    "trash",
     "network",
     "bluetooth",
+    "hackernews",
+    "certwatch",
+    "keyboardlayout",
     "volume",
-    "screenshot",
-    "trash",
+    "whatsapp",
+    "telegram",
 )
 OVERVIEW_ITEMS = (
     applet_desktop_id("applications"),
@@ -59,12 +63,11 @@ OVERVIEW_ITEMS = (
     applet_desktop_id("network"),
     applet_desktop_id("bluetooth"),
     applet_desktop_id("hackernews"),
-    applet_desktop_id("reddit"),
     applet_desktop_id("battery"),
     applet_desktop_id("certwatch"),
     applet_desktop_id("keyboardlayout"),
     applet_desktop_id("desktop"),
-    "eom.desktop",
+    applet_desktop_id("volume"),
     applet_desktop_id("whatsapp"),
     applet_desktop_id("telegram"),
 )
@@ -72,23 +75,74 @@ OVERVIEW_LAUNCHERS = tuple(
     item for item in OVERVIEW_ITEMS if item and item.endswith(".desktop")
 )
 UNAVAILABLE = re.compile(
-    r"^(?:.*\bunavailable\b|loading\b|error:|not connected$|"
-    r"no (?:data|battery|city selected|paired devices|mounted usb devices|"
-    r"microphone source|camera devices|active player|hacker news stories|"
-    r"domains configured|plants configured|mounted devices|networks found)\b|"
-    r".*\b(?:sign in required|offline|waiting for sign.in)\b)",
-    re.IGNORECASE | re.MULTILINE,
+    r"Unavailable|Loading\.\.\.|Not connected|Offline fallback|Error: .+|"
+    r"No (?:data yet|battery|city selected|mounted USB devices|"
+    r"microphone source found|camera devices found|active player|"
+    r"domains configured|plants configured\.?|mounted devices|networks found)|"
+    r"No paired devices; open KDE Connect to pair your phone|"
+    r"Bluetooth: No adapter/service|"
+    r"(?:Bluetooth|Camera state|Camera locking|Keyboard lock state|Microphone state|"
+    r"Power Profiles|System Tray|Thermal readings) unavailable|"
+    r"Docker unavailable: .+|Docker: (?:unavailable|Docker is unavailable)|"
+    r"(?:Hot|Fan): unavailable|"
+    r"(?:Telegram|WhatsApp): (?:browser is unavailable|offline|loading\.\.\.)",
+    re.IGNORECASE,
 )
+APPLET_UNAVAILABLE = {
+    "certwatch": re.compile(r"\S+: unavailable", re.IGNORECASE),
+    "kdeconnect": re.compile(r".+: offline", re.IGNORECASE),
+}
+HACKER_NEWS_STATS = r"\d+ points, \d+ comments\b"
 LIVE_EVIDENCE = {
     "battery": r"\d+%",
     "bluetooth": r"\b[1-9]\d* (?:paired|connected)\b|(?:Paired|Connected): [1-9]",
-    "hackernews": r"\b(?:points?|comments?)\b",
+    "certwatch": r"\b\d+d (?:left|ago)\b",
+    "hackernews": HACKER_NEWS_STATS,
     "network": r"\b(?:IP|WiFi|Ethernet):",
+    "systemmonitor": r"\bCPU: [\d.]+% \| Mem: [\d.]+%",
     "telegram": r"\bTelegram: scan the QR code\b",
+    "thermals": r"\bHot: .*\d+°[CF]",
     "volume": r"\bVolume: \d+%|\bMuted\b",
     "weather": r"\d+°[CF]",
     "whatsapp": r"\bWhatsApp: scan the QR code\b",
 }
+NO_LEFT_ACTION = {
+    "aiusage",
+    "battery",
+    "camshield",
+    "deskpresence",
+    "network",
+    "separator",
+    "systemmonitor",
+    "thermals",
+    "usbwatch",
+}
+HOST_LEFT_ACTIONS = {
+    "bluetooth": "Toggle the Bluetooth adapter",
+    "brightness": "Set the display to full brightness",
+    "micshield": "Toggle microphone mute",
+    "powerprofiles": "Switch to the next power profile",
+    "session": "Lock the screen",
+    "volume": "Toggle output mute",
+}
+BROWSER_LAUNCHERS = {
+    "apod",
+    "bookmarks",
+    "hackernews",
+    "lastfm",
+    "news",
+}
+WINDOW_LAUNCHERS = BROWSER_LAUNCHERS | {
+    "kdeconnect",
+    "music",
+    "recentfiles",
+    "trash",
+}
+PICKER_ACTIONS = {
+    "colorpicker": "Pick a color",
+    "windowkiller": "Choose a window to close",
+}
+CLICK_TO_CLOSE = {"calculator", "calendar", "clock", "systemtray", "unitconverter"}
 
 
 def applet_chapters() -> list[tuple[str, list[AppletMeta]]]:
@@ -105,31 +159,56 @@ def applet_chapters() -> list[tuple[str, list[AppletMeta]]]:
     ]
 
 
-def applet_menu(desktop: Desktop, applet: str) -> None:
+def applet_menu(desktop: Desktop, applet: str, *, require_live_data: bool = True):
     desktop.point(applet_desktop_id(applet), 3)
-    desktop.wait_role("menu")
-    verify_status(desktop.menu_labels())
+    if require_live_data:
+        menu = desktop.wait_role("menu")
+        verify_status(desktop.menu_labels(), applet=applet)
+        return menu
+    with suppress(AssertionError):
+        return desktop.wait_role("menu", timeout=4)
+    return None
 
 
-def verify_status(labels: list[str]) -> None:
-    for label in labels:
-        if UNAVAILABLE.search(label):
-            raise RuntimeError(f"Docking reports an unavailable state: {label}")
+def unavailable_status(labels: list[str], *, applet: str) -> str | None:
+    lines = [line.strip() for label in labels for line in label.splitlines()]
+    if applet == "hackernews":
+        # Both the tooltip and the menu put the headline immediately before its stats.
+        for index, line in enumerate(lines[1:], start=1):
+            if re.match(HACKER_NEWS_STATS, line):
+                del lines[index - 1]
+                break
+    specific = APPLET_UNAVAILABLE.get(applet)
+    return next(
+        (
+            line
+            for line in lines
+            if UNAVAILABLE.fullmatch(line) or (specific and specific.fullmatch(line))
+        ),
+        None,
+    )
 
 
-def live_hover(desktop: Desktop, applet: str) -> None:
+def verify_status(labels: list[str], *, applet: str = "") -> None:
+    if status := unavailable_status(labels, applet=applet):
+        raise RuntimeError(f"Docking reports an unavailable state: {status}")
+
+
+def live_hover(desktop: Desktop, applet: str, *, contains: str = "") -> None:
     pattern = LIVE_EVIDENCE.get(applet)
     desktop.point(applet_desktop_id(applet))
 
     def populated():
         labels = desktop.popup_labels()
-        if any(UNAVAILABLE.search(label) for label in labels):
+        if unavailable_status(labels, applet=applet):
             return False
-        return bool(labels) and (
+        return any(contains in label for label in labels) and (
             pattern is None or any(re.search(pattern, label, re.I) for label in labels)
         )
 
-    wait_for(populated, f"Live {applet} data did not appear", timeout=25)
+    timeout = 60 if applet in {"telegram", "whatsapp"} else 25
+    expected = f" for {contains}" if contains else ""
+    wait_for(populated, f"Live {applet} data{expected} did not appear", timeout=timeout)
 
 
 def prepare_live_applets(desktop: Desktop, applet_ids: Iterable[str]) -> None:
@@ -141,12 +220,35 @@ def prepare_live_applets(desktop: Desktop, applet_ids: Iterable[str]) -> None:
     desktop.dismiss()
 
 
+def input_then_hover(
+    desktop: Desktop, applet: str, *, contains: str, button: int = 5
+) -> None:
+    desktop_id = applet_desktop_id(applet)
+    desktop.point(desktop_id, button)
+    time.sleep(0.35)
+    # Reposition the pointer so the tooltip picks up the result of the input.
+    x, y = desktop.item(desktop_id)
+    desktop.move(x, y - 2)
+    live_hover(desktop, applet, contains=contains)
+
+
 def overview_shelf(desktop: Desktop, folder: str) -> None:
     with desktop.scene("Docking", "Your apps, files and tools on one shelf."):
-        items = [item or folder for item in OVERVIEW_ITEMS]
-        for item in (*items[::3], items[-1]):
-            desktop.point(item)
+        desktop.point(applet_desktop_id("applications"))
+        desktop.move(*desktop.item(applet_desktop_id("telegram")), duration=6)
         desktop.hold()
+
+    # Start the walkthrough at the first item after the opening sweep.
+    desktop.cursor = desktop.item(applet_desktop_id("applications"))
+    desktop.pointer.move(*desktop.cursor)
+    with desktop.scene("Applications", "Find installed apps by category or by name."):
+        desktop.point(applet_desktop_id("applications"), 1)
+        desktop.wait_role("menu")
+        for key in "caja":
+            desktop.key(key)
+        desktop.find("Caja", contains=True)
+        desktop.hold()
+        desktop.dismiss(recenter=False)
 
     with desktop.scene(
         "Application menus", "Open actions for an application from the shelf."
@@ -183,106 +285,49 @@ def overview_shelf(desktop: Desktop, folder: str) -> None:
             desktop.window(title)
         x, y, width, height = desktop.window(starting_window).get_geometry()
         desktop.move(x + width // 2, y + height // 2)
-        desktop.pointer.click()
+        desktop.press()
         desktop.wait_active(starting_window)
         desktop.hold(0.4)
         desktop.point("caja.desktop")
         thumbnail = desktop.find(target)
         desktop.move(*thumbnail.center)
         desktop.hold()
-        desktop.pointer.click()
+        desktop.press()
         desktop.wait_active(target)
         desktop.hold()
         for title in (target, starting_window):
             desktop.window(title).close(0)
 
+    with desktop.scene("System Monitor", "Hover to see live CPU and memory usage."):
+        live_hover(desktop, "systemmonitor")
+        desktop.hold()
+
+    with desktop.scene("Thermals", "Hover to see current temperatures and fan speed."):
+        live_hover(desktop, "thermals")
+        desktop.hold()
+
     with desktop.scene("Folder stacks", "Open a pinned folder and browse its files."):
         desktop.point(folder, 1)
         desktop.wait_role("drawing area", popup=True)
         desktop.hold()
-        desktop.dismiss()
-
-    with desktop.scene("Applications", "Find installed apps by category or by name."):
-        desktop.point(applet_desktop_id("applications"), 1)
-        desktop.wait_role("menu")
-        for key in "caja":
-            desktop.key(key)
-        desktop.find("Caja", contains=True)
-        desktop.hold()
-        desktop.dismiss()
-
-    with desktop.scene("Clock", "Left-click the clock to open the calendar."):
-        desktop.point(applet_desktop_id("clock"), 1)
-        desktop.wait_role("calendar")
-        desktop.hold()
-        desktop.point(applet_desktop_id("clock"), 1)
-        desktop.dismiss()
+        desktop.dismiss(recenter=False)
 
 
-def web_login(desktop: Desktop, applet: str, title: str) -> None:
-    desktop.dismiss()
+def web_login(
+    desktop: Desktop, applet: str, title: str, *, recenter: bool = True
+) -> None:
+    desktop.dismiss(recenter=recenter)
     live_hover(desktop, applet)
     desktop.point(applet_desktop_id(applet), 1)
     window = desktop.window(title)
     desktop.move_below_bar(window)
     desktop.hold(3)
     window.close(0)
-    desktop.dismiss()
+    desktop.dismiss(recenter=recenter)
 
 
 def overview(desktop: Desktop, folder: str) -> None:
     overview_shelf(desktop, folder)
-
-    with desktop.scene(
-        "Weather", "Hover for current conditions and the city forecast."
-    ):
-        live_hover(desktop, "weather")
-        desktop.hold()
-
-    with desktop.scene("Hacker News", "Scroll to browse live headlines from the dock."):
-        live_hover(desktop, "hackernews")
-        desktop.hold()
-        desktop.pointer.click(5)
-        desktop.hold()
-
-    with desktop.scene("WhatsApp", "Open WhatsApp and scan the QR code to connect."):
-        web_login(desktop, "whatsapp", "WhatsApp")
-
-    with desktop.scene("Telegram", "Open Telegram and scan the QR code to connect."):
-        web_login(desktop, "telegram", "Telegram")
-
-    with desktop.scene("Network", "See connection details and live traffic."):
-        live_hover(desktop, "network")
-        desktop.hold()
-        applet_menu(desktop, "network")
-        desktop.hold()
-        desktop.key("Escape")
-
-    with desktop.scene("Bluetooth", "See paired devices and their available actions."):
-        live_hover(desktop, "bluetooth")
-        applet_menu(desktop, "bluetooth")
-        if not desktop.show_submenus():
-            raise RuntimeError("No paired Bluetooth device submenu appeared")
-        desktop.key("Escape")
-
-    with desktop.scene("Volume", "Add Volume to see the current level and mute state."):
-        desktop.shelf_menu(applet_desktop_id("clock"))
-        desktop.move(*desktop.find("Add Applet").center)
-        desktop.move(*desktop.find(AppletCategory.SYSTEM.value).center)
-        desktop.hold(0.6)
-        desktop.click("Volume")
-        desktop.dismiss()
-        desktop.hold(0.3)
-        live_hover(desktop, "volume")
-        desktop.hold()
-        applet_menu(desktop, "volume")
-        desktop.click("Show Level")
-        desktop.dismiss()
-        desktop.point(applet_desktop_id("volume"))
-        desktop.hold()
-        applet_menu(desktop, "volume")
-        desktop.click("Remove from Dock")
-        desktop.dismiss()
 
     with desktop.scene("Screenshot", "Capture the whole desktop, a window or an area."):
         applet_menu(desktop, "screenshot")
@@ -290,7 +335,28 @@ def overview(desktop: Desktop, folder: str) -> None:
         desktop.click("Region")
         desktop.hold()
         desktop.key("Escape")
-        desktop.dismiss()
+        desktop.dismiss(recenter=False)
+
+    with desktop.scene(
+        "Weather", "Scroll to switch the forecast from Paris to Belo Horizonte."
+    ):
+        live_hover(desktop, "weather", contains="Paris")
+        desktop.hold()
+        input_then_hover(desktop, "weather", contains="Belo Horizonte")
+        desktop.hold()
+
+    with desktop.scene("Clock", "Left-click the clock to open or close the calendar."):
+        desktop.point(applet_desktop_id("clock"), 1)
+        calendar = desktop.wait_role("calendar")
+        desktop.hold()
+        desktop.point(applet_desktop_id("clock"), 1)
+        wait_for(
+            lambda: (
+                not calendar.get_state_set().contains(desktop.atspi.StateType.SHOWING)
+            ),
+            "Clock calendar did not close on the second click",
+        )
+        desktop.hold(0.8)
 
     with desktop.scene("Trash", "Open the trash directly from the shelf."):
         desktop.hold(0.25)
@@ -302,50 +368,249 @@ def overview(desktop: Desktop, folder: str) -> None:
         desktop.hold()
         window.close(0)
 
+    with desktop.scene("Network", "See connection details and live traffic."):
+        live_hover(desktop, "network")
+        desktop.hold()
+        applet_menu(desktop, "network")
+        desktop.hold()
+        desktop.key("Escape")
+
+    with desktop.scene("Bluetooth", "See paired devices and their available actions."):
+        live_hover(desktop, "bluetooth")
+        applet_menu(desktop, "bluetooth")
+
+        def paired_device():
+            for node, box in desktop.controls():
+                with suppress(desktop.observer.GLib.Error):
+                    label = node.get_name()
+                    if label and re.search(
+                        r"\((?:Connected, )?Paired(?:, \d+%)?\)$", label
+                    ):
+                        return box
+            return None
+
+        device = wait_for(paired_device, "No paired Bluetooth device appeared")
+        desktop.move(*device.center)
+        wait_for(
+            lambda: {"Connect", "Disconnect", "Remove Pairing"}.intersection(
+                desktop.menu_labels()
+            ),
+            "Paired Bluetooth device submenu did not open",
+        )
+        desktop.hold(0.9)
+        desktop.key("Escape")
+        desktop.dismiss(recenter=False)
+
+    with desktop.scene("Hacker News", "Scroll to browse live headlines from the dock."):
+        live_hover(desktop, "hackernews")
+        desktop.hold()
+        desktop.press(5)
+        desktop.hold()
+
+    with desktop.scene(
+        "Cert Watch", "Hover to check when the site's TLS certificate expires."
+    ):
+        live_hover(desktop, "certwatch")
+        desktop.hold(2.3)
+
+    with desktop.scene(
+        "Keyboard Layout", "Scroll to switch between English and Brazilian Portuguese."
+    ):
+        live_hover(desktop, "keyboardlayout", contains="English (US)")
+        desktop.hold()
+        input_then_hover(desktop, "keyboardlayout", contains="Portuguese (BR)")
+        desktop.hold()
+        applet_menu(desktop, "keyboardlayout")
+        desktop.find("Portuguese (BR)", contains=True)
+        desktop.hold()
+        desktop.dismiss(recenter=False)
+
+    with desktop.scene(
+        "Volume", "Click to mute or unmute. Scroll to change the level."
+    ):
+        live_hover(desktop, "volume", contains="Volume: 50%")
+        desktop.hold(0.7)
+        input_then_hover(desktop, "volume", contains="Muted", button=1)
+        desktop.hold(0.85)
+        input_then_hover(desktop, "volume", contains="Volume: 50%", button=1)
+        desktop.hold(0.6)
+        input_then_hover(desktop, "volume", contains="Volume: 55%", button=4)
+        desktop.hold(0.85)
+        input_then_hover(desktop, "volume", contains="Volume: 50%")
+        desktop.hold(0.85)
+
+    with desktop.scene("WhatsApp", "Open WhatsApp and scan the QR code to connect."):
+        web_login(desktop, "whatsapp", "WhatsApp", recenter=False)
+
+    with desktop.scene("Telegram", "Open Telegram and scan the QR code to connect."):
+        web_login(desktop, "telegram", "Telegram", recenter=False)
+
+    with desktop.scene(
+        "Add Music", "Choose Add Applet, then System & Power and Music."
+    ):
+        desktop.shelf_menu(applet_desktop_id("telegram"))
+        desktop.move(*desktop.find("Add Applet").center)
+        desktop.move(*desktop.find(AppletCategory.SYSTEM.value).center)
+        desktop.hold(0.6)
+        desktop.click("Music")
+        desktop.dismiss(recenter=False)
+        desktop.item(applet_desktop_id("music"))
+        desktop.hold()
+
     with desktop.scene(
         "More applets in action",
         "Watch the Docking Applets Tour for a chapter-by-chapter walkthrough.",
     ):
-        desktop.dismiss()
+        desktop.dismiss(recenter=False)
         desktop.hold(4)
 
 
-def applets(desktop: Desktop, entries: list[AppletMeta]) -> None:
+def applet_left_click(desktop: Desktop, meta: AppletMeta) -> None:
+    desktop_id = applet_desktop_id(meta.id)
+    action = HOST_LEFT_ACTIONS.get(meta.id)
+    private_audio = (
+        meta.id in {"micshield", "volume"}
+        and not os.environ.get("PULSE_SERVER")
+        and (Path(os.environ["XDG_RUNTIME_DIR"]) / "pulse/native").is_socket()
+    )
+    if action and not private_audio:
+        # The X11 session isolates the dock, but these controls change the host.
+        with desktop.scene(meta.name, f"Left click · {action}", button=1):
+            desktop.point(desktop_id)
+            desktop.hold()
+            desktop.dismiss(recenter=False)
+        return
+
+    detail = "Left click"
+    if action:
+        detail += f" · {action}"
+    elif meta.id in NO_LEFT_ACTION:
+        detail += " · No action assigned"
+    elif meta.id == "desktop":
+        detail += " · Show the desktop"
+    elif meta.id == "devices":
+        detail += " · Browse the devices stack"
+    elif meta.id == "search":
+        detail += " · Open Docking Search"
+    elif meta.id in PICKER_ACTIONS:
+        detail += f" · {PICKER_ACTIONS[meta.id]}"
+    elif meta.id in {"telegram", "whatsapp"}:
+        detail += " · Show the QR sign-in screen"
+    with desktop.scene(meta.name, detail, button=1):
+        if meta.id in {"telegram", "whatsapp"}:
+            start = desktop.scene_start
+            web_login(desktop, meta.id, meta.name, recenter=False)
+            desktop.scene_start = start
+            return
+        if meta.id in PICKER_ACTIONS:
+            desktop.point(desktop_id, 1)
+            # The picker covers the desktop and draws its controls at the pointer.
+            time.sleep(1.7)
+            desktop.dismiss(recenter=False)
+            return
+        if meta.id == "desktop":
+            with process(
+                [
+                    "caja",
+                    "--no-desktop",
+                    "--browser",
+                    "--geometry=530x360+310+245",
+                    str(Path.home() / FOLDER_NAME),
+                ],
+                desktop.observer.output / "caja-show-desktop.log",
+                dict(os.environ),
+            ):
+                desktop.wait_active(FOLDER_NAME)
+                desktop.hold(0.6)
+                desktop.point(desktop_id, 1)
+                desktop.hold()
+                desktop.point(desktop_id, 1)
+            desktop.dismiss(recenter=False)
+            return
+
+        existing = {window.get_xid() for window in desktop.observer.windows()}
+        window_type = desktop.observer.Wnck.WindowType
+
+        def opened_windows():
+            return [
+                window
+                for window in desktop.observer.windows()
+                if window.get_xid() not in existing
+                and window.get_window_type() in {window_type.NORMAL, window_type.DIALOG}
+            ]
+
+        desktop.point(desktop_id, 1)
+        if meta.id == "clock":
+            desktop.wait_role("calendar")
+        elif meta.id == "quicknote":
+            desktop.window("Quick Note")
+        elif meta.id == "search":
+            desktop.wait_active("Docking Search")
+        if meta.id in WINDOW_LAUNCHERS:
+            timeout = 30 if meta.id in BROWSER_LAUNCHERS else 6
+            with suppress(AssertionError):
+                wait_for(
+                    opened_windows, f"{meta.name} opened no window", timeout=timeout
+                )
+        else:
+            time.sleep(0.55)
+        start = desktop.scene_start
+        for window in opened_windows():
+            desktop.move_below_bar(window)
+        desktop.scene_start = start
+        desktop.hold()
+        if meta.id in CLICK_TO_CLOSE:
+            desktop.point(desktop_id, 1)
+        desktop.dismiss(recenter=False)
+        for window in opened_windows():
+            window.close(0)
+        wait_for(lambda: not opened_windows(), f"{meta.name} windows did not close")
+
+
+def applets(
+    desktop: Desktop, entries: list[AppletMeta], *, require_live_data: bool = True
+) -> None:
     category = entries[0].category.value
     with desktop.scene(category, "Explore the applets in this category."):
         desktop.hold()
     for meta in entries:
-        with desktop.scene(meta.name, f"{category} · Applet menu and controls"):
-            if meta.id != "separator":
+        applet_left_click(desktop, meta)
+        with desktop.scene(meta.name, "Right click · Open the context menu", button=3):
+            if require_live_data and meta.id != "separator":
                 live_hover(desktop, meta.id)
                 desktop.hold(0.6)
-            applet_menu(desktop, meta.id)
+            menu = applet_menu(desktop, meta.id, require_live_data=require_live_data)
             desktop.hold()
-            desktop.show_submenus()
-            if meta.id == "clock":
-                desktop.click("Set Alarm...")
-                desktop.window("Set Alarm")
-                desktop.hold()
-                desktop.key("Escape")
-            elif meta.id == "quicknote":
-                desktop.key("Escape")
-                desktop.point(applet_desktop_id(meta.id), 1)
-                desktop.window("Quick Note")
-                desktop.hold()
-                desktop.key("Escape")
-            else:
-                desktop.key("Escape")
-            desktop.dismiss()
-        if meta.id in {"whatsapp", "telegram"}:
-            with desktop.scene(meta.name, "Scan the QR code to connect."):
-                web_login(desktop, meta.id, meta.name)
+            if menu is not None:
+                with (
+                    nullcontext()
+                    if require_live_data
+                    else suppress(AssertionError, desktop.observer.GLib.Error)
+                ):
+                    desktop.show_submenus(menu)
+                    if meta.id == "clock":
+                        desktop.click("Set Alarm...")
+                        desktop.window("Set Alarm")
+                        desktop.hold()
+            desktop.key("Escape")
+            desktop.dismiss(recenter=False)
+
+
+def preferences_dock_menu(desktop: Desktop) -> None:
+    with desktop.scene(
+        "Dock menu",
+        "Hold Ctrl and right-click an item on the dock.",
+        button=3,
+        shortcut="Ctrl +",
+    ):
+        desktop.shelf_menu()
+        desktop.wait_role("menu")
+        desktop.hold(1)
 
 
 def preferences(desktop: Desktop) -> None:
+    preferences_dock_menu(desktop)
     with desktop.scene("Preferences", "Open Preferences from the shelf menu."):
-        desktop.shelf_menu()
-        desktop.wait_role("menu")
-        desktop.hold(0.55)
         desktop.click("Preferences")
         window = desktop.window("Preferences")
         desktop.move_below_bar(window)
@@ -371,12 +636,10 @@ def preferences(desktop: Desktop) -> None:
                 desktop.hold()
     window.close(0)
 
+    preferences_dock_menu(desktop)
     with desktop.scene(
         "Diagnostics", "Review the desktop session and available features."
     ):
-        desktop.shelf_menu()
-        desktop.wait_role("menu")
-        desktop.hold(0.55)
         desktop.click("Diagnostics")
         window = desktop.window("Diagnostics")
         desktop.move_below_bar(window)
@@ -390,3 +653,42 @@ def preferences(desktop: Desktop) -> None:
         desktop.move_below_bar(desktop.window("Save Diagnostics Report"))
         desktop.hold()
         desktop.key("Escape")
+
+
+def search(desktop: Desktop) -> None:
+    with desktop.scene(
+        "Docking Search",
+        "Open Search from anywhere on the desktop.",
+        shortcut="Ctrl+Alt+Space",
+    ):
+        desktop.hold(0.6)
+        desktop.key("space", modifiers=("Control_L", "Alt_L"))
+        desktop.wait_active("Docking Search")
+        desktop.hold()
+
+    examples = (
+        ("Applications", "Type an application name to find it.", "caja", "Caja"),
+        (
+            "World clock",
+            "Look up the current time in another city.",
+            "time in paris",
+            "Europe/Paris",
+        ),
+        ("Calculator", "Evaluate an expression while you type.", "252/6", "42"),
+        (
+            "Unit conversion",
+            "Convert a distance between units.",
+            "10 km to miles",
+            "6.213",
+        ),
+    )
+    key_names = {" ": "space", "/": "slash"}
+    for title, detail, query, result in examples:
+        with desktop.scene(title, detail):
+            desktop.key("a", modifiers=("Control_L",))
+            for char in query:
+                desktop.key(key_names.get(char, char))
+                time.sleep(0.09)
+            desktop.find(result, contains=True)
+            desktop.hold(2)
+    desktop.key("Escape")

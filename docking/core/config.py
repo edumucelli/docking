@@ -156,7 +156,11 @@ from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from docking.applets.identity import applet_desktop_id, is_applet_desktop_id
+from docking.applets.identity import (
+    applet_desktop_id,
+    is_applet_desktop_id,
+    parse_applet_id,
+)
 from docking.core.items import APP_KIND, APPLET_KIND, FILE_KIND, FOLDER_KIND, ItemKind
 from docking.core.json_types import coerce_bool
 from docking.core.paths import ensure_parent_dir, local_path_from_uri_or_path
@@ -1383,6 +1387,8 @@ def normalize_pinned_entries(raw_entries: object) -> list[PinnedEntry]:
     for raw in raw_entries:
         entry = PinnedEntry.from_raw(raw)
         if entry is None:
+            continue
+        if entry.kind == APPLET_KIND and parse_applet_id(entry.target) == "reddit":
             continue
         identity = (entry.kind, entry.target)
         if identity in seen:

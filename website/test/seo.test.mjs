@@ -67,7 +67,7 @@ for (const [lang, route] of Object.entries(languages)) {
     const image = byTag(document, "img").find((node) => attribute(node, "src")?.value === "/hero.gif");
     assert.equal(attribute(image, "fetchpriority").value, "high");
     assert.equal(attribute(image, "width").value, "960");
-    assert.equal(attribute(image, "height").value, "315");
+    assert.equal(attribute(image, "height").value, "540");
     const picture = byTag(document, "picture")[0];
     assert.ok(byTag(picture, "source").every((node) => attribute(node, "media")?.value === "(prefers-reduced-motion: reduce)"));
   });
