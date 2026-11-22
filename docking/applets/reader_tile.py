@@ -1,4 +1,4 @@
-"""Cairo tile rendering for the News applet."""
+"""Shared Cairo tile rendering for the News and Reddit RSS applets."""
 
 from __future__ import annotations
 

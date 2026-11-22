@@ -1,6 +1,6 @@
 # Applets
 
-Docking includes 66 built-in applets that live alongside
+Docking includes 67 built-in applets that live alongside
 application launchers, files, and folders. Applets can launch workflows,
 show live information, adjust system settings, or provide small tools
 without opening a full application.
@@ -50,7 +50,7 @@ hidden from the menu.
 - **Information and Environment:** [Astronomy Picture of the Day](#astronomy-picture-of-the-day),
   [Crypto](#crypto), [Currency FX](#currency-fx), [Hacker News](#hacker-news),
   [Last.fm](#lastfm), [Moon](#moon), [News](#news), [Quote](#quote),
-  [Random Trivia](#random-trivia), [Sunrise](#sunrise),
+  [Random Trivia](#random-trivia), [Reddit](#reddit), [Sunrise](#sunrise),
   [Today in History](#today-in-history), [Weather](#weather)
 - **Other:** [Separator](#separator)
 
@@ -873,6 +873,24 @@ Quick trivia applet with local and online questions. The tooltip shows the curre
 - **Answer choices** -- pick an answer from the current question
 - **Next Trivia**
 - **Refresh from Web**
+
+### Reddit
+
+Browse posts from your favorite subreddits. Choose one or more subreddits,
+switch between Hot/New/Top/Rising feeds, and open the selected Reddit thread in
+the default browser.
+
+**Click:** Open the current Reddit post, or add a subreddit when no post is loaded
+**Scroll:** Cycle through fetched posts
+**Right-click options:**
+
+- **Open Post**
+- **Previous Headline** / **Next Headline**
+- **Subreddit** -- switch between configured sources
+- **Sort** -- Hot, New, Top, or Rising
+- **Top Period** -- day, week, month, year, or all time
+- **Add Subreddit...** / **Remove r/{subreddit}**
+- **Refresh Now**
 
 ### Sunrise
 

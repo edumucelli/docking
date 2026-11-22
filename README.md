@@ -10,6 +10,8 @@
 [![License](https://img.shields.io/github/license/edumucelli/docking)](LICENSE)
 [![Last commit](https://img.shields.io/github/last-commit/edumucelli/docking)](https://github.com/edumucelli/docking/commits/master)
 
+[Website](https://docking.cc/) · Watch: [overview tour](https://docking.cc/tours/overview.mp4), [applets tour](https://docking.cc/tours/applets.mp4), [search tour](https://docking.cc/tours/search.mp4), [preferences tour](https://docking.cc/tours/preferences.mp4) · [Install](#installation) · [Features](#highlights) · [Changelog](CHANGELOG.md)
+
 A lightweight, feature-rich dock for Linux, FreeBSD, OpenBSD, NetBSD, and [Windows 11 x64](docs/INSTALLATION.md#windows-preview). Written in Python with GTK 3 and Cairo, inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
 
 ![Docking in action](images/all.gif)
@@ -21,7 +23,7 @@ A lightweight, feature-rich dock for Linux, FreeBSD, OpenBSD, NetBSD, and [Windo
 - Linux desktop integration across X11 and Wayland, with backend-specific
   capabilities and reduced fallback mode.
 - Unified search for applications, windows, recent files, calculations, and paths.
-- 66 built-in applets for messaging, media, productivity, system controls, and more.
+- 67 built-in applets for messaging, media, productivity, system controls, and more.
 - Flexible placement across monitors, auto-hide, separators, scalable icons,
   custom icons, and 13 built-in themes.
 - AppImage, Debian, RPM, Flatpak, Snap, Arch, and Nix release packages, native BSD
@@ -122,7 +124,7 @@ instructions, and theme field reference.
 
 ## Applets
 
-Docking includes 66 built-in applets, ranging from application
+Docking includes 67 built-in applets, ranging from application
 launchers and system controls to productivity tools, wellness reminders, and
 live information.
 
@@ -134,7 +136,7 @@ live information.
 | Time & Productivity | Clock, Calendar, Alarm, Pomodoro, Calculator, Quick Note |
 | System & Power | Devices, Network, Bluetooth, Volume, Battery, System Tray |
 | Wellness & Ambient | Hydration, Plant Care, Stretch Coach, Ambient, Pet |
-| Information and Environment | Weather, Sunrise, Moon, News, Hacker News |
+| Information and Environment | Weather, Sunrise, Moon, News, Reddit, Hacker News |
 
 Add one from right-click -> **Add Applet**, then choose a category. See the
 [Applets guide](docs/APPLETS.md) for the complete catalog, interactions,

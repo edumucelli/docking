@@ -22,6 +22,7 @@ Run `python -m tools.linux.tours --tour overview --gif` from the checkout to
 write `overview.mp4` and `overview.gif` in `artifacts/tours/`. Use `--wallpaper`
 with a desktop image, or select `applets`, `preferences`, or `search` with
 `--tour`. The full Applets tour uses a prepared demo profile with `--profile`.
+The README's Watch links use the MP4s in `website/tours/`.
 
 The recorder needs Xvfb, xauth, D-Bus, Marco, FFmpeg, and the usual Docking
 runtime dependencies. For the Overview, install Caja, the X11 keyboard tools,

@@ -15,6 +15,7 @@ def make_fetch_applet(name, monkeypatch, tmp_path, *, error=False):
         "crypto": "CryptoApplet",
         "currencyfx": "CurrencyFxApplet",
         "news": "NewsApplet",
+        "reddit": "RedditApplet",
     }
     module = import_module(f"docking.applets.{name}.applet")
     config = Config.load(tmp_path / "dock.json")
@@ -34,11 +35,16 @@ def make_fetch_applet(name, monkeypatch, tmp_path, *, error=False):
         from tests.applets.test_currencyfx import _snapshot
 
         provider, payload = "fetch_fx_snapshot", (_snapshot(), ("EUR", "USD"))
-    else:
+    elif name == "news":
         from tests.applets.test_news import _article, _source
 
         applet._sources = [_source()]
         provider, payload = "fetch_news_articles", (_article(),)
+    else:
+        from tests.applets.test_reddit import _post
+
+        applet._subreddits = ["linux"]
+        provider, payload = "fetch_reddit_posts", (_post(),)
 
     def fetch(**_kwargs):
         if error:
@@ -51,7 +57,7 @@ def make_fetch_applet(name, monkeypatch, tmp_path, *, error=False):
     return applet, config, queue
 
 
-@pytest.mark.parametrize("name", ["weather", "crypto", "currencyfx", "news"])
+@pytest.mark.parametrize("name", ["weather", "crypto", "currencyfx", "news", "reddit"])
 @pytest.mark.parametrize("error", [False, True])
 def test_unloaded_applet_ignores_late_network_replies(
     monkeypatch, tmp_path, name, error
@@ -61,7 +67,9 @@ def test_unloaded_applet_ignores_late_network_replies(
     assert queue.tasks
     queue.read()
     applet.stop()
-    key = "active_source_index" if name == "news" else "active_index"
+    key = {"news": "active_source_index", "reddit": "active_subreddit_index"}.get(
+        name, "active_index"
+    )
     newer_preferences = {key: 1}
     config.applet_prefs[name] = newer_preferences.copy()
     config.save()
@@ -87,7 +95,7 @@ def test_unloaded_weather_does_not_start_a_queued_refresh(monkeypatch, tmp_path)
     assert not queue.tasks
 
 
-@pytest.mark.parametrize("name", ["weather", "crypto", "currencyfx", "news"])
+@pytest.mark.parametrize("name", ["weather", "crypto", "currencyfx", "news", "reddit"])
 def test_restarted_applet_can_receive_a_new_fetch(monkeypatch, tmp_path, name):
     applet, _config, queue = make_fetch_applet(name, monkeypatch, tmp_path)
     module = import_module(f"docking.applets.{name}.applet")

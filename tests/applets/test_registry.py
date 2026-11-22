@@ -110,6 +110,10 @@ class TestAppletCatalog:
     def test_contains_hackernews(self):
         assert "hackernews" in get_applet_catalog()
 
+    def test_contains_reddit(self):
+        assert "reddit" in get_applet_catalog()
+        assert load_applet_class("reddit").__name__ == "RedditApplet"
+
     def test_contains_news(self):
         assert "news" in get_applet_catalog()
         assert load_applet_class("news").__name__ == "NewsApplet"
@@ -268,6 +272,7 @@ class TestLoadThemeIcon:
             (
                 "docking.ui.overlays",
                 "docking.applets.news.render",
+                "docking.applets.reddit.render",
             )
         )
     ),

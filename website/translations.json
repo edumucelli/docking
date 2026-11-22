@@ -924,6 +924,11 @@
     "fr": "Retrouvez rapidement les documents utilisés récemment.",
     "es": "Vuelve rápidamente a los documentos utilizados recientemente."
   },
+  "Browse posts from your favorite subreddits and open them in your browser.": {
+    "pt": "Explore publicações dos seus subreddits favoritos e abra-as no navegador.",
+    "fr": "Parcourez les publications de vos subreddits favoris et ouvrez-les dans votre navigateur.",
+    "es": "Explora publicaciones de tus subreddits favoritos y ábrelas en el navegador."
+  },
   "Run Application": {
     "pt": "Executar aplicação",
     "fr": "Exécuter une application",
@@ -1553,6 +1558,11 @@
     "pt": "Pomodoro",
     "fr": "Pomodoro",
     "es": "Pomodoro"
+  },
+  "Reddit": {
+    "pt": "Reddit",
+    "fr": "Reddit",
+    "es": "Reddit"
   },
   "Telegram": {
     "pt": "Telegram",

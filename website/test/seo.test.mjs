@@ -128,3 +128,12 @@ test("sitemap includes every canonical language URL and robots allows crawling",
   assert.ok(!/^Disallow:\s*\/$/m.test(robots));
   assert.deepEqual(await readFile(path.join(dist, "hero.gif")), await readFile(path.join(root, "hero.gif")));
 });
+
+test("the README links to all four built tours", async () => {
+  const readme = await readFile(path.join(root, "../README.md"), "utf8");
+  const links = [...readme.matchAll(/\]\(https:\/\/docking\.cc\/(tours\/[a-z]+\.mp4)\)/g)].map((match) => match[1]);
+  assert.deepEqual(links, ["overview", "applets", "search", "preferences"].map((name) => `tours/${name}.mp4`));
+  for (const video of links) {
+    assert.deepEqual(await readFile(path.join(dist, video)), await readFile(path.join(root, video)));
+  }
+});

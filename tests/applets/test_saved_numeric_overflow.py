@@ -13,6 +13,8 @@ NUMERIC_PREFERENCES = [
     ("lastfm", "prefs_from_mapping", "max_entries"),
     ("news", "prefs_from_mapping", "active_article_index"),
     ("news", "prefs_from_mapping", "active_source_index"),
+    ("reddit", "prefs_from_mapping", "active_post_index"),
+    ("reddit", "prefs_from_mapping", "active_subreddit_index"),
     ("stretchcoach", "state_from_prefs", "interval"),
 ]
 
@@ -37,6 +39,7 @@ def test_applet_starts_from_a_saved_overflowing_json_number(tmp_path, name, key)
         "currencyfx": "CurrencyFxApplet",
         "lastfm": "LastfmApplet",
         "news": "NewsApplet",
+        "reddit": "RedditApplet",
         "stretchcoach": "StretchCoachApplet",
     }
     module = import_module(f"docking.applets.{name}.applet")
