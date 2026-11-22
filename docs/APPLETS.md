@@ -1,6 +1,6 @@
 # Applets
 
-Docking includes 67 built-in applets that live alongside
+Docking includes 66 built-in applets that live alongside
 application launchers, files, and folders. Applets can launch workflows,
 show live information, adjust system settings, or provide small tools
 without opening a full application.
@@ -50,7 +50,7 @@ hidden from the menu.
 - **Information and Environment:** [Astronomy Picture of the Day](#astronomy-picture-of-the-day),
   [Crypto](#crypto), [Currency FX](#currency-fx), [Hacker News](#hacker-news),
   [Last.fm](#lastfm), [Moon](#moon), [News](#news), [Quote](#quote),
-  [Random Trivia](#random-trivia), [Reddit](#reddit), [Sunrise](#sunrise),
+  [Random Trivia](#random-trivia), [Sunrise](#sunrise),
   [Today in History](#today-in-history), [Weather](#weather)
 - **Other:** [Separator](#separator)
 
@@ -875,6 +875,9 @@ Quick trivia applet with local and online questions. The tooltip shows the curre
 - **Refresh from Web**
 
 ### Reddit
+
+The Reddit applet is temporarily disabled while its RSS feeds are unreliable.
+Docking keeps existing Reddit pins and preferences for re-enabling.
 
 Browse posts from your favorite subreddits. Choose one or more subreddits,
 switch between Hot/New/Top/Rising feeds, and open the selected Reddit thread in

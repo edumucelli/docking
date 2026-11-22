@@ -4,6 +4,8 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
+- Temporarily disabled the Reddit applet while its RSS feeds are unreliable.
+  Existing Reddit pins and preferences are retained.
 - Added contributor guidance, a code of conduct, and a security reporting policy.
 - Moved developer requirements under `tools/` and updated setup commands.
 - Consolidated the user and developer guides and moved testing instructions
