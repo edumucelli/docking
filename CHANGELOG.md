@@ -4,6 +4,7 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
+- Fixed stale dock tooltips when opening or using a context menu.
 - Removed the Reddit applet because changes to Reddit's RSS feeds broke it.
 - Added contributor guidance, a code of conduct, and a security reporting policy.
 - Moved developer requirements under `tools/` and updated setup commands.

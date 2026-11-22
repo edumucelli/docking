@@ -218,9 +218,14 @@ class DockInteractionCoordinator:
     def dock_hovered(self, value: bool) -> None:
         self._window.dock_hovered = value
 
+    @property
+    def menu_popup_visible(self) -> bool:
+        return self._menu_popup_visible
+
     def menu_popup_opened(self) -> None:
         """Track that a dock context menu popup is currently active."""
         self._menu_popup_visible = True
+        self._window.tooltip.hide()
         if self._window.autohide.enabled:
             self._window.autohide.set_disabled(True, reason="menu-open")
 
@@ -231,6 +236,9 @@ class DockInteractionCoordinator:
         self._menu_popup_visible = False
 
         if not self._window.autohide.enabled:
+            # A GTK menu grab can keep the dock from receiving the pointer leave.
+            if self._window.dock_hovered and not self.pointer_inside_input_rect():
+                self.on_effective_leave(self._window.drawing_area)
             return
         pointer_inside = self.pointer_inside_input_rect()
         if pointer_inside:

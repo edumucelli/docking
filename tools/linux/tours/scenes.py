@@ -446,7 +446,10 @@ def overview(desktop: Desktop, folder: str) -> None:
         input_then_hover(desktop, "keyboardlayout", contains="Portuguese (BR)")
         desktop.hold()
         applet_menu(desktop, "keyboardlayout")
-        desktop.find("Portuguese (BR)", contains=True)
+        wait_for(
+            lambda: any(label.startswith("BR - ") for label in desktop.menu_labels()),
+            "Brazilian Portuguese did not appear in the keyboard layout menu",
+        )
         desktop.hold()
         desktop.dismiss(recenter=False)
 

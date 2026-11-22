@@ -198,6 +198,7 @@ class TestMenuPopupPolicy:
         coordinator.pointer_inside_input_rect = MagicMock(return_value=False)
         coordinator.menu_popup_opened()
         window.autohide.set_disabled.reset_mock()
+        window.tooltip.hide.reset_mock()
 
         coordinator.menu_popup_closed()
 
@@ -257,15 +258,18 @@ class TestMenuPopupPolicy:
 
         window.autohide.on_mouse_leave.assert_not_called()
 
-    def test_menu_close_returns_early_when_autohide_is_disabled(self):
+    def test_menu_close_clears_stale_hover_with_autohide_disabled(self):
         window, _item = _make_window()
         window.autohide = _autohide(enabled=False)
         coordinator = DockInteractionCoordinator(window)
+        coordinator.pointer_inside_input_rect = MagicMock(return_value=False)
         coordinator.menu_popup_opened()
 
         coordinator.menu_popup_closed()
 
-        window.hover.cancel.assert_not_called()
+        assert not window.dock_hovered
+        assert window.hover.hovered_item is None
+        window.hover.cancel.assert_called_once()
         window.autohide.on_mouse_leave.assert_not_called()
 
     def test_duplicate_menu_close_does_not_repeat_close_policy(self):

@@ -152,7 +152,7 @@ def test_native_history_stack_scrolls_to_oldest_and_copies_before_closing(
     tooltip = TooltipManager(
         parent, config, MagicMock(), SimpleNamespace(launch_bounce_height=0.0)
     )
-    tooltip.set_stack_owner_provider(stack.open_owner_id)
+    tooltip.set_popup_visibility_provider(lambda: stack.open_owner_id() is not None)
     anchor = PopupAnchor(x=640, y=700, position=Position.BOTTOM, parent=parent)
     try:
         clipboard.set_text("Original clipboard fixture", -1)

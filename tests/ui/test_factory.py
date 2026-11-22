@@ -303,9 +303,16 @@ class TestBuildDockWindow:
             menu=components.menu,
             folder_stack=components.folder_stack,
         )
-        window.tooltip.set_stack_owner_provider.assert_called_once_with(
-            components.interactions.open_stack_owner_id
-        )
+        window.tooltip.set_popup_visibility_provider.assert_called_once()
+        (popup_visible,) = window.tooltip.set_popup_visibility_provider.call_args.args
+        window.interaction.menu_popup_visible = False
+        components.interactions.open_stack_owner_id.return_value = None
+        assert not popup_visible()
+        window.interaction.menu_popup_visible = True
+        assert popup_visible()
+        window.interaction.menu_popup_visible = False
+        components.interactions.open_stack_owner_id.return_value = "applet://clippy"
+        assert popup_visible()
         factory_mod.DockInputController.assert_called_once_with(
             window=window,
             interactions=components.interactions,
