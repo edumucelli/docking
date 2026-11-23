@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { parse } from "parse5";
+import { applets } from "../applets.mjs";
 import { attribute, collectMessages, languages, walk } from "../build.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -18,7 +19,6 @@ function find(document, predicate) {
 }
 const byTag = (document, tag) => find(document, (node) => node.tagName === tag);
 const byAttr = (document, name, value) => find(document, (node) => attribute(node, name)?.value === value);
-const sourceCards = byAttr(parse(source), "data-applet-card", "").length;
 
 test("translations cover all visible copy and accessible labels", () => {
   for (const message of collectMessages(source).filter((value) => /[a-zA-Z]/.test(value))) {
@@ -54,10 +54,18 @@ for (const [lang, route] of Object.entries(languages)) {
       const link = alternates.find((node) => attribute(node, "hreflang").value === alternate);
       assert.equal(attribute(link, "href").value, `https://docking.cc/${target}`);
     }
-    assert.ok(sourceCards >= 65);
     const cards = byAttr(document, "data-applet-card", "");
-    assert.equal(cards.length, sourceCards);
+    assert.equal(cards.length, applets.length);
+    assert.equal(text(byAttr(document, "id", "applet-total-count")[0]), String(cards.length));
     assert.ok(cards.every((card) => !attribute(card, "hidden")));
+    cards.forEach((card, index) => {
+      const [category, icon, title, description] = applets[index];
+      const translate = (message) => lang === "en" ? message : catalog[message][lang];
+      assert.equal(attribute(card, "data-category").value, category);
+      assert.equal(attribute(byTag(card, "img")[0], "src").value, `/icons/${icon}.png`);
+      assert.equal(text(byTag(card, "h3")[0]), translate(title));
+      assert.deepEqual(byTag(card, "p").map(text), [translate(category), translate(description)]);
+    });
     const englishCommands = byTag(parse(source), "pre").map(text);
     assert.deepEqual(byTag(document, "pre").map(text), englishCommands, "installation commands must remain unchanged");
     const scriptSources = byTag(document, "script")

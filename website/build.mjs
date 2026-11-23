@@ -1,7 +1,8 @@
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { parse, serialize } from "parse5";
+import { defaultTreeAdapter, parse, serialize } from "parse5";
+import { applets, renderAppletCards } from "./applets.mjs";
 
 export const languages = { en: "", pt: "pt/", fr: "fr/", es: "es/" };
 const origin = "https://docking.cc/";
@@ -40,9 +41,13 @@ function translateDocument(document, translate) {
   visit(document);
 }
 
+function parsePage(html) {
+  return parse(html.replace(/^ *<!-- applet-cards -->$/m, renderAppletCards));
+}
+
 export function collectMessages(html) {
   const messages = new Set();
-  translateDocument(parse(html), (text) => { messages.add(text); return text; });
+  translateDocument(parsePage(html), (text) => { messages.add(text); return text; });
   return [...messages];
 }
 
@@ -59,11 +64,14 @@ export async function build() {
       if (!value) throw new Error(`Missing ${language} translation: ${text}`);
       return value;
     };
-    const document = parse(html);
+    const document = parsePage(html);
     translateDocument(document, translate);
     const url = origin + route;
     walk(document, (node) => {
       if (node.tagName === "html") attribute(node, "lang").value = language;
+      if (attribute(node, "id")?.value === "applet-total-count") {
+        defaultTreeAdapter.insertText(node, String(applets.length));
+      }
       if (attribute(node, "rel")?.value === "canonical") attribute(node, "href").value = url;
       if (attribute(node, "property")?.value === "og:url") attribute(node, "content").value = url;
       if (attribute(node, "property")?.value === "og:locale") {
