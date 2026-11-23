@@ -16,10 +16,12 @@
 
 from __future__ import annotations
 
+import platform
 import re
 import shutil
 import subprocess
 import threading
+from dataclasses import replace
 from typing import Any
 
 import gi
@@ -35,6 +37,7 @@ from docking.applets.music.state import (
     has_active_media,
     unavailable_state,
 )
+from docking.i18n import _
 from docking.log import get_logger, with_context
 
 log = with_context(get_logger("music.linux"), applet_id="music")
@@ -954,6 +957,21 @@ def _active_media(state: MusicState) -> bool:
     return has_active_media(state) and not _is_internal_webkit_player(state)
 
 
+def _rhythmbox_metadata_hint() -> str:
+    hint = _("Enable Rhythmbox’s MPRIS plugin to see track details.")
+    try:
+        release = platform.freedesktop_os_release()
+    except OSError:
+        return hint
+    families = {release.get("ID", ""), *release.get("ID_LIKE", "").split()}
+    if families & {"debian", "ubuntu"}:
+        install = _("Install %(package)s and restart Rhythmbox.") % {
+            "package": "rhythmbox-plugins"
+        }
+        return f"{hint}\n{install}"
+    return hint
+
+
 class HybridBackend(MusicBackend):
     """MPRIS-first backend with playerctl fallback."""
 
@@ -1014,13 +1032,18 @@ class HybridBackend(MusicBackend):
         if _active_media(mpris_state):
             candidates.append(("mpris", mpris_state))
 
-        rb_state = self._rhythmbox.get_state()
+        # The client returns track metadata even when Rhythmbox is paused.
+        rb_state = (
+            unavailable_state()
+            if rb_mpris_state.available
+            else self._rhythmbox.get_state()
+        )
 
         preferred_for_playerctl = preferred
         strict_playerctl = self._is_rhythmbox_hint(preferred)
         # If Rhythmbox is running but its MPRIS service is missing,
         # avoid accidentally selecting an unrelated player from playerctl.
-        if rb_state.available and not rb_mpris_state.available:
+        if rb_state.available:
             preferred_for_playerctl = "rhythmbox"
             strict_playerctl = True
 
@@ -1043,6 +1066,10 @@ class HybridBackend(MusicBackend):
             candidates,
             key=lambda item: self._state_score(source=item[0], state=item[1]),
         )
+        if source == "rhythmbox" and not (
+            selected.title or selected.artist or selected.album
+        ):
+            selected = replace(selected, metadata_hint=_rhythmbox_metadata_hint())
         self._last_source = source
         self._last_state = selected
         return selected

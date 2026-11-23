@@ -302,7 +302,15 @@ class MusicApplet(ApplicationServicesApplet):
         if missing:
             items[-1].set_sensitive(False)
         submenu = Gtk.Menu()
-        for item in items:
+        for (_label, desktop_id), item in zip(choices, items, strict=True):
+            if desktop_id == "mpv.desktop" and desktop_id in apps:
+                item.set_tooltip_text(
+                    _(
+                        "Install or enable %(plugin)s and restart mpv for playback "
+                        "controls and track details."
+                    )
+                    % {"plugin": "mpv-mpris"}
+                )
             submenu.append(item)
         if status is AssociationStatus.PENDING:
             submenu.append(disabled_menu_item(_("Loading...")))

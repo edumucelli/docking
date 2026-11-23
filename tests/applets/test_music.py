@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gettext
+import platform
 import subprocess
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -768,7 +769,72 @@ class TestHybridBackend:
             playerctl=_StubPlayerctl(state=unavailable_state()),
             rhythmbox=_StubRhythmbox(state=rb_state),
         )
-        assert backend.poll().player_name == "Rhythmbox"
+        selected = backend.poll()
+        assert selected.player_name == "Rhythmbox"
+        assert "MPRIS" not in tooltip_text(selected)
+
+    def test_rhythmbox_playback_status_comes_from_mpris(self, monkeypatch):
+        paused = _state(
+            player_name="Rhythmbox",
+            player_id=music_state_mod._RB_MPRIS_SERVICE,
+            playback_status="Paused",
+        )
+        mpris = _StubMpris(paused)
+        monkeypatch.setattr(mpris, "get_state_for_bus_name", lambda _name: paused)
+        backend = HybridBackend(
+            mpris=mpris,
+            playerctl=_StubPlayerctl(unavailable_state()),
+            rhythmbox=_StubRhythmbox(
+                _state(player_name="Rhythmbox", player_id=music_state_mod._RB_SERVICE)
+            ),
+        )
+
+        assert backend.poll() == paused
+
+    @pytest.mark.parametrize(
+        ("release", "package_hint"),
+        [
+            ({"ID": "debian"}, True),
+            ({"ID": "linuxmint", "ID_LIKE": "ubuntu debian"}, True),
+            ({"ID": "fedora"}, False),
+            (None, False),
+        ],
+    )
+    def test_rhythmbox_tooltip_explains_missing_metadata(
+        self, monkeypatch, release, package_hint
+    ):
+        def os_release():
+            if release is None:
+                raise OSError("No os-release file")
+            return release
+
+        monkeypatch.setattr(platform, "freedesktop_os_release", os_release)
+        mpris = _StubMpris(unavailable_state())
+        backend = HybridBackend(
+            mpris=mpris,
+            playerctl=_StubPlayerctl(unavailable_state()),
+            rhythmbox=_StubRhythmbox(
+                _state(
+                    player_name="Rhythmbox",
+                    player_id="org.gnome.Rhythmbox3",
+                    playback_status="Unknown",
+                    title="",
+                    artist="",
+                    album="",
+                )
+            ),
+        )
+        text = tooltip_text(backend.poll())
+        assert "Enable Rhythmbox’s MPRIS plugin to see track details." in text
+        if package_hint:
+            assert "Install rhythmbox-plugins and restart Rhythmbox." in text
+        else:
+            assert "rhythmbox-plugins" not in text
+
+        monkeypatch.setattr(mpris, "get_state_for_bus_name", lambda _name: _state())
+        text = tooltip_text(backend.poll())
+        assert "Midnight City" in text
+        assert "MPRIS" not in text
 
     def test_play_pause_falls_back_to_rhythmbox(self):
         rhytmbox = _StubRhythmbox(state=_state())
@@ -867,6 +933,38 @@ def _choose_launch_app(item):
     item.set_active(True)
     callback, args = item._signals["toggled"][0]
     callback(item, *args)
+
+
+def test_launch_menu_has_setup_tooltip_for_native_mpv(monkeypatch):
+    registry = ApplicationRegistryHarness(
+        [
+            GioApplicationFake(
+                "mpv.desktop", name="mpv", categories="AudioVideo;Player;"
+            ),
+            GioApplicationFake(
+                "io.mpv.Mpv.desktop",
+                name="mpv Flatpak",
+                categories="AudioVideo;Player;",
+            ),
+        ]
+    ).registry
+    monkeypatch.setattr(
+        registry,
+        "installed_handlers_for_content_types",
+        lambda _types: (AssociationStatus.READY, ()),
+    )
+    applet, _backend, _resolver = _make_applet(
+        monkeypatch, unavailable_state(), registry=registry
+    )
+
+    default, mpv, flatpak = _launch_choices(applet)
+    assert mpv.get_label() == "mpv"
+    assert mpv._tooltip_text == (
+        "Install or enable mpv-mpris and restart mpv for playback controls and track details."
+    )
+    assert not hasattr(default, "_tooltip_text")
+    assert not hasattr(flatpak, "_tooltip_text")
+    applet.stop()
 
 
 def test_installed_launch_choice_is_saved_used_when_idle_and_can_be_reset(monkeypatch):
