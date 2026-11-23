@@ -41,5 +41,4 @@ adapter_screenshot() {
     /usr/bin/python3 "$LAB_SCRIPTS/../../backends/layer_shell/gamescope/capture.py" "$1"
 }
 adapter_geometry() { /usr/bin/python3 "$LAB_SCRIPTS/probes/session_probe.py" geometry; }
-adapter_pointer() { lab_pointer "$@"; }
 adapter_stop() { adapter_cleanup; }

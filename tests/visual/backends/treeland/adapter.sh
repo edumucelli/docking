@@ -29,5 +29,4 @@ adapter_capabilities() {
 }
 adapter_screenshot() { capture_parent "$1"; }
 adapter_geometry() { /usr/bin/python3 "$LAB_SCRIPTS/probes/session_probe.py" geometry; }
-adapter_pointer() { lab_pointer "$@"; }
 adapter_stop() { adapter_cleanup; }

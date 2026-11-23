@@ -234,8 +234,6 @@ print(json.dumps({"outputs": outputs, "dock_rect": None}))
 PY
 }
 
-adapter_pointer() { [ "$LAB_INPUT_SUPPORTED" = true ] && lab_pointer "$@"; }
-
 adapter_stop() {
     # The nested compositor first: it is a client of the parent, so the parent
     # has to outlive it. common.sh's cleanup handles both if we never get here.
