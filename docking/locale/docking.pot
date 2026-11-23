@@ -741,7 +741,8 @@ msgstr ""
 #: docking/applets/caffeine/applet.py:100
 #: docking/applets/caffeine/applet.py:127 docking/applets/crypto/state.py:559
 #: docking/applets/currencyfx/state.py:725 docking/applets/live_state.py:93
-#: docking/applets/music/applet.py:133 docking/applets/music/applet.py:217
+#: docking/applets/music/applet.py:138 docking/applets/music/applet.py:224
+#: docking/applets/music/applet.py:312
 #: docking/applets/network/implementations/windows/connections.py:85
 #: docking/applets/screenshot/applet.py:125
 #: docking/applets/screenshot/preview.py:163
@@ -765,7 +766,8 @@ msgid "Caffeine"
 msgstr ""
 
 #: docking/applets/caffeine/applet.py:98 docking/applets/caffeine/applet.py:125
-#: docking/applets/live_state.py:90 docking/applets/music/applet.py:131
+#: docking/applets/live_state.py:90 docking/applets/music/applet.py:136
+#: docking/applets/music/applet.py:308
 #: docking/applets/notifications/applet.py:108
 #: docking/applets/screenshot/applet.py:123 docking/platform/model.py:692
 #: docking/platform/model.py:745
@@ -2036,29 +2038,50 @@ msgstr ""
 msgid "3rd Quarter"
 msgstr ""
 
-#: docking/applets/music/applet.py:79 docking/applets/music/state.py:81
+#: docking/applets/music/applet.py:82 docking/applets/music/state.py:81
 #: docking/applets/music/state.py:95
 msgid "Music"
 msgstr ""
 
-#: docking/applets/music/applet.py:217 docking/applets/music/state.py:82
+#: docking/applets/music/applet.py:224 docking/applets/music/state.py:82
 msgid "No active player"
 msgstr ""
 
-#: docking/applets/music/applet.py:221
+#: docking/applets/music/applet.py:230
 msgid "Previous"
 msgstr ""
 
-#: docking/applets/music/applet.py:229
+#: docking/applets/music/applet.py:238
 msgid "Next"
 msgstr ""
 
-#: docking/applets/music/applet.py:233
+#: docking/applets/music/applet.py:242
 msgid "Volume Up"
 msgstr ""
 
-#: docking/applets/music/applet.py:240
+#: docking/applets/music/applet.py:249
 msgid "Volume Down"
+msgstr ""
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr ""
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr ""
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr ""
+
+#: docking/applets/music/applet.py:314
+msgid "No compatible apps found"
+msgstr ""
+
+#: docking/applets/music/applet.py:317
+msgid "Launch App"
 msgstr ""
 
 #: docking/applets/music/state.py:74

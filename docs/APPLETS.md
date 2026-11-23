@@ -534,7 +534,7 @@ using it when they can be identified
 
 Control music playback from an icon that shows the current album art.
 
-**Click:** Play/pause
+**Click:** Play/pause the active player, or open the preferred app when no player is active
 **Scroll:** Player volume ±5%
 **Right-click options:**
 
@@ -542,6 +542,12 @@ Control music playback from an icon that shows the current album art.
 - **Play** / **Pause**
 - **Next**
 - **Volume Up** / **Volume Down**
+- **Launch App** — choose a compatible installed app for idle clicks, or select
+  **System Default**
+
+Docking remembers the choice. If the chosen app becomes unavailable, idle clicks
+use the system default. The list includes media-file handlers and apps identified
+as music players by the application catalog.
 
 **Tooltip:** multiline summary, e.g. `Artist - Title`, `Album: ...`, `Vol N%`
 
