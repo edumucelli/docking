@@ -5,6 +5,8 @@ Docking versions are listed in descending version order. Dates are in UTC.
 ## Unreleased
 
 - Added a SignPath test-signing workflow for the Windows installer.
+- Added Music setup tips for Rhythmbox track details and mpv playback controls.
+- Fixed the Music play/pause badge when pausing Rhythmbox.
 - Added a Music applet menu for choosing which installed app to open when playback is idle.
 - Temporarily disabled the Reddit applet while its RSS feeds are unreliable.
   Existing Reddit pins and preferences are retained.

@@ -742,7 +742,7 @@ msgstr ""
 #: docking/applets/caffeine/applet.py:127 docking/applets/crypto/state.py:559
 #: docking/applets/currencyfx/state.py:725 docking/applets/live_state.py:93
 #: docking/applets/music/applet.py:138 docking/applets/music/applet.py:224
-#: docking/applets/music/applet.py:312
+#: docking/applets/music/applet.py:320
 #: docking/applets/network/implementations/windows/connections.py:85
 #: docking/applets/screenshot/applet.py:125
 #: docking/applets/screenshot/preview.py:163
@@ -767,7 +767,7 @@ msgstr ""
 
 #: docking/applets/caffeine/applet.py:98 docking/applets/caffeine/applet.py:125
 #: docking/applets/live_state.py:90 docking/applets/music/applet.py:136
-#: docking/applets/music/applet.py:308
+#: docking/applets/music/applet.py:316
 #: docking/applets/notifications/applet.py:108
 #: docking/applets/screenshot/applet.py:123 docking/platform/model.py:692
 #: docking/platform/model.py:745
@@ -2018,12 +2018,12 @@ msgstr ""
 msgid "3rd Quarter"
 msgstr ""
 
-#: docking/applets/music/applet.py:82 docking/applets/music/state.py:81
-#: docking/applets/music/state.py:95
+#: docking/applets/music/applet.py:82 docking/applets/music/state.py:82
+#: docking/applets/music/state.py:96
 msgid "Music"
 msgstr ""
 
-#: docking/applets/music/applet.py:224 docking/applets/music/state.py:82
+#: docking/applets/music/applet.py:224 docking/applets/music/state.py:83
 msgid "No active player"
 msgstr ""
 
@@ -2056,20 +2056,36 @@ msgstr ""
 msgid "Preferred app unavailable"
 msgstr ""
 
-#: docking/applets/music/applet.py:314
+#: docking/applets/music/applet.py:322
 msgid "No compatible apps found"
 msgstr ""
 
-#: docking/applets/music/applet.py:317
+#: docking/applets/music/applet.py:325
 msgid "Launch App"
 msgstr ""
 
-#: docking/applets/music/state.py:74
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track "
+"details."
+msgstr ""
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr ""
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr ""
+
+#: docking/applets/music/state.py:75
 #: docking/applets/webapp/implementations/windows/companion/downloads.py:94
 msgid "Pause"
 msgstr ""
 
-#: docking/applets/music/state.py:74
+#: docking/applets/music/state.py:75
 msgid "Play"
 msgstr ""
 
