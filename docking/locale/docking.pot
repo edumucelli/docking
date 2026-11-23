@@ -113,6 +113,7 @@ msgstr ""
 msgid "OK"
 msgstr ""
 
+#: docking/applets/checklist/applet.py:160
 #: docking/applets/alarm/applet.py:165
 #: docking/applets/bluetooth/implementations/windows/pairing_ui.py:73
 #: docking/applets/cities.py:163 docking/applets/clock/applet.py:231
@@ -1001,24 +1002,32 @@ msgstr ""
 msgid "Type city name..."
 msgstr ""
 
-#: docking/applets/checklist/applet.py:32
+#: docking/applets/checklist/applet.py:37
 msgid "Checklist"
 msgstr ""
 
-#: docking/applets/checklist/applet.py:46
+#: docking/applets/checklist/applet.py:51
 #, python-brace-format
 msgid "{count} unchecked item"
 msgid_plural "{count} unchecked items"
 msgstr[0] ""
 msgstr[1] ""
 
-#: docking/applets/checklist/applet.py:100
-#: docking/applets/checklist/applet.py:101
+#: docking/applets/checklist/applet.py:105
+#: docking/applets/checklist/applet.py:106
 msgid "Add an item"
 msgstr ""
 
-#: docking/applets/checklist/applet.py:108
+#: docking/applets/checklist/applet.py:113
 msgid "Clear Completed"
+msgstr ""
+
+#: docking/applets/checklist/applet.py:154
+msgid "Edit Item"
+msgstr ""
+
+#: docking/applets/checklist/applet.py:166
+msgid "Item text"
 msgstr ""
 
 #: docking/applets/clippy/applet.py:70
@@ -1842,6 +1851,7 @@ msgstr ""
 msgid "Scrobbler Settings"
 msgstr ""
 
+#: docking/applets/checklist/applet.py:160
 #: docking/applets/lastfm/applet.py:381 docking/applets/plantcare/applet.py:473
 #: docking/applets/webapp/implementations/windows/companion/downloads.py:140
 #: docking/ui/diagnostics.py:390
@@ -2245,7 +2255,7 @@ msgstr ""
 msgid "Update List"
 msgstr ""
 
-#: docking/applets/checklist/applet.py:102
+#: docking/applets/checklist/applet.py:107
 #: docking/applets/news/applet.py:510 docking/applets/reddit/applet.py:418
 #: docking/ui/dock_layout.py:121 docking/ui/dock_layout.py:358
 #: docking/ui/dock_layout.py:386
@@ -3038,6 +3048,7 @@ msgstr ""
 msgid "No plants configured."
 msgstr ""
 
+#: docking/applets/checklist/applet.py:134
 #: docking/applets/plantcare/applet.py:421
 msgid "Edit"
 msgstr ""

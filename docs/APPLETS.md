@@ -223,7 +223,8 @@ unchecked. The list is saved locally and kept when you restart Docking or remove
 and later re-add Checklist.
 
 **Click:** Open the checklist. Type an item and press Enter or click **Add**.
-Check or uncheck any item without changing its position.
+Check or uncheck any item without changing its position. Click **Edit** beside
+an item to change its text.
 
 **Clear Completed** removes the checked items.
 
