@@ -2,37 +2,25 @@
 # Install a local Git pre-commit hook for this repository.
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HOOK_PATH="${ROOT_DIR}/.git/hooks/pre-commit"
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+hook_path="$(git rev-parse --path-format=absolute --git-path hooks/pre-commit)"
 
-cat >"${HOOK_PATH}" <<'EOF'
+if [[ "$hook_path" -ef .githooks/pre-commit ]]; then
+  echo "Docking pre-commit hook is already active at $hook_path"
+  exit 0
+fi
+
+local_hook="$(git rev-parse --path-format=absolute --git-common-dir)/hooks/pre-commit"
+if [[ "$hook_path" != "$local_hook" || -L "${hook_path%/*}" || -L "$hook_path" ]]; then
+  echo "Refusing to install over a custom pre-commit hook at $hook_path" >&2
+  exit 1
+fi
+
+mkdir -p "${hook_path%/*}"
+cat >"$hook_path" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-cd "$(git rev-parse --show-toplevel)"
-
-echo "Running ruff format..."
-.venv/bin/ruff format --check docking/ tests/ || {
-  echo "Run: ruff format docking/ tests/"
-  exit 1
-}
-echo "Running ruff check..."
-.venv/bin/ruff check docking/ tests/
-echo "Running ty..."
-.venv/bin/ty check --error-on-warning docking/
-echo "Checking i18n template sync..."
-bash tools/i18n.sh --check-pot-sync
-echo "Checking i18n catalogs..."
-bash tools/i18n.sh --check-catalogs --allow-incomplete
-echo "Checking package-data sync..."
-python3 tools/check_package_data_sync.py
-echo "Checking translation packaging..."
-python3 tools/check_translation_packaging.py
-echo "Running tests..."
-.venv/bin/python -m pytest tests/ -q
-echo "Running isolated no-GI smoke tests..."
-.venv/bin/python -m pytest tests/smoke/test_python314_smoke.py -q
-echo "All checks passed."
+exec "$(git rev-parse --show-toplevel)/.githooks/pre-commit" "$@"
 EOF
-
-chmod +x "${HOOK_PATH}"
-echo "Installed strict pre-commit hook at ${HOOK_PATH}"
+chmod +x "$hook_path"
+echo "Installed Docking pre-commit hook at $hook_path"
