@@ -96,11 +96,6 @@ class RecentFilesCatalog:
         """Return whether manager change monitoring is active."""
         return self._started
 
-    @property
-    def entries(self) -> tuple[RecentFileSnapshot, ...]:
-        """Return the current immutable recent-file sequence."""
-        return self._entries
-
     def snapshot(self) -> tuple[RecentFileSnapshot, ...]:
         """Return the current immutable, most-recent-first sequence."""
         return self._entries
@@ -114,10 +109,6 @@ class RecentFilesCatalog:
             self.remove_listener(listener)
 
         return unsubscribe
-
-    def subscribe(self, listener: CatalogListener) -> Callable[[], None]:
-        """Alias for :meth:`add_listener`."""
-        return self.add_listener(listener)
 
     def remove_listener(self, listener: CatalogListener) -> None:
         """Remove a previously registered listener."""
@@ -234,10 +225,6 @@ class RecentFilesCatalog:
             return False
         self.refresh()
         return True
-
-    def clear_recent(self) -> bool:
-        """Alias for :meth:`clear`."""
-        return self.clear()
 
     def _get_manager(self) -> Gtk.RecentManager | None:
         if self._manager is not None:
