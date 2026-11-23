@@ -81,13 +81,8 @@ class TemporalSearchProvider:
         action_identity: SearchIdentity,
     ) -> bool:
         """Copy the cached temporal value for a validated action."""
-        parts = action_parts(action_identity)
-        if (
-            result_identity.provider_id != self.provider_id
-            or parts is None
-            or parts[0] != result_identity.key
-            or parts[1] != "copy"
-        ):
+        parts = action_parts(self.provider_id, result_identity, action_identity)
+        if parts is None or parts[1] != "copy":
             return False
         value = self._values.get(parts[0])
         if value is None:

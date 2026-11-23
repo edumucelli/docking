@@ -324,12 +324,8 @@ class ApplicationSearchProvider:
         action_identity: SearchIdentity,
     ) -> bool:
         """Validate an application action identity and dispatch its side effect."""
-        parts = action_parts(action_identity)
-        if (
-            result_identity.provider_id != self.provider_id
-            or parts is None
-            or parts[0] != result_identity.key
-        ):
+        parts = action_parts(self.provider_id, result_identity, action_identity)
+        if parts is None:
             return False
         desktop_id, action_id = parts
         if action_id == "open":
