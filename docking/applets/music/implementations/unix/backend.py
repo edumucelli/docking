@@ -1032,10 +1032,13 @@ class HybridBackend(MusicBackend):
         if _active_media(mpris_state):
             candidates.append(("mpris", mpris_state))
 
-        # The client returns track metadata even when Rhythmbox is paused.
+        # The client infers Playing from metadata, which persists while paused.
+        rb_mpris_status_known = rb_mpris_state.available and (
+            rb_mpris_state.playback_status in {"Playing", "Paused", "Stopped"}
+        )
         rb_state = (
             unavailable_state()
-            if rb_mpris_state.available
+            if rb_mpris_status_known
             else self._rhythmbox.get_state()
         )
 
@@ -1043,7 +1046,7 @@ class HybridBackend(MusicBackend):
         strict_playerctl = self._is_rhythmbox_hint(preferred)
         # If Rhythmbox is running but its MPRIS service is missing,
         # avoid accidentally selecting an unrelated player from playerctl.
-        if rb_state.available:
+        if rb_state.available and not rb_mpris_state.available:
             preferred_for_playerctl = "rhythmbox"
             strict_playerctl = True
 
@@ -1066,8 +1069,10 @@ class HybridBackend(MusicBackend):
             candidates,
             key=lambda item: self._state_score(source=item[0], state=item[1]),
         )
-        if source == "rhythmbox" and not (
-            selected.title or selected.artist or selected.album
+        if (
+            source == "rhythmbox"
+            and not rb_mpris_state.available
+            and not (selected.title or selected.artist or selected.album)
         ):
             selected = replace(selected, metadata_hint=_rhythmbox_metadata_hint())
         self._last_source = source

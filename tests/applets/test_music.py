@@ -791,6 +791,26 @@ class TestHybridBackend:
 
         assert backend.poll() == paused
 
+    def test_poll_uses_rhythmbox_client_when_mpris_status_is_unknown(self, monkeypatch):
+        missing_properties = MusicState(
+            available=True,
+            player_id=music_state_mod._RB_MPRIS_SERVICE,
+            playback_status="Unknown",
+            can_play_pause=True,
+        )
+        mpris = _StubMpris(missing_properties)
+        monkeypatch.setattr(
+            mpris, "get_state_for_bus_name", lambda _name: missing_properties
+        )
+        client = _state(player_name="Rhythmbox", player_id=music_state_mod._RB_SERVICE)
+        backend = HybridBackend(
+            mpris=mpris,
+            playerctl=_StubPlayerctl(unavailable_state()),
+            rhythmbox=_StubRhythmbox(client),
+        )
+
+        assert backend.poll() == client
+
     @pytest.mark.parametrize(
         ("release", "package_hint"),
         [
