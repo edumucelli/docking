@@ -166,8 +166,6 @@ adapter_geometry() {
           dock_rect: null}'
 }
 
-adapter_pointer() { [ "$LAB_INPUT_SUPPORTED" = true ] && lab_pointer "$@"; }
-
 adapter_stop() {
     # Child first: the nested compositor is a client of the parent.
     if [ -n "$ADAPTER_COMPOSITOR_PID" ]; then
