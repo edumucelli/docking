@@ -17,13 +17,11 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import tempfile
 import threading
 import time
 from dataclasses import dataclass
-from pathlib import Path
 
-from docking.core.paths import ensure_parent_dir
+from docking.core.paths import write_json_atomically
 from docking.log import get_logger
 from docking.platform.environment import docking_state_dir
 from docking.search.matcher import normalize_search_text
@@ -157,25 +155,13 @@ class SearchUsageStore:
         self._trim()
 
     def _save(self) -> None:
-        ensure_parent_dir(self._path)
         payload = {
             "version": 1,
             "results": _records_payload(self._results),
             "actions": _records_payload(self._actions),
             "query_results": _records_payload(self._query_results),
         }
-        with tempfile.NamedTemporaryFile(
-            "w",
-            encoding="utf-8",
-            dir=self._path.parent,
-            prefix=f".{self._path.name}.",
-            suffix=".tmp",
-            delete=False,
-        ) as handle:
-            temporary = Path(handle.name)
-            json.dump(payload, handle, indent=2, sort_keys=True)
-            handle.write("\n")
-        temporary.replace(self._path)
+        write_json_atomically(self._path, payload)
 
     def _trim(self) -> None:
         self._results = _trimmed(self._results)

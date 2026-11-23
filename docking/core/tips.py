@@ -17,13 +17,12 @@ from __future__ import annotations
 
 import json
 import random
-import tempfile
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from docking.core.paths import ensure_parent_dir
+from docking.core.paths import write_json_atomically
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.environment import docking_state_dir
@@ -320,24 +319,7 @@ def load_state(path: Path | str | None = None) -> StartupTipsState:
 def save_state(state: StartupTipsState, *, path: Path | str | None = None) -> None:
     """Persist startup tip state atomically."""
     state_path = Path(path) if path is not None else DEFAULT_STATE_FILE
-    ensure_parent_dir(state_path)
-    with tempfile.NamedTemporaryFile(
-        "w",
-        encoding="utf-8",
-        dir=state_path.parent,
-        prefix=f".{state_path.name}.",
-        suffix=".tmp",
-        delete=False,
-    ) as handle:
-        tmp_path = Path(handle.name)
-        json.dump(
-            {"shown_tip_ids": list(state.shown_tip_ids)},
-            handle,
-            indent=2,
-            sort_keys=True,
-        )
-        handle.write("\n")
-    tmp_path.replace(state_path)
+    write_json_atomically(state_path, {"shown_tip_ids": list(state.shown_tip_ids)})
 
 
 def select_startup_tip(
