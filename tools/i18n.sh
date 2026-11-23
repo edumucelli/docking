@@ -45,11 +45,8 @@
 # 3) How this script integrates with Docking automation
 # -----------------------------------------------------------------------------
 # Local hooks:
-#   - .pre-commit-config.yaml uses:
-#       --check-pot-sync
-#       --check-catalogs --allow-incomplete
-#   - tools/install_precommit_hook.sh installs a .git/hooks/pre-commit
-#     that calls this script.
+#   - Both hook entry points use .githooks/pre-commit, which checks POT sync
+#     and validates with --check-catalogs --allow-incomplete.
 #
 # CI:
 #   - .github/workflows/ci.yml (quality job) uses:
