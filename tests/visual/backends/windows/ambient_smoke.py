@@ -17,6 +17,7 @@ import sys
 import threading
 import time
 from ctypes import wintypes
+from functools import partial
 from itertools import pairwise
 from pathlib import Path
 
@@ -32,7 +33,10 @@ def main():
         parser.error("Choose a fresh output directory; keep earlier evidence")
     output.mkdir(parents=True, exist_ok=True)
     sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
-    from tests.visual.backends.windows.desktop_driver import copy_gstreamer_registry
+    from tests.visual.backends.windows.desktop_driver import (
+        call_on_gtk_thread,
+        copy_gstreamer_registry,
+    )
 
     registries = copy_gstreamer_registry(output / "cache")
     if not registries:
@@ -46,7 +50,7 @@ def main():
 
     gi.require_version("Gtk", "3.0")
     gi.require_version("Gst", "1.0")
-    from gi.repository import GLib, Gst, Gtk
+    from gi.repository import Gst, Gtk
     from PIL import ImageGrab
 
     import docking.app as app
@@ -119,23 +123,9 @@ def main():
 
     app.build_dock_window = build
 
-    def call(callback):
-        done, values, failures = threading.Event(), [], []
-
-        def invoke():
-            try:
-                values.append(callback())
-            except Exception as exc:
-                failures.append(exc)
-            finally:
-                done.set()
-            return False
-
-        GLib.idle_add(invoke)
-        assert done.wait(20), "GTK did not service a queued observation"
-        if failures:
-            raise failures[0]
-        return values[0]
+    call = partial(
+        call_on_gtk_thread, timeout_message="GTK did not service a queued observation"
+    )
 
     def capture(name):
         ImageGrab.grab(all_screens=True).save(output / (name + ".png"))

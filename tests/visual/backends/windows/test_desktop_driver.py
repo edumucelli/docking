@@ -11,6 +11,27 @@ import pytest
 from tests.visual.backends.windows import desktop_driver as mod
 
 
+def test_gtk_observation_propagates_result_and_error(monkeypatch):
+    def run_idle(callback):
+        assert callback() is False
+
+    monkeypatch.setattr("gi.repository.GLib.idle_add", run_idle)
+    assert mod.call_on_gtk_thread(lambda: "observed") == "observed"
+    error = RuntimeError("observation failed")
+    with pytest.raises(RuntimeError) as caught:
+        mod.call_on_gtk_thread(Mock(side_effect=error))
+    assert caught.value is error
+
+
+def test_gtk_observation_keeps_timeout_diagnostic(monkeypatch):
+    observation = Mock()
+    monkeypatch.setattr("gi.repository.GLib.idle_add", Mock())
+
+    with pytest.raises(AssertionError, match="fixture failed"):
+        mod.call_on_gtk_thread(observation, timeout=0, timeout_message="fixture failed")
+    observation.assert_not_called()
+
+
 @pytest.fixture
 def window_desktop():
     desktop = mod.WindowsDesktop.__new__(mod.WindowsDesktop)
