@@ -9,8 +9,7 @@ Evergreen WebView2 Runtime. The separate experimental Qt browser is not bundled.
 The installer defaults to `%LOCALAPPDATA%\Programs\Docking`, adds a Start menu
 shortcut and an Installed Apps entry, and offers an optional launch-at-login
 checkbox. Windows Startup Apps policy continues to apply.
-These are unsigned preview packages. Authenticode signing is deferred; release
-checksums identify the published bytes but do not provide a publisher signature.
+Published previews are unsigned. Release checksums identify the published bytes.
 See the [Windows install and update instructions](../../docs/INSTALLATION.md#windows-preview).
 The GStreamer plugin set covers Ambient's OGG playback and generated noise;
 Windows web playback uses WebView2.
@@ -178,5 +177,49 @@ python -m tools.windows.release --directory path/to/downloaded-artifact \
 
 Windows previews remain unsigned. Docking's shared update notice opens the
 release page; installation is manual, as with direct Linux/BSD downloads. Close
-Docking and its usage-hook processes before running the new installer. Signing
-and broader long-session/performance coverage are deferred.
+Docking and its usage-hook processes before running the new installer.
+
+## Test signing with SignPath
+
+The [Windows test signing workflow](../../.github/workflows/windows-signing.yml)
+runs the hosted Windows build and its acceptance checks on `master`, then sends
+the x64 NSIS installer to SignPath. The GitHub artifact is a ZIP containing one
+file, the setup EXE. This test signs the outer setup executable. After setup,
+the workflow runs when Windows packaging, its CI workflows, or `pyproject.toml`
+changes on `master`.
+
+1. Create your SignPath account, accept the organization invitation with it,
+   then confirm the CI user's email address.
+2. In [SignPath Projects](https://app.signpath.io/Web/768af021-5c03-4593-9604-03024f16e3c3/Projects),
+   set the Docking project's repository URL to `https://github.com/edumucelli/docking`.
+   Add GitHub.com under the organization's trusted build systems and link it to
+   the project. Create the `windows-installer` artifact configuration using
+   [signpath-installer.xml](signpath-installer.xml).
+3. Set up the `test-signing` policy with the provided self-signed certificate,
+   trusted-build and origin verification for `master`, and the CI user as a
+   submitter. Generate the CI user's API token in SignPath.
+4. In GitHub, create the `signpath-test` environment and allow deployments from
+   `master`. Set the environment secret `SIGNPATH_API_TOKEN` to the CI token.
+   Set the environment variable `SIGNPATH_TEST_CERTIFICATE_SHA256` to the 64
+   hexadecimal digits of the SignPath test certificate's SHA-256 fingerprint.
+   With the public certificate
+   exported from SignPath, run this in PowerShell:
+
+   ```powershell
+   $path = (Resolve-Path .\signpath-test.cer).Path
+   $cert = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($path)
+   $cert.GetCertHashString([System.Security.Cryptography.HashAlgorithmName]::SHA256)
+   ```
+
+5. Set the GitHub Actions repository variable `SIGNPATH_PROJECT_SLUG` to the
+   SignPath project slug to enable automatic runs. You can also start
+   **Windows test signing** from Actions on `master`. Approve the request in
+   SignPath if the test policy requires it. A successful run uploads
+   `windows-installer-test-signed` with the verified EXE and a checksum of the
+   signed bytes. Share the signing request with SignPath for its setup review.
+
+Production signing requires the issued certificate, the public code signing
+policy and a release policy with manual approval. Release acceptance needs to
+test and stage the exact signed bytes. See the
+[SignPath Foundation conditions](https://signpath.org/terms) and the
+[GitHub Actions integration guide](https://docs.signpath.io/trusted-build-systems/github).

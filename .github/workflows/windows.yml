@@ -2,6 +2,15 @@ name: Windows desktop
 
 on:
   workflow_call:
+    inputs:
+      signing-candidate:
+        type: boolean
+        default: false
+    outputs:
+      installer-artifact-id:
+        value: ${{ jobs.native.outputs.installer-artifact-id }}
+      installer-version:
+        value: ${{ jobs.native.outputs.installer-version }}
   workflow_dispatch:
   schedule:
     - cron: "23 5 * * 1"
@@ -18,6 +27,9 @@ jobs:
     name: UCRT64 (x64)
     runs-on: windows-2025
     timeout-minutes: 60
+    outputs:
+      installer-artifact-id: ${{ steps.signing_candidate.outputs.artifact-id }}
+      installer-version: ${{ steps.signing_version.outputs.version }}
     defaults:
       run:
         shell: msys2 {0}
@@ -178,6 +190,25 @@ jobs:
           --archive dist/docking-windows-x86_64.zip
           --bundle artifacts/windows/bundle-preflight/extracted/Docking
           --output artifacts/windows/release-readiness
+      - name: Read the installer candidate version
+        id: signing_version
+        if: inputs.signing-candidate
+        run: |
+          python -c '
+          import json
+          from pathlib import Path
+          metadata = Path("artifacts/windows/Docking/runtime/share/docking/runtime.json")
+          print("version=" + json.loads(metadata.read_text(encoding="utf-8"))["version"])
+          ' >> "$GITHUB_OUTPUT"
+      - name: Upload the installer for SignPath
+        id: signing_candidate
+        if: inputs.signing-candidate
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-installer-unsigned
+          path: dist/docking-windows-x86_64-setup.exe
+          if-no-files-found: error
+          retention-days: 1
       - uses: actions/upload-artifact@v7
         if: always()
         with:
