@@ -1,0 +1,84 @@
+name: Windows test signing
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/windows-signing.yml
+      - .github/workflows/windows.yml
+      - packaging/windows/**
+      - tools/windows/**
+      - pyproject.toml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: >-
+      github.repository == 'edumucelli/docking' && github.ref == 'refs/heads/master' &&
+      (github.event_name == 'workflow_dispatch' || vars.SIGNPATH_PROJECT_SLUG != '')
+    uses: ./.github/workflows/windows.yml
+    with:
+      signing-candidate: true
+
+  sign:
+    name: Test-sign the Windows installer
+    needs: build
+    runs-on: windows-2025
+    timeout-minutes: 45
+    environment: signpath-test
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Submit installer to SignPath
+        uses: signpath/github-action-submit-signing-request@a2c5b60d9c75f073142b653c354b632eedce097b # v3.2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: 768af021-5c03-4593-9604-03024f16e3c3
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: test-signing
+          artifact-configuration-slug: windows-installer
+          github-artifact-id: ${{ needs.build.outputs.installer-artifact-id }}
+          parameters: 'version: ${{ toJSON(needs.build.outputs.installer-version) }}'
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 1800
+          output-artifact-directory: signed
+      - name: Verify Authenticode and write the signed installer checksum
+        shell: pwsh
+        env:
+          TEST_CERTIFICATE_SHA256: ${{ vars.SIGNPATH_TEST_CERTIFICATE_SHA256 }}
+        run: |
+          $installer = Get-Item -LiteralPath 'signed/docking-windows-x86_64-setup.exe'
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
+          $certificate = $signature.SignerCertificate
+          $sha256 = [System.Security.Cryptography.HashAlgorithmName]::SHA256
+          if (!$certificate -or $certificate.GetCertHashString($sha256) -ne $env:TEST_CERTIFICATE_SHA256) {
+            throw 'The installer does not carry the expected SignPath test certificate.'
+          }
+          # Trust the pinned self-signed certificate for this verification on the hosted runner.
+          $store = [System.Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
+          $store.Open('ReadWrite')
+          try {
+            $store.Add($certificate)
+            $verified = Get-AuthenticodeSignature -LiteralPath $installer.FullName
+            if ($verified.Status -ne 'Valid') {
+              throw "Installer Authenticode verification failed: $($verified.StatusMessage)"
+            }
+          } finally {
+            $store.Remove($certificate)
+            $store.Close()
+          }
+          $digest = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$digest  $($installer.Name)" | Set-Content -LiteralPath "$($installer.FullName).sha256"
+      - name: Upload the test-signed installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-installer-test-signed
+          path: |
+            signed/docking-windows-x86_64-setup.exe
+            signed/docking-windows-x86_64-setup.exe.sha256
+          if-no-files-found: error
+          retention-days: 7

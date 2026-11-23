@@ -46,6 +46,7 @@ class MusicState:
     can_go_previous: bool = False
     art_url: str = ""
     track_url: str = ""
+    metadata_hint: str = ""
 
 
 def has_active_media(state: MusicState) -> bool:
@@ -95,4 +96,5 @@ def tooltip_text(state: MusicState) -> str:
         title=_("Music"),
         primary=primary,
         details=secondary,
+        recovery=state.metadata_hint,
     )

@@ -4,7 +4,9 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
-- Added Checklist, a saved list with checkboxes and an unchecked item count in the dock.
+- Added a SignPath test-signing workflow for the Windows installer.
+- Added Music setup tips for Rhythmbox track details and mpv playback controls.
+- Fixed the Music play/pause badge when pausing Rhythmbox.
 - Added a Music applet menu for choosing which installed app to open when playback is idle.
 - Temporarily disabled the Reddit applet while its RSS feeds are unreliable.
   Existing Reddit pins and preferences are retained.
@@ -26,6 +28,7 @@ Docking versions are listed in descending version order. Dates are in UTC.
   desktop wallpaper and optional GIF export with Gifski. The README links to all
   four tours.
 - Fixed stale dock tooltips when opening or using a context menu.
+- Added Checklist, a saved list with checkboxes and an unchecked item count in the dock.
 
 ## [2.34.0](https://github.com/edumucelli/docking/releases/tag/v2.34.0) (2026-11-21)
 
