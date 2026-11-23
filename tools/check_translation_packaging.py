@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import configparser
 import re
 import sys
 from pathlib import Path
@@ -33,25 +32,10 @@ def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _has_mo_package_data(root: Path) -> bool:
-    pyproject_data = _read_pyproject_package_data(root)
-
-    parser = configparser.ConfigParser()
-    parser.read(root / "setup.cfg", encoding="utf-8")
-    setup_cfg_data = [
-        line.strip()
-        for line in parser["options.package_data"]["docking"].splitlines()
-        if line.strip()
-    ]
-
-    expected = "locale/*/LC_MESSAGES/*.mo"
-    return expected in pyproject_data and expected in setup_cfg_data
-
-
 def check_translation_packaging(root: Path) -> list[str]:
     errors: list[str] = []
 
-    if not _has_mo_package_data(root):
+    if "locale/*/LC_MESSAGES/*.mo" not in _read_pyproject_package_data(root):
         errors.append("Compiled .mo catalogs are not declared in package_data")
 
     expected_compile_paths = {

@@ -5,7 +5,6 @@ This script is intentionally explicit rather than clever. Docking currently
 ships version information in several formats with different syntax:
 
 - TOML (`pyproject.toml`)
-- INI-like metadata (`setup.cfg`)
 - Python source (`docking/__init__.py`)
 - RPM spec
 - Snap manifest
@@ -109,11 +108,6 @@ def bump_version(*, version: str) -> None:
             path=ROOT / "pyproject.toml",
             pattern=r'(?m)^version = "\d+\.\d+\.\d+"$',
             replacement='version = "{version}"',
-        ),
-        ReplacementTarget(
-            path=ROOT / "setup.cfg",
-            pattern=r"(?m)^version = \d+\.\d+\.\d+$",
-            replacement="version = {version}",
         ),
         ReplacementTarget(
             path=ROOT / "docking/__init__.py",
