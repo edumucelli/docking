@@ -22,6 +22,7 @@ def items_from_prefs(value: object) -> list[ChecklistItem]:
             items.append(
                 ChecklistItem(text.strip(), checked=row.get("checked") is True)
             )
+    items.sort(key=lambda item: item.checked)
     return items
 
 

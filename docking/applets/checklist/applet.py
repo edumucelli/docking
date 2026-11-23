@@ -20,12 +20,7 @@ from docking.applets.checklist.state import (
     items_from_prefs,
     items_to_prefs,
 )
-from docking.applets.popup import (
-    add_cancel_ok_buttons,
-    create_popup_window,
-    prepare_dialog_content,
-    show_wrapped_popup,
-)
+from docking.applets.popup import create_popup_window, show_wrapped_popup
 from docking.i18n import _, ngettext
 
 if TYPE_CHECKING:
@@ -65,7 +60,7 @@ class ChecklistApplet(Applet):
         if self._popup is None:
             self._popup = create_popup_window(managed=True)
             self._popup.set_title(self.name)
-            self._popup.connect("key-press-event", self._on_popup_key)
+            self._popup.connect_after("key-press-event", self._on_popup_key)
             self._popup.connect("destroy", self._on_popup_destroy)
         content, entry = self._build_popup()
         show_wrapped_popup(
@@ -124,85 +119,101 @@ class ChecklistApplet(Applet):
 
     def _append_row(
         self, rows: Gtk.Box, item: ChecklistItem, clear: Gtk.Button
-    ) -> None:
+    ) -> Gtk.Box:
         row = Gtk.Box(spacing=8)
-        check = Gtk.CheckButton(active=item.checked)
-        self._set_check_label(check, item.text)
-        check.connect("toggled", self._toggle_item, item, clear)
-        row.pack_start(check, True, True, 0)
+        check = Gtk.CheckButton(active=item.checked, valign=Gtk.Align.CENTER)
+        check.get_accessible().set_name(item.text)
+        row.pack_start(check, False, False, 0)
 
-        edit = Gtk.Button(label=_("Edit"), valign=Gtk.Align.CENTER)
-        edit.connect("clicked", self._edit_item, item, check)
-        row.pack_start(edit, False, False, 0)
+        label = Gtk.Label(
+            label=item.text,
+            xalign=0,
+            wrap=True,
+            wrap_mode=Pango.WrapMode.WORD_CHAR,
+            max_width_chars=32,
+        )
+        self._set_strikethrough(label, item.checked)
+        text_button = Gtk.Button(relief=Gtk.ReliefStyle.NONE)
+        text_button.add(label)
+        entry = Gtk.Entry()
+        entry.get_accessible().set_name(_("Item text"))
+        text = Gtk.Stack(vhomogeneous=False)
+        text.add_named(text_button, "text")
+        text.add_named(entry, "editor")
+        row.pack_start(text, True, True, 0)
 
+        def begin_edit(_button: Gtk.Button) -> None:
+            entry.set_text(item.text)
+            text.set_visible_child(entry)
+            entry.grab_focus()
+
+        def finish_edit() -> None:
+            text.set_visible_child(text_button)
+            text_button.grab_focus()
+
+        def save_edit(widget: Gtk.Entry) -> None:
+            updated = widget.get_text().strip()
+            if not updated:
+                return
+            if updated != item.text:
+                item.text = updated
+                label.set_text(updated)
+                check.get_accessible().set_name(updated)
+                self._save_and_present()
+            finish_edit()
+
+        def on_edit_key(_entry: Gtk.Entry, event: Gdk.EventKey) -> bool:
+            if event.keyval == Gdk.KEY_Escape:
+                finish_edit()
+                return True
+            return False
+
+        text_button.connect("clicked", begin_edit)
+        entry.connect("activate", save_edit)
+        entry.connect("key-press-event", on_edit_key)
+        entry.connect(
+            "focus-out-event",
+            lambda _entry, _event: text.set_visible_child(text_button),
+        )
+        check.connect("toggled", self._toggle_item, rows, row, clear, label)
         rows.pack_start(row, False, False, 0)
         row.show_all()
+        return row
 
     @staticmethod
-    def _set_check_label(check: Gtk.CheckButton, text: str) -> None:
-        check.set_label(text)
-        label = check.get_child()
-        if isinstance(label, Gtk.Label):
-            label.set_line_wrap(True)
-            label.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
-            label.set_max_width_chars(32)
-
-    def _edit_item(
-        self, _button: Gtk.Button, item: ChecklistItem, check: Gtk.CheckButton
-    ) -> None:
-        dialog = Gtk.Dialog(
-            title=_("Edit Item"),
-            transient_for=self._popup,
-            modal=True,
-            destroy_with_parent=True,
-        )
-        add_cancel_ok_buttons(
-            dialog=dialog, cancel_label=_("Cancel"), ok_label=_("Save")
-        )
-        content = prepare_dialog_content(
-            dialog=dialog, width=300, default_response=Gtk.ResponseType.OK
-        )
-        entry = Gtk.Entry(text=item.text)
-        entry.get_accessible().set_name(_("Item text"))
-        content.pack_start(entry, False, False, 0)
-
-        def update_save(widget: Gtk.Entry) -> None:
-            dialog.set_response_sensitive(
-                Gtk.ResponseType.OK, bool(widget.get_text().strip())
-            )
-
-        def on_response(window: Gtk.Dialog, response: int) -> None:
-            if response == Gtk.ResponseType.OK:
-                text = entry.get_text().strip()
-                if not text:
-                    return
-                if text != item.text:
-                    item.text = text
-                    self._set_check_label(check, text)
-                    self._save_and_present()
-            window.destroy()
-
-        entry.connect("changed", update_save)
-        entry.connect("activate", lambda _entry: dialog.response(Gtk.ResponseType.OK))
-        dialog.connect("response", on_response)
-        dialog.show_all()
-        entry.grab_focus()
+    def _set_strikethrough(label: Gtk.Label, checked: bool) -> None:
+        attrs = Pango.AttrList()
+        if checked:
+            attrs.insert(Pango.attr_strikethrough_new(True))
+        label.set_attributes(attrs)
 
     def _add_item(self, entry: Gtk.Entry, rows: Gtk.Box, clear: Gtk.Button) -> None:
         text = entry.get_text().strip()
         if not text:
             return
         item = ChecklistItem(text)
-        self._items.append(item)
-        self._append_row(rows, item, clear)
+        index = self._unchecked_count()
+        self._items.insert(index, item)
+        row = self._append_row(rows, item, clear)
+        rows.reorder_child(row, index)
         entry.set_text("")
         entry.grab_focus()
         self._save_and_present()
 
     def _toggle_item(
-        self, check: Gtk.CheckButton, item: ChecklistItem, clear: Gtk.Button
+        self,
+        check: Gtk.CheckButton,
+        rows: Gtk.Box,
+        row: Gtk.Box,
+        clear: Gtk.Button,
+        label: Gtk.Label,
     ) -> None:
+        item = self._items.pop(rows.get_children().index(row))
         item.checked = check.get_active()
+        index = len(self._items) if item.checked else self._unchecked_count()
+        self._items.insert(index, item)
+        rows.reorder_child(row, index)
+        self._set_strikethrough(label, item.checked)
         clear.set_sensitive(any(item.checked for item in self._items))
         self._save_and_present()
 

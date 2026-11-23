@@ -1,7 +1,7 @@
 """Tests for the Checklist applet."""
 
 import pytest
-from gi.repository import Gtk
+from gi.repository import Gdk, Gtk, Pango
 
 from docking.applets import load_applet_class
 from docking.applets.base import load_catalog_icon
@@ -14,8 +14,13 @@ def test_catalog_and_saved_items():
     assert load_applet_class("checklist") is ChecklistApplet
     assert load_catalog_icon(applet_id="checklist", size=32) is not None
     assert items_from_prefs(
-        [None, {"text": " "}, {"text": " Send invoice ", "checked": True}]
-    ) == [ChecklistItem("Send invoice", checked=True)]
+        [
+            None,
+            {"text": " "},
+            {"text": " Send invoice ", "checked": True},
+            {"text": "Buy stamps"},
+        ]
+    ) == [ChecklistItem("Buy stamps"), ChecklistItem("Send invoice", checked=True)]
 
 
 @pytest.mark.skipif(not Gtk.init_check()[0], reason="GTK display required")
@@ -38,58 +43,71 @@ def test_checklist_popup_saves_items_and_updates_count(tmp_path):
         entry.set_text(" Send invoice ")
         entry.activate()
         first_row = rows.get_children()[0]
-        first, edit = first_row.get_children()
-        assert first.get_label() == "Send invoice"
+        first, text = first_row.get_children()
+        item_text = text.get_visible_child()
+        label = item_text.get_child()
+        assert label.get_text() == "Send invoice"
         assert entry.get_text() == ""
         assert "1 unchecked item" in applet.item.name
         assert applet.item.icon.get_pixels() != empty_icon
 
         first.set_active(True)
         assert first.get_visible()
+        assert label.get_attributes().get_iterator().get(Pango.AttrType.STRIKETHROUGH)
         assert applet.item.icon.get_pixels() == empty_icon
         assert clear.get_sensitive()
         first.set_active(False)
         assert not clear.get_sensitive()
+        assert (
+            not label.get_attributes().get_iterator().get(Pango.AttrType.STRIKETHROUGH)
+        )
 
         entry.set_text("Buy stamps")
         add.clicked()
         second_row = rows.get_children()[1]
         assert rows.get_children() == [first_row, second_row]
         first.set_active(True)
+        assert rows.get_children() == [second_row, first_row]
 
-        def open_editor():
-            edit.clicked()
-            return next(
-                window
-                for window in Gtk.Window.list_toplevels()
-                if isinstance(window, Gtk.Dialog)
-                and window.get_transient_for() is popup
-            )
-
-        dialog = open_editor()
-        field = dialog.get_focus()
+        item_text.clicked()
+        field = text.get_visible_child()
+        assert popup.get_focus() is field
         assert field.get_text() == "Send invoice"
         field.set_text(" ")
-        assert not dialog.get_widget_for_response(Gtk.ResponseType.OK).get_sensitive()
+        field.activate()
+        assert text.get_visible_child() is field
         field.set_text("Discard this edit")
-        dialog.response(Gtk.ResponseType.CANCEL)
-        assert first.get_label() == "Send invoice"
+        escape = Gdk.Event.new(Gdk.EventType.KEY_PRESS)
+        escape.keyval = Gdk.KEY_Escape
+        assert field.emit("key-press-event", escape)
+        assert text.get_visible_child() is item_text
+        assert label.get_text() == "Send invoice"
 
-        dialog = open_editor()
-        field = dialog.get_focus()
+        item_text.clicked()
         field.set_text(" Send final invoice ")
         field.activate()
-        assert not dialog.get_visible()
-        assert first.get_label() == "Send final invoice"
+        assert text.get_visible_child() is item_text
+        assert label.get_text() == "Send final invoice"
         assert first.get_active()
-        assert rows.get_children() == [first_row, second_row]
+        assert rows.get_children() == [second_row, first_row]
         assert "1 unchecked item" in applet.item.name
         assert Config.load(path).applet_prefs["checklist"]["items"] == [
-            {"text": "Send final invoice", "checked": True},
             {"text": "Buy stamps", "checked": False},
+            {"text": "Send final invoice", "checked": True},
         ]
+
+        entry.set_text("Call supplier")
+        add.clicked()
+        third_row = rows.get_children()[1]
+        assert rows.get_children() == [second_row, third_row, first_row]
+        second, _text = second_row.get_children()
+        second.set_active(True)
+        assert rows.get_children() == [third_row, first_row, second_row]
+        second.set_active(False)
+        assert rows.get_children() == [third_row, second_row, first_row]
+        second.set_active(True)
         clear.clicked()
-        assert rows.get_children() == [second_row]
+        assert rows.get_children() == [third_row]
         assert "1 unchecked item" in applet.item.name
 
         applet.on_clicked()
@@ -102,8 +120,10 @@ def test_checklist_popup_saves_items_and_updates_count(tmp_path):
         readded.on_clicked()
         scrolled = readded._popup.get_child().get_child().get_children()[0]
         (remaining_row,) = scrolled.get_child().get_child().get_children()
-        remaining, _edit = remaining_row.get_children()
-        assert remaining.get_label() == "Buy stamps"
+        remaining, remaining_text = remaining_row.get_children()
+        assert (
+            remaining_text.get_visible_child().get_child().get_text() == "Call supplier"
+        )
         assert not remaining.get_active()
     finally:
         readded.stop()
