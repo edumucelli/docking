@@ -44,6 +44,7 @@ from docking.platform import targets
 from docking.ui.popup_surface import (
     create_startup_popup_window,
     position_startup_popup,
+    show_startup_popup_content,
     wrap_startup_popup_content,
 )
 
@@ -199,13 +200,10 @@ class UpdateCheckController:
             self._popup = create_startup_popup_window(
                 self._window, self._on_popup_destroy
             )
-        else:
-            child = self._popup.get_child()
-            if child is not None:
-                self._popup.remove(child)
 
-        self._popup.add(self._build_popup_content(release=release))
-        self._popup.show_all()
+        show_startup_popup_content(
+            self._popup, lambda: self._build_popup_content(release=release)
+        )
         self._notify_visible(True)
         self._position_popup()
         return True

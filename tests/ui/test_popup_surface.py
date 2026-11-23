@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import pytest
 
@@ -77,6 +77,21 @@ def test_startup_popup_constructor_keeps_window_flags_parent_and_destroy_signal(
     configure.assert_called_once_with(popup)
     popup.set_transient_for.assert_called_once_with(parent)
     popup.connect.assert_called_once_with("destroy", destroyed)
+
+
+def test_startup_popup_replaces_existing_content_before_showing():
+    old_child, new_child = object(), object()
+    popup = MagicMock()
+    popup.get_child.return_value = old_child
+
+    ps.show_startup_popup_content(popup, lambda: new_child)
+
+    assert popup.method_calls == [
+        call.get_child(),
+        call.remove(old_child),
+        call.add(new_child),
+        call.show_all(),
+    ]
 
 
 class _FakeStyleContext:
