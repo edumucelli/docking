@@ -69,20 +69,21 @@ class BackgroundWorker:
         on_result: Callable[[T], Any] | None = None,
         on_error: Callable[[Exception], Any] | None = None,
     ) -> None:
-        log = self.log.bind(action=name)
-
-        def worker() -> None:
+        def request() -> None:
             try:
                 result = fn()
             except Exception as exc:
-                log.debug("Background task failed: %s", exc)
+                self.log.bind(action=name).debug("Background task failed: %s", exc)
                 if on_error is not None:
                     self._idle_add(on_error, exc)
-                return
-            if on_result is not None:
-                self._idle_add(on_result, result)
+            else:
+                if on_result is not None:
+                    self._idle_add(on_result, result)
 
-        self._thread_factory(target=worker, daemon=True).start()
+        self._submit(request)
+
+    def _submit(self, request: Callable[[], None]) -> None:
+        self._thread_factory(target=request, daemon=True).start()
 
     def run_guarded(
         self,
@@ -139,25 +140,7 @@ class SerialWorker(BackgroundWorker):
         self._thread = None
         self._closed = False
 
-    def run(
-        self,
-        *,
-        name: str,
-        fn: Callable[[], T],
-        on_result: Callable[[T], Any] | None = None,
-        on_error: Callable[[Exception], Any] | None = None,
-    ) -> None:
-        def request() -> None:
-            try:
-                result = fn()
-            except Exception as exc:
-                self.log.bind(action=name).debug("Background task failed: %s", exc)
-                if on_error is not None:
-                    self._idle_add(on_error, exc)
-            else:
-                if on_result is not None:
-                    self._idle_add(on_result, result)
-
+    def _submit(self, request: Callable[[], None]) -> None:
         with self._queue_lock:
             if self._closed:
                 raise RuntimeError("Worker is stopped")
