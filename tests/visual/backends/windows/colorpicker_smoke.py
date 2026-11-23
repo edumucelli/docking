@@ -14,6 +14,7 @@ import os
 import subprocess
 import sys
 import threading
+from functools import partial
 from pathlib import Path
 
 COLORS = (
@@ -86,7 +87,7 @@ def main():
 
     gi.require_version("Gtk", "3.0")
     gi.require_version("Gdk", "3.0")
-    from gi.repository import Gdk, GLib, Gtk
+    from gi.repository import Gdk, Gtk
 
     if args.fixture:
         fixture(output)
@@ -98,7 +99,10 @@ def main():
         WindowsScreenCaptureService,
     )
     from docking.platform.native.windows.ffi import bind
-    from tests.visual.backends.windows.desktop_driver import WindowsDesktop
+    from tests.visual.backends.windows.desktop_driver import (
+        WindowsDesktop,
+        call_on_gtk_thread,
+    )
 
     native = WindowsDesktop()
     assert not any(w["title"] == "Docking" for w in native.windows())
@@ -132,23 +136,7 @@ def main():
 
     app.build_dock_window = build
 
-    def call(callback):
-        done, values, failures = threading.Event(), [], []
-
-        def invoke():
-            try:
-                values.append(callback())
-            except Exception as exc:
-                failures.append(exc)
-            finally:
-                done.set()
-            return False
-
-        GLib.idle_add(invoke)
-        assert done.wait(30), "GTK did not service an observation"
-        if failures:
-            raise failures[0]
-        return values[0]
+    call = partial(call_on_gtk_thread, timeout=30)
 
     def publish():
         (output / "result.json").write_text(json.dumps(report, indent=2))
