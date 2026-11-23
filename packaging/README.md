@@ -38,7 +38,7 @@ That check confirms:
 
 ```bash
 # Install build dependencies
-sudo apt install debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip python3-all pybuild-plugin-pyproject libwayland-dev wayland-protocols gettext
+sudo apt install debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip python3-venv python3-all pybuild-plugin-pyproject libwayland-dev wayland-protocols gettext
 
 # Build .deb
 ./packaging/deb/build.sh

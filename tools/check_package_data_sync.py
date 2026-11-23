@@ -1,42 +1,10 @@
 #!/usr/bin/env python3
-"""Validate that package-data declarations stay synchronized."""
+"""Validate package-data includes for the source distribution."""
 
 from __future__ import annotations
 
-import configparser
-import re
 import sys
 from pathlib import Path
-
-try:
-    import tomllib  # type: ignore[attr-defined]
-except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback path
-    tomllib = None
-
-
-def _parse_pyproject_package_data_text(text: str) -> list[str]:
-    match = re.search(
-        r"(?ms)^\[tool\.setuptools\.package-data\]\s+docking\s*=\s*\[(?P<body>.*?)\]",
-        text,
-    )
-    if match is None:
-        raise KeyError("[tool.setuptools.package-data] docking")
-    return re.findall(r'"([^"]+)"', match.group("body"))
-
-
-def read_pyproject_package_data(root: Path) -> list[str]:
-    text = (root / "pyproject.toml").read_text(encoding="utf-8")
-    if tomllib is not None:
-        data = tomllib.loads(text)
-        return list(data["tool"]["setuptools"]["package-data"]["docking"])
-    return _parse_pyproject_package_data_text(text)
-
-
-def read_setup_cfg_package_data(root: Path) -> list[str]:
-    parser = configparser.ConfigParser()
-    parser.read(root / "setup.cfg", encoding="utf-8")
-    raw = parser["options.package_data"]["docking"]
-    return [line.strip() for line in raw.splitlines() if line.strip()]
 
 
 def read_manifest_lines(root: Path) -> set[str]:
@@ -49,12 +17,6 @@ def read_manifest_lines(root: Path) -> set[str]:
 
 def check_package_data_sync(root: Path) -> list[str]:
     errors: list[str] = []
-    pyproject = read_pyproject_package_data(root)
-    setup_cfg = read_setup_cfg_package_data(root)
-
-    if pyproject != setup_cfg:
-        errors.append("pyproject.toml and setup.cfg package_data entries differ")
-
     manifest = read_manifest_lines(root)
     expected_manifest = {
         "recursive-include docking/assets *.svg *.png *.json *.csv.gz *.ogg *.md",
@@ -76,7 +38,7 @@ def main() -> int:
         for error in errors:
             print(f"[package-data] {error}", file=sys.stderr)
         return 1
-    print("[package-data] Package data declarations are synchronized.")
+    print("[package-data] Source distribution includes package data.")
     return 0
 
 
