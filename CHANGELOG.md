@@ -28,6 +28,7 @@ Docking versions are listed in descending version order. Dates are in UTC.
   desktop wallpaper and optional GIF export with Gifski. The README links to all
   four tours.
 - Fixed stale dock tooltips when opening or using a context menu.
+- Added Checklist with inline editing, struck-through completed items, and an unchecked count in the dock.
 
 ## [2.34.0](https://github.com/edumucelli/docking/releases/tag/v2.34.0) (2026-11-21)
 

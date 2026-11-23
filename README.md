@@ -23,7 +23,7 @@ A lightweight, feature-rich dock for Linux (X11 and Wayland), FreeBSD, OpenBSD, 
 - Linux desktop integration across X11 and Wayland, with backend-specific
   capabilities and reduced fallback mode.
 - Unified search for applications, windows, recent files, calculations, and paths.
-- 66 built-in applets for messaging, media, productivity, system controls, and more.
+- 67 built-in applets for messaging, media, productivity, system controls, and more.
 - Flexible placement across monitors, auto-hide, separators, scalable icons,
   custom icons, and 13 built-in themes.
 - AppImage, Debian, RPM, Flatpak, Snap, Arch, and Nix release packages, native BSD
@@ -124,7 +124,7 @@ instructions, and theme field reference.
 
 ## Applets
 
-Docking includes 66 built-in applets, ranging from application
+Docking includes 67 built-in applets, ranging from application
 launchers and system controls to productivity tools, wellness reminders, and
 live information.
 

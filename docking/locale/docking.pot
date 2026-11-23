@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: docking\n"
 "Report-Msgid-Bugs-To: edumucelli@gmail.com\n"
-"POT-Creation-Date: 2026-11-20 20:56+0100\n"
+"POT-Creation-Date: 2026-11-23 00:38+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -999,6 +999,30 @@ msgstr ""
 
 #: docking/applets/cities.py:173
 msgid "Type city name..."
+msgstr ""
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr ""
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] ""
+msgstr[1] ""
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr ""
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr ""
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
 msgstr ""
 
 #: docking/applets/clippy/applet.py:70
@@ -2225,6 +2249,7 @@ msgstr ""
 msgid "Update List"
 msgstr ""
 
+#: docking/applets/checklist/applet.py:102
 #: docking/applets/news/applet.py:510 docking/applets/reddit/applet.py:418
 #: docking/ui/dock_layout.py:121 docking/ui/dock_layout.py:358
 #: docking/ui/dock_layout.py:386

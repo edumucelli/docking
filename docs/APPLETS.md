@@ -1,6 +1,6 @@
 # Applets
 
-Docking includes 66 built-in applets that live alongside
+Docking includes 67 built-in applets that live alongside
 application launchers, files, and folders. Applets can launch workflows,
 show live information, adjust system settings, or provide small tools
 without opening a full application.
@@ -30,7 +30,7 @@ hidden from the menu.
   [Workspaces](#workspaces)
 - **Time & Productivity:** [AI Usage](#ai-usage), [Alarm](#alarm),
   [Bookmarks](#bookmarks), [Calculator](#calculator), [Calendar](#calendar),
-  [Clippy](#clippy), [Clock](#clock), [Color Picker](#color-picker),
+  [Checklist](#checklist), [Clippy](#clippy), [Clock](#clock), [Color Picker](#color-picker),
   [Drag Share](#drag-share), [Pomodoro](#pomodoro), [Quick Note](#quick-note),
   [Recent Files](#recent-files), [Unit Converter](#unit-converter),
   [URL Shortener](#url-shortener)
@@ -215,6 +215,19 @@ Shows today's date as a calendar page icon with red header (weekday) and day num
 
 **Click:** Toggle a calendar popup
 **Tooltip:** Full date (e.g. "Tuesday, February 25")
+
+### Checklist
+
+Keep one reusable checklist in the dock. The icon shows how many items are
+unchecked. The list is saved locally and kept when you restart Docking or remove
+and later re-add Checklist.
+
+**Click:** Open the checklist. Type an item and press Enter or click **Add**.
+Click an item's text to edit it in place. Press Enter to save or Escape to
+cancel. Checking an item strikes through its text and moves it to the end.
+Unchecking it moves it back above the completed items.
+
+**Clear Completed** removes the checked items.
 
 ### Clippy
 
