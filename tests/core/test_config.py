@@ -1195,14 +1195,13 @@ class TestNormalizeHideMode:
                 warnings.append(msg % args)
 
         monkeypatch.setattr(config_mod, "logger", _Capture())
-        result = config_mod._normalize_hide_mode("bogus_mode")
-        assert result == "none"
+        assert Config(hide_mode="bogus_mode").hide_mode == "none"
         assert any("Invalid hide mode" in w for w in warnings)
 
     def test_normalize_hide_mode_non_string_returns_default(self):
-        assert config_mod._normalize_hide_mode(42) == "none"
-        assert config_mod._normalize_hide_mode(None) == "none"
-        assert config_mod._normalize_hide_mode(["autohide"]) == "none"
+        assert Config(hide_mode=42).hide_mode == "none"
+        assert Config(hide_mode=None).hide_mode == "none"
+        assert Config(hide_mode=["autohide"]).hide_mode == "none"
 
 
 class TestUriIsDir:

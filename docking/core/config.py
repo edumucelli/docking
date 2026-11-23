@@ -443,20 +443,6 @@ def _resolve_initial_desktop_id(
     return None
 
 
-def _normalize_hide_mode(value: object) -> str:
-    if isinstance(value, str):
-        try:
-            return HideMode(value=value).value
-        except ValueError as exc:
-            logger.warning(
-                "Invalid hide mode %r; using default %r (%s)",
-                value,
-                HideMode.NONE.value,
-                exc,
-            )
-    return HideMode.NONE.value
-
-
 class LeftClickAction(str, Enum):
     """Primary-click behavior for running applications.
 
@@ -530,69 +516,22 @@ DEFAULT_SHOW_LAUNCHER_BADGES = True
 DEFAULT_SHOW_LAUNCHER_PROGRESS = True
 
 
-def _normalize_left_click_action(value: object) -> str:
+def _normalize_enum(value: object, default: Enum, *, setting: str) -> str:
+    member = default
     if isinstance(value, str):
         try:
-            return LeftClickAction(value=value).value
+            member = type(default)(value=value)
         except ValueError as exc:
             logger.warning(
-                "Invalid left click action %r; using default %r (%s)",
+                "Invalid %s %r; using default %r (%s)",
+                setting,
                 value,
-                LeftClickAction.TOGGLE.value,
+                default.value,
                 exc,
             )
-    return LeftClickAction.TOGGLE.value
-
-
-def _normalize_middle_click_action(value: object) -> str:
-    if isinstance(value, str):
-        try:
-            return MiddleClickAction(value=value).value
-        except ValueError as exc:
-            logger.warning(
-                "Invalid middle click action %r; using default %r (%s)",
-                value,
-                MiddleClickAction.NEW_WINDOW.value,
-                exc,
-            )
-    return MiddleClickAction.NEW_WINDOW.value
-
-
-def _normalize_dock_item_click_effect(value: object) -> str:
-    if isinstance(value, str):
-        try:
-            return DockItemClickEffect(value=value).value
-        except ValueError:
-            logger.warning("Invalid dock item click effect %r; using bounce", value)
-    return DEFAULT_DOCK_ITEM_CLICK_EFFECT
-
-
-def _normalize_stack_unfold(value: object) -> str:
-    if isinstance(value, str):
-        try:
-            return StackUnfold(value=value).value
-        except ValueError as exc:
-            logger.warning(
-                "Invalid stack unfold mode %r; using default %r (%s)",
-                value,
-                DEFAULT_STACK_UNFOLD,
-                exc,
-            )
-    return DEFAULT_STACK_UNFOLD
-
-
-def _normalize_window_list_sort(value: object) -> str:
-    if isinstance(value, str):
-        try:
-            return WindowListSort(value=value).value
-        except ValueError as exc:
-            logger.warning(
-                "Invalid window list sort %r; using default %r (%s)",
-                value,
-                DEFAULT_WINDOW_LIST_SORT,
-                exc,
-            )
-    return DEFAULT_WINDOW_LIST_SORT
+    normalized = member.value
+    assert isinstance(normalized, str)
+    return normalized
 
 
 @dataclass
@@ -734,21 +673,6 @@ def _normalize_float(
     if maximum is not None and parsed > maximum:
         parsed = maximum
     return parsed
-
-
-def _normalize_position(value: object) -> str:
-    if isinstance(value, str):
-        try:
-            return Position(value=value).value
-        except ValueError as exc:
-            logger.warning(
-                "Invalid dock position %r; using default %r (%s)",
-                value,
-                Position.BOTTOM.value,
-                exc,
-            )
-            return Position.BOTTOM.value
-    return Position.BOTTOM.value
 
 
 def _normalize_theme(value: object) -> str:
@@ -962,7 +886,9 @@ class Config:
             default=DEFAULT_ZOOM_RANGE,
             minimum=0,
         )
-        self.position = _normalize_position(self.position)
+        self.position = _normalize_enum(
+            self.position, Position.BOTTOM, setting="dock position"
+        )
         self.dock_alignment = _normalize_float(
             self.dock_alignment,
             default=DEFAULT_DOCK_ALIGNMENT,
@@ -978,7 +904,9 @@ class Config:
             ),
         )
         self.monitor_connector = _normalize_optional_text(self.monitor_connector)
-        self.hide_mode = _normalize_hide_mode(self.hide_mode)
+        self.hide_mode = _normalize_enum(
+            self.hide_mode, HideMode.NONE, setting="hide mode"
+        )
         self.hide_delay_ms = _normalize_milliseconds(
             self.hide_delay_ms,
             default=DEFAULT_HIDE_DELAY_MS,
@@ -1050,24 +978,28 @@ class Config:
             self.startup_tips_enabled,
             default=DEFAULT_STARTUP_TIPS_ENABLED,
         )
-        self.left_click_action = _normalize_left_click_action(
-            self.left_click_action,
+        self.left_click_action = _normalize_enum(
+            self.left_click_action, LeftClickAction.TOGGLE, setting="left click action"
         )
-        self.middle_click_action = _normalize_middle_click_action(
+        self.middle_click_action = _normalize_enum(
             self.middle_click_action,
+            MiddleClickAction.NEW_WINDOW,
+            setting="middle click action",
         )
         self.dock_item_click_effects_enabled = coerce_bool(
             self.dock_item_click_effects_enabled,
             default=DEFAULT_DOCK_ITEM_CLICK_EFFECTS_ENABLED,
         )
-        self.dock_item_click_effect = _normalize_dock_item_click_effect(
+        self.dock_item_click_effect = _normalize_enum(
             self.dock_item_click_effect,
+            DockItemClickEffect.BOUNCE,
+            setting="dock item click effect",
         )
-        self.stack_unfold = _normalize_stack_unfold(
-            self.stack_unfold,
+        self.stack_unfold = _normalize_enum(
+            self.stack_unfold, StackUnfold.HOVER, setting="stack unfold mode"
         )
-        self.window_list_sort = _normalize_window_list_sort(
-            self.window_list_sort,
+        self.window_list_sort = _normalize_enum(
+            self.window_list_sort, WindowListSort.DEFAULT, setting="window list sort"
         )
         self.show_window_count_numbers = coerce_bool(
             self.show_window_count_numbers,
