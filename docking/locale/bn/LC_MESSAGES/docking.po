@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -3442,10 +3430,6 @@ msgstr "সক্রিয় করুন"
 msgid "Context Menu"
 msgstr "প্রসঙ্গ মেনু"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-বাস অনুপলব্ধ"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3552,10 +3536,6 @@ msgstr "সিস্টেম ট্রে: {n} আইটেম(গুলি)"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "সিস্টেম ট্রে: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "সিস্টেম ট্রে: ডি-বাস অনুপলব্ধ৷"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3884,10 +3864,6 @@ msgstr "এটি Docking-এ সংরক্ষিত WhatsApp Web সেশন
 msgid "Could not disconnect WhatsApp"
 msgstr "WhatsApp সংযোগ বিচ্ছিন্ন করা যায়নি"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "অজানা WebKit ত্রুটি"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK উপলব্ধ নেই"
@@ -3895,10 +3871,6 @@ msgstr "WebKitGTK উপলব্ধ নেই"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Docking অ্যাপলেট"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "WhatsApp Web পুনরায় লোড করুন"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3916,11 +3888,6 @@ msgstr "ক্যামেরা"
 msgid "microphone"
 msgstr "মাইক্রোফোন"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "WhatsApp-কে আপনার {device} ব্যবহারের অনুমতি দেবেন?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "প্রত্যাখ্যান করুন"
@@ -3928,10 +3895,6 @@ msgstr "প্রত্যাখ্যান করুন"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "অনুমতি দিন"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp-এর জন্য WebKitGTK প্রয়োজন"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3942,10 +3905,6 @@ msgstr "WebKitGTK 4.1 বা 4.0 introspection প্যাকেজ ইনস�
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "অজানা ব্রাউজার ত্রুটি"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: WebKitGTK ইনস্টল করা নেই"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5243,10 +5202,6 @@ msgstr "টুলটিপ দেখান"
 msgid "Show item names and details when hovering over dock items."
 msgstr "ডক আইটেমগুলির উপর ঘোরানোর সময় আইটেমের নাম এবং বিশদ বিবরণ দেখান৷"
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr "চলমান অ্যাপ্লিকেশানগুলির উপর ঘোরানোর সময় উইন্ডো থাম্বনেইলগুলি দেখান৷"
@@ -5640,28 +5595,1028 @@ msgstr "উপেক্ষা করুন"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "ক্যামেরা লক করা"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "মাইক্রোফোনের অবস্থা জানা যাচ্ছে না"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "মাইক্রোফোন মিউট করা আছে কি না জানা নেই"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "মাইক্রোফোনের কার্যকলাপ অজানা"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "মাইক্রোফোনের সেটিংস"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "ক্যামেরার অবস্থা জানা যাচ্ছে না"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "ক্যামেরার কার্যকলাপ অজানা"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "ক্যামেরা লক করার সুবিধা উপলভ্য নয়"
 
 msgid "Camera Settings"
+msgstr "ক্যামেরার সেটিংস"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "সংযোগ চালু রাখুন"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "অডিও সংযুক্ত করুন"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "সংযোগ ছেড়ে দিন"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "অডিও সংযোগ বিচ্ছিন্ন করুন"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "পিন লিখুন"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "ডিভাইসে এই পিনটি লিখুন: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "এই পিনটি কি ডিভাইসে দেখানো পিনের সঙ্গে মেলে? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "যাচাইয়ের তালিকা"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "{count}টি অচিহ্নিত আইটেম"
+msgstr[1] "{count}টি অচিহ্নিত আইটেম"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "আইটেম যোগ করুন"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "সম্পন্ন আইটেম সরান"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "আইটেমের লেখা"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "ক্লিপবোর্ড পর্যবেক্ষণ বিরত আছে"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "ক্লিপবোর্ডের ইতিহাস"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "ক্লিপবোর্ড পর্যবেক্ষণ চালু করুন"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "মাউস দিয়ে নির্বাচন করা বিষয় পর্যবেক্ষণ করুন"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "মাউসের নির্বাচন পর্যবেক্ষণের জন্য X11 প্রয়োজন"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "ছবি পর্যবেক্ষণ করুন"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "এন্ট্রির সর্বোচ্চ সংখ্যা"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "বন্ধ"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "ছবি ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "অ্যালার্ম: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "KDE Connect-এর ডিভাইসের তালিকা পড়া যায়নি"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "ডিভাইসের সেটিংস খুলতে KDE Connect ইনস্টল করুন"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "নির্বাচিত ডিভাইসের সঙ্গে যোগাযোগ করা হচ্ছে..."
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
 msgstr ""
+"KDE Connect-এর কাজটি ব্যর্থ হয়েছে। ডিভাইস অনলাইনে এলে আবার চেষ্টা করুন"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "{name}-এ রিং বাজানোর অনুরোধ পাঠানো হয়েছে"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr ""
+"ফাইল শেয়ারিং চালু আছে এমন একটি জোড়া লাগানো ও অনলাইন ডিভাইস নির্বাচন করুন"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "KDE Connect-এর চলমান কাজটি শেষ হওয়া পর্যন্ত অপেক্ষা করুন"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "নির্বাচিত ফাইলগুলো পড়া যায়নি"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "{name}-এ ফাইল পাঠানোর অনুরোধ করা হয়েছে"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "KDE Connect দিয়ে ফাইল পাঠান"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "পাঠান"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "ফোনে রিং বাজান"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "ফাইল পাঠান..."
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "KDE Connect খুলুন / ডিভাইস জোড়া লাগান"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "ফোন সংযুক্ত করতে KDE Connect ইনস্টল করে চালু করুন"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "KDE Connect আবার চালু হয়েছে। ডিভাইসের তালিকা হালনাগাদ হচ্ছে"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+"KDE Connect-এর সঙ্গে যোগাযোগ করা যায়নি। আবার চেষ্টা করুন বা এর সেটিংস খুলুন"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "KDE Connect একটি অবৈধ ডিভাইস শনাক্তকারী ফিরিয়েছে"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"KDE Connect-এর ডিভাইসের তালিকা পড়া যায়নি। আবার চেষ্টা করুন বা এর সেটিংস "
+"খুলুন"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "নির্বাচিত ডিভাইসটি অফলাইনে আছে বা আর জোড়া লাগানো নেই"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "নির্বাচিত ডিভাইসটি এই কাজটি সমর্থন করে না"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "নির্বাচিত ফাইলগুলোর একটি আর উপলভ্য নেই"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: অফলাইন"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: সংযুক্ত"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (চার্জ হচ্ছে)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr "কোনো জোড়া লাগানো ডিভাইস নেই। ফোন জোড়া লাগাতে KDE Connect খুলুন"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "নির্বাচিত ডিভাইসটি আর জোড়া লাগানো নেই। অন্য ডিভাইস বেছে নিন"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "এই ডিভাইসে পাঠাতে ফাইলগুলো এখানে ছেড়ে দিন"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "অন্তত একটি স্থানীয় ফাইল বেছে নিন"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "KDE Connect দিয়ে শুধু স্থানীয় ফাইল পাঠানো যায়"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "সিস্টেমের ডিফল্ট"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "পছন্দের অ্যাপটি উপলভ্য নয়"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "কোনো সামঞ্জস্যপূর্ণ অ্যাপ পাওয়া যায়নি"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "অ্যাপ চালু করুন"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"প্লেব্যাক নিয়ন্ত্রণ ও ট্র্যাকের তথ্য দেখতে %(plugin)s ইনস্টল বা চালু করে "
+"mpv আবার চালু করুন।"
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr "ট্র্যাকের তথ্য দেখতে Rhythmbox-এর MPRIS প্লাগইনটি চালু করুন।"
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "%(package)s ইনস্টল করে Rhythmbox আবার চালু করুন।"
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "বিজ্ঞপ্তি হালনাগাদ করা যায়নি"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr "বিজ্ঞপ্তির ইতিহাস দেখতে Windows-এর সেটিংসে অনুমতি দিতে হবে"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Telegram খুলুন"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Telegram লুকান"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Telegram সংযোগ বিচ্ছিন্ন করুন"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Telegram সংযোগ বিচ্ছিন্ন করবেন?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"এতে Docking-এ সংরক্ষিত Telegram Web সেশন মুছে যাবে। আপনাকে আবার সাইন ইন করতে"
+" হবে।"
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Telegram সংযোগ বিচ্ছিন্ন করা যায়নি"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: ব্রাউজার উপলভ্য নয়"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: লোড হচ্ছে..."
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram: QR কোড স্ক্যান করুন বা ফোন নম্বর দিয়ে সাইন ইন করুন"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: সিঙ্ক হচ্ছে..."
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: অফলাইন"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "Telegram Web লোড করা যায়নি"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: {count}টি নতুন বিজ্ঞপ্তি"
+msgstr[1] "Telegram: {count}টি নতুন বিজ্ঞপ্তি"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: {count}টি অপঠিত চ্যাট"
+msgstr[1] "Telegram: {count}টি অপঠিত চ্যাট"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: কোনো অপঠিত চ্যাট নেই"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: খুলতে ক্লিক করুন"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "অজানা ব্রাউজার ত্রুটি"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "{service} আবার লোড করুন"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "{service}-কে ডিভাইসটি ({device}) ব্যবহারের অনুমতি দেবেন?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "{service}-এর জন্য WebKitGTK প্রয়োজন"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "ব্রাউজার সেশন খোলা যায়নি"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Microsoft Edge WebView2 উপলভ্য নয়"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "{service} সংযোগ বিচ্ছিন্ন করা যায়নি"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "{service} লোড করা যায়নি"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "ডাউনলোড করুন"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "ডাউনলোড হচ্ছে"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "আবার শুরু করুন"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: ব্রাউজার উপলভ্য নয়"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "বিদ্যমান ডক বিন্যাস আমদানি করুন"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Plank, Plank Reloaded বা Cairo-Dock থেকে Docking-এ আনার আগে পিন করা আইটেম ও "
+"সেটিংস দেখতে পছন্দসমূহ -> আমদানি খুলুন।"
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "Docking ফাইল"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "উৎসের থিম উপলভ্য নয়।"
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr "Docking-এর পছন্দসমূহে ডক দেখানোর শর্টকাট সেট করুন।"
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "অবৈধ একটি পিন করা আইটেম বাদ দেওয়া হয়েছে।"
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "{item} বাদ দেওয়া হয়েছে।"
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Plank-এর প্রধান ডক শনাক্ত করা যায়নি।"
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "পুরো প্রান্তজুড়ে থাকা Plank বিন্যাসটি বাদ দেওয়া হয়েছে।"
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"Plank-এর সেটিংস পাওয়া যায়নি। লঞ্চারগুলো ফাইলের নাম অনুসারে দেখানো হয়েছে।"
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "প্রধান ডক"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "একই সাবডক {item} আবার থাকায় বাদ দেওয়া হয়েছে।"
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "আলাদা ডক {item} বাদ দেওয়া হয়েছে।"
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "নিজস্ব লঞ্চার {item} বাদ দেওয়া হয়েছে।"
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "প্লাগইন {item} বাদ দেওয়া হয়েছে।"
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "ডেস্কটপের বিচ্ছিন্ন উইজেট {item} বাদ দেওয়া হয়েছে।"
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "Cairo-Dock-এ নম্বর দিয়ে ডিসপ্লে নির্বাচনটি বাদ দেওয়া হয়েছে।"
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr "সবসময় পেছনে মোডে পয়েন্টার স্ক্রিনের প্রান্তে নিলেও ডক দেখা যায় না।"
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "{item}-এর জন্য কোনো অ্যাপ উপলভ্য নয়।"
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "উৎসের ডিসপ্লে উপলভ্য নয়।"
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr ""
+"স্ক্রিনের প্রান্ত থেকে দূরত্ব {requested} px থেকে {applied} px করা হয়েছে।"
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "এই আইটেমটি ইতিমধ্যে পিন করা আছে।"
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "নির্বাচিত অ্যাপটি উপলভ্য নয়।"
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "নির্বাচিত অ্যাপলেটটি উপলভ্য নয়।"
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "নির্বাচিত ফাইল বা ফোল্ডারটি উপলভ্য নয়।"
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Docking-এর অনুসন্ধান দেখান বা লুকান"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Docking-এর একটি কনফিগারেশন ফাইল বেছে নিন"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Docking কনফিগারেশন ফাইল"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "সারিবদ্ধকরণ"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "ডিসপ্লে"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "সক্রিয় ডিসপ্লে অনুসরণ করুন"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "জুম চালু করুন"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "জুমের মাত্রা"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "আইকন লক করুন"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "শুধু পিন করা আইটেম"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "উইন্ডোর প্রাকদর্শন দেখান"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "প্রাকদর্শনের প্রস্থ"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "প্রাকদর্শনের ওপর পয়েন্টার রাখলে উইন্ডোর সীমানা দেখান"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "প্রান্ত থেকে অতিরিক্ত দূরত্ব"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "অ্যাপলেট স্থির করুন"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "ফাইল স্থির করুন"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "ডকের আইটেমে ক্লিক করলে ইফেক্ট চালু করুন"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "ক্লিকের ইফেক্ট"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "স্ট্যাক খুলুন"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "সবসময় পেছনে"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "নিচে"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "বামে"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "ডানে"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "পিন করার আইটেম"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "উৎসের ডকে কোনো পিন করা আইটেম নেই।"
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "প্রয়োগ করার পছন্দসমূহ"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "আমদানি করার মতো কোনো পরিবর্তন নেই।"
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Docking ফাইল আমদানি করুন"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "অন্য ডক থেকে আমদানি করুন"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "বাদ দিন"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "আমদানি করুন"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "আমদানি করার জন্য একটি ডক বেছে নিন।"
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr "পিন করা আইটেম ও পছন্দসমূহ দেখতে একটি ডক বেছে নিন।"
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Docking-এর একটি বৈধ JSON কনফিগারেশন ফাইল বেছে নিন।"
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "উৎসের ডকের সেটিংস পড়া যায়নি।"
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Plank বা Plank Reloaded-এর কোনো সেটআপ পাওয়া যায়নি।"
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Cairo-Dock-এর কোনো সেটআপ পাওয়া যায়নি।"
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Plank বা Cairo-Dock-এর কোনো সেটআপ পাওয়া যায়নি।"
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "ডকের বিন্যাস সম্পাদনা করুন"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "প্রয়োগ করুন"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "কোনো পিন করা আইটেম নেই"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "অ্যাপ…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "অ্যাপলেট…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "ফাইল…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "ফোল্ডার…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "ওপরে সরান"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "নিচে সরান"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "বিন্যাস আবার লোড করুন"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "সম্পাদনার সময় ডকের বিন্যাস বদলে গেছে।"
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "ডকের বিন্যাস সংরক্ষণ করা যায়নি।"
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "বিন্যাস সংরক্ষণ করা হয়েছে। কয়েকটি নতুন আইটেম লোড করা যায়নি।"
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "স্থির ফাইল ও ফোল্ডার"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "স্থির অ্যাপলেট"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "একটি ফোল্ডার বেছে নিন"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "একটি ফাইল বেছে নিন"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "একটি স্থানীয় ফাইল বা ফোল্ডার বেছে নিন।"
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "অ্যাপ যোগ করুন"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Docking দেখান বা লুকান"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "এই মোড চালু করার আগে একটি শর্টকাট নির্ধারণ করুন।"
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "ডেস্কটপ পরিবেশ কোনো শর্টকাট নির্ধারণ করেনি।"
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Auto-hide ব্যবহার করা হচ্ছে: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "মোড চালু হয়নি: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "ফোল্ডারটি টার্মিনালে খোলা যায়নি।"
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "অন্য অ্যাপ দিয়ে এই আইটেমটি খোলা যায়নি।"
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "টার্মিনালে খুলুন"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "অন্য অ্যাপ দিয়ে খুলুন…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "প্রধান"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "শুধু শর্টকাট দিয়ে দেখান"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "লাফ"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "স্পন্দন"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "দোলন"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "ডকের শর্টকাট"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "স্ক্রিনের নির্বাচিত প্রান্ত বরাবর ডকটি রাখুন।"
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "প্রাকদর্শন"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "উইন্ডোর থাম্বনেইল দেখান"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr "থাম্বনেইলের ওপর পয়েন্টার রাখলে ডেস্কটপে আসল উইন্ডোর সীমানা দেখায়।"
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"থাম্বনেইলের ওপর পয়েন্টার রাখলে ডেস্কটপে আসল উইন্ডোর সীমানা দেখায়। বর্তমান "
+"সেশনে উপলভ্য নয়। এর জন্য X11 বা Sway দরকার।"
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "থাম্বনেইলের প্রস্থ"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"উইন্ডোর থাম্বনেইলের প্রস্থ পিক্সেলে নির্ধারণ করুন। প্রস্থ বাড়ালে উইন্ডোর "
+"শিরোনামের আরও বেশি অংশ দেখা যায়।"
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "বিন্যাস সম্পাদনা করুন…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr "শুধু পিন করা অ্যাপ, অ্যাপলেট, ফাইল ও ফোল্ডার দেখায়।"
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "পিন করা আইটেম"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "ডক থেকে অ্যাপ চালু করলে নির্বাচিত ইফেক্টটি দেখায়।"
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "অ্যাপ চালু করার সময় কোন ইফেক্ট দেখানো হবে তা বেছে নিন।"
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "ডকের শর্টকাট"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"এই মোড চালু করতে একটি কার্যকর শর্টকাট নির্ধারণ করুন। সেটি নিবন্ধন করা না "
+"গেলে ডক সাময়িকভাবে Auto-hide ব্যবহার করবে।"
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "অন্য ডক"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Plank বোতামটি Plank Reloaded-ও সমর্থন করে। আমদানির আগে পিন করা আইটেম, "
+"পছন্দসমূহ ও বাদ দেওয়া আইটেমগুলো দেখে নিন।"
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "ব্রাউজ করুন…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"পিন করা আইটেম ও বিন্যাসের পছন্দসমূহ দেখতে Docking-এর একটি JSON ফাইল বেছে "
+"নিন।"
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "যেখান থেকে আমদানি করবেন"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "আমদানি করা ডকটি সংরক্ষণ করা যায়নি।"
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr "সংরক্ষিত কনফিগারেশন থেকে এই পিন করা আইটেমগুলো সরানো যায়নি।"
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "আমদানি করা কয়েকটি পিন করা আইটেম লোড করা যায়নি।"
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "মাঝে"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"স্ক্রিনের জায়গা সংরক্ষণ না করে ডেস্কটপের ওপরে এবং অ্যাপের উইন্ডোগুলোর নিচে "
+"থাকে। ব্যবহার করতে ডকটি আড়াল থেকে বের করুন। পয়েন্টার রাখলে এটি সামনে আসে "
+"না।"
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"শুধু শর্টকাটে দেখা যায়। পয়েন্টার ডকে ঢুকে আবার বের হলে ডক লুকিয়ে যায়। "
+"লুকাতে আবার শর্টকাট চাপুন।"

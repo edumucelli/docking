@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -3442,10 +3430,6 @@ msgstr "Aktiveerige"
 msgid "Context Menu"
 msgstr "Kontekstimenüü"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-buss pole saadaval"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3552,10 +3536,6 @@ msgstr "Süsteemi salv: {n} üksust"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "Süsteemi salv: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "Süsteemi salv: D-Bus pole saadaval"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3886,10 +3866,6 @@ msgstr "See kustutab Dockingus salvestatud WhatsApp Webi seansi. QR-kood "
 msgid "Could not disconnect WhatsApp"
 msgstr "WhatsAppi ei õnnestunud lahti ühendada"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "Tundmatu WebKiti viga"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK pole saadaval"
@@ -3897,10 +3873,6 @@ msgstr "WebKitGTK pole saadaval"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Dockingi vidin"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "Laadi WhatsApp Web uuesti"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3918,11 +3890,6 @@ msgstr "kaamera"
 msgid "microphone"
 msgstr "mikrofon"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "Kas lubada WhatsAppil kasutada teie {device}?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "Keela"
@@ -3930,10 +3897,6 @@ msgstr "Keela"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "Luba"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp vajab WebKitGTKi"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3944,10 +3907,6 @@ msgstr "Paigalda WebKitGTK 4.1 või 4.0 introspection-pakett ja käivita "
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "tundmatu brauseri viga"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: WebKitGTK pole paigaldatud"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5253,10 +5212,6 @@ msgstr ""
 "Kuva üksuste nimed ja üksikasjad, kui hõljutate kursorit dokitavate üksuste "
 "kohal."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr ""
@@ -5659,28 +5614,1030 @@ msgstr "Eira"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "Kaamera on lukustatud"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "Mikrofoni olek pole saadaval"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "Mikrofoni vaigistusolek pole teada"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "Mikrofoni aktiivsus pole teada"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "Mikrofoni seaded"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "Kaamera olek pole saadaval"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "Kaamera aktiivsus pole teada"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "Kaamerat ei saa lukustada"
 
 msgid "Camera Settings"
+msgstr "Kaamera seaded"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "Hoia ühendus avatuna"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "Ühenda heli"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "Vabasta ühendus"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "Katkesta heliühendus"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "Sisesta PIN-kood"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "Sisesta seadmes see PIN-kood: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "Kas seadmes kuvatakse sama PIN-kood? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "Kontrollnimekiri"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "{count} märkimata üksus"
+msgstr[1] "{count} märkimata üksust"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "Lisa üksus"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "Eemalda täidetud üksused"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "Üksuse tekst"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "Lõikelaua jälgimine on peatatud"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "Lõikelaua ajalugu"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "Jälgi lõikelauda"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "Jälgi hiirega tehtud valikuid"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "Hiirega tehtud valikute jälgimiseks on vaja X11"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "Jälgi pilte"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "Suurim kirjete arv"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "Keelatud"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "Pilt ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "Äratus: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "KDE Connecti seadmeid ei õnnestunud lugeda"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "Seadmete seadete avamiseks paigalda KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "Valitud seadmega võetakse ühendust…"
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
+msgstr "KDE Connecti toiming ebaõnnestus. Proovi uuesti, kui seade on võrgus."
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "Helisemispäring saadeti seadmele {name}"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr "Vali võrgus olev seotud seade, millel on failijagamine lubatud"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "Oota, kuni käimasolev KDE Connecti toiming lõpeb"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "Valitud faile ei õnnestunud lugeda"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "Taotleti failiedastust seadmele {name}"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "Saada faile KDE Connectiga"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "Saada"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "Pane telefon helisema"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "Saada faile…"
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "Ava KDE Connect või seo seade"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "Telefoni ühendamiseks paigalda ja käivita KDE Connect"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "KDE Connect taaskäivitus. Seadmeid värskendatakse."
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
 msgstr ""
+"KDE Connectiga ei õnnestunud ühendust luua. Proovi uuesti või ava selle "
+"seaded."
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "KDE Connect tagastas vigase seadmetunnuse"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"KDE Connecti seadmeid ei õnnestunud lugeda. Proovi uuesti või ava selle "
+"seaded."
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "Valitud seade pole võrgus või pole enam seotud"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "Valitud seade ei toeta seda toimingut"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "Üks valitud failidest pole enam saadaval"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: võrgust väljas"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: ühendatud"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (laadimisel)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr "Seotud seadmeid pole. Telefoni sidumiseks ava KDE Connect."
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "Valitud seade pole enam seotud. Vali teine seade."
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "Lohista failid siia, et saata need sellele seadmele"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "Vali vähemalt üks kohalik fail"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "KDE Connectiga saab saata ainult kohalikke faile"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "Süsteemi vaikeseade"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "Eelistatud rakendus pole saadaval"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "Ühilduvaid rakendusi ei leitud"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "Käivita rakendus"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"Taasesituse juhtnuppude ja loo andmete kuvamiseks paigalda või luba "
+"%(plugin)s ja taaskäivita mpv."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr "Loo andmete kuvamiseks luba Rhythmboxi MPRIS-plugin."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "Paigalda %(package)s ja taaskäivita Rhythmbox."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "Teavitusi ei õnnestunud värskendada"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr "Teavituste ajaloo kasutamiseks anna juurdepääs Windowsi seadetes"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Ava Telegram"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Peida Telegram"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Katkesta ühendus Telegramiga"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Kas katkestada ühendus Telegramiga?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"Dockingi salvestatud Telegram Webi seanss kustutatakse. Pead uuesti sisse "
+"logima."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Ühendust Telegramiga ei õnnestunud katkestada"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: brauser pole saadaval"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: laadimine…"
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram: skanni QR-kood või logi sisse telefoninumbriga"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: sünkroonimine…"
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: võrgust väljas"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "Telegram Webi ei õnnestunud laadida"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: {count} uus teavitus"
+msgstr[1] "Telegram: {count} uut teavitust"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: {count} lugemata vestlus"
+msgstr[1] "Telegram: {count} lugemata vestlust"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: lugemata vestlusi pole"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: avamiseks klõpsa"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "Tundmatu brauseriviga"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "Laadi {service} uuesti"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "Kas lubada teenusel {service} kasutada seadmeid ({device})?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "{service} vajab WebKitGTK-d"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "Brauseriseanssi ei õnnestunud avada"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Microsoft Edge WebView2 pole saadaval"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "Ühendust teenusega {service} ei õnnestunud katkestada"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "Teenust {service} ei õnnestunud laadida"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "Laadi alla"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "Lõpetatud"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "Allalaadimine…"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "Jätka"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: brauser pole saadaval"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "Impordi olemasolev dokipaigutus"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Ava Eelistused → Impordi, et vaadata üle Planki, Plank Reloadedi või Cairo-"
+"Docki kinnitatud üksused ja seaded enne Dockingisse toomist."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "Dockingi fail"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "Lähteteema pole saadaval."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr "Määra Dockingi eelistustes doki kuvamise kiirklahv."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "Vigane kinnitatud üksus jäeti vahele."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "{item} jäeti vahele."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Planki esmast dokki ei õnnestunud tuvastada."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "Planki kogu serva hõlmav paigutus jäeti vahele."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr "Planki seaded polnud saadaval. Käivitid on loetletud failinime järgi."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "Põhidokk"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "Korduv alamdokk {item} jäeti vahele."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "Eraldi dokk {item} jäeti vahele."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "Kohandatud käiviti {item} jäeti vahele."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "Plugin {item} jäeti vahele."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "Eraldatud töölauavidin {item} jäeti vahele."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "Cairo-Docki numbripõhine kuvarivalik jäeti vahele."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr ""
+"Režiimis „Alati taga” ei ilmu dokk nähtavale, kui kursor viiakse ekraani "
+"servale."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "Üksuse {item} rakendus pole saadaval."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "Lähtekuvar pole saadaval."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr ""
+"Kaugus ekraani servast muudeti väärtuselt {requested} px väärtusele "
+"{applied} px."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "See üksus on juba kinnitatud."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "Valitud rakendus pole saadaval."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "Valitud aplett pole saadaval."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "Valitud fail või kaust pole saadaval."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Kuva või peida Dockingi otsing"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Vali Dockingi seadistusfail"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Dockingi seadistusfailid"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "Joondus"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "Kuvar"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "Jälgi aktiivset kuvarit"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "Luba suum"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "Suumitase"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "Lukusta ikoonid"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "Ainult kinnitatud"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "Kuva akende eelvaated"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "Eelvaate laius"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "Tõsta akna piirjoon esile, kui kursor on eelvaatel"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "Lisakaugus servast"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "Rühmita apletid doki lõppu"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "Rühmita failid doki lõppu"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "Luba efektid doki üksuste klõpsamisel"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "Klõpsuefekt"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "Ava virnad"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "Alati taga"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "All"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "Vasakul"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "Paremal"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "Kinnitatavad üksused"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "Lähtedokis pole kinnitatud üksusi."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "Rakendatavad eelistused"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "Imporditavaid muudatusi pole."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Impordi Dockingi fail"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "Impordi teisest dokist"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "Jäta vahele"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "Impordi"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "Vali imporditav dokk."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr "Vali dokk, mille kinnitatud üksused ja eelistused soovid üle vaadata."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Vali kehtiv Dockingi JSON-seadistusfail."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "Lähtedoki seadeid ei õnnestunud lugeda."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Planki ega Plank Reloadedi seadistust ei leitud."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Cairo-Docki seadistust ei leitud."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Planki ega Cairo-Docki seadistust ei leitud."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "Muuda doki paigutust"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "Rakenda"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "Kinnitatud üksusi pole"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "Rakendus…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "Aplett…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "Fail…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "Kaust…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "Liiguta üles"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "Liiguta alla"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "Laadi paigutus uuesti"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "Doki paigutus muutus redigeerimise ajal."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "Doki paigutust ei õnnestunud salvestada."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "Paigutus salvestati. Mõnda uut üksust ei õnnestunud laadida."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "Doki lõppu rühmitatud failid ja kaustad"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "Doki lõppu rühmitatud apletid"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "Vali kaust"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "Vali fail"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "Vali kohalik fail või kaust."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "Lisa rakendus"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Kuva või peida Docking"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "Määra enne selle režiimi lubamist kiirklahv."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "Töölauakeskkond pole kiirklahvi määranud."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Kasutusel on automaatne peitmine: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "Režiimi ei lubatud: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "Kausta ei õnnestunud terminalis avada."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "Seda üksust ei õnnestunud teise rakendusega avada."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "Ava terminalis"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "Ava rakendusega…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "Esmane"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "Kuva ainult kiirklahviga"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "Põrge"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "Pulss"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "Võnkumine"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "Doki kiirklahv"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "Paiguta dokk valitud ekraaniserva."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "Eelvaade"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "Kuva akende pisipildid"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr "Tõsta töölaual esile akna piirjoon, kui kursor on selle pisipildil."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"Tõsta töölaual esile akna piirjoon, kui kursor on selle pisipildil. See pole"
+" selles seansis saadaval, sest vajab X11 või Swayd."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "Pisipildi laius"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"Määra akende pisipiltide laius pikslites. Laiematel pisipiltidel on ka "
+"suurem osa akna pealkirjast nähtav."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "Muuda paigutust…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr "Kuva ainult kinnitatud rakendused, apletid, failid ja kaustad."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "Kinnitatud üksused"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "Käivita valitud efekt, kui rakendus käivitatakse dokist."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "Vali efekt, mis käivitub rakenduse avamisel."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "Doki kiirklahv"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"Selle režiimi lubamiseks määra toimiv kiirklahv. Kui selle registreerimine "
+"ebaõnnestub, peidab dokk end ajutiselt automaatselt."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "Teine dokk"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Planki nupp toetab ka Plank Reloadedit. Enne importimist vaata üle "
+"kinnitatud üksused, eelistused ja vahele jäetud üksused."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "Sirvi…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"Vali Dockingi JSON-fail, et vaadata üle selle kinnitatud üksused ja "
+"paigutuse eelistused."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "Impordi allikast"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "Imporditud dokki ei õnnestunud salvestada."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr ""
+"Neid kinnitatud üksusi ei õnnestunud salvestatud seadistusest eemaldada."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "Mõnda imporditud kinnitatud üksust ei õnnestunud laadida."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "Keskele"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"Dokk jääb töölaua kohale ja rakenduste akende taha ekraaniruumi "
+"reserveerimata. Kasutamiseks tee dokk nähtavaks. Kursori hõljutamine ei too "
+"seda esile."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"Dokki kuvatakse ainult kiirklahviga ja see peitub pärast kursori dokile "
+"liikumist ja sealt lahkumist. Peitmiseks vajuta kiirklahvi uuesti."

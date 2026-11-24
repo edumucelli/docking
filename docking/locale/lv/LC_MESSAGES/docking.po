@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=3; plural=(n % 10 == 0 || n % 100 >= 11 && n % 100 <= 19 ? 0 : n % 10 == 1 && n % 100 != 11 ? 1 : 2);\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -2653,8 +2641,9 @@ msgstr "Atlikt uz 1 dienu"
 #, python-brace-format
 msgid "{count} more due task"
 msgid_plural "{count} more due tasks"
-msgstr[0] "Vēl {count} izpildāms uzdevums"
-msgstr[1] "Vēl {count} izpildāmi uzdevumi"
+msgstr[0] "Vēl {count} izpildāmu uzdevumu"
+msgstr[1] "Vēl {count} izpildāms uzdevums"
+msgstr[2] "Vēl {count} izpildāmi uzdevumi"
 
 #: docking/applets/plantcare/applet.py:244
 #: docking/search/providers/applications.py:192 docking/ui/diagnostics.py:137
@@ -2784,8 +2773,9 @@ msgstr "Augs"
 #, python-brace-format
 msgid "overdue by {count} day"
 msgid_plural "overdue by {count} days"
-msgstr[0] "Nokavēts par {count} dienu"
-msgstr[1] "Nokavēts par {count} dienām"
+msgstr[0] "Nokavēts par {count} dienām"
+msgstr[1] "Nokavēts par {count} dienu"
+msgstr[2] "Nokavēts par {count} dienām"
 
 #: docking/applets/plantcare/state.py:421
 msgid "due today"
@@ -2795,8 +2785,9 @@ msgstr "jāveic šodien"
 #, python-brace-format
 msgid "in {count} day"
 msgid_plural "in {count} days"
-msgstr[0] "Pēc {count} dienas"
-msgstr[1] "Pēc {count} dienām"
+msgstr[0] "Pēc {count} dienām"
+msgstr[1] "Pēc {count} dienas"
+msgstr[2] "Pēc {count} dienām"
 
 #: docking/applets/plantcare/state.py:428
 #, python-brace-format
@@ -2819,8 +2810,9 @@ msgstr "Nav iespējots neviens kopšanas grafiks"
 #, python-brace-format
 msgid "{count} task due"
 msgid_plural "{count} tasks due"
-msgstr[0] "Jāveic {count} uzdevums"
-msgstr[1] "Jāveic {count} uzdevumi"
+msgstr[0] "Jāveic {count} uzdevumu"
+msgstr[1] "Jāveic {count} uzdevums"
+msgstr[2] "Jāveic {count} uzdevumi"
 
 #: docking/applets/plantcare/state.py:455
 msgid "All plants are on schedule"
@@ -2830,8 +2822,9 @@ msgstr "Visi augi ir pēc grafika"
 #, python-brace-format
 msgid "{count} more task"
 msgid_plural "{count} more tasks"
-msgstr[0] "Vēl {count} uzdevums"
-msgstr[1] "Vēl {count} uzdevumi"
+msgstr[0] "Vēl {count} uzdevumu"
+msgstr[1] "Vēl {count} uzdevums"
+msgstr[2] "Vēl {count} uzdevumi"
 
 #: docking/applets/plantcare/state.py:492
 #, python-brace-format
@@ -3442,10 +3435,6 @@ msgstr "Activate"
 msgid "Context Menu"
 msgstr "Context Menu"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-Bus unavailable"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3552,10 +3541,6 @@ msgstr "System Tray: {n} item(s)"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "System Tray: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "System Tray: D-Bus unavailable"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3691,8 +3676,9 @@ msgstr "No items in Trash"
 #, python-brace-format
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
-msgstr[0] "{n} vienība Miskastē"
-msgstr[1] "{n} vienību Miskastē"
+msgstr[0] "{n} vienumu atkritnē"
+msgstr[1] "{n} vienums atkritnē"
+msgstr[2] "{n} vienumi atkritnē"
 
 #: docking/applets/trivia/applet.py:55 docking/applets/trivia/applet.py:199
 msgid "Random Trivia"
@@ -3885,10 +3871,6 @@ msgstr "Tas notīrīs Docking saglabāto WhatsApp Web sesiju. Jums būs vēlreiz
 msgid "Could not disconnect WhatsApp"
 msgstr "Nevarēja atvienot WhatsApp"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "Nezināma WebKit kļūda"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK nav pieejams"
@@ -3896,10 +3878,6 @@ msgstr "WebKitGTK nav pieejams"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Docking sīklietotne"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "Pārlādēt WhatsApp Web"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3917,11 +3895,6 @@ msgstr "kamera"
 msgid "microphone"
 msgstr "mikrofons"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "Vai atļaut WhatsApp izmantot jūsu {device}?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "Liegt"
@@ -3929,10 +3902,6 @@ msgstr "Liegt"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "Atļaut"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp nepieciešams WebKitGTK"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3943,10 +3912,6 @@ msgstr "Instalējiet WebKitGTK 4.1 vai 4.0 introspekcijas pakotni un pēc tam "
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "nezināma pārlūka kļūda"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: WebKitGTK nav instalēts"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5247,10 +5212,6 @@ msgstr "Rādīt padomus"
 msgid "Show item names and details when hovering over dock items."
 msgstr "Show item names and details when hovering over dock items."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr "Show window thumbnails when hovering over running apps."
@@ -5646,28 +5607,1038 @@ msgstr "Ignorēt"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "Kamera ir bloķēta"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "Mikrofona statuss nav pieejams"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "Nav zināms, vai mikrofons ir apklusināts"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "Mikrofona aktivitāte nav zināma"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "Mikrofona iestatījumi"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "Kameras statuss nav pieejams"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "Kameras aktivitāte nav zināma"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "Kameru nevar bloķēt"
 
 msgid "Camera Settings"
+msgstr "Kameras iestatījumi"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "Uzturēt savienojumu"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "Pievienot audioierīci"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "Atbrīvot savienojumu"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "Atvienot audioierīci"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "Ievadiet PIN kodu"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "Ievadiet ierīcē šo PIN kodu: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "Vai ierīcē redzams tāds pats PIN kods? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "Kontrolsaraksts"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "{count} neatzīmētu vienumu"
+msgstr[1] "{count} neatzīmēts vienums"
+msgstr[2] "{count} neatzīmēti vienumi"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "Pievienot vienumu"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "Notīrīt izpildītos punktus"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "Vienuma teksts"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "Starpliktuves pārraudzība ir apturēta"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "Starpliktuves vēsture"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "Pārraudzīt starpliktuvi"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "Pārraudzīt atlasīšanu ar peli"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "Ar peli atlasīto vienumu pārraudzībai vajadzīgs X11"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "Pārraudzīt attēlus"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "Maksimālais ierakstu skaits"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "Atspējots"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "Attēls ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "Modinātājs: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "Neizdevās nolasīt KDE Connect ierīces"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "Instalējiet KDE Connect, lai atvērtu tā ierīču iestatījumus"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "Sazinās ar izvēlēto ierīci…"
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
 msgstr ""
+"KDE Connect darbība neizdevās. Mēģiniet vēlreiz, kad ierīce ir tiešsaistē."
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "Pieprasījums ieslēgt zvanu nosūtīts ierīcei {name}"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr ""
+"Atlasiet sapārotu ierīci, kas ir tiešsaistē un kurā ir ieslēgta datņu "
+"koplietošana"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "Pagaidiet, līdz pašreizējā KDE Connect darbība būs pabeigta"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "Neizdevās nolasīt atlasītās datnes"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "Pieprasīta datņu pārsūtīšana ierīcei {name}"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "Sūtīt datnes ar KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "Sūtīt"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "Likt tālrunim zvanīt"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "Sūtīt datnes…"
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "Atvērt KDE Connect vai sapārot ierīci"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "Instalējiet un palaidiet KDE Connect, lai pievienotu tālruni"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "KDE Connect ir pārstartēts. Atsvaidzina ierīču sarakstu."
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+"Neizdevās sazināties ar KDE Connect. Mēģiniet vēlreiz vai atveriet tās "
+"iestatījumus."
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "KDE Connect atgrieza nederīgu ierīces identifikatoru"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"Neizdevās nolasīt KDE Connect ierīces. Mēģiniet vēlreiz vai atveriet tās "
+"iestatījumus."
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "Izvēlētā ierīce ir bezsaistē vai vairs nav sapārota"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "Izvēlētā ierīce neatbalsta šo darbību"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "Viena no atlasītajām datnēm vairs nav pieejama"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: bezsaistē"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: savienots"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (uzlādējas)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr "Nav sapārotu ierīču. Atveriet KDE Connect, lai sapārotu tālruni."
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "Izvēlētā ierīce vairs nav sapārota. Izvēlieties citu ierīci."
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "Nometiet datnes šeit, lai tās nosūtītu uz šo ierīci"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "Izvēlieties vismaz vienu lokālu datni"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "Ar KDE Connect var nosūtīt tikai lokālas datnes"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "Sistēmas noklusējums"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "Vēlamā programma nav pieejama"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "Saderīgas programmas nav atrastas"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "Palaist programmu"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"Instalējiet vai ieslēdziet %(plugin)s un pārstartējiet mpv, lai redzētu "
+"atskaņošanas vadīklas un informāciju par skaņdarbu."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr ""
+"Ieslēdziet Rhythmbox MPRIS spraudni, lai redzētu informāciju par skaņdarbu."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "Instalējiet %(package)s un pārstartējiet Rhythmbox."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "Neizdevās atjaunināt paziņojumus"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr ""
+"Lai skatītu paziņojumu vēsturi, jāatļauj piekļuve Windows iestatījumos"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Atvērt Telegram"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Paslēpt Telegram"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Atvienot Telegram"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Vai atvienot Telegram?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"Tiks dzēsta Docking saglabātā Telegram Web sesija. Jums būs jāpiesakās no "
+"jauna."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Neizdevās atvienot Telegram"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: pārlūks nav pieejams"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: ielādē…"
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram: skenējiet QR kodu vai piesakieties ar tālruņa numuru"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: sinhronizē…"
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: bezsaistē"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "neizdevās ielādēt Telegram Web"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: {count} jaunu paziņojumu"
+msgstr[1] "Telegram: {count} jauns paziņojums"
+msgstr[2] "Telegram: {count} jauni paziņojumi"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: {count} nelasītu sarunu"
+msgstr[1] "Telegram: {count} nelasīta saruna"
+msgstr[2] "Telegram: {count} nelasītas sarunas"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: nav nelasītu sarunu"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: klikšķiniet, lai atvērtu"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "Nezināma pārlūka kļūda"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "Pārlādēt {service}"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "Vai atļaut pakalpojumam {service} izmantot jūsu ierīces ({device})?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "Pakalpojumam {service} nepieciešams WebKitGTK"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "Neizdevās atvērt pārlūka sesiju"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Microsoft Edge WebView2 nav pieejams"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "Neizdevās atvienot {service}"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "neizdevās ielādēt {service}"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "Lejupielādēt"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "Pabeigts"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "Lejupielādē…"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "Turpināt"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: pārlūks nav pieejams"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "Importēt esošu doka izkārtojumu"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Atveriet Iestatījumi → Importēt, lai pārskatītu Plank, Plank Reloaded vai "
+"Cairo-Dock piespraustos vienumus un iestatījumus pirms to importēšanas "
+"Docking."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "Docking datne"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "Avota motīvs nav pieejams."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr "Docking iestatījumos iestatiet doka parādīšanas saīsni."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "Nederīgs piespraustais vienums tika izlaists."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "Izlaists: {item}."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Neizdevās noteikt Plank galveno doku."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "Izlaists Plank izkārtojums, kas aizņem visu malu."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"Plank iestatījumi nebija pieejami. Palaidēji uzskaitīti pēc datņu "
+"nosaukumiem."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "Galvenais doks"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "Atkārtotais apakšdoks {item} tika izlaists."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "Atsevišķais doks {item} tika izlaists."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "Pielāgotais palaidējs {item} tika izlaists."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "Spraudnis {item} tika izlaists."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "Atdalītais darbvirsmas logrīks {item} tika izlaists."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "Cairo-Dock ekrāna izvēle pēc numura tika izlaista."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr "Režīmā „Vienmēr fonā” doks neparādās, kad rādītājs atrodas pie malas."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "Vienumam {item} paredzētā programma nav pieejama."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "Avota ekrāns nav pieejams."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr "Atstarpe no ekrāna malas mainīta no {requested} px uz {applied} px."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "Šis vienums jau ir piesprausts."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "Izvēlētā programma nav pieejama."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "Izvēlētā sīkprogramma nav pieejama."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "Izvēlētā datne vai mape nav pieejama."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Parādīt vai paslēpt Docking meklēšanu"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Izvēlieties Docking konfigurācijas datni"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Docking konfigurācijas datnes"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "Līdzinājums"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "Ekrāns"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "Sekot aktīvajam ekrānam"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "Ieslēgt tālummaiņu"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "Tālummaiņas līmenis"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "Bloķēt ikonas"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "Tikai piespraustie vienumi"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "Rādīt logu priekšskatījumus"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "Priekšskatījuma platums"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "Iezīmēt loga kontūru, turot rādītāju virs priekšskatījuma"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "Papildu atstarpe no malas"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "Grupēt sīkprogrammas doka beigās"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "Grupēt datnes doka beigās"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "Ieslēgt efektus, klikšķinot uz doka vienumiem"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "Klikšķa efekts"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "Atvērt kaudzes"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "Vienmēr fonā"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "Apakšā"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "Pa kreisi"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "Pa labi"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "Piespraužamie vienumi"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "Avota dokā nav piespraustu vienumu."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "Lietojamie iestatījumi"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "Nav importējamu izmaiņu."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Importēt Docking datni"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "Importēt no cita doka"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "Izlaist"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "Importēt"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "Izvēlieties importējamo doku."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr ""
+"Izvēlieties doku, lai pārskatītu tā piespraustos vienumus un iestatījumus."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Izvēlieties derīgu Docking JSON konfigurācijas datni."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "Neizdevās nolasīt avota doka iestatījumus."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Netika atrasta Plank vai Plank Reloaded konfigurācija."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Netika atrasta Cairo-Dock konfigurācija."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Netika atrasta Plank vai Cairo-Dock konfigurācija."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "Rediģēt doka izkārtojumu"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "Lietot"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "Nav piespraustu vienumu"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "Programma…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "Sīkprogramma…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "Datne…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "Mape…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "Pārvietot augšup"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "Pārvietot lejup"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "Pārlādēt izkārtojumu"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "Doka izkārtojums mainījās, kamēr to rediģējāt."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "Neizdevās saglabāt doka izkārtojumu."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "Izkārtojums saglabāts. Dažus jaunus vienumus neizdevās ielādēt."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "Doka beigās grupētās datnes un mapes"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "Doka beigās grupētās sīkprogrammas"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "Izvēlieties mapi"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "Izvēlieties datni"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "Izvēlieties lokālu datni vai mapi."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "Pievienot programmu"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Parādīt vai paslēpt Docking"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "Pirms šā režīma ieslēgšanas piešķiriet saīsni."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "Darbvirsmas vide nav piešķīrusi saīsni."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Tiek lietota automātiskā paslēpšana: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "Režīms nav ieslēgts: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "Neizdevās atvērt mapi terminālī."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "Neizdevās atvērt šo vienumu ar citu programmu."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "Atvērt terminālī"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "Atvērt ar…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "Primārais"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "Rādīt tikai ar saīsni"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "Atlēciens"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "Pulss"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "Šūpošanās"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "Doka saīsne"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "Novietojiet doku gar izvēlēto ekrāna malu."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "Priekšskatījums"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "Rādīt logu priekšskatījuma sīktēlus"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr "Iezīmējiet loga kontūru darbvirsmā, turot rādītāju virs tā sīktēla."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"Iezīmējiet loga kontūru darbvirsmā, turot rādītāju virs tā sīktēla. Šajā "
+"sesijā funkcija nav pieejama, jo tai nepieciešams X11 vai Sway."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "Sīktēlu platums"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"Iestatiet logu sīktēlu platumu pikseļos. Platākos sīktēlos redzama arī "
+"lielāka loga nosaukuma daļa."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "Rediģēt izkārtojumu…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr "Rādīt tikai piespraustās programmas, sīkprogrammas, datnes un mapes."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "Piespraustie vienumi"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "Atskaņojiet izvēlēto efektu, palaižot programmu no doka."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "Izvēlieties efektu, ko atskaņot, palaižot programmu."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "Doka saīsne"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"Piešķiriet darbojošos saīsni, lai ieslēgtu šo režīmu. Ja saīsni neizdosies "
+"reģistrēt, doks īslaicīgi izmantos automātisko paslēpšanu."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "Cits doks"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Poga Plank atbalsta arī Plank Reloaded. Pirms importēšanas pārskatiet "
+"piespraustos vienumus, iestatījumus un izlaistos vienumus."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "Pārlūkot…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"Izvēlieties Docking JSON datni, lai pārskatītu tās piespraustos vienumus un "
+"izkārtojuma iestatījumus."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "Importēt no"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "Neizdevās saglabāt importēto doku."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr ""
+"Neizdevās noņemt šos piespraustos vienumus no saglabātās konfigurācijas."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "Dažus importētos piespraustos vienumus neizdevās ielādēt."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "Centrā"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"Doks paliek virs darbvirsmas un aiz programmu logiem, neaizņemot rezervētu "
+"ekrāna vietu. Lai to lietotu, atsedziet doku. Rādītāja novietošana virs doka"
+" nepaceļ to priekšplānā."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"Doks tiek parādīts tikai ar saīsni un paslēpjas, kad rādītājs ir bijis virs "
+"doka un atstāj to. Nospiediet saīsni vēlreiz, lai paslēptu doku."

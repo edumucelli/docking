@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=3; plural=n % 10 == 1 && (n % 100 < 11 || n % 100 > 19) ? 0 : n % 10 >= 2 && n % 10 <= 9 && (n % 100 < 11 || n % 100 > 19) ? 1 : 2;\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -2653,8 +2641,9 @@ msgstr "Atidėti 1 dienai"
 #, python-brace-format
 msgid "{count} more due task"
 msgid_plural "{count} more due tasks"
-msgstr[0] "dar {count} nebaigta užduotis"
-msgstr[1] "dar {count} nebaigtos užduotys"
+msgstr[0] "dar {count} atliktina užduotis"
+msgstr[1] "dar {count} atliktinos užduotys"
+msgstr[2] "dar {count} atliktinų užduočių"
 
 #: docking/applets/plantcare/applet.py:244
 #: docking/search/providers/applications.py:192 docking/ui/diagnostics.py:137
@@ -2786,6 +2775,7 @@ msgid "overdue by {count} day"
 msgid_plural "overdue by {count} days"
 msgstr[0] "vėluoja {count} dieną"
 msgstr[1] "vėluoja {count} dienas"
+msgstr[2] "vėluoja {count} dienų"
 
 #: docking/applets/plantcare/state.py:421
 msgid "due today"
@@ -2797,6 +2787,7 @@ msgid "in {count} day"
 msgid_plural "in {count} days"
 msgstr[0] "po {count} dienos"
 msgstr[1] "po {count} dienų"
+msgstr[2] "po {count} dienų"
 
 #: docking/applets/plantcare/state.py:428
 #, python-brace-format
@@ -2821,6 +2812,7 @@ msgid "{count} task due"
 msgid_plural "{count} tasks due"
 msgstr[0] "{count} užduotį reikia atlikti"
 msgstr[1] "{count} užduotis reikia atlikti"
+msgstr[2] "{count} užduočių reikia atlikti"
 
 #: docking/applets/plantcare/state.py:455
 msgid "All plants are on schedule"
@@ -2832,6 +2824,7 @@ msgid "{count} more task"
 msgid_plural "{count} more tasks"
 msgstr[0] "dar {count} užduotis"
 msgstr[1] "dar {count} užduotys"
+msgstr[2] "dar {count} užduočių"
 
 #: docking/applets/plantcare/state.py:492
 #, python-brace-format
@@ -3442,10 +3435,6 @@ msgstr "Activate"
 msgid "Context Menu"
 msgstr "Context Menu"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-Bus unavailable"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3552,10 +3541,6 @@ msgstr "System Tray: {n} item(s)"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "System Tray: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "System Tray: D-Bus unavailable"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3691,8 +3676,9 @@ msgstr "No items in Trash"
 #, python-brace-format
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
-msgstr[0] "{n} elementas Šiukšliadėžėje"
-msgstr[1] "{n} elementų Šiukšliadėžėje"
+msgstr[0] "{n} elementas šiukšlinėje"
+msgstr[1] "{n} elementai šiukšlinėje"
+msgstr[2] "{n} elementų šiukšlinėje"
 
 #: docking/applets/trivia/applet.py:55 docking/applets/trivia/applet.py:199
 msgid "Random Trivia"
@@ -3885,10 +3871,6 @@ msgstr "Tai išvalys Docking saugomą WhatsApp Web sesiją. Turėsite dar kartą
 msgid "Could not disconnect WhatsApp"
 msgstr "Nepavyko atsijungti nuo WhatsApp"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "Nežinoma WebKit klaida"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK nepasiekiamas"
@@ -3896,10 +3878,6 @@ msgstr "WebKitGTK nepasiekiamas"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Docking programėlė"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "Įkelti WhatsApp Web iš naujo"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3917,11 +3895,6 @@ msgstr "kamera"
 msgid "microphone"
 msgstr "mikrofonas"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "Leisti WhatsApp naudoti jūsų {device}?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "Neleisti"
@@ -3929,10 +3902,6 @@ msgstr "Neleisti"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "Leisti"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp reikalauja WebKitGTK"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3943,10 +3912,6 @@ msgstr "Įdiekite WebKitGTK 4.1 arba 4.0 introspection paketą, tada paleiskite 
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "nežinoma naršyklės klaida"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: WebKitGTK neįdiegtas"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5248,10 +5213,6 @@ msgstr "Rodyti paaiškinimus"
 msgid "Show item names and details when hovering over dock items."
 msgstr "Show item names and details when hovering over dock items."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr "Show window thumbnails when hovering over running apps."
@@ -5648,28 +5609,1046 @@ msgstr "Nepaisyti"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "Kamera užrakinta"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "Mikrofono būsena nepasiekiama"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "Nežinoma, ar mikrofonas nutildytas"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "Mikrofono aktyvumas nežinomas"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "Mikrofono nustatymai"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "Kameros būsena nepasiekiama"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "Kameros aktyvumas nežinomas"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "Kameros užrakinti negalima"
 
 msgid "Camera Settings"
+msgstr "Kameros nustatymai"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "Išlaikyti ryšį"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "Prijungti garso įrenginį"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "Nebelaikyti ryšio aktyvaus"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "Atjungti garso įrenginį"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "Įveskite PIN kodą"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "Įveskite šį PIN kodą įrenginyje: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "Ar įrenginyje rodomas toks pat PIN kodas? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "Kontrolinis sąrašas"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "{count} nepažymėtas elementas"
+msgstr[1] "{count} nepažymėti elementai"
+msgstr[2] "{count} nepažymėtų elementų"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "Pridėti elementą"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "Pašalinti atliktus punktus"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "Elemento tekstas"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "Iškarpinės stebėjimas pristabdytas"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "Iškarpinės istorija"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "Stebėti iškarpinę"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "Stebėti žymėjimą pele"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "Žymėjimui pele stebėti reikia X11"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "Stebėti paveikslus"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "Didžiausias įrašų skaičius"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "Išjungta"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "Paveikslas ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "Žadintuvas: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "Nepavyko nuskaityti „KDE Connect“ įrenginių"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "Įdiekite „KDE Connect“, kad atvertumėte įrenginių nustatymus"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "Jungiamasi prie pasirinkto įrenginio…"
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
 msgstr ""
+"„KDE Connect“ veiksmas nepavyko. Bandykite dar kartą, kai įrenginys "
+"prisijungs prie tinklo."
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "Prašymas sukelti skambutį išsiųstas įrenginiui {name}"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr ""
+"Pasirinkite susietą įrenginį, kuris prisijungęs prie tinklo ir kuriame "
+"įjungtas failų bendrinimas"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "Palaukite, kol bus baigtas dabartinis „KDE Connect“ veiksmas"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "Nepavyko nuskaityti pasirinktų failų"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "Pateikta failų perdavimo įrenginiui {name} užklausa"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "Siųsti failus naudojant „KDE Connect“"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "Siųsti"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "Įjungti telefono skambutį"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "Siųsti failus…"
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "Atverti „KDE Connect“ arba susieti įrenginį"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "Įdiekite ir paleiskite „KDE Connect“, kad prijungtumėte telefoną"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "„KDE Connect“ paleista iš naujo. Atnaujinamas įrenginių sąrašas."
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+"Nepavyko susisiekti su „KDE Connect“. Bandykite dar kartą arba atverkite jos"
+" nustatymus."
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "„KDE Connect“ grąžino netinkamą įrenginio identifikatorių"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"Nepavyko nuskaityti „KDE Connect“ įrenginių. Bandykite dar kartą arba "
+"atverkite jos nustatymus."
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "Pasirinktas įrenginys neprisijungęs arba nebesusietas"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "Pasirinktas įrenginys nepalaiko šio veiksmo"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "Vienas iš pasirinktų failų nebepasiekiamas"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: neprisijungęs"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: prijungtas"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge} % (kraunama)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge} %"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr ""
+"Susietų įrenginių nėra. Atverkite „KDE Connect“ ir susiekite telefoną."
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "Pasirinktas įrenginys nebesusietas. Pasirinkite kitą įrenginį."
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "Numeskite failus čia, kad išsiųstumėte juos į šį įrenginį"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "Pasirinkite bent vieną vietinį failą"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "Naudojant „KDE Connect“ galima siųsti tik vietinius failus"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "Sistemos numatytoji parinktis"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "Pageidaujama programa nepasiekiama"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "Suderinamų programų nerasta"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "Paleisti programą"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"Įdiekite arba įjunkite %(plugin)s ir paleiskite „mpv“ iš naujo, kad "
+"galėtumėte valdyti atkūrimą ir matyti takelio informaciją."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr ""
+"Įjunkite „Rhythmbox“ MPRIS įskiepį, kad matytumėte takelio informaciją."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "Įdiekite %(package)s ir paleiskite „Rhythmbox“ iš naujo."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "Nepavyko atnaujinti pranešimų"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr ""
+"Norint matyti pranešimų istoriją, reikia suteikti prieigą „Windows“ "
+"nustatymuose"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Atverti „Telegram“"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Slėpti „Telegram“"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Atjungti „Telegram“"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Atjungti „Telegram“?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"Bus išvalytas „Docking“ išsaugotas „Telegram Web“ seansas. Turėsite "
+"prisijungti iš naujo."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Nepavyko atjungti „Telegram“"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "„Telegram“: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "„Telegram“: naršyklė nepasiekiama"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "„Telegram“: įkeliama…"
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr ""
+"„Telegram“: nuskaitykite QR kodą arba prisijunkite naudodami telefono numerį"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "„Telegram“: sinchronizuojama…"
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "„Telegram“: neprisijungta"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "nepavyko įkelti „Telegram Web“"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "„Telegram“: {count} naujas pranešimas"
+msgstr[1] "„Telegram“: {count} nauji pranešimai"
+msgstr[2] "„Telegram“: {count} naujų pranešimų"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "„Telegram“: {count} neperskaitytas pokalbis"
+msgstr[1] "„Telegram“: {count} neperskaityti pokalbiai"
+msgstr[2] "„Telegram“: {count} neperskaitytų pokalbių"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "„Telegram“: neperskaitytų pokalbių nėra"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "„Telegram“: spustelėkite, kad atvertumėte"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "Nežinoma naršyklės klaida"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "Įkelti {service} iš naujo"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "Leisti {service} naudoti jūsų įrenginius ({device})?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "Paslaugai {service} reikia „WebKitGTK“"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "Nepavyko atverti naršyklės seanso"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "„Microsoft Edge WebView2“ nepasiekiama"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "Nepavyko atjungti {service}"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "nepavyko įkelti {service}"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "Atsisiųsti"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "Baigta"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "Atsisiunčiama…"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "Tęsti"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "„WhatsApp“: naršyklė nepasiekiama"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "Importuoti esamą doko išdėstymą"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Atverkite Nuostatos → Importuoti ir peržiūrėkite „Plank“, „Plank Reloaded“ "
+"arba „Cairo-Dock“ prisegtus elementus ir nustatymus prieš perkeldami juos į "
+"„Docking“."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "„Docking“ failas"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "Šaltinio tema nepasiekiama."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr "„Docking“ nuostatose nustatykite doko rodymo spartųjį klavišą."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "Netinkamas prisegtas elementas praleistas."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "Praleista: {item}."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Nepavyko nustatyti pagrindinio „Plank“ doko."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "Visą kraštą užimantis „Plank“ išdėstymas praleistas."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"„Plank“ nustatymai nepasiekiami. Paleidikliai išvardyti pagal failų vardus."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "Pagrindinis dokas"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "Pasikartojantis papildomas dokas {item} praleistas."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "Atskiras dokas {item} praleistas."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "Pasirinktinis paleidiklis {item} praleistas."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "Įskiepis {item} praleistas."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "Atsietas darbalaukio valdiklis {item} praleistas."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "„Cairo-Dock“ ekrano pasirinkimas pagal numerį praleistas."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr ""
+"Veikiant režimui „Visada fone“, dokas nepasirodo nuvedus žymeklį prie "
+"krašto."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "Elementui {item} skirta programa nepasiekiama."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "Šaltinio ekranas nepasiekiamas."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr ""
+"Atstumas nuo ekrano krašto pakeistas iš {requested} px į {applied} px."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "Šis elementas jau prisegtas."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "Pasirinkta programa nepasiekiama."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "Pasirinkta programėlė nepasiekiama."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "Pasirinktas failas ar aplankas nepasiekiamas."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Rodyti arba slėpti „Docking“ paiešką"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Pasirinkite „Docking“ konfigūracijos failą"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "„Docking“ konfigūracijos failai"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "Lygiuotė"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "Ekranas"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "Sekti aktyvų ekraną"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "Įjungti mastelio keitimą"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "Mastelio lygis"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "Užrakinti piktogramas"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "Tik prisegti elementai"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "Rodyti langų peržiūras"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "Peržiūros plotis"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "Apvesti lango kontūrą užvedus žymeklį ant peržiūros"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "Papildomas atstumas nuo krašto"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "Grupuoti programėles doko gale"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "Grupuoti failus doko gale"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "Įjungti efektus spustelint doko elementus"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "Spustelėjimo efektas"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "Atverti rietuves"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "Visada fone"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "Apačioje"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "Kairėje"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "Dešinėje"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "Prisegtini elementai"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "Šaltinio doke nėra prisegtų elementų."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "Taikytini nustatymai"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "Nėra importuotinų pakeitimų."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Importuoti „Docking“ failą"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "Importuoti iš kito doko"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "Praleisti"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "Importuoti"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "Pasirinkite doką, kurį importuosite."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr ""
+"Pasirinkite doką, kad peržiūrėtumėte jo prisegtus elementus ir nuostatas."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Pasirinkite tinkamą „Docking“ JSON konfigūracijos failą."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "Nepavyko nuskaityti šaltinio doko nustatymų."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "„Plank“ arba „Plank Reloaded“ konfigūracijų nerasta."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "„Cairo-Dock“ konfigūracijos nerasta."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "„Plank“ arba „Cairo-Dock“ konfigūracijų nerasta."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "Keisti doko išdėstymą"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "Taikyti"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "Nėra prisegtų elementų"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "Programa…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "Programėlė…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "Failas…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "Aplankas…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "Perkelti aukštyn"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "Perkelti žemyn"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "Įkelti išdėstymą iš naujo"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "Redaguojant doko išdėstymas pasikeitė."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "Nepavyko išsaugoti doko išdėstymo."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "Išdėstymas išsaugotas. Kai kurių naujų elementų nepavyko įkelti."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "Doko gale sugrupuoti failai ir aplankai"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "Doko gale sugrupuotos programėlės"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "Pasirinkite aplanką"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "Pasirinkite failą"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "Pasirinkite vietinį failą arba aplanką."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "Pridėti programą"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Rodyti arba slėpti „Docking“"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "Prieš įjungdami šį režimą priskirkite spartųjį klavišą."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "Darbalaukio aplinka nepriskyrė sparčiojo klavišo."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Naudojamas automatinis slėpimas: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "Režimas neįjungtas: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "Nepavyko atverti aplanko terminale."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "Nepavyko atverti šio elemento kita programa."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "Atverti terminale"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "Atverti naudojant…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "Pagrindinis"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "Rodyti tik sparčiuoju klavišu"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "Atšokimas"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "Pulsavimas"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "Svyravimas"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "Doko spartusis klavišas"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "Padėkite doką ties pasirinktu ekrano kraštu."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "Peržiūra"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "Rodyti langų peržiūros miniatiūras"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr ""
+"Apveskite lango kontūrą darbalaukyje užvedę žymeklį ant jo miniatiūros."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"Apveskite lango kontūrą darbalaukyje užvedę žymeklį ant jo miniatiūros. "
+"Šiame seanse funkcija nepasiekiama, nes jai reikia X11 arba „Sway“."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "Miniatiūrų plotis"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"Nustatykite langų miniatiūrų plotį pikseliais. Platesnėse miniatiūrose "
+"matoma ir didesnė lango antraštės dalis."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "Keisti išdėstymą…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr "Rodyti tik prisegtas programas, programėles, failus ir aplankus."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "Prisegti elementai"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "Paleidus programą iš doko, rodykite pasirinktą efektą."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "Pasirinkite efektą, rodomą paleidžiant programą."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "Doko spartusis klavišas"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"Norėdami įjungti šį režimą, priskirkite veikiantį spartųjį klavišą. Jei jo "
+"nepavyks užregistruoti, dokas laikinai slėpsis automatiškai."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "Kitas dokas"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Mygtukas „Plank“ palaiko ir „Plank Reloaded“. Prieš importuodami "
+"peržiūrėkite prisegtus elementus, nuostatas ir praleistus elementus."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "Naršyti…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"Pasirinkite „Docking“ JSON failą, kad peržiūrėtumėte jo prisegtus elementus "
+"ir išdėstymo nuostatas."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "Importuoti iš"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "Nepavyko išsaugoti importuoto doko."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr ""
+"Nepavyko pašalinti šių prisegtų elementų iš išsaugotos konfigūracijos."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "Kai kurių importuotų prisegtų elementų nepavyko įkelti."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "Centre"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"Dokas lieka virš darbalaukio ir už programų langų, nerezervuodamas vietos "
+"ekrane. Norėdami juo naudotis, atidenkite doką. Užvedus žymeklį jis "
+"neiškyla."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"Dokas rodomas tik paspaudus spartųjį klavišą. Jis pasislepia, kai žymeklis "
+"užvedamas ant doko ir nuvedamas nuo jo. Norėdami doką paslėpti, dar kartą "
+"paspauskite spartųjį klavišą."

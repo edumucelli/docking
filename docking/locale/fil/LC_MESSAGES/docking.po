@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=2; plural=n != 1 && n != 2 && n != 3 && (n % 10 == 4 || n % 10 == 6 || n % 10 == 9);\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -3442,10 +3430,6 @@ msgstr "I-activate"
 msgid "Context Menu"
 msgstr "Menu ng Konteksto"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "Hindi available ang D-Bus"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3553,10 +3537,6 @@ msgstr "System Tray: {n} (mga) item"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "System Tray: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "System Tray: Hindi available ang D-Bus"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3887,10 +3867,6 @@ msgstr "Buburahin nito ang sesyon ng WhatsApp Web na iniimbak ng Docking. "
 msgid "Could not disconnect WhatsApp"
 msgstr "Hindi ma-disconnect ang WhatsApp"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "Hindi kilalang error sa WebKit"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "Hindi available ang WebKitGTK"
@@ -3898,10 +3874,6 @@ msgstr "Hindi available ang WebKitGTK"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Docking applet"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "I-reload ang WhatsApp Web"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3919,11 +3891,6 @@ msgstr "camera"
 msgid "microphone"
 msgstr "mikropono"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "Payagan ang WhatsApp na gamitin ang iyong {device}?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "Tumanggi"
@@ -3931,10 +3898,6 @@ msgstr "Tumanggi"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "Payagan"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "Kailangan ng WhatsApp ang WebKitGTK"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3945,10 +3908,6 @@ msgstr "I-install ang WebKitGTK 4.1 o 4.0 introspection package, pagkatapos "
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "hindi kilalang error sa browser"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: hindi naka-install ang WebKitGTK"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5271,10 +5230,6 @@ msgstr ""
 "Ipakita ang mga pangalan at detalye ng item kapag nagho-hover sa mga item sa "
 "pantalan."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr ""
@@ -5699,28 +5654,1049 @@ msgstr "Huwag pansinin"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "Naka-lock ang camera"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "Hindi makuha ang katayuan ng mikropono"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "Hindi alam kung naka-mute ang mikropono"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "Hindi alam ang aktibidad ng mikropono"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "Mga setting ng mikropono"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "Hindi makuha ang katayuan ng camera"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "Hindi alam ang aktibidad ng camera"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "Hindi magagamit ang pag-lock ng camera"
 
 msgid "Camera Settings"
+msgstr "Mga setting ng camera"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "Panatilihing nakakonekta"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "Ikonekta ang audio"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "Bitawan ang koneksiyon"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "Idiskonekta ang audio"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "Ilagay ang PIN"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "Ilagay ang PIN na ito sa device: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "Tugma ba ang PIN na ito sa ipinapakita ng device? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "Listahan ng susuriin"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "{count} item na hindi natsekan"
+msgstr[1] "{count} item na hindi natsekan"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "Magdagdag ng item"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "Alisin ang mga natapos na item"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "Teksto ng item"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "Nakahinto ang pagsubaybay sa clipboard"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "Kasaysayan ng clipboard"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "Paganahin ang pagsubaybay sa clipboard"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "Subaybayan ang pagpili gamit ang mouse"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "Kailangan ang X11 para masubaybayan ang pagpili gamit ang mouse"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "Subaybayan ang mga larawan"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "Pinakamaraming entry"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "Hindi pinagana"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "Larawan ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "Alarm: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "Hindi mabasa ang listahan ng mga device sa KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "I-install ang KDE Connect para buksan ang mga setting ng device"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "Kinokontak ang piniling device..."
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
 msgstr ""
+"Hindi nagtagumpay ang aksiyon ng KDE Connect. Subukan ulit kapag online na "
+"ang device"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "Ipinadala sa {name} ang kahilingang tumunog"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr ""
+"Pumili ng nakapares at online na device na pinagana ang pagbabahagi ng file"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "Hintaying matapos ang kasalukuyang aksiyon ng KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "Hindi mabasa ang mga piniling file"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "Hiniling ang paglilipat ng file sa {name}"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "Magpadala ng mga file gamit ang KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "Ipadala"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "Patunugin ang telepono"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "Magpadala ng mga file..."
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "Buksan ang KDE Connect / Ipares ang device"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "I-install at patakbuhin ang KDE Connect para kumonekta sa telepono"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "Muling nagsimula ang KDE Connect. Nire-refresh ang listahan ng device"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+"Hindi makontak ang KDE Connect. Subukan ulit o buksan ang mga setting nito"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "Nagbalik ang KDE Connect ng di-wastong device ID"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"Hindi mabasa ang listahan ng device ng KDE Connect. Subukan ulit o buksan "
+"ang mga setting nito"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "Offline o hindi na nakapares ang piniling device"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "Hindi sinusuportahan ng piniling device ang aksiyong ito"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "Hindi na available ang isa sa mga piniling file"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: offline"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: nakakonekta"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (nagcha-charge)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr ""
+"Walang nakapares na device. Buksan ang KDE Connect para ipares ang iyong "
+"telepono"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "Hindi na nakapares ang piniling device. Pumili ng iba"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "I-drop dito ang mga file para ipadala sa device na ito"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "Pumili ng kahit isang lokal na file"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "Mga lokal na file lamang ang maipapadala gamit ang KDE Connect"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "Default ng system"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "Hindi available ang gustong app"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "Walang nakitang katugmang app"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "Ilunsad ang app"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"I-install o paganahin ang %(plugin)s at i-restart ang mpv para makontrol ang"
+" pag-play at makita ang mga detalye ng track."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr ""
+"Paganahin ang MPRIS plugin ng Rhythmbox para makita ang mga detalye ng "
+"track."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "I-install ang %(package)s at i-restart ang Rhythmbox."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "Hindi ma-update ang mga abiso"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr ""
+"Kailangan ng pahintulot sa mga setting ng Windows para makita ang kasaysayan"
+" ng abiso"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Buksan ang Telegram"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Itago ang Telegram"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Idiskonekta ang Telegram"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Ididiskonekta ang Telegram?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"Buburahin nito ang session ng Telegram Web na naka-save sa Docking. "
+"Kailangan mong mag-sign in ulit."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Hindi maidiskonekta ang Telegram"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: hindi available ang browser"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: naglo-load..."
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr ""
+"Telegram: i-scan ang QR code o mag-sign in gamit ang numero ng iyong "
+"telepono"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: nagsi-sync..."
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: offline"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "hindi ma-load ang Telegram Web"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: {count} bagong abiso"
+msgstr[1] "Telegram: {count} bagong abiso"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: {count} chat na hindi pa nababasa"
+msgstr[1] "Telegram: {count} chat na hindi pa nababasa"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: walang chat na hindi pa nababasa"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: i-click para buksan"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "Hindi kilalang error sa browser"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "I-reload ang {service}"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "Papayagan ba ang {service} na gamitin ang device ({device})?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "Kailangan ng {service} ang WebKitGTK"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "Hindi mabuksan ang session ng browser"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Hindi available ang Microsoft Edge WebView2"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "Hindi maidiskonekta ang {service}"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "hindi ma-load ang {service}"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "I-download"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "Tapos na"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "Nagda-download"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "Ipagpatuloy"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: hindi available ang browser"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "Mag-import ng umiiral na layout ng dock"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Buksan ang Mga Kagustuhan -> Mag-import para suriin ang mga naka-pin na item"
+" at setting mula sa Plank, Plank Reloaded, o Cairo-Dock bago dalhin ang mga "
+"ito sa Docking."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "File ng Docking"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "Hindi available ang pinagmulang tema."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr ""
+"Itakda ang shortcut na nagpapakita sa dock sa Mga Kagustuhan ng Docking."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "Nilaktawan ang isang di-wastong naka-pin na item."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "Nilaktawan ang {item}."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Hindi matukoy ang pangunahing dock ng Plank."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "Nilaktawan ang layout ng Plank na sumasakop sa buong gilid."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"Hindi available ang mga setting ng Plank. Nakalista ang mga launcher ayon sa"
+" pangalan ng file."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "Pangunahing dock"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "Nilaktawan ang dobleng sub-dock na {item}."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "Nilaktawan ang hiwalay na dock na {item}."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "Nilaktawan ang custom na launcher na {item}."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "Nilaktawan ang plugin na {item}."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "Nilaktawan ang nakahiwalay na desktop widget na {item}."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "Nilaktawan ang pagpili ng display ayon sa numero sa Cairo-Dock."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr ""
+"Sa mode na Palaging nasa likod, hindi lumilitaw ang dock kapag dinala ang "
+"pointer sa gilid."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "Walang app na available para sa {item}."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "Hindi available ang pinagmulang display."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr ""
+"Inayos ang layo mula sa gilid ng screen mula {requested} px hanggang "
+"{applied} px."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "Naka-pin na ang item na ito."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "Hindi available ang piniling app."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "Hindi available ang piniling applet."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "Hindi available ang piniling file o folder."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Ipakita o itago ang paghahanap ng Docking"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Pumili ng configuration file ng Docking"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Mga configuration file ng Docking"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "Pagkakapantay"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "Display"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "Sundan ang aktibong display"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "Paganahin ang zoom"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "Antas ng zoom"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "I-lock ang mga icon"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "Mga naka-pin na item lamang"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "Ipakita ang mga preview ng window"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "Lapad ng preview"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "Balangkasin ang window kapag nasa preview ang pointer"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "Dagdag na layo mula sa gilid"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "I-angkla ang mga applet"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "I-angkla ang mga file"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "Paganahin ang mga effect kapag nagki-click sa mga item ng dock"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "Effect ng pag-click"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "Buksan ang mga stack"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "Palaging nasa likod"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "Ibaba"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "Kaliwa"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "Kanan"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "Mga item na ipi-pin"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "Walang naka-pin na item sa pinagmulang dock."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "Mga kagustuhang ilalapat"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "Walang pagbabagong mai-import."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Mag-import ng file ng Docking"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "Mag-import mula sa ibang dock"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "Laktawan"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "Mag-import"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "Pumili ng dock na ii-import."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr ""
+"Pumili ng dock para suriin ang mga naka-pin na item at kagustuhan nito."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Pumili ng wastong JSON configuration file ng Docking."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "Hindi mabasa ang mga setting ng pinagmulang dock."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Walang nakitang setup ng Plank o Plank Reloaded."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Walang nakitang setup ng Cairo-Dock."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Walang nakitang setup ng Plank o Cairo-Dock."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "I-edit ang layout ng dock"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "Ilapat"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "Walang naka-pin na item"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "App…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "Applet…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "File…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "Folder…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "Ilipat pataas"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "Ilipat pababa"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "I-reload ang layout"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "Nagbago ang layout ng dock habang ine-edit mo ito."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "Hindi ma-save ang layout ng dock."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "Nai-save ang layout. Hindi ma-load ang ilang bagong item."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "Mga nakaangkla na file at folder"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "Mga nakaangkla na applet"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "Pumili ng folder"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "Pumili ng file"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "Pumili ng lokal na file o folder."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "Magdagdag ng app"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Ipakita o itago ang Docking"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "Magtalaga ng shortcut bago paganahin ang mode na ito."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "Walang itinalagang shortcut ang desktop environment."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Ginagamit ang Auto-hide: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "Hindi pinagana ang mode: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "Hindi mabuksan ang folder sa terminal."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "Hindi mabuksan ang item na ito sa ibang app."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "Buksan sa terminal"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "Buksan gamit ang…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "Pangunahin"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "Ipakita lamang gamit ang shortcut"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "Talbog"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "Pintig"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "Ugoy"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "Shortcut ng dock"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "Ilagay ang dock sa piniling gilid ng screen."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "Preview"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "Ipakita ang mga thumbnail ng window"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr ""
+"Binabalangkasan ang aktuwal na window sa desktop kapag nasa thumbnail nito "
+"ang pointer."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"Binabalangkasan ang aktuwal na window sa desktop kapag nasa thumbnail nito "
+"ang pointer. Hindi ito available sa session na ito. Kailangan ang X11 o "
+"Sway."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "Lapad ng thumbnail"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"Itakda ang lapad ng mga thumbnail ng window sa pixels. Mas maraming bahagi "
+"ng pamagat ng window ang makikita sa mas malapad na thumbnail."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "I-edit ang layout…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr "Ipinapakita lamang ang mga naka-pin na app, applet, file, at folder."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "Mga naka-pin na item"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "Pinapagana ang piniling effect kapag naglulunsad ng app mula sa dock."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "Piliin ang effect na gagamitin kapag naglulunsad ng app."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "Shortcut ng dock"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"Magtalaga ng gumaganang shortcut para paganahin ang mode na ito. Kung hindi "
+"ito mairehistro, pansamantalang gagamit ang dock ng Auto-hide."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "Ibang dock"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Sinusuportahan din ng button ng Plank ang Plank Reloaded. Suriin ang mga "
+"naka-pin na item, kagustuhan, at nilaktawang item bago mag-import."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "Mag-browse…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"Pumili ng JSON file ng Docking para suriin ang mga naka-pin na item at "
+"kagustuhan sa layout."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "Mag-import mula sa"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "Hindi ma-save ang na-import na dock."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr ""
+"Hindi maalis ang mga naka-pin na item na ito mula sa naka-save na "
+"configuration."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "Hindi ma-load ang ilang na-import na naka-pin na item."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "Gitna"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"Nananatili sa ibabaw ng desktop at sa ilalim ng mga window ng app nang hindi"
+" naglalaan ng puwang sa screen. Ilantad ang dock para magamit ito. Hindi ito"
+" mapupunta sa harap kapag inilagay ang pointer sa ibabaw nito."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"Lumalabas lamang gamit ang shortcut at nagtatago kapag pumasok at lumabas "
+"ang pointer. Pindutin ulit ang shortcut para itago ito."

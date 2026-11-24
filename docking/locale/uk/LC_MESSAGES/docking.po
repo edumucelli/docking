@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=3; plural=n % 10 == 1 && n % 100 != 11 ? 0 : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 1 : 2;\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -2654,7 +2642,8 @@ msgstr "Відкласти на 1 день"
 msgid "{count} more due task"
 msgid_plural "{count} more due tasks"
 msgstr[0] "ще {count} прострочене завдання"
-msgstr[1] "ще {count} прострочених завдань"
+msgstr[1] "ще {count} прострочені завдання"
+msgstr[2] "ще {count} прострочених завдань"
 
 #: docking/applets/plantcare/applet.py:244
 #: docking/search/providers/applications.py:192 docking/ui/diagnostics.py:137
@@ -2785,7 +2774,8 @@ msgstr "Рослина"
 msgid "overdue by {count} day"
 msgid_plural "overdue by {count} days"
 msgstr[0] "прострочено на {count} день"
-msgstr[1] "прострочено на {count} днів"
+msgstr[1] "прострочено на {count} дні"
+msgstr[2] "прострочено на {count} днів"
 
 #: docking/applets/plantcare/state.py:421
 msgid "due today"
@@ -2796,7 +2786,8 @@ msgstr "термін сьогодні"
 msgid "in {count} day"
 msgid_plural "in {count} days"
 msgstr[0] "через {count} день"
-msgstr[1] "через {count} днів"
+msgstr[1] "через {count} дні"
+msgstr[2] "через {count} днів"
 
 #: docking/applets/plantcare/state.py:428
 #, python-brace-format
@@ -2820,7 +2811,8 @@ msgstr "Розклади догляду не увімкнено"
 msgid "{count} task due"
 msgid_plural "{count} tasks due"
 msgstr[0] "{count} завдання на часі"
-msgstr[1] "{count} завдань на часі"
+msgstr[1] "{count} завдання на часі"
+msgstr[2] "{count} завдань на часі"
 
 #: docking/applets/plantcare/state.py:455
 msgid "All plants are on schedule"
@@ -2831,7 +2823,8 @@ msgstr "Усі рослини за розкладом"
 msgid "{count} more task"
 msgid_plural "{count} more tasks"
 msgstr[0] "ще {count} завдання"
-msgstr[1] "ще {count} завдань"
+msgstr[1] "ще {count} завдання"
+msgstr[2] "ще {count} завдань"
 
 #: docking/applets/plantcare/state.py:492
 #, python-brace-format
@@ -3442,10 +3435,6 @@ msgstr "активувати"
 msgid "Context Menu"
 msgstr "Контекстне меню"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-Bus недоступний"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3553,10 +3542,6 @@ msgstr "Системний лоток: {n} елемент(ів)"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "Системний трей: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "Системний трей: D-Bus недоступний"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3694,7 +3679,8 @@ msgstr "No items in Trash"
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
 msgstr[0] "{n} елемент у Кошику"
-msgstr[1] "{n} елементів у Кошику"
+msgstr[1] "{n} елементи у Кошику"
+msgstr[2] "{n} елементів у Кошику"
 
 #: docking/applets/trivia/applet.py:55 docking/applets/trivia/applet.py:199
 msgid "Random Trivia"
@@ -3887,10 +3873,6 @@ msgstr "Це очистить сесію WhatsApp Web, збережену Dockin
 msgid "Could not disconnect WhatsApp"
 msgstr "Не вдалося відключити WhatsApp"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "Невідома помилка WebKit"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK недоступний"
@@ -3898,10 +3880,6 @@ msgstr "WebKitGTK недоступний"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Аплет Docking"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "Перезавантажити WhatsApp Web"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3919,11 +3897,6 @@ msgstr "камера"
 msgid "microphone"
 msgstr "мікрофон"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "Дозволити WhatsApp використовувати {device}?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "Заборонити"
@@ -3931,10 +3904,6 @@ msgstr "Заборонити"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "Дозволити"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp потребує WebKitGTK"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3945,10 +3914,6 @@ msgstr "Встановіть пакет інтроспекції WebKitGTK 4.1 �
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "невідома помилка браузера"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: WebKitGTK не встановлено"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5266,10 +5231,6 @@ msgstr ""
 "Показувати назви та деталі елементів під час наведення курсора на елементи "
 "дока."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr ""
@@ -5689,28 +5650,1043 @@ msgstr "Ігнорувати"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "Камеру заблоковано"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "Стан мікрофона недоступний"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "Невідомо, чи вимкнено звук мікрофона"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "Активність мікрофона невідома"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "Налаштування мікрофона"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "Стан камери недоступний"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "Активність камери невідома"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "Блокування камери недоступне"
 
 msgid "Camera Settings"
+msgstr "Налаштування камери"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "Зберегти з’єднання"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "Під’єднати звук"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "Звільнити з’єднання"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "Від’єднати звук"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "Ввести PIN-код"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "Введіть цей PIN-код на пристрої: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "Цей PIN-код збігається з кодом на пристрої? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "Список справ"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "{count} непозначений пункт"
+msgstr[1] "{count} непозначені пункти"
+msgstr[2] "{count} непозначених пунктів"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "Додати пункт"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "Вилучити виконані пункти"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "Текст пункту"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "Стеження за буфером обміну призупинено"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "Історія буфера обміну"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "Увімкнути стеження за буфером обміну"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "Стежити за виділенням мишею"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "Для стеження за виділенням мишею потрібен X11"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "Стежити за зображеннями"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "Максимальна кількість записів"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "Вимкнено"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "Зображення ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "Будильник: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "Не вдалося прочитати список пристроїв KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "Установіть KDE Connect, щоб відкрити налаштування пристроїв"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "З’єднання з вибраним пристроєм..."
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
 msgstr ""
+"Дію KDE Connect не вдалося виконати. Спробуйте ще раз, коли пристрій буде в "
+"мережі"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "До {name} надіслано запит на звуковий сигнал"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr "Виберіть спарений пристрій у мережі з увімкненим обміном файлами"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "Зачекайте завершення поточної дії KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "Не вдалося прочитати вибрані файли"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "Надіслано запит на передавання файлів до {name}"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "Надіслати файли через KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "Надіслати"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "Увімкнути дзвінок на телефоні"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "Надіслати файли..."
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "Відкрити KDE Connect / Спарити пристрій"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "Установіть і запустіть KDE Connect, щоб під’єднати телефон"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "KDE Connect перезапущено. Список пристроїв оновлюється"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+"Не вдалося зв’язатися з KDE Connect. Спробуйте ще раз або відкрийте його "
+"налаштування"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "KDE Connect повернув неприпустимий ідентифікатор пристрою"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"Не вдалося прочитати список пристроїв KDE Connect. Спробуйте ще раз або "
+"відкрийте його налаштування"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "Вибраний пристрій не в мережі або його вже не спарено"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "Вибраний пристрій не підтримує цю дію"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "Один із вибраних файлів більше недоступний"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: поза мережею"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: під’єднано"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (заряджається)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr "Немає спарених пристроїв. Відкрийте KDE Connect, щоб спарити телефон"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "Вибраний пристрій більше не спарено. Виберіть інший пристрій"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "Перетягніть сюди файли, щоб надіслати їх на цей пристрій"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "Виберіть принаймні один локальний файл"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "Через KDE Connect можна надсилати лише локальні файли"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "Типове системне значення"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "Бажана програма недоступна"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "Сумісних програм не знайдено"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "Запустити програму"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"Установіть або увімкніть %(plugin)s і перезапустіть mpv, щоб керувати "
+"відтворенням і переглядати відомості про композицію."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr ""
+"Увімкніть додаток MPRIS у Rhythmbox, щоб переглядати відомості про "
+"композицію."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "Установіть %(package)s і перезапустіть Rhythmbox."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "Не вдалося оновити сповіщення"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr "Для перегляду історії сповіщень надайте доступ у параметрах Windows"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Відкрити Telegram"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Приховати Telegram"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Вийти з Telegram"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Вийти з Telegram?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"Буде вилучено сеанс Telegram Web, збережений Docking. Вам доведеться ввійти "
+"знову."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Не вдалося вийти з Telegram"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: браузер недоступний"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: завантаження..."
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram: відскануйте QR-код або ввійдіть за номером телефону"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: синхронізація..."
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: поза мережею"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "не вдалося завантажити Telegram Web"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: {count} нове сповіщення"
+msgstr[1] "Telegram: {count} нові сповіщення"
+msgstr[2] "Telegram: {count} нових сповіщень"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: {count} непрочитаний чат"
+msgstr[1] "Telegram: {count} непрочитані чати"
+msgstr[2] "Telegram: {count} непрочитаних чатів"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: немає непрочитаних чатів"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: клацніть, щоб відкрити"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "Невідома помилка браузера"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "Перезавантажити {service}"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "Дозволити службі {service} використовувати пристрій ({device})?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "Для {service} потрібен WebKitGTK"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "Не вдалося відкрити сеанс браузера"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Microsoft Edge WebView2 недоступний"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "Не вдалося вийти з {service}"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "не вдалося завантажити {service}"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "Завантажити"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "Завершено"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "Завантаження"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "Продовжити"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: браузер недоступний"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "Імпортувати наявне компонування дока"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Відкрийте Налаштування -> Імпорт, щоб переглянути закріплені елементи та "
+"налаштування Plank, Plank Reloaded або Cairo-Dock перед перенесенням до "
+"Docking."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "Файл Docking"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "Початкова тема недоступна."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr ""
+"Налаштуйте клавіатурне скорочення для показу дока у налаштуваннях Docking."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "Неприпустимий закріплений елемент пропущено."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "Елемент {item} пропущено."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Не вдалося визначити головний док Plank."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "Компонування Plank на весь край пропущено."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"Налаштування Plank були недоступні. Піктограми запуску перелічено за назвами"
+" файлів."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "Головний док"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "Дубльований вкладений док {item} пропущено."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "Окремий док {item} пропущено."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "Нетипову піктограму запуску {item} пропущено."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "Додаток {item} пропущено."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "Відокремлений віджет стільниці {item} пропущено."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "Вибір екрана за номером у Cairo-Dock пропущено."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr ""
+"У режимі Завжди позаду наведення вказівника на край екрана не показує док."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "Програма для {item} недоступна."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "Початковий екран недоступний."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr "Відстань від краю екрана змінено з {requested} пкс на {applied} пкс."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "Цей елемент уже закріплено."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "Вибрана програма недоступна."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "Вибраний аплет недоступний."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "Вибраний файл або тека недоступні."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Показати або приховати пошук Docking"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Виберіть файл конфігурації Docking"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Файли конфігурації Docking"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "Вирівнювання"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "Екран"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "Стежити за активним екраном"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "Увімкнути збільшення"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "Рівень збільшення"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "Заблокувати піктограми"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "Лише закріплені елементи"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "Показувати попередні перегляди вікон"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "Ширина попереднього перегляду"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "Виділяти контур вікна при наведенні на попередній перегляд"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "Додатковий відступ від краю"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "Фіксувати аплети"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "Фіксувати файли"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "Увімкнути ефекти при натисканні на елементи дока"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "Ефект натискання"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "Відкрити стоси"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "Завжди позаду"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "Знизу"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "Ліворуч"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "Праворуч"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} мс"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} пкс"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "Елементи для закріплення"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "Початковий док не має закріплених елементів."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "Налаштування для застосування"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "Немає змін для імпорту."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Імпортувати файл Docking"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "Імпортувати з іншого дока"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "Пропустити"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "Імпортувати"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "Виберіть док для імпорту."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr ""
+"Виберіть док, щоб переглянути його закріплені елементи та налаштування."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Виберіть коректний файл конфігурації Docking у форматі JSON."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "Не вдалося прочитати налаштування початкового дока."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Конфігурації Plank або Plank Reloaded не знайдено."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Конфігурації Cairo-Dock не знайдено."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Конфігурації Plank або Cairo-Dock не знайдено."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "Редагувати компонування дока"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "Застосувати"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "Немає закріплених елементів"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "Програма…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "Аплет…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "Файл…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "Тека…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "Перемістити вгору"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "Перемістити вниз"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "Перезавантажити компонування"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "Компонування дока змінилося під час редагування."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "Не вдалося зберегти компонування дока."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "Компонування збережено. Деякі нові елементи не вдалося завантажити."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "Зафіксовані файли й теки"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "Зафіксовані аплети"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "Вибрати теку"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "Вибрати файл"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "Виберіть локальний файл або теку."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "Додати програму"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Показати або приховати Docking"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "Призначте клавіатурне скорочення, перш ніж увімкнути цей режим."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "Середовище стільниці не призначило клавіатурного скорочення."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Використовується режим Auto-hide: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "Режим не увімкнено: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "Не вдалося відкрити теку в терміналі."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "Не вдалося відкрити цей елемент в іншій програмі."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "Відкрити в терміналі"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "Відкрити за допомогою…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "Основний"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "Показувати лише за клавіатурним скороченням"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "Підскок"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "Пульсація"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "Погойдування"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "Клавіатурне скорочення дока"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "Розташуйте док уздовж вибраного краю екрана."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "Попередній перегляд"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "Показувати мініатюри вікон"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr ""
+"Виділяє контур справжнього вікна на стільниці при наведенні на його "
+"мініатюру."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"Виділяє контур справжнього вікна на стільниці при наведенні на його "
+"мініатюру. Недоступно в цьому сеансі. Потрібен X11 або Sway."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "Ширина мініатюри"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"Установіть ширину мініатюр вікон у пікселях. На ширших мініатюрах видно "
+"більшу частину заголовка вікна."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "Редагувати компонування…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr "Показує лише закріплені програми, аплети, файли й теки."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "Закріплені елементи"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "Відтворює вибраний ефект при запуску програми з дока."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "Виберіть ефект, що відтворюється при запуску програми."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "Клавіатурне скорочення дока"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"Призначте робоче клавіатурне скорочення, щоб увімкнути цей режим. Якщо "
+"скорочення не вдасться зареєструвати, док тимчасово використає режим Auto-"
+"hide."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "Інший док"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Кнопка Plank також підтримує Plank Reloaded. Перед імпортом перегляньте "
+"закріплені елементи, налаштування й пропущені елементи."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "Огляд…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"Виберіть файл JSON Docking, щоб переглянути закріплені елементи й "
+"налаштування компонування."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "Імпортувати з"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "Не вдалося зберегти імпортований док."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr ""
+"Не вдалося вилучити ці закріплені елементи зі збереженої конфігурації."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "Не вдалося завантажити деякі імпортовані закріплені елементи."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "По центру"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"Залишається над стільницею та під вікнами програм, не резервуючи місця на "
+"екрані. Звільніть ділянку дока, щоб ним скористатися. Наведення вказівника "
+"не виводить док на передній план."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"З’являється лише за клавіатурним скороченням і ховається після того, як "
+"вказівник зайде в док і залишить його. Натисніть скорочення ще раз, щоб "
+"приховати док."

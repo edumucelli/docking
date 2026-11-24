@@ -773,10 +773,6 @@ msgstr "Lock Camera"
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
 
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
-
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
 msgid "{command} (PID {pid}) using {devices}"
@@ -1771,17 +1767,9 @@ msgstr "暂停"
 msgid "Play"
 msgstr "播放"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "播放中"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "已暂停"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "已停止"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -3436,10 +3424,6 @@ msgstr "激活"
 msgid "Context Menu"
 msgstr "上下文菜单"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D 总线不可用"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3545,10 +3529,6 @@ msgstr "系统托盘：{n} 项目"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "系统托盘：{error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "系统托盘：D-Bus 不可用"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3875,10 +3855,6 @@ msgstr "这将清除 Docking 存储的 WhatsApp Web 会话。您需要重新扫�
 msgid "Could not disconnect WhatsApp"
 msgstr "无法断开 WhatsApp"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "未知的 WebKit 错误"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK 不可用"
@@ -3886,10 +3862,6 @@ msgstr "WebKitGTK 不可用"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Docking 小程序"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "重新加载 WhatsApp Web"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3907,11 +3879,6 @@ msgstr "摄像头"
 msgid "microphone"
 msgstr "麦克风"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "允许 WhatsApp 使用您的{device}？"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "拒绝"
@@ -3919,10 +3886,6 @@ msgstr "拒绝"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "允许"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp 需要 WebKitGTK"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3932,10 +3895,6 @@ msgstr "请安装 WebKitGTK 4.1 或 4.0 内省包，然后重启 Docking。"
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "未知的浏览器错误"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp：未安装 WebKitGTK"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5210,10 +5169,6 @@ msgstr "显示提示"
 msgid "Show item names and details when hovering over dock items."
 msgstr "将鼠标悬停在停靠项目上时显示项目名称和详细信息。"
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "窗口预览"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr "将鼠标悬停在正在运行的应用程序上时显示窗口缩略图。"
@@ -5602,28 +5557,998 @@ msgstr "忽略"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "摄像头已锁定"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "无法获取麦克风状态"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "麦克风静音状态未知"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "麦克风使用情况未知"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "麦克风设置"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "无法获取摄像头状态"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "摄像头使用情况未知"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "无法锁定摄像头"
 
 msgid "Camera Settings"
+msgstr "摄像头设置"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "保持连接"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "连接音频"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "解除连接"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "断开音频"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "输入 PIN 码"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "请在设备上输入此 PIN 码：{pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "此 PIN 码与设备上显示的是否一致？{pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "待办清单"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "{count} 项未勾选"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "添加一项"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "清除已完成项"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "项目内容"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "剪贴板监控已暂停"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "剪贴板历史记录"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "启用剪贴板监控"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "记录鼠标选中的内容"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "记录鼠标选中的内容需要 X11"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "记录图像"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "记录条数上限"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "已禁用"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "图像（{width} × {height}）"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "闹钟：{time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "无法读取 KDE Connect 的设备列表"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "请安装 KDE Connect 以打开设备设置"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "正在联系所选设备⋯⋯"
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
+msgstr "KDE Connect 操作失败。请在设备上线后重试"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "已向 {name} 发送响铃请求"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr "选择一台已配对、在线且启用了文件共享的设备"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "请等待当前 KDE Connect 操作完成"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "无法读取所选文件"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "已为 {name} 请求传输文件"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "通过 KDE Connect 发送文件"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "发送"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "让手机响铃"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "发送文件…"
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "打开 KDE Connect／配对设备"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "安装并启动 KDE Connect 以连接手机"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "KDE Connect 已重启，正在刷新设备列表"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr "无法联系 KDE Connect。请重试或打开其设置"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "KDE Connect 返回了无效的设备标识符"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr "无法读取 KDE Connect 的设备列表。请重试或打开其设置"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "所选设备已离线或不再配对"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "所选设备不支持此操作"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "某个所选文件已不可用"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}：离线"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}：已连接"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}：{charge}%（充电中）"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}：{charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr "没有已配对的设备。请打开 KDE Connect 与手机配对"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "所选设备已解除配对，请选择另一台设备"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "将文件拖到此处即可发送到这台设备"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "请至少选择一个本地文件"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "KDE Connect 只能发送本地文件"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "系统默认"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s（%(id)s）"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "首选应用不可用"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "未找到兼容的应用"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "启动应用"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr "请安装或启用 %(plugin)s 并重启 mpv，以使用播放控件和查看曲目详情。"
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr "启用 Rhythmbox 的 MPRIS 插件即可查看曲目详情。"
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "请安装 %(package)s 并重启 Rhythmbox。"
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "无法更新通知"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr "要查看通知历史记录，请在 Windows 设置中授予访问权限"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "打开 Telegram"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "隐藏 Telegram"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "断开 Telegram 连接"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "是否断开 Telegram 连接？"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr "此操作会清除 Docking 保存的 Telegram Web 会话。之后需要重新登录。"
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "无法断开 Telegram 连接"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram：{error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram：浏览器不可用"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram：正在加载…"
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram：请扫描二维码或使用手机号登录"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram：正在同步…"
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram：离线"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "无法加载 Telegram Web"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram：{count} 条新通知"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram：{count} 个未读会话"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram：没有未读会话"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram：点击打开"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "未知的浏览器错误"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "重新加载 {service}"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "是否允许 {service} 使用您的{device}？"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "{service} 需要 WebKitGTK"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "无法打开浏览器会话"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Microsoft Edge WebView2 不可用"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "无法断开 {service} 连接"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "无法加载 {service}"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "下载"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "已完成"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "下载中"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "继续"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp：浏览器不可用"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "导入现有程序坞布局"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
 msgstr ""
+"打开“首选项”→“导入”，在导入 Docking 前查看 Plank、Plank Reloaded 或 Cairo-Dock 的固定项目和设置。"
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "Docking 文件"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "源主题不可用。"
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr "在 Docking 首选项中设置显示程序坞的快捷键。"
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "已跳过一个无效的固定项目。"
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "已跳过 {item}。"
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "无法确定 Plank 的主程序坞。"
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "已跳过 Plank 占满屏幕边缘的布局。"
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr "无法获取 Plank 设置。列表按文件名显示启动器文件。"
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "主程序坞"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "已跳过重复的子程序坞 {item}。"
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "已跳过独立的程序坞 {item}。"
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "已跳过自定义启动器 {item}。"
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "已跳过插件 {item}。"
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "已跳过独立的桌面小部件 {item}。"
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "已跳过 Cairo-Dock 按编号选择显示器的设置。"
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr "在“始终置于后方”模式下，将鼠标移到屏幕边缘不会显示程序坞。"
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "{item} 对应的应用不可用。"
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "源配置中的显示器不可用。"
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr "屏幕边缘间距已从 {requested} 像素调整为 {applied} 像素。"
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "此项目已固定。"
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "所选应用不可用。"
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "所选小程序不可用。"
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "所选文件或文件夹不可用。"
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "显示或隐藏 Docking 搜索"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "选择 Docking 配置文件"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Docking 配置文件"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "对齐方式"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "显示器"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "跟随当前活动的显示器"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "启用放大"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "放大级别"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "锁定图标"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "仅显示固定项目"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "显示窗口预览"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "预览宽度"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "悬停在预览上时高亮窗口轮廓"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "额外边缘间距"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "锚定小程序"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "锚定文件"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "点击程序坞项目时播放效果"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "点击效果"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "打开堆栈"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "始终置于后方"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "底部"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "左侧"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "右侧"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} 毫秒"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} 像素"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "要固定的项目"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "源程序坞没有固定项目。"
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "要应用的首选项"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}：{value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "没有可导入的更改。"
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "导入 Docking 文件"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "从其他程序坞导入"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "跳过"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "导入"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source}（{profile}）"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "选择要导入的程序坞。"
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr "选择要查看其固定项目和首选项的程序坞。"
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "请选择有效的 Docking JSON 配置文件。"
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "无法读取源程序坞的设置。"
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "未找到 Plank 或 Plank Reloaded 的配置。"
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "未找到 Cairo-Dock 的配置。"
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "未找到 Plank 或 Cairo-Dock 的配置。"
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "编辑程序坞布局"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "应用"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "没有固定项目"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "应用…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "小程序…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "文件…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "文件夹…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "上移"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "下移"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "重新加载布局"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "编辑期间程序坞布局已更改。"
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "无法保存程序坞布局。"
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "布局已保存。部分新项目无法加载。"
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "已锚定的文件和文件夹"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "已锚定的小程序"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "选择文件夹"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "选择文件"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "请选择本地文件或文件夹。"
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "添加应用"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "显示或隐藏 Docking"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "启用此模式前请先设置快捷键。"
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "桌面环境尚未分配快捷键。"
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "正在使用自动隐藏：{reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "模式未启用：{reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "无法在终端中打开文件夹。"
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "无法用其他应用打开此项目。"
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "在终端中打开"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "打开方式…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "主显示器"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "仅通过快捷键显示"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "弹跳"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "脉动"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "摇摆"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "程序坞快捷键"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "沿所选屏幕边缘放置程序坞。"
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "预览"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "显示窗口预览缩略图"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr "鼠标悬停在缩略图上时，在桌面上高亮对应窗口的轮廓。"
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr "鼠标悬停在缩略图上时，在桌面上高亮对应窗口的轮廓。当前会话不可用，需要 X11 或 Sway。"
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "缩略图宽度"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr "设置窗口缩略图的像素宽度。缩略图越宽，显示的窗口标题就越完整。"
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "编辑布局…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr "仅显示已固定的应用、小程序、文件和文件夹。"
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "固定项目"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "从程序坞启动应用时播放所选效果。"
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "选择启动应用时播放的效果。"
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "程序坞快捷键"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr "设置可用的快捷键以启用此模式。若注册失败，程序坞将暂时使用自动隐藏。"
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "其他程序坞"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr "Plank 按钮同样支持 Plank Reloaded。请在导入前查看固定项目、首选项和已跳过的项目。"
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "浏览…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr "选择 Docking JSON 文件，以查看其固定项目和布局首选项。"
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "导入来源"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "无法保存导入的程序坞。"
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr "无法从已保存的配置中移除这些固定项目。"
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "无法加载部分导入的固定项目。"
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "居中"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr "程序坞位于桌面上方、应用窗口下方，不预留屏幕空间。请移开遮挡的窗口以使用程序坞。鼠标悬停不会使其置于前方。"
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr "程序坞仅在按下快捷键时显示，鼠标指针移入再移出后隐藏。再次按下快捷键也可将其隐藏。"

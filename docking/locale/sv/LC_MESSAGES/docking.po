@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -3442,10 +3430,6 @@ msgstr "Activate"
 msgid "Context Menu"
 msgstr "Context Menu"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-Bus unavailable"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3552,10 +3536,6 @@ msgstr "System Tray: {n} item(s)"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "System Tray: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "System Tray: D-Bus unavailable"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3885,10 +3865,6 @@ msgstr "Detta rensar WhatsApp Web-sessionen som lagras av Docking. Du måste "
 msgid "Could not disconnect WhatsApp"
 msgstr "Det gick inte att koppla från WhatsApp"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "Okänt WebKit-fel"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK är inte tillgängligt"
@@ -3896,10 +3872,6 @@ msgstr "WebKitGTK är inte tillgängligt"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Docking-applet"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "Ladda om WhatsApp Web"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3917,11 +3889,6 @@ msgstr "kamera"
 msgid "microphone"
 msgstr "mikrofon"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "Tillåt WhatsApp att använda din {device}?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "Neka"
@@ -3929,10 +3896,6 @@ msgstr "Neka"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "Tillåt"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp kräver WebKitGTK"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3943,10 +3906,6 @@ msgstr "Installera introspektionspaketet för WebKitGTK 4.1 eller 4.0 och "
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "okänt webbläsarfel"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: WebKitGTK är inte installerat"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5246,10 +5205,6 @@ msgstr "Visa verktygstips"
 msgid "Show item names and details when hovering over dock items."
 msgstr "Show item names and details when hovering over dock items."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr "Show window thumbnails when hovering over running apps."
@@ -5648,28 +5603,1034 @@ msgstr "Ignorera"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "Kameran är låst"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "Mikrofonens status är inte tillgänglig"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "Det är okänt om mikrofonen är tystad"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "Mikrofonens aktivitet är okänd"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "Mikrofoninställningar"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "Kamerans status är inte tillgänglig"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "Kamerans aktivitet är okänd"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "Kameralåsning är inte tillgänglig"
 
 msgid "Camera Settings"
+msgstr "Kamerainställningar"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "Behåll anslutningen"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "Anslut ljud"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "Släpp anslutningen"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "Koppla från ljud"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "Ange PIN-kod"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "Ange den här PIN-koden på enheten: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "Stämmer den här PIN-koden med koden på enheten? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "Checklista"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "{count} ej avprickad post"
+msgstr[1] "{count} ej avprickade poster"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "Lägg till en post"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "Ta bort slutförda poster"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "Postens text"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "Bevakning av urklipp pausad"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "Urklippshistorik"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "Aktivera bevakning av urklipp"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "Bevaka musmarkeringar"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "Bevakning av musmarkeringar kräver X11"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "Bevaka bilder"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "Högsta antal poster"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "Inaktiverad"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "Bild ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "Alarm: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "Kunde inte läsa enhetslistan från KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "Installera KDE Connect för att öppna dess enhetsinställningar"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "Ansluter till vald enhet..."
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
 msgstr ""
+"Åtgärden i KDE Connect misslyckades. Försök igen när enheten är ansluten"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "Begäran om ringsignal skickad till {name}"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr "Välj en parkopplad, ansluten enhet med fildelning aktiverad"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "Vänta tills den pågående åtgärden i KDE Connect är klar"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "Kunde inte läsa de valda filerna"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "Filöverföring begärd för {name}"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "Skicka filer med KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "Skicka"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "Låt telefonen ringa"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "Skicka filer..."
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "Öppna KDE Connect / Parkoppla enhet"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "Installera och starta KDE Connect för att ansluta en telefon"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "KDE Connect startades om. Enhetslistan uppdateras"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+"Kunde inte kontakta KDE Connect. Försök igen eller öppna inställningarna"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "KDE Connect returnerade ett ogiltigt enhets-ID"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"Kunde inte läsa enhetslistan från KDE Connect. Försök igen eller öppna "
+"inställningarna"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "Den valda enheten är frånkopplad eller inte längre parkopplad"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "Den valda enheten stöder inte den här åtgärden"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "En vald fil är inte längre tillgänglig"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: frånkopplad"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: ansluten"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge} % (laddas)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge} %"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr ""
+"Inga parkopplade enheter. Öppna KDE Connect för att parkoppla telefonen"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "Den valda enheten är inte längre parkopplad. Välj en annan enhet"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "Släpp filer här för att skicka dem till enheten"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "Välj minst en lokal fil"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "Endast lokala filer kan skickas med KDE Connect"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "Systemstandard"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "Det föredragna programmet är inte tillgängligt"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "Inga kompatibla program hittades"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "Starta program"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"Installera eller aktivera %(plugin)s och starta om mpv för att styra "
+"uppspelningen och se spårinformation."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr "Aktivera Rhythmbox MPRIS-insticksprogram för att se spårinformation."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "Installera %(package)s och starta om Rhythmbox."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "Kunde inte uppdatera aviseringarna"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr "Aviseringshistoriken behöver åtkomst i Windows-inställningarna"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Öppna Telegram"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Dölj Telegram"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Koppla från Telegram"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Koppla från Telegram?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"Detta rensar Telegram Web-sessionen som sparats av Docking. Du behöver logga"
+" in igen."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Kunde inte koppla från Telegram"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: webbläsaren är inte tillgänglig"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: läser in..."
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram: skanna QR-koden eller logga in med ditt telefonnummer"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: synkroniserar..."
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: frånkopplad"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "kunde inte läsa in Telegram Web"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: {count} ny avisering"
+msgstr[1] "Telegram: {count} nya aviseringar"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: {count} oläst chatt"
+msgstr[1] "Telegram: {count} olästa chattar"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: inga olästa chattar"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: klicka för att öppna"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "Okänt webbläsarfel"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "Läs in {service} igen"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "Tillåta att {service} använder enheten ({device})?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "{service} kräver WebKitGTK"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "Kunde inte öppna webbläsarsessionen"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Microsoft Edge WebView2 är inte tillgängligt"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "Kunde inte koppla från {service}"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "kunde inte läsa in {service}"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "Hämta"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "Slutfört"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "Hämtar"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "Återuppta"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: webbläsaren är inte tillgänglig"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "Importera en befintlig docklayout"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Öppna Inställningar -> Importera för att granska fästa objekt och "
+"inställningar från Plank, Plank Reloaded eller Cairo-Dock innan du "
+"importerar dem till Docking."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "Docking-fil"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "Källtemat är inte tillgängligt."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr "Ställ in kortkommandot för att visa dockan i Dockings inställningar."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "Ett ogiltigt fäst objekt hoppades över."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "{item} hoppades över."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Kunde inte identifiera Planks huvuddocka."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "Planks layout längs hela skärmkanten hoppades över."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"Inställningarna i Plank var inte tillgängliga. Programstartare visas efter "
+"filnamn."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "Huvuddocka"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "Det dubblerade underdockobjektet {item} hoppades över."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "Den separata dockan {item} hoppades över."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "Den anpassade programstartaren {item} hoppades över."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "Insticksprogrammet {item} hoppades över."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "Den fristående skrivbordskomponenten {item} hoppades över."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "Cairo-Docks numeriska skärmval hoppades över."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr ""
+"I läget Alltid underst visas dockan inte när pekaren förs till kanten."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "Programmet för {item} är inte tillgängligt."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "Källskärmen är inte tillgänglig."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr ""
+"Avståndet till skärmkanten justerades från {requested} px till {applied} px."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "Det här objektet är redan fäst."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "Det valda programmet är inte tillgängligt."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "Den valda appleten är inte tillgänglig."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "Den valda filen eller mappen är inte tillgänglig."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Visa eller dölj Dockings sökning"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Välj en konfigurationsfil för Docking"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Konfigurationsfiler för Docking"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "Justering"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "Skärm"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "Följ aktiv skärm"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "Aktivera zoom"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "Zoomnivå"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "Lås ikoner"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "Endast fästa objekt"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "Visa förhandsvisningar av fönster"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "Förhandsvisningens bredd"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "Markera fönstrets kontur när pekaren är över förhandsvisningen"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "Extra avstånd från kanten"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "Förankra appletar"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "Förankra filer"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "Aktivera effekter vid klick på dockobjekt"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "Klickeffekt"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "Öppna staplar"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "Alltid underst"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "Nederkant"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "Vänster"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "Höger"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "Objekt att fästa"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "Källdockan har inga fästa objekt."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "Inställningar att tillämpa"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "Det finns inga ändringar att importera."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Importera en Docking-fil"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "Importera från en annan docka"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "Hoppa över"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "Importera"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "Välj en docka att importera."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr "Välj en docka för att granska dess fästa objekt och inställningar."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Välj en giltig Docking-konfigurationsfil i JSON-format."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "Kunde inte läsa källdockans inställningar."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Ingen konfiguration för Plank eller Plank Reloaded hittades."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Ingen konfiguration för Cairo-Dock hittades."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Ingen konfiguration för Plank eller Cairo-Dock hittades."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "Redigera dockans layout"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "Tillämpa"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "Inga fästa objekt"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "Program…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "Applet…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "Fil…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "Mapp…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "Flytta upp"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "Flytta ned"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "Läs in layouten igen"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "Dockans layout ändrades medan du redigerade den."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "Kunde inte spara dockans layout."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "Layouten sparades. Några nya objekt kunde inte läsas in."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "Förankrade filer och mappar"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "Förankrade appletar"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "Välj en mapp"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "Välj en fil"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "Välj en lokal fil eller mapp."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "Lägg till program"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Visa eller dölj Docking"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "Tilldela ett kortkommando innan du aktiverar det här läget."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "Skrivbordsmiljön har inte tilldelat något kortkommando."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Läget Auto-hide används: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "Läget aktiverades inte: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "Kunde inte öppna mappen i terminalen."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "Kunde inte öppna objektet med ett annat program."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "Öppna i terminal"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "Öppna med…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "Primär"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "Visa endast med kortkommando"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "Studsa"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "Pulsera"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "Vicka"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "Kortkommando för dockan"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "Placera dockan längs den valda skärmkanten."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "Förhandsvisning"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "Visa miniatyrbilder av fönster"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr ""
+"Markerar konturen på fönstret på skrivbordet när pekaren är över dess "
+"miniatyrbild."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"Markerar konturen på fönstret på skrivbordet när pekaren är över dess "
+"miniatyrbild. Inte tillgängligt i den här sessionen. Kräver X11 eller Sway."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "Miniatyrbildens bredd"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"Ange bredden i pixlar på fönstrens miniatyrbilder. Bredare miniatyrbilder "
+"visar även mer av fönstertiteln."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "Redigera layout…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr "Visar endast fästa program, appletar, filer och mappar."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "Fästa objekt"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "Spelar upp den valda effekten när ett program startas från dockan."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "Välj vilken effekt som spelas upp när ett program startas."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "Kortkommando för dockan"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"Tilldela ett fungerande kortkommando för att aktivera läget. Om "
+"registreringen misslyckas använder dockan tillfälligt läget Auto-hide."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "En annan docka"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Plank-knappen stöder också Plank Reloaded. Granska fästa objekt, "
+"inställningar och överhoppade objekt före import."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "Bläddra…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"Välj en Docking-fil i JSON-format för att granska dess fästa objekt och "
+"layoutinställningar."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "Importera från"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "Kunde inte spara den importerade dockan."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr ""
+"Kunde inte ta bort de här fästa objekten från den sparade konfigurationen."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "Några importerade fästa objekt kunde inte läsas in."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "Mitten"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"Ligger ovanför skrivbordet och under programfönstren utan att reservera "
+"skärmutrymme. Frilägg dockan för att använda den. Den hamnar inte i "
+"förgrunden när pekaren förs över den."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"Visas endast med kortkommandot och döljs när pekaren har förts in och ut "
+"igen. Tryck på kortkommandot igen för att dölja dockan."

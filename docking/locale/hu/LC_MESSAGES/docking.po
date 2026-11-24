@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -3443,10 +3431,6 @@ msgstr "Aktiválja"
 msgid "Context Menu"
 msgstr "Helyi menü"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "A D-Bus nem elérhető"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3554,10 +3538,6 @@ msgstr "Tálca: {n} elem"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "Rendszertálca: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "Rendszertálca: A D-Bus nem érhető el"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3888,10 +3868,6 @@ msgstr "Ezzel törli a Docking által tárolt WhatsApp Web munkamenetet. A "
 msgid "Could not disconnect WhatsApp"
 msgstr "Nem sikerült leválasztani a WhatsAppot"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "Ismeretlen WebKit-hiba"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "A WebKitGTK nem érhető el"
@@ -3899,10 +3875,6 @@ msgstr "A WebKitGTK nem érhető el"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Docking-kisalkalmazás"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "WhatsApp Web újratöltése"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3920,11 +3892,6 @@ msgstr "kamera"
 msgid "microphone"
 msgstr "mikrofon"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "Engedélyezi, hogy a WhatsApp használja a(z) {device} eszközt?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "Elutasítás"
@@ -3932,10 +3899,6 @@ msgstr "Elutasítás"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "Engedélyezés"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "A WhatsApphoz WebKitGTK szükséges"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3946,10 +3909,6 @@ msgstr "Telepítse a WebKitGTK 4.1 vagy 4.0 introspection csomagot, majd "
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "ismeretlen böngészőhiba"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: a WebKitGTK nincs telepítve"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5272,10 +5231,6 @@ msgstr ""
 "Elemnevek és részletek megjelenítése, amikor az egérmutatót a dokkoló elemek "
 "fölé viszi."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr ""
@@ -5691,28 +5646,1050 @@ msgstr "Mellőzés"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "A kamera zárolva"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "A mikrofon állapota nem érhető el"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "Nem ismert, hogy a mikrofon el van-e némítva"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "A mikrofon aktivitása ismeretlen"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "Mikrofonbeállítások"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "A kamera állapota nem érhető el"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "A kamera aktivitása ismeretlen"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "A kamera zárolása nem érhető el"
 
 msgid "Camera Settings"
+msgstr "Kamerabeállítások"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "Kapcsolat fenntartása"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "Hang csatlakoztatása"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "Kapcsolat feloldása"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "Hang leválasztása"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "PIN megadása"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "Adja meg ezt a PIN-kódot az eszközön: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "Egyezik ez a PIN-kód az eszközön láthatóval? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "Ellenőrzőlista"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "{count} bejelöletlen elem"
+msgstr[1] "{count} bejelöletlen elem"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "Elem hozzáadása"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "Elvégzett elemek eltávolítása"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "Az elem szövege"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "A vágólap figyelése szünetel"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "Vágólapelőzmények"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "A vágólap figyelésének bekapcsolása"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "Egérrel végzett kijelölések figyelése"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "Az egérrel végzett kijelölések figyeléséhez X11 szükséges"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "Képek figyelése"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "Bejegyzések maximális száma"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "Letiltva"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "Kép ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "Riasztás: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "A KDE Connect eszközlistája nem olvasható"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "Az eszközbeállítások megnyitásához telepítse a KDE Connectet"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "Kapcsolódás a kiválasztott eszközhöz..."
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
 msgstr ""
+"A KDE Connect művelete sikertelen. Próbálja újra, amikor az eszköz elérhető"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "Csörgetési kérés elküldve erre az eszközre: {name}"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr ""
+"Válasszon egy párosított, elérhető eszközt, amelyen engedélyezett a "
+"fájlmegosztás"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "Várja meg a folyamatban lévő KDE Connect-művelet befejezését"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "A kiválasztott fájlok nem olvashatók"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "Fájlátviteli kérés elküldve erre az eszközre: {name}"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "Fájlok küldése a KDE Connecttel"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "Küldés"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "Telefon megcsörgetése"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "Fájlok küldése..."
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "A KDE Connect megnyitása / Eszköz párosítása"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "Telefon csatlakoztatásához telepítse és indítsa el a KDE Connectet"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "A KDE Connect újraindult. Az eszközlista frissül"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+"A KDE Connect nem érhető el. Próbálja újra, vagy nyissa meg a beállításait"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "A KDE Connect érvénytelen eszközazonosítót adott vissza"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"A KDE Connect eszközlistája nem olvasható. Próbálja újra, vagy nyissa meg a "
+"beállításait"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "A kiválasztott eszköz nem érhető el, vagy már nincs párosítva"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "A kiválasztott eszköz nem támogatja ezt a műveletet"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "Az egyik kiválasztott fájl már nem érhető el"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: nem elérhető"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: csatlakoztatva"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (töltés)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr ""
+"Nincs párosított eszköz. A telefon párosításához nyissa meg a KDE Connectet"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "A kiválasztott eszköz már nincs párosítva. Válasszon másik eszközt"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "Húzza ide a fájlokat az eszközre küldéshez"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "Válasszon legalább egy helyi fájlt"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "A KDE Connecttel csak helyi fájlok küldhetők"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "Rendszer alapértelmezése"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "Az előnyben részesített alkalmazás nem érhető el"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "Nem található kompatibilis alkalmazás"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "Alkalmazás indítása"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"Telepítse vagy engedélyezze a következő bővítményt: %(plugin)s. Ezután "
+"indítsa újra az mpv-t a lejátszás vezérléséhez és a szám adatainak "
+"megtekintéséhez."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr ""
+"A szám adatainak megtekintéséhez engedélyezze a Rhythmbox MPRIS-bővítményét."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr ""
+"Telepítse a következő csomagot: %(package)s. Ezután indítsa újra a "
+"Rhythmboxot."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "Az értesítéseket nem sikerült frissíteni"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr ""
+"Az értesítési előzményekhez hozzáférést kell adni a Windows beállításaiban"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Telegram megnyitása"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Telegram elrejtése"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Kijelentkezés a Telegramból"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Kijelentkezik a Telegramból?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"Ez törli a Docking által tárolt Telegram Web-munkamenetet. Újra be kell "
+"jelentkeznie."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Nem sikerült kijelentkezni a Telegramból"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: a böngésző nem érhető el"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: betöltés..."
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr ""
+"Telegram: olvassa be a QR-kódot, vagy jelentkezzen be a telefonszámával"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: szinkronizálás..."
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: nem elérhető"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "a Telegram Web nem tölthető be"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: {count} új értesítés"
+msgstr[1] "Telegram: {count} új értesítés"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: {count} olvasatlan beszélgetés"
+msgstr[1] "Telegram: {count} olvasatlan beszélgetés"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: nincs olvasatlan beszélgetés"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: kattintson a megnyitáshoz"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "Ismeretlen böngészőhiba"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "Szolgáltatás újratöltése: {service}"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr ""
+"Engedélyezi a(z) {service} szolgáltatásnak az eszköz ({device}) használatát?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "A(z) {service} használatához WebKitGTK szükséges"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "A böngészőmunkamenet nem nyitható meg"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "A Microsoft Edge WebView2 nem érhető el"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "Nem sikerült kijelentkezni a(z) {service} szolgáltatásból"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "a(z) {service} nem tölthető be"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "Letöltés"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "Befejezve"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "Letöltés folyamatban"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "Folytatás"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: a böngésző nem érhető el"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "Meglévő dokkelrendezés importálása"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Nyissa meg a Beállítások -> Importálás menüpontot, hogy a Dockingba való "
+"átvétel előtt átnézze a Plank, a Plank Reloaded vagy a Cairo-Dock kitűzött "
+"elemeit és beállításait."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "Docking-fájl"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "A forrástéma nem érhető el."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr ""
+"A dokk megjelenítéséhez állítson be gyorsbillentyűt a Docking "
+"beállításaiban."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "Egy érvénytelen kitűzött elem kimaradt."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "Kimaradt: {item}."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "A Plank elsődleges dokkja nem határozható meg."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "Kimaradt a Plank teljes képernyőszélt elfoglaló elrendezése."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"A Plank beállításai nem voltak elérhetők. Az indítók fájlnév szerint "
+"jelennek meg."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "Fődokk"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "Kimaradt az ismétlődő aldokk: {item}."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "Kimaradt a különálló dokk: {item}."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "Kimaradt az egyéni indító: {item}."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "Kimaradt a bővítmény: {item}."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "Kimaradt a leválasztott asztali kisalkalmazás: {item}."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "Kimaradt a Cairo-Dock sorszám szerinti kijelzőválasztása."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr ""
+"Mindig hátul módban a mutatót a képernyő szélére mozgatva a dokk nem jelenik"
+" meg."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "Nem érhető el alkalmazás ehhez: {item}."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "A forráskijelző nem érhető el."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr ""
+"A képernyő szélétől mért távolság {requested} képpontról {applied} képpontra"
+" változott."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "Ez az elem már ki van tűzve."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "A kiválasztott alkalmazás nem érhető el."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "A kiválasztott kisalkalmazás nem érhető el."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "A kiválasztott fájl vagy mappa nem érhető el."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "A Docking keresőjének megjelenítése vagy elrejtése"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Válasszon egy Docking-konfigurációs fájlt"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Docking-konfigurációs fájlok"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "Igazítás"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "Kijelző"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "Az aktív kijelző követése"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "Nagyítás bekapcsolása"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "Nagyítási szint"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "Ikonok zárolása"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "Csak a kitűzött elemek"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "Ablakelőnézetek megjelenítése"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "Előnézet szélessége"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "Az ablak körvonalának megjelenítése az előnézetre mutatva"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "További távolság a széltől"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "Kisalkalmazások rögzítése"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "Fájlok rögzítése"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "Effektusok bekapcsolása a dokkelemekre kattintáskor"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "Kattintási effektus"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "Kötegek megnyitása"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "Mindig hátul"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "Lent"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "Balra"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "Jobbra"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "Kitűzendő elemek"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "A forrásdokkban nincs kitűzött elem."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "Alkalmazandó beállítások"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "Nincs importálható változás."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Docking-fájl importálása"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "Importálás másik dokkból"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "Kihagyás"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "Importálás"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "Válasszon ki egy dokkot az importáláshoz."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr ""
+"Válasszon ki egy dokkot a kitűzött elemei és beállításai áttekintéséhez."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Válasszon egy érvényes Docking JSON-konfigurációs fájlt."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "Nem sikerült beolvasni a forrásdokk beállításait."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Nem található Plank- vagy Plank Reloaded-beállítás."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Nem található Cairo-Dock-beállítás."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Nem található Plank- vagy Cairo-Dock-beállítás."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "Dokkelrendezés szerkesztése"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "Alkalmazás"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "Nincs kitűzött elem"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "Alkalmazás…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "Kisalkalmazás…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "Fájl…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "Mappa…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "Mozgatás felfelé"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "Mozgatás lefelé"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "Elrendezés újratöltése"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "A dokk elrendezése megváltozott szerkesztés közben."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "A dokk elrendezése nem menthető."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "Elrendezés mentve. Néhány új elem nem tölthető be."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "Rögzített fájlok és mappák"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "Rögzített kisalkalmazások"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "Mappa kiválasztása"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "Fájl kiválasztása"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "Válasszon egy helyi fájlt vagy mappát."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "Alkalmazás hozzáadása"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "A Docking megjelenítése vagy elrejtése"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "Rendeljen hozzá gyorsbillentyűt a mód bekapcsolása előtt."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "Az asztali környezet nem rendelt hozzá gyorsbillentyűt."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Az Auto-hide mód használata: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "A mód nincs bekapcsolva: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "A mappa nem nyitható meg a terminálban."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "Ez az elem nem nyitható meg másik alkalmazással."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "Megnyitás terminálban"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "Megnyitás ezzel…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "Elsődleges"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "Megjelenítés csak gyorsbillentyűvel"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "Pattogás"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "Lüktetés"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "Billegés"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "Dokk gyorsbillentyűje"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "Helyezze a dokkot a kiválasztott képernyőszélre."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "Előnézet"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "Ablakok bélyegképeinek megjelenítése"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr ""
+"Az ablak valódi körvonalát megjeleníti az asztalon, ha a mutató a bélyegképe"
+" fölött van."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"Az ablak valódi körvonalát megjeleníti az asztalon, ha a mutató a bélyegképe"
+" fölött van. Ebben a munkamenetben nem érhető el. X11 vagy Sway szükséges."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "Bélyegkép szélessége"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"Adja meg az ablakok bélyegképeinek szélességét képpontban. A szélesebb "
+"bélyegkép az ablak címéből is többet mutat."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "Elrendezés szerkesztése…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr ""
+"Csak a kitűzött alkalmazásokat, kisalkalmazásokat, fájlokat és mappákat "
+"mutatja."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "Kitűzött elemek"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr ""
+"Lejátssza a kiválasztott effektust, amikor egy alkalmazás elindul a dokkból."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "Válassza ki az alkalmazások indításakor lejátszandó effektust."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "Dokk gyorsbillentyűje"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"Rendeljen hozzá működő gyorsbillentyűt a mód bekapcsolásához. Ha a "
+"regisztráció sikertelen, a dokk átmenetileg Auto-hide módra vált."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "Másik dokk"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"A Plank gomb a Plank Reloadedet is támogatja. Importálás előtt nézze át a "
+"kitűzött elemeket, a beállításokat és a kihagyott elemeket."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "Tallózás…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"Válasszon egy Docking JSON-fájlt a kitűzött elemek és az elrendezési "
+"beállítások áttekintéséhez."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "Importálás innen"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "Az importált dokk nem menthető."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr "A kitűzött elemek nem távolíthatók el a mentett konfigurációból."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "Néhány importált kitűzött elem nem tölthető be."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "Középen"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"Az asztal fölött és az alkalmazásablakok alatt marad, képernyőterület "
+"lefoglalása nélkül. A használatához tegye láthatóvá a dokkot. A mutató "
+"ráhelyezése nem hozza előtérbe."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"Csak a gyorsbillentyűvel jelenik meg, majd elrejtőzik, amikor a mutató belép"
+" és kilép. Az elrejtéshez nyomja meg újra a gyorsbillentyűt."
