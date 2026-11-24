@@ -200,6 +200,10 @@ class HackerNewsApplet(Applet):
             open_comments.connect("activate", lambda _w: self._open_current_comments())
             primary.append(open_comments)
 
+        previous = Gtk.MenuItem(label=_("Previous Headline"))
+        previous.set_sensitive(current is not None and self._active_index > 0)
+        previous.connect("activate", lambda _w: self._move_story(step=-1))
+
         next_item = Gtk.MenuItem(label=_("Next Headline"))
         next_item.set_sensitive(bool(self._stories))
         next_item.connect("activate", lambda _w: self._advance_story())
@@ -219,7 +223,7 @@ class HackerNewsApplet(Applet):
         return menu_sections(
             status=status,
             primary=primary,
-            navigation=[next_item],
+            navigation=[previous, next_item],
             refresh=[refresh],
             display=display,
         )
