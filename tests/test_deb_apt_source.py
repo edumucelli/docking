@@ -215,7 +215,11 @@ fi""",
         "apt-cache": 'printf "%s\n" "$FIXTURE_POLICY"',
         "apt-mark": 'printf "%s" "${FIXTURE_HOLD:-}"',
         "uname": 'printf "x86_64\n"',
-        "rpm": '[ "$1" = --import ]',
+        "rpm": """case "$1" in
+    --import) exit 0 ;;
+    -q) [ "$2" = docking ] && [ "${FIXTURE_RPM_INSTALLED:-0}" = 1 ] ;;
+    *) exit 1 ;;
+esac""",
         "dnf": "exit 0",
         "zypper": "exit 0",
     }.items():
@@ -315,6 +319,20 @@ def test_installer_adds_the_signed_repository_and_installs_rpm(
     assert retry.returncode == 0, retry.stderr
     assert "install -m" not in log.read_text()
     assert transaction in log.read_text()
+
+
+def test_installer_upgrades_an_installed_fedora_rpm(apt_setup):
+    run, _, log, _ = apt_setup
+    result = run(
+        downloaded=True,
+        release="ID=fedora\nVERSION_ID=44\n",
+        FIXTURE_FINGERPRINT="04C7240DAD480161C0DFC791859E104126138494",
+        FIXTURE_RPM_INSTALLED="1",
+    )
+    assert result.returncode == 0, result.stderr
+    commands = log.read_text().splitlines()
+    assert "dnf --refresh upgrade --from-repo=docking-rpm docking" in commands
+    assert "dnf --refresh install --from-repo=docking-rpm docking" not in commands
 
 
 def test_rpm_setup_rejects_an_unverified_key(apt_setup):

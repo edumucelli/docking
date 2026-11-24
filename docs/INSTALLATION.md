@@ -21,9 +21,15 @@ the command. The installer selects APT, DNF, or Zypper for your system.
 Without curl, [download install.sh](https://docking.cc/install.sh) and run
 `sh install.sh` from the download folder.
 
-If setup reports an existing configuration, review the reported file. You can
-keep your managed setup or back it up and remove the conflicting Docking entry
-before retrying. Keep any other repository entries in place.
+If setup reports an existing configuration, you can keep your managed setup.
+To switch to the installer's configuration, back up the reported repository
+file and resolve the conflict before retrying.
+
+- For `docking.sources` or `docking-rpm.repo`, move any unrelated repository
+  entries to a separate `.sources` or `.repo` file in the same directory. Then
+  remove the original Docking file so the installer can recreate it.
+- For other repository files, remove only the conflicting Docking entry and
+  keep the remaining entries in place.
 
 ## Debian and Ubuntu (APT)
 
