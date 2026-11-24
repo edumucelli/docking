@@ -473,6 +473,10 @@ def test_calculator_provider_uses_recognized_value_and_copies() -> None:
         action_identity=identity,
     )
     assert not provider.invoke(
+        result_identity=result.identity,
+        action_identity=replace(identity, provider_id="unrelated"),
+    )
+    assert not provider.invoke(
         result_identity=replace(result.identity, key="unrelated"),
         action_identity=identity,
     )
