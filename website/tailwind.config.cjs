@@ -1,6 +1,7 @@
 module.exports = {
   "content": [
     "./index.html",
+    "./applets.mjs",
     "./app.js"
   ],
   "theme": {

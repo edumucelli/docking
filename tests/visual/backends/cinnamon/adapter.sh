@@ -108,8 +108,6 @@ adapter_geometry() {
     /usr/bin/python3 "$PROBE" geometry | jq '{outputs, dock_rect}'
 }
 
-adapter_pointer() { [ "$LAB_INPUT_SUPPORTED" = true ] && lab_pointer "$@"; }
-
 adapter_stop() {
     if [ -n "$ADAPTER_COMPOSITOR_PID" ]; then
         terminate_pid "$ADAPTER_COMPOSITOR_PID"

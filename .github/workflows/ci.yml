@@ -487,7 +487,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip \
+            build-essential debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip python3-venv \
             python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-wnck-3.0 \
             libwayland-dev wayland-protocols \
             pybuild-plugin-pyproject python3-all gettext
@@ -558,7 +558,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            build-essential debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip \
+            build-essential debhelper dh-python python3-dev python3-setuptools python3-wheel python3-pip python3-venv \
             python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-wnck-3.0 \
             libwayland-dev wayland-protocols \
             pybuild-plugin-pyproject python3-all gettext

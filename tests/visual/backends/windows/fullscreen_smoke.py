@@ -64,6 +64,7 @@ def run_scenario(output: Path, scenario: str) -> None:
     import docking.app as app
     from docking.platform.native.windows.ffi import MonitorInfo, bind, window_handle
     from tests.visual.backends.windows.desktop_driver import WindowsDesktop
+    from tests.visual.backends.windows.desktop_driver import call_on_gtk_thread as call
     from tests.visual.backends.windows.smoke import dock_window
 
     native = WindowsDesktop()
@@ -96,24 +97,6 @@ def run_scenario(output: Path, scenario: str) -> None:
         (output / "result.json").write_text(
             json.dumps(report, indent=2) + "\n", encoding="utf-8"
         )
-
-    def call(callback):
-        done, values, failures = threading.Event(), [], []
-
-        def invoke():
-            try:
-                values.append(callback())
-            except Exception as exc:
-                failures.append(exc)
-            finally:
-                done.set()
-            return False
-
-        GLib.idle_add(invoke)
-        assert done.wait(20), "GTK did not service an observation"
-        if failures:
-            raise failures[0]
-        return values[0]
 
     def fixture_window():
         return (

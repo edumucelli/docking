@@ -14,6 +14,7 @@ import json
 import os
 import sys
 import threading
+from functools import partial
 from pathlib import Path
 
 
@@ -34,7 +35,6 @@ def main():
     import gi
 
     gi.require_version("Gtk", "3.0")
-    from gi.repository import GLib
     from PIL import ImageGrab
 
     import docking.app as app
@@ -45,7 +45,10 @@ def main():
         WindowsHotkeyAPI,
     )
     from docking.search.services.global_shortcuts import GlobalShortcutsState
-    from tests.visual.backends.windows.desktop_driver import WindowsDesktop
+    from tests.visual.backends.windows.desktop_driver import (
+        WindowsDesktop,
+        call_on_gtk_thread,
+    )
 
     native = WindowsDesktop()
     assert not any(
@@ -99,23 +102,11 @@ def main():
 
     app.build_dock_window = build
 
-    def ui_call(callback):
-        done, values, failures = threading.Event(), [], []
-
-        def invoke():
-            try:
-                values.append(callback())
-            except Exception as exc:
-                failures.append(exc)
-            finally:
-                done.set()
-            return False
-
-        GLib.idle_add(invoke)
-        assert done.wait(15), "GTK did not service a queued observation"
-        if failures:
-            raise failures[0]
-        return values[0]
+    ui_call = partial(
+        call_on_gtk_thread,
+        timeout=15,
+        timeout_message="GTK did not service a queued observation",
+    )
 
     def fingerprint(image):
         if image is None:

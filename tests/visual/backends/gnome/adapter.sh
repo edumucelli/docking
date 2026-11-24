@@ -85,5 +85,4 @@ adapter_screenshot() {
         "$(cat "$LAB_DIR/outer-display")" "$1"
 }
 adapter_geometry() { /usr/bin/python3 "$LAB_SCRIPTS/probes/session_probe.py" geometry; }
-adapter_pointer() { return 1; }
 adapter_stop() { adapter_cleanup; }

@@ -8,10 +8,35 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from ctypes import wintypes
 from pathlib import Path
 from typing import ClassVar
+
+
+def call_on_gtk_thread(
+    callback, *, timeout=20, timeout_message="GTK did not service an observation"
+):
+    """Run an observation on the GTK thread and wait for its result."""
+    from gi.repository import GLib
+
+    done, values, failures = threading.Event(), [], []
+
+    def observe():
+        try:
+            values.append(callback())
+        except Exception as exc:
+            failures.append(exc)
+        finally:
+            done.set()
+        return False
+
+    GLib.idle_add(observe)
+    assert done.wait(timeout), timeout_message
+    if failures:
+        raise failures[0]
+    return values[0]
 
 
 def copy_gstreamer_registry(cache: Path) -> list[Path]:

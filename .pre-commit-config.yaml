@@ -8,57 +8,9 @@ repos:
 
   - repo: local
     hooks:
-      - id: ruff-format
-        name: ruff-format
-        entry: .venv/bin/python -m ruff format --check docking/ tests/
-        language: system
-        pass_filenames: false
-        always_run: true
-      - id: ruff-check
-        name: ruff-check
-        entry: .venv/bin/python -m ruff check docking/ tests/
-        language: system
-        pass_filenames: false
-        always_run: true
-      - id: ty
-        name: ty
-        entry: .venv/bin/python -m ty check --error-on-warning docking/
-        language: system
-        pass_filenames: false
-        always_run: true
-      - id: vulture
-        name: vulture
-        entry: .venv/bin/python -m vulture --config pyproject.toml
-        language: system
-        pass_filenames: false
-        always_run: true
-      - id: i18n-catalogs
-        name: i18n-catalogs
-        entry: bash tools/i18n.sh --check-catalogs --allow-incomplete
-        language: system
-        pass_filenames: false
-        always_run: true
-      - id: i18n-pot-sync
-        name: i18n-pot-sync
-        entry: bash tools/i18n.sh --check-pot-sync
-        language: system
-        pass_filenames: false
-        always_run: true
-      - id: package-data-sync
-        name: package-data-sync
-        entry: python3 tools/check_package_data_sync.py
-        language: system
-        pass_filenames: false
-        always_run: true
-      - id: translation-packaging
-        name: translation-packaging
-        entry: python3 tools/check_translation_packaging.py
-        language: system
-        pass_filenames: false
-        always_run: true
-      - id: pytest
-        name: tests
-        entry: .venv/bin/python -m pytest tests/ -q
+      - id: docking-checks
+        name: Docking checks
+        entry: .githooks/pre-commit
         language: system
         pass_filenames: false
         always_run: true
