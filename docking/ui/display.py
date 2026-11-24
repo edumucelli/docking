@@ -48,6 +48,19 @@ def monitor_connector(display: Gdk.Display | None, index: int) -> str | None:
 
 def scrolled_popup_size(content: Size, available: Size, scrollbar: Size) -> Size:
     """Fit content and non-overlay scrollbars, including their mutual overflow."""
+    # A non-overlay scrollbar consumes space inside the popup. Fitting one
+    # axis can cause overflow on the other even when that dimension initially
+    # fits. For content 100 wide and 110 tall inside a 100 x 100 area,
+    #
+    #   height 110 > 100
+    #       |
+    #       +-- vertical bar consumes 12 px -> width budget becomes 88
+    #                                               |
+    #                         width 100 > 88 -------+
+    #                               |
+    #                               +-- horizontal bar reduces height budget
+    #
+    # Recheck both axes before computing the outer size, including bars.
     horizontal = content.width > available.width
     vertical = content.height > available.height
     for _ in range(2):
@@ -171,6 +184,20 @@ def clamp_popup(
     backing the transient parent (``popups_use_parent_relative_coordinates``
     property).
     """
+    # Workarea bounds and the requested popup origin share desktop
+    # coordinates. Clamp there first, then change origins if this backend
+    # places popups relative to the transient parent.
+    #
+    #   desktop x     1850         1920       2000
+    #                   |            |          |
+    #              requested      clamped    parent
+    #                                |<-- 80 -->|
+    #                                v
+    #   parent x                    -80         0
+    #
+    # In this example 1920 is the anchor monitor's left edge and the 300 px
+    # wide popup fits there. The negative parent-relative result is still
+    # inside that monitor, so it must survive the coordinate conversion.
     if bounds is not None:
         popup_x = max(bounds.x, min(popup_x, bounds.right - popup_w))
         popup_y = max(bounds.y, min(popup_y, bounds.bottom - popup_h))

@@ -489,6 +489,19 @@ class AutoHideController:
             self._window.queue_redraw()
             return False
         self.state = HideState.SHOWING
+        # A reversal keeps the current screen displacement and computes a
+        # different progress value on the incoming curve. At this point in a
+        # hide-to-show reversal, the dock is 51.2% of the way off screen.
+        #
+        #   hide clock    0.80 ---- t^3 ----> offset 0.512
+        #                                         |
+        #                                         | same screen position
+        #                                         v
+        #   show clock    0.20 <- inverse <- revealed amount 0.488
+        #
+        # The show curve measures the revealed fraction, so use 1 - offset
+        # as the inverse input. The new clock then advances toward 1 from
+        # 0.20 and the screen offset decreases from 0.512 toward 0.
         self._anim_progress = inverse_ease_out_cubic(1.0 - self.hide_offset)
         self._start_animation()
         return False

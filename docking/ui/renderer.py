@@ -773,8 +773,21 @@ class DockRenderer:
             state=state,
         )
         if state.input_region_alpha > 0:
-            # Some window systems derive input from rendered alpha. Apply the
-            # backend's alpha floor behind content before the atomic blit.
+            # Win32 tests the alpha of a layered window to decide whether a
+            # pointer event passes through. Put the alpha floor behind the
+            # dock pixels so transparent corners can still take dock input.
+            #
+            #   alpha in a transparent pixel   outside cursor_rect  0
+            #                                   inside cursor_rect  1 / 255
+            #
+            #   CLEAR offscreen -> paint dock -> DEST_OVER the input floor
+            #                                        |
+            #                                        v
+            #                         SOURCE the full frame to the window
+            #
+            # DEST_OVER keeps existing icon and shelf colors in front.
+            # SOURCE replaces the old frame so a displaced input region
+            # cannot leave event-catching pixels behind.
             rect = frame.cursor_rect
             ocr.save()
             ocr.set_operator(cairo.OPERATOR_DEST_OVER)
@@ -865,6 +878,20 @@ class DockRenderer:
         bg_height = frame.shelf_cross_extent
         as_bottom_bg_y = frame.shelf_as_bottom_y
 
+        # Two nested Cairo states keep the shelf clip away from icons, which
+        # are free to zoom and bounce beyond the rounded background.
+        #
+        #   window coordinates
+        #     + save and transform to shelf coordinates
+        #     |   paint shelf fill and strokes
+        #     |   + save and clip to the shelf path
+        #     |   | paint active and drop-target glows
+        #     |   + restore the previous clip
+        #     + restore the window transform
+        #   paint icons and indicators in window coordinates
+        #
+        # Apply the same transform to the clip and shelf path so their
+        # corners match on every edge.
         cr.save()
         self._apply_shelf_transform(
             cr=cr,

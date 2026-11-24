@@ -536,6 +536,17 @@ def compute_input_rect(
     distance_from_edge: int = 0,
 ) -> Rect:
     """Return the dock input rectangle for the current state."""
+    # Keep the input strip against the edge-facing side of the surface
+    # even when a floating theme leaves an empty gap there. Below is the
+    # cross axis of a bottom dock, with window-local y increasing down.
+    #
+    #   shown   [ animation headroom ][ resting dock band ][ gap ]| edge
+    #   hidden  [           pass-through           ][ trigger + gap ]| edge
+    #
+    # Both rows describe the same allocation. The hidden strip replaces the
+    # resting dock band with the trigger thickness. For a visible dock the
+    # frame can also include the zoomed items' hover rectangles. A hidden
+    # shortcut-only frame can publish an empty region instead of a trigger.
     if autohide_state == HideState.HIDDEN:
         trigger = TRIGGER_PX_TOP if pos == Position.TOP else TRIGGER_PX
         cross = trigger + distance_from_edge
