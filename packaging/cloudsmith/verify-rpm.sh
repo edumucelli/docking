@@ -7,10 +7,7 @@
 set -euo pipefail
 
 checks="$(cd "$(dirname "$0")/../deb" && pwd)"
-cloudsmith="$(cd "$(dirname "$0")" && pwd)"
-
-EXPECTED_FINGERPRINT="${DOCKING_RPM_FINGERPRINT:-04C7240DAD480161C0DFC791859E104126138494}"
-BASE_URL="${DOCKING_RPM_BASE_URL:-https://dl.cloudsmith.io/public/docking/docking-rpm}"
+installer="$checks/../install.sh"
 
 if command -v dnf >/dev/null 2>&1; then
     family=fedora
@@ -72,9 +69,9 @@ package_payload() {
 # Bootstrap tooling only. Nothing here can satisfy a docking dependency, so the
 # install check further down still exercises the spec's Requires.
 if [ "$family" = fedora ]; then
-    dnf install -y -q --setopt=install_weak_deps=False gnupg2 curl diffutils
+    dnf install -y -q --setopt=install_weak_deps=False sudo gnupg2 curl diffutils
 else
-    zypper --non-interactive install --no-recommends gnupg curl gawk diffutils
+    zypper --non-interactive install --no-recommends sudo gpg2 curl gawk diffutils
 fi
 
 current=(/release/current/*.rpm)
@@ -85,22 +82,13 @@ test "$(rpm -qp --queryformat '%{ARCH}' "${current[0]}")" = "$arch"
 expected="$(rpm -qp --queryformat '%{VERSION}-%{RELEASE}' "${current[0]}")"
 expected_nevra="$(rpm -qp --queryformat '%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}' "${current[0]}")"
 
-# Repository signing keys are generated per repository, so the fingerprint is
-# pinned here rather than trusted on first use.
-key=/tmp/docking-cloudsmith.asc
-curl --retry 3 -fsSL "$BASE_URL/gpg.key" -o "$key"
-fingerprint="$(gpg --batch --show-keys --with-colons "$key" | awk -F: '$1 == "fpr" {print $10; exit}')"
-test "$fingerprint" = "$EXPECTED_FINGERPRINT"
-rpm --import "$key"
-
-# openSUSE does not ship /etc/yum.repos.d, so each manager reads its own path.
+sh "$installer" --configure
 if [ "$family" = fedora ]; then
     repo_dir=/etc/yum.repos.d
 else
     repo_dir=/etc/zypp/repos.d
 fi
-mkdir -p "$repo_dir"
-sh "$cloudsmith/rpm-repo.sh" > "$repo_dir/docking-rpm.repo"
+repo_file="$repo_dir/docking-rpm.repo"
 
 # Publication metadata can be ready before every public index is refreshed.
 ready=false
@@ -141,34 +129,30 @@ if [ -f "${previous[0]}" ]; then
     test "$(rpm -qp --queryformat '%{NAME}' "${previous[0]}")" = docking
     test "$(rpm -qp --queryformat '%{ARCH}' "${previous[0]}")" = "$arch"
     test "$prior" != "$expected"
-fi
-
-if [ -f "${previous[0]}" ] && repo_versions | grep -Fxq "$prior"; then
-    # Start from a real older installation, keeping dependencies in place.
+    # Install the older release artifact before enabling the repository again.
+    mv "$repo_file" "$repo_file.disabled"
     if [ "$family" = fedora ]; then
         dnf remove -y docking
-        repo_install "docking-${prior}"
+        repo_install "${previous[0]}"
     else
         zypper --non-interactive remove -y docking
-        repo_install --oldpackage "docking=${prior}"
+        repo_install --allow-unsigned-rpm "${previous[0]}"
     fi
     test "$(installed_docking)" = "$prior_nevra"
     # Preserve the actual settings created by the first startup checks.
     find /home/docking-smoke/config-* -name dock.json -exec sha256sum {} \; > /tmp/docking-settings.sha256
     test -s /tmp/docking-settings.sha256
+    sh "$installer" --configure
     if [ "$family" = fedora ]; then
-        dnf upgrade -y docking
+        dnf --refresh upgrade -y --from-repo=docking-rpm docking
     else
-        zypper --non-interactive update -y docking
+        zypper --non-interactive refresh docking-rpm docking-rpm-noarch
+        zypper --non-interactive install --from docking-rpm docking
     fi
     test "$(installed_docking)" = "$expected_nevra"
     sha256sum -c /tmp/docking-settings.sha256
     bash "$checks/runtime-smoke.sh"
     echo "Verified signed RPM install and upgrade $prior -> $expected on $arch"
-elif [ -f "${previous[0]}" ]; then
-    # The repository only ever holds published releases, so a preceding stable
-    # tag can predate the first RPM publication.
-    echo "::notice::Repository does not offer $prior; fresh install only on $arch"
 else
     echo "Verified signed RPM install $expected on $arch; no previous stable asset"
 fi

@@ -266,7 +266,7 @@
 
             <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">A fast, customizable dock with built-in applets for Linux, FreeBSD, OpenBSD, NetBSD, and Windows 11. Supports X11 on Linux and BSD, Wayland on Linux, and native Windows integration.</p>
             <div class="mt-10 flex flex-col gap-4 sm:flex-row">
-              <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl bg-linear-to-r/srgb from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_18px_48px_rgba(239,68,68,0.28)] transition hover:scale-[1.02]">Download</a>
+              <a href="#install" class="inline-flex items-center justify-center rounded-2xl bg-linear-to-r/srgb from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_18px_48px_rgba(239,68,68,0.28)] transition hover:scale-[1.02]">Install Docking</a>
               <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">View on GitHub</a>
             </div>
           </div>
@@ -588,201 +588,141 @@
 
       <section id="install" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal overflow-hidden rounded-[2rem] border p-8 shadow-glow backdrop-blur-2xl lg:p-10">
-          <div class="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
-            <div>
-              <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Install Docking</h2>
-              <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Choose a package below or expand the installation instructions for your system.</p>
-            </div>
+          <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Install Docking</h2>
+          <p class="mt-4 text-lg leading-8 text-slate-300"><a href="#package-managers" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">Install with a package manager</a> for future updates, or download a standalone package below.</p>
 
-            <div>
-              <div class="mb-4 mx-auto flex w-fit rounded-full border p-1 shadow-soft backdrop-blur-xl" data-install-arch-toggle role="group" aria-label="Linux package architecture">
-                <button type="button" class="rounded-full px-4 py-2 text-sm font-semibold text-slate-300 transition hover:text-white" data-install-arch-option="x64" aria-pressed="true">x64</button>
-                <button type="button" class="rounded-full px-4 py-2 text-sm font-semibold transition text-slate-300 hover:text-white" data-install-arch-option="arm64" aria-pressed="false">arm64</button>
+          <section id="standalone-packages" class="mt-8" aria-labelledby="standalone-packages-heading">
+            <div class="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+              <div>
+                <h3 id="standalone-packages-heading" class="text-xl font-semibold text-white">Standalone packages</h3>
+                <p class="mt-2 text-sm text-slate-300"><a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">GitHub Releases</a></p>
               </div>
-              <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.AppImage" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">AppImage</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.deb" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">.deb</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">RPM</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.flatpak" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Flatpak</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.snap" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Snap</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.xz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Arch</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-output.tar.gz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Nix</a>
-                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-windows-x86_64-setup.exe" target="_blank" rel="noopener noreferrer" aria-label="Download Windows installer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">.exe</a>
+              <div>
+                <div class="mb-4 mx-auto flex w-fit rounded-full border p-1 shadow-soft backdrop-blur-xl" data-install-arch-toggle role="group" aria-label="Linux package architecture">
+                  <button type="button" class="rounded-full px-4 py-2 text-sm font-semibold text-slate-300 transition hover:text-white" data-install-arch-option="x64" aria-pressed="true">x64</button>
+                  <button type="button" class="rounded-full px-4 py-2 text-sm font-semibold transition text-slate-300 hover:text-white" data-install-arch-option="arm64" aria-pressed="false">arm64</button>
+                </div>
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.AppImage" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">AppImage</a>
+                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.deb" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">.deb</a>
+                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">RPM</a>
+                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.flatpak" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Flatpak</a>
+                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.snap" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Snap</a>
+                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.xz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Arch</a>
+                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-output.tar.gz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Nix</a>
+                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-windows-x86_64-setup.exe" target="_blank" rel="noopener noreferrer" aria-label="Download Windows installer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">.exe</a>
+                </div>
+                <p class="mt-4 text-sm leading-7 text-slate-300">Nix release assets include an output tarball and a matching <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt" data-install-store-path data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-store-path.txt" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 transition hover:decoration-white">store path</a> for the selected architecture.</p>
               </div>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Nix release assets include an output tarball and a matching <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt" data-install-store-path data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-store-path.txt" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 transition hover:decoration-white">store path</a> for the selected architecture.</p>
             </div>
-          </div>
-          <details id="apt-install" class="group mt-8 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
-            <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
-              <span>Debian &amp; Ubuntu: install with APT</span>
-              <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
-            </summary>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Add the repository once and receive updates through your package manager. Supports Ubuntu 22.04/24.04/26.04 and Debian 12/13, on both x64 and arm64.</p>
-            <p class="mt-2 text-sm leading-7 text-slate-300">Ubuntu derivatives, including Linux Mint 21.x/22.x, use their Ubuntu base through <code>UBUNTU_CODENAME</code>. Their desktops are not separately tested.</p>
-            <h3 class="mt-5 text-base font-semibold text-white">1. Download and verify the signing key</h3>
-            <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
-              <pre class="text-sm leading-7 text-slate-200"><code>sudo apt update
-sudo apt install curl ca-certificates gnupg
-curl -fsSL https://dl.cloudsmith.io/public/docking/docking-apt/gpg.key \
-  -o /tmp/docking-cloudsmith.asc
-gpg --show-keys --with-fingerprint /tmp/docking-cloudsmith.asc</code></pre>
-            </div>
-            <p class="mt-3 text-sm leading-7 text-slate-300">Before continuing, check that the fingerprint is <code class="break-all text-slate-100">811B48CD4A69170DD98F4F49185CED80A7947754</code>.</p>
-            <h3 class="mt-5 text-base font-semibold text-white">2. Add the repository and install Docking</h3>
-            <p class="mt-2 text-sm leading-7 text-slate-300">Copy the complete block below. It detects your distribution base and stops before writing the source if the base is unsupported or cannot be identified. Quoted <code>printf</code> arguments keep the repository URL intact when pasting into Bash or Zsh.</p>
-            <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
-              <pre class="text-sm leading-7 text-slate-200"><code>(
-set -eu
-sudo install -d -m 0755 /etc/apt/keyrings
-sudo install -m 0644 /tmp/docking-cloudsmith.asc /etc/apt/keyrings/docking-cloudsmith.asc
-. /etc/os-release
-APT_DISTRO="${ID:-}"
-APT_SUITE="${VERSION_CODENAME:-}"
-if [ -n "${UBUNTU_CODENAME:-}" ]; then
-    APT_DISTRO=ubuntu
-    APT_SUITE="$UBUNTU_CODENAME"
-fi
-if [ "$APT_DISTRO" = debian ] &amp;&amp; [ -z "$APT_SUITE" ]; then
-    DEBIAN_VERSION=$(cat /etc/debian_version 2&gt;/dev/null || true)
-    case "$DEBIAN_VERSION" in
-        12|12.*|bookworm|bookworm/sid) APT_SUITE=bookworm ;;
-        13|13.*|trixie|trixie/sid) APT_SUITE=trixie ;;
-    esac
-fi
-case "$APT_DISTRO:$APT_SUITE" in
-    ubuntu:jammy|ubuntu:noble|ubuntu:resolute|debian:bookworm|debian:trixie) ;;
-    *) echo "Unsupported APT base: $APT_DISTRO/$APT_SUITE" &gt;&amp;2; exit 1 ;;
-esac
-printf '%s\n' \
-    'Types: deb' \
-    "URIs: https://dl.cloudsmith.io/public/docking/docking-apt/deb/$APT_DISTRO" \
-    "Suites: $APT_SUITE" \
-    'Components: main' \
-    'Architectures: amd64 arm64' \
-    'Signed-By: /etc/apt/keyrings/docking-cloudsmith.asc' | \
-    sudo tee /etc/apt/sources.list.d/docking.sources &gt; /dev/null
-sudo apt update
-sudo apt install docking
-)</code></pre>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">For later updates, run <code class="text-slate-100">sudo apt update</code> and <code class="text-slate-100">sudo apt upgrade</code>. Existing .deb installations can upgrade directly through APT.</p>
-            <p class="mt-2 text-xs leading-6 text-slate-400">APT packages hosted by <a href="https://cloudsmith.com" target="_blank" rel="noopener noreferrer" class="underline decoration-white/30 underline-offset-4 hover:text-white">Cloudsmith</a>.</p>
-          </details>
-          <details id="rpm-install" class="group mt-4 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
-            <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
-              <span>Fedora &amp; openSUSE: install with DNF or Zypper</span>
-              <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
-            </summary>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Repository installation is available after the first verified RPM publication. Until then, use the RPM release downloads above.</p>
-            <p class="mt-2 text-sm leading-7 text-slate-300">Add the repository once and receive updates through your package manager. Supports Fedora 44/45 and openSUSE Tumbleweed/Leap 16.0, on both x64 and arm64.</p>
-            <h3 class="mt-5 text-base font-semibold text-white">1. Download and verify the signing key</h3>
-            <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
-              <pre class="text-sm leading-7 text-slate-200"><code>if command -v zypper &gt; /dev/null 2&gt;&amp;1; then
-    sudo zypper --non-interactive install curl gpg2
-else
-    sudo dnf install -y curl gnupg2
-fi
-curl -fsSL https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key \
-  -o /tmp/docking-cloudsmith.asc
-gpg --show-keys --with-fingerprint /tmp/docking-cloudsmith.asc</code></pre>
-            </div>
-            <p class="mt-3 text-sm leading-7 text-slate-300">Before continuing, check that the fingerprint is <code class="break-all text-slate-100">04C7240DAD480161C0DFC791859E104126138494</code>.</p>
-            <h3 class="mt-5 text-base font-semibold text-white">2. Add the repository and install Docking</h3>
-            <p class="mt-2 text-sm leading-7 text-slate-300">Copy the complete block below. It selects DNF on Fedora or Zypper on openSUSE.</p>
-            <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
-              <pre class="text-sm leading-7 text-slate-200"><code>(
-set -eu
-sudo rpm --import /tmp/docking-cloudsmith.asc
-if command -v zypper &gt; /dev/null 2&gt;&amp;1; then
-    REPO_DIR=/etc/zypp/repos.d
-else
-    REPO_DIR=/etc/yum.repos.d
-fi
-sudo install -d -m 0755 "$REPO_DIR"
-sudo tee "$REPO_DIR/docking-rpm.repo" &gt; /dev/null &lt;&lt;'EOF'
-[docking-rpm]
-name=Docking
-baseurl=https://dl.cloudsmith.io/public/docking/docking-rpm/rpm/any-distro/any-version/$basearch
-enabled=1
-gpgcheck=1
-repo_gpgcheck=1
-gpgkey=https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key
-sslverify=1
-type=rpm-md
-metadata_expire=300
-
-[docking-rpm-noarch]
-name=Docking noarch
-baseurl=https://dl.cloudsmith.io/public/docking/docking-rpm/rpm/any-distro/any-version/noarch
-enabled=1
-gpgcheck=1
-repo_gpgcheck=1
-gpgkey=https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key
-sslverify=1
-type=rpm-md
-metadata_expire=300
-EOF
-if command -v zypper &gt; /dev/null 2&gt;&amp;1; then
-    sudo zypper --gpg-auto-import-keys refresh
-    sudo zypper install docking
-else
-    sudo dnf install docking
-fi
-)</code></pre>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">For later updates, run <code class="text-slate-100">sudo dnf upgrade</code> or <code class="text-slate-100">sudo zypper update</code>. Existing .rpm installations can upgrade directly through the repository.</p>
-            <p class="mt-2 text-xs leading-6 text-slate-400">RPM packages hosted by <a href="https://cloudsmith.com" target="_blank" rel="noopener noreferrer" class="underline decoration-white/30 underline-offset-4 hover:text-white">Cloudsmith</a>.</p>
-          </details>
-          <details id="bsd-install" class="group mt-4 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
-            <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
-              <span>FreeBSD, OpenBSD &amp; NetBSD: native packages</span>
-              <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
-            </summary>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Use an X11 desktop and a package matching your OS release and architecture. BSD packages are distributed through GitHub Releases, starting with the first release containing BSD support.</p>
-            <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <article class="rounded-xl border border-white/10 bg-midnight/40 p-5">
-                <h3 class="text-lg font-semibold text-white">FreeBSD 15.1</h3>
-                <p class="mt-2 text-sm text-slate-300">amd64 · .pkg</p>
-                <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#freebsd-and-openbsd" target="_blank" rel="noopener noreferrer" class="mt-3 block text-sm text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white" aria-label="FreeBSD installation and checksum guide">Installation &amp; checksum guide</a>
-                <a hidden data-bsd-asset="docking-latest-freebsd-15.1-amd64.pkg" target="_blank" rel="noopener noreferrer" class="mt-4 items-center justify-center rounded-xl border border-white/15 bg-skyline/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-skyline/20">Download FreeBSD package</a>
-              </article>
-              <article class="rounded-xl border border-white/10 bg-midnight/40 p-5">
-                <h3 class="text-lg font-semibold text-white">OpenBSD 7.9</h3>
-                <p class="mt-2 text-sm text-slate-300">amd64 · .tgz</p>
-                <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#freebsd-and-openbsd" target="_blank" rel="noopener noreferrer" class="mt-3 block text-sm text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white" aria-label="OpenBSD installation and checksum guide">Installation &amp; checksum guide</a>
-                <a hidden data-bsd-asset="docking-latest-openbsd-7.9-amd64.tgz" target="_blank" rel="noopener noreferrer" class="mt-4 items-center justify-center rounded-xl border border-white/15 bg-skyline/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-skyline/20">Download OpenBSD package</a>
-              </article>
-              <article class="rounded-xl border border-white/10 bg-midnight/40 p-5">
-                <h3 class="text-lg font-semibold text-white">NetBSD 11.0</h3>
-                <p class="mt-2 text-sm text-slate-300">amd64 · .tgz · composited X11</p>
-                <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#freebsd-and-openbsd" target="_blank" rel="noopener noreferrer" class="mt-3 block text-sm text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white" aria-label="NetBSD installation and checksum guide">Installation &amp; checksum guide</a>
-                <a hidden data-bsd-asset="docking-latest-netbsd-11.0-amd64.tgz" target="_blank" rel="noopener noreferrer" class="mt-4 items-center justify-center rounded-xl border border-white/15 bg-skyline/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-skyline/20">Download NetBSD package</a>
-              </article>
-            </div>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Follow the guide to install dependencies, verify the package checksum, and install or update with <code>pkg</code> or <code>pkg_add</code>. See <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">GitHub Releases</a> for current package availability.</p>
-          </details>
-          <details id="windows-install" class="group mt-4 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
-            <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
-              <span>Windows 11: installer or portable ZIP</span>
-              <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
-            </summary>
-            <p class="mt-4 text-sm leading-7 text-slate-300">Windows packages include Python and GTK. They are unsigned; signing is deferred.</p>
-            <h3 class="mt-5 text-base font-semibold text-white">1. Download and verify the package</h3>
-            <p class="mt-2 text-sm leading-7 text-slate-300">Download the installer or portable ZIP and SHA256SUMS-windows from the same release.</p>
-            <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="mt-3 inline-block text-sm text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">Windows release downloads</a>
-            <p class="mt-3 text-sm leading-7 text-slate-300">In PowerShell, run the command for your download and compare its hash with the matching entry in SHA256SUMS-windows.</p>
-            <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
-              <pre class="text-sm leading-7 text-slate-200"><code>Get-FileHash .\docking-latest-windows-x86_64-setup.exe -Algorithm SHA256
+            <details id="bsd-install" class="group mt-4 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
+              <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
+                <span>FreeBSD, OpenBSD &amp; NetBSD: native packages</span>
+                <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+              </summary>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Use an X11 desktop and a package matching your OS release and architecture. BSD packages are distributed through GitHub Releases, starting with the first release containing BSD support.</p>
+              <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <article class="rounded-xl border border-white/10 bg-midnight/40 p-5">
+                  <h3 class="text-lg font-semibold text-white">FreeBSD 15.1</h3>
+                  <p class="mt-2 text-sm text-slate-300">amd64 · .pkg</p>
+                  <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#freebsd-and-openbsd" target="_blank" rel="noopener noreferrer" class="mt-3 block text-sm text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white" aria-label="FreeBSD installation and checksum guide">Installation &amp; checksum guide</a>
+                  <a hidden data-bsd-asset="docking-latest-freebsd-15.1-amd64.pkg" target="_blank" rel="noopener noreferrer" class="mt-4 items-center justify-center rounded-xl border border-white/15 bg-skyline/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-skyline/20">Download FreeBSD package</a>
+                </article>
+                <article class="rounded-xl border border-white/10 bg-midnight/40 p-5">
+                  <h3 class="text-lg font-semibold text-white">OpenBSD 7.9</h3>
+                  <p class="mt-2 text-sm text-slate-300">amd64 · .tgz</p>
+                  <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#freebsd-and-openbsd" target="_blank" rel="noopener noreferrer" class="mt-3 block text-sm text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white" aria-label="OpenBSD installation and checksum guide">Installation &amp; checksum guide</a>
+                  <a hidden data-bsd-asset="docking-latest-openbsd-7.9-amd64.tgz" target="_blank" rel="noopener noreferrer" class="mt-4 items-center justify-center rounded-xl border border-white/15 bg-skyline/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-skyline/20">Download OpenBSD package</a>
+                </article>
+                <article class="rounded-xl border border-white/10 bg-midnight/40 p-5">
+                  <h3 class="text-lg font-semibold text-white">NetBSD 11.0</h3>
+                  <p class="mt-2 text-sm text-slate-300">amd64 · .tgz · composited X11</p>
+                  <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#freebsd-and-openbsd" target="_blank" rel="noopener noreferrer" class="mt-3 block text-sm text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white" aria-label="NetBSD installation and checksum guide">Installation &amp; checksum guide</a>
+                  <a hidden data-bsd-asset="docking-latest-netbsd-11.0-amd64.tgz" target="_blank" rel="noopener noreferrer" class="mt-4 items-center justify-center rounded-xl border border-white/15 bg-skyline/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-skyline/20">Download NetBSD package</a>
+                </article>
+              </div>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Follow the guide to install dependencies, verify the package checksum, and install or update with <code>pkg</code> or <code>pkg_add</code>. See <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">GitHub Releases</a> for current package availability.</p>
+            </details>
+            <details id="windows-install" class="group mt-4 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
+              <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
+                <span>Windows 11: installer or portable ZIP</span>
+                <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+              </summary>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Windows packages include Python and GTK. They are unsigned; signing is deferred.</p>
+              <h3 class="mt-5 text-base font-semibold text-white">1. Download and verify the package</h3>
+              <p class="mt-2 text-sm leading-7 text-slate-300">Download the installer or portable ZIP and SHA256SUMS-windows from the same release.</p>
+              <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="mt-3 inline-block text-sm text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">Windows release downloads</a>
+              <p class="mt-3 text-sm leading-7 text-slate-300">In PowerShell, run the command for your download and compare its hash with the matching entry in SHA256SUMS-windows.</p>
+              <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+                <pre class="text-sm leading-7 text-slate-200"><code>Get-FileHash .\docking-latest-windows-x86_64-setup.exe -Algorithm SHA256
 Get-FileHash .\docking-latest-windows-x86_64.zip -Algorithm SHA256</code></pre>
-            </div>
-            <h3 class="mt-5 text-base font-semibold text-white">2. Install Docking</h3>
-            <p class="mt-2 text-sm leading-7 text-slate-300">Installer: run setup as your normal user. It adds a Start menu shortcut and offers launch at login. Administrator access is not required.</p>
-            <p class="mt-3 text-sm leading-7 text-slate-300">Portable ZIP: extract the entire archive to a writable folder, then open Docking.exe inside the Docking folder. Keep the runtime folder beside the launcher.</p>
-            <p class="mt-3 text-sm leading-7 text-slate-300">Web-based applets also need Microsoft's <a href="https://developer.microsoft.com/en-us/microsoft-edge/webview2/" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">Evergreen WebView2 Runtime</a>.</p>
-            <h3 class="mt-5 text-base font-semibold text-white">3. Update or uninstall</h3>
-            <p class="mt-2 text-sm leading-7 text-slate-300">To update, download and verify the new package, then close Docking and its AI usage-hook processes. Run the installer again, or extract the portable ZIP into a fresh folder.</p>
-            <p class="mt-3 text-sm leading-7 text-slate-300">Remove an installed copy through Windows Installed Apps. For a portable copy, close Docking and delete its folder. Saved preferences are kept.</p>
-          </details>
+              </div>
+              <h3 class="mt-5 text-base font-semibold text-white">2. Install Docking</h3>
+              <p class="mt-2 text-sm leading-7 text-slate-300">Installer: run setup as your normal user. It adds a Start menu shortcut and offers launch at login. Administrator access is not required.</p>
+              <p class="mt-3 text-sm leading-7 text-slate-300">Portable ZIP: extract the entire archive to a writable folder, then open Docking.exe inside the Docking folder. Keep the runtime folder beside the launcher.</p>
+              <p class="mt-3 text-sm leading-7 text-slate-300">Web-based applets also need Microsoft's <a href="https://developer.microsoft.com/en-us/microsoft-edge/webview2/" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">Evergreen WebView2 Runtime</a>.</p>
+              <h3 class="mt-5 text-base font-semibold text-white">3. Update or uninstall</h3>
+              <p class="mt-2 text-sm leading-7 text-slate-300">To update, download and verify the new package, then close Docking and its AI usage-hook processes. Run the installer again, or extract the portable ZIP into a fresh folder.</p>
+              <p class="mt-3 text-sm leading-7 text-slate-300">Remove an installed copy through Windows Installed Apps. For a portable copy, close Docking and delete its folder. Saved preferences are kept.</p>
+            </details>
+          </section>
+
+          <section id="package-managers" class="mt-8 scroll-mt-24 border-t border-white/10 pt-8" aria-labelledby="package-managers-heading">
+            <h3 id="package-managers-heading" class="text-xl font-semibold text-white">Package managers</h3>
+            <details id="apt-install" class="group mt-4 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
+              <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
+                <span>Debian &amp; Ubuntu: install with APT</span>
+                <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+              </summary>
+              <p id="apt-setup" class="mt-4 scroll-mt-24 text-sm leading-7 text-slate-300">Run once to get Docking updates through APT, even if you installed from a .deb. Supports Ubuntu 22.04/24.04/26.04 and Debian 12/13 on x64 and arm64, plus Linux Mint 21.x/22.x.</p>
+              <h3 class="mt-5 text-base font-semibold text-white">Add the repository and install or upgrade Docking</h3>
+              <div data-package-installer>
+                <p class="mt-3 text-sm leading-7 text-slate-300"><a href="/install.sh.txt" class="text-white underline">Read the installer source</a></p>
+                <button type="button" data-copy-install hidden class="mt-3 rounded-lg px-3 py-2 text-sm font-semibold text-white bg-white/10 hover:bg-white/15">Copy install command</button>
+                <span class="ml-2 text-sm text-slate-300" role="status">
+                  <span data-install-copied hidden>Copied.</span>
+                  <span data-install-copy-error hidden>Select and copy the command from the box below.</span>
+                </span>
+                <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+                  <pre class="whitespace-pre-wrap wrap-anywhere text-sm leading-7 text-slate-200"><code id="apt-setup-command">(installer=$(curl -fsSL https://docking.cc/install.sh) &amp;&amp; sh -c "$installer")</code></pre>
+                </div>
+                <p class="mt-3 text-sm leading-7 text-slate-300">Without curl, <a href="/install.sh" download class="text-white underline">download install.sh</a> and run <code>sh install.sh</code> from the download folder.</p>
+              </div>
+              <h3 class="mt-5 text-base font-semibold text-white">Update Docking</h3>
+              <p class="mt-3 text-sm leading-7 text-slate-300">Once setup is complete, regular APT upgrades include Docking. To refresh package lists and update Docking directly, run the following command.</p>
+              <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+                <pre class="text-sm leading-7 text-slate-200"><code>sudo apt update &amp;&amp; sudo apt install docking</code></pre>
+              </div>
+            </details>
+            <details id="rpm-install" class="group mt-4 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
+              <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
+                <span>Fedora &amp; openSUSE: install with DNF or Zypper</span>
+                <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+              </summary>
+              <p id="rpm-setup" class="mt-4 scroll-mt-24 text-sm leading-7 text-slate-300">Run repository setup once, including if you already installed a standalone RPM.</p>
+              <p class="mt-2 text-sm leading-7 text-slate-300">Supports Fedora 44/45 and openSUSE Tumbleweed/Leap 16.0, on both x64 and arm64.</p>
+              <h3 class="mt-5 text-base font-semibold text-white">Add the repository and install or upgrade Docking</h3>
+              <div data-package-installer>
+                <p class="mt-3 text-sm leading-7 text-slate-300"><a href="/install.sh.txt" class="text-white underline">Read the installer source</a></p>
+                <button type="button" data-copy-install hidden class="mt-3 rounded-lg px-3 py-2 text-sm font-semibold text-white bg-white/10 hover:bg-white/15">Copy install command</button>
+                <span class="ml-2 text-sm text-slate-300" role="status">
+                  <span data-install-copied hidden>Copied.</span>
+                  <span data-install-copy-error hidden>Select and copy the command from the box below.</span>
+                </span>
+                <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+                  <pre class="whitespace-pre-wrap wrap-anywhere text-sm leading-7 text-slate-200"><code id="rpm-setup-command">(installer=$(curl -fsSL https://docking.cc/install.sh) &amp;&amp; sh -c "$installer")</code></pre>
+                </div>
+                <p class="mt-3 text-sm leading-7 text-slate-300">Without curl, <a href="/install.sh" download class="text-white underline">download install.sh</a> and run <code>sh install.sh</code> from the download folder.</p>
+              </div>
+              <h3 class="mt-5 text-base font-semibold text-white">Update Docking with DNF or Zypper</h3>
+              <p class="mt-3 text-sm leading-7 text-slate-300">Use the command for your system after completing repository setup.</p>
+              <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+                <pre class="text-sm leading-7 text-slate-200"><code>sudo dnf --refresh upgrade docking  # Fedora
+sudo zypper refresh docking-rpm docking-rpm-noarch &amp;&amp; sudo zypper update docking  # openSUSE</code></pre>
+              </div>
+              <p class="mt-2 text-xs leading-6 text-slate-400">RPM packages hosted by <a href="https://cloudsmith.com" target="_blank" rel="noopener noreferrer" class="underline decoration-white/30 underline-offset-4 hover:text-white">Cloudsmith</a>.</p>
+            </details>
+          </section>
         </div>
       </section>
 
@@ -864,7 +804,7 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
             </div>
 
             <div class="flex flex-col gap-4 sm:flex-row">
-              <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl bg-linear-to-r/srgb from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_16px_42px_rgba(239,68,68,0.24)] transition hover:scale-[1.01]">Download</a>
+              <a href="#install" class="inline-flex items-center justify-center rounded-2xl bg-linear-to-r/srgb from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_16px_42px_rgba(239,68,68,0.24)] transition hover:scale-[1.01]">Install Docking</a>
               <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white transition hover:border-white/30 hover:to-skyline/10">GitHub Star</a>
             </div>
           </div>

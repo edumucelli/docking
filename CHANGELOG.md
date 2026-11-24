@@ -4,6 +4,11 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
+- Separated standalone downloads from package-manager setup and added one
+  installer for APT, DNF, and Zypper, with a link to read the source.
+- Made package-manager setup safe to retry after interrupted writes and
+  refreshed APT package lists before resolving dependencies.
+- Added APT release checks for Linux Mint 22.3 with Cinnamon, MATE, and Xfce.
 - Added a SignPath test-signing workflow for the Windows installer.
 - Added Music setup tips for Rhythmbox track details and mpv playback controls.
 - Fixed the Music play/pause badge when pausing Rhythmbox.

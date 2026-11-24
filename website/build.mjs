@@ -113,6 +113,9 @@ export async function build() {
   for (const asset of ["app.js", "robots.txt", "sitemap.xml", "hero.gif", "hero.png", "hero-still.webp", "social-preview.png", "social-preview.jpg"]) {
     await cp(path.join(source, asset), path.join(output, asset));
   }
+  for (const name of ["install.sh", "install.sh.txt"]) {
+    await cp(path.join(source, "../packaging/install.sh"), path.join(output, name));
+  }
   await mkdir(path.join(output, "tours"));
   for (const video of ["overview.mp4", "applets.mp4", "search.mp4", "preferences.mp4"]) {
     await cp(path.join(source, "tours", video), path.join(output, "tours", video));

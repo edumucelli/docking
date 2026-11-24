@@ -9,141 +9,66 @@ feature coverage are in the [Wayland support](#wayland-support).
 The [website](https://docking.cc/#install) also provides expandable APT and RPM
 installation instructions.
 
+## Install with a package manager
+
+[Read the installer source](https://docking.cc/install.sh.txt) before running
+the command. The installer selects APT, DNF, or Zypper for your system.
+
+```sh
+(installer=$(curl -fsSL https://docking.cc/install.sh) && sh -c "$installer")
+```
+
+Without curl, [download install.sh](https://docking.cc/install.sh) and run
+`sh install.sh` from the download folder.
+
+If setup reports an existing configuration, review the reported file. You can
+keep your managed setup or back it up and remove the conflicting Docking entry
+before retrying. Keep any other repository entries in place.
+
 ## Debian and Ubuntu (APT)
 
 On Ubuntu 22.04/24.04/26.04 and Debian 12/13, add Docking's APT repository once
 to receive updates through your package manager. Both amd64 and arm64 are
 available. Ubuntu derivatives that expose
 `UBUNTU_CODENAME`, including Linux Mint 21.x/22.x, use their Ubuntu base.
-Derivative desktops are not separately covered by the Debian/Ubuntu CI matrix.
+The APT release checks install Docking on Linux Mint 22.3 and launch it on X11
+with Cinnamon, MATE's Marco, and Xfce's Xfwm.
 
-Download the public signing key and check its fingerprint before continuing:
+[Run the installer](#install-with-a-package-manager) once on each machine,
+including if you already installed a standalone `.deb`. For local installation,
+[download the standalone package](#release-downloads).
 
-```bash
-sudo apt update
-sudo apt install curl ca-certificates gnupg
-curl -fsSL https://dl.cloudsmith.io/public/docking/docking-apt/gpg.key \
-  -o /tmp/docking-cloudsmith.asc
-gpg --show-keys --with-fingerprint /tmp/docking-cloudsmith.asc
+Open Docking from your application menu.
+
+### Update Docking
+
+Once setup is complete, regular APT upgrades include Docking. To refresh package
+lists and update Docking directly, run the following command.
+
+```sh
+sudo apt update && sudo apt install docking
 ```
-
-The fingerprint must be `811B48CD4A69170DD98F4F49185CED80A7947754`.
-
-Copy the complete block below. It detects the distribution base and stops before
-writing the source if that base is unsupported or cannot be identified. Quoted
-`printf` arguments keep the repository URL intact when pasting into Bash or Zsh.
-
-```bash
-(
-set -eu
-sudo install -d -m 0755 /etc/apt/keyrings
-sudo install -m 0644 /tmp/docking-cloudsmith.asc /etc/apt/keyrings/docking-cloudsmith.asc
-. /etc/os-release
-APT_DISTRO="${ID:-}"
-APT_SUITE="${VERSION_CODENAME:-}"
-if [ -n "${UBUNTU_CODENAME:-}" ]; then
-    APT_DISTRO=ubuntu
-    APT_SUITE="$UBUNTU_CODENAME"
-fi
-if [ "$APT_DISTRO" = debian ] && [ -z "$APT_SUITE" ]; then
-    DEBIAN_VERSION=$(cat /etc/debian_version 2>/dev/null || true)
-    case "$DEBIAN_VERSION" in
-        12|12.*|bookworm|bookworm/sid) APT_SUITE=bookworm ;;
-        13|13.*|trixie|trixie/sid) APT_SUITE=trixie ;;
-    esac
-fi
-case "$APT_DISTRO:$APT_SUITE" in
-    ubuntu:jammy|ubuntu:noble|ubuntu:resolute|debian:bookworm|debian:trixie) ;;
-    *) echo "Unsupported APT base: $APT_DISTRO/$APT_SUITE" >&2; exit 1 ;;
-esac
-printf '%s\n' \
-    'Types: deb' \
-    "URIs: https://dl.cloudsmith.io/public/docking/docking-apt/deb/$APT_DISTRO" \
-    "Suites: $APT_SUITE" \
-    'Components: main' \
-    'Architectures: amd64 arm64' \
-    'Signed-By: /etc/apt/keyrings/docking-cloudsmith.asc' | \
-    sudo tee /etc/apt/sources.list.d/docking.sources > /dev/null
-sudo apt update
-sudo apt install docking
-)
-```
-
-For subsequent updates, run `sudo apt update` and `sudo apt upgrade`. Existing
-`.deb` installations can upgrade directly through APT.
 
 ## Fedora and openSUSE (RPM)
 
-Repository installation is available after the first verified RPM publication.
-Until then, use the [RPM release downloads](https://github.com/edumucelli/docking/releases/latest).
-
 On Fedora 44/45 and openSUSE Tumbleweed/Leap 16.0, add Docking's RPM repository
 once to receive updates through your package manager. Both x86_64 and aarch64 are
-available.
+available. Run repository setup once, including if you already installed a
+[standalone RPM](#release-downloads).
 
-Download the public signing key and check its fingerprint before continuing:
+[Run the installer](#install-with-a-package-manager) to add the repository and
+install or upgrade Docking.
 
-```bash
-if command -v zypper > /dev/null 2>&1; then
-    sudo zypper --non-interactive install curl gpg2
-else
-    sudo dnf install -y curl gnupg2
-fi
-curl -fsSL https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key \
-  -o /tmp/docking-cloudsmith.asc
-gpg --show-keys --with-fingerprint /tmp/docking-cloudsmith.asc
+Open Docking from your application menu.
+
+### Update Docking with DNF or Zypper
+
+Use the command for your system after completing repository setup.
+
+```sh
+sudo dnf --refresh upgrade docking  # Fedora
+sudo zypper refresh docking-rpm docking-rpm-noarch && sudo zypper update docking  # openSUSE
 ```
-
-The fingerprint must be `04C7240DAD480161C0DFC791859E104126138494`.
-
-Copy the complete block below. It installs the key, writes the signed repository
-definition, and selects DNF on Fedora or Zypper on openSUSE.
-
-```bash
-(
-set -eu
-sudo rpm --import /tmp/docking-cloudsmith.asc
-# dnf reads /etc/yum.repos.d, while openSUSE ships only /etc/zypp/repos.d.
-if command -v zypper > /dev/null 2>&1; then
-    REPO_DIR=/etc/zypp/repos.d
-else
-    REPO_DIR=/etc/yum.repos.d
-fi
-sudo install -d -m 0755 "$REPO_DIR"
-sudo tee "$REPO_DIR/docking-rpm.repo" > /dev/null <<'EOF'
-[docking-rpm]
-name=Docking
-baseurl=https://dl.cloudsmith.io/public/docking/docking-rpm/rpm/any-distro/any-version/$basearch
-enabled=1
-gpgcheck=1
-repo_gpgcheck=1
-gpgkey=https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key
-sslverify=1
-type=rpm-md
-metadata_expire=300
-
-[docking-rpm-noarch]
-name=Docking noarch
-baseurl=https://dl.cloudsmith.io/public/docking/docking-rpm/rpm/any-distro/any-version/noarch
-enabled=1
-gpgcheck=1
-repo_gpgcheck=1
-gpgkey=https://dl.cloudsmith.io/public/docking/docking-rpm/gpg.key
-sslverify=1
-type=rpm-md
-metadata_expire=300
-EOF
-if command -v zypper > /dev/null 2>&1; then
-    sudo zypper --gpg-auto-import-keys refresh
-    sudo zypper install docking
-else
-    sudo dnf install docking
-fi
-)
-```
-
-For subsequent updates, run `sudo dnf upgrade` or `sudo zypper update`. Existing
-`.rpm` installations can upgrade directly through the repository.
 
 <a id="freebsd-and-openbsd"></a>
 
@@ -311,7 +236,9 @@ deleted after their processes close. Neither method removes your saved preferenc
 
 The latest prebuilt packages are available on
 [GitHub Releases](https://github.com/edumucelli/docking/releases) and linked
-directly below.
+directly below. Standalone packages are installed from a file. Add the
+[APT](#debian-and-ubuntu-apt) or [RPM](#fedora-and-opensuse-rpm) repository
+separately to receive future Docking releases through your package manager.
 
 - `AppImage`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.AppImage)
 - `Debian .deb`: [x64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb), [arm64](https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.deb)
