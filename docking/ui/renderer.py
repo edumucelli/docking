@@ -1242,6 +1242,21 @@ class DockRenderer:
         - LEFT: rotate so horizontal becomes vertical, square edge at left
         - RIGHT: rotate so horizontal becomes vertical, square edge at right
         """
+        # Author shelf paths in (u, v), with u increasing along the row and
+        # v increasing toward the edge. Let W and H be the window dimensions.
+        #
+        #   Dock edge     window x   window y     +u points   +v points
+        #   ---------     --------   --------     ---------   ---------
+        #   BOTTOM           u          v           right        down
+        #   TOP              u        H - v         right        up
+        #   LEFT           W - v        u           down         left
+        #   RIGHT            v          u           down         right
+        #
+        # Both vertical docks keep item order from top to bottom. RIGHT needs
+        # an axis swap to preserve that order while pointing +v toward the
+        # right edge. Geometry mirrors the shelf interval for TOP and LEFT,
+        # so shelf_as_bottom_y subtracts both the shelf's cross position and
+        # its cross extent for those edges.
         if pos == Position.TOP:
             cr.translate(0, height)
             cr.scale(1, -1)
@@ -1249,8 +1264,6 @@ class DockRenderer:
             cr.translate(width, 0)
             cr.rotate(math.pi / 2)
         elif pos == Position.RIGHT:
-            # Swap axes without reversing the main axis: top-aligned icons
-            # and their shelf must both remain at the top of a right dock.
             cr.transform(cairo.Matrix(0, 1, 1, 0, 0, 0))
         # BOTTOM: identity -- no transform needed
 

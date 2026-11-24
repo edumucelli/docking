@@ -1072,6 +1072,27 @@ def _local_cursor_main(
             drop_gap=drop_gap,
             constrain_main_axis=constrain_main_axis,
         )
+    # Zoom measures distance from the pointer to the unscaled resting item
+    # centers. The event arrives in window coordinates after we fit and align
+    # that row, so undo those operations before asking compute_layout to zoom.
+    #
+    #   pointer on aligned GTK surface
+    #                    |
+    #                    | subtract shelf alignment shift
+    #                    v
+    #   pointer on centered shelf with room for insertion
+    #                    |
+    #                    | restore the half-gap used to center the insertion
+    #                    v
+    #   pointer relative to the centered resting row
+    #                    |
+    #                    | undo fit around the midpoint of the surface
+    #                    v
+    #   pointer in the unscaled coordinate space of the resting row
+    #
+    # The fitted branch measures the actual rounded shelf bounds above. Using
+    # the nominal, unfitted extent to undo alignment would change the apparent
+    # distance to item centers on a narrow surface.
     cursor_main -= _main_axis_alignment_shift(
         config=config,
         main_size=main_size,
@@ -1269,6 +1290,20 @@ def _compute_item_hover_rects(
         )
         for draw_rect in draw_rects
     ]
+    # Padding first gives each icon its own cross-axis hover band. Along the
+    # main axis, round the midpoint between neighboring band centers once and
+    # use that coordinate as both the end of one slot and the start of the next.
+    #
+    #   draw bounds       [ A ]        [ B ]        [ C ]
+    #                        .            .            .      band centers
+    #   hover slots     |-----------|------------|-----------|
+    #                   ^           ^            ^           ^
+    #                   shelf end   A/B midpoint B/C midpoint shelf end
+    #
+    # The end caps include the static band and painted shelf. Containment is
+    # half-open, so a shared boundary belongs to the following slot. The click
+    # rectangles use each icon's own small main-axis padding. A gap can keep a
+    # neighbor hovered while still opening the dock background menu on a click.
     boundaries = _compute_main_axis_boundaries(
         pos=pos,
         hover_rects=base_hover_rects,
