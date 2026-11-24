@@ -34,15 +34,6 @@ docking = ["locale/*/LC_MESSAGES/*.mo"]
 """.strip()
         + "\n",
     )
-    _write(
-        tmp_path / "setup.cfg",
-        """
-[options.package_data]
-docking =
-    locale/*/LC_MESSAGES/*.mo
-""".strip()
-        + "\n",
-    )
     _write(tmp_path / "packaging/deb/debian/rules", "bash tools/i18n.sh --compile\n")
     _write(tmp_path / "packaging/rpm/docking.spec", "bash tools/i18n.sh --compile\n")
     _write(
@@ -81,7 +72,6 @@ docking = []
 """.strip()
         + "\n",
     )
-    _write(tmp_path / "setup.cfg", "[options.package_data]\ndocking =\n")
     _write(tmp_path / "packaging/deb/debian/rules", "")
     _write(tmp_path / "packaging/rpm/docking.spec", "")
     _write(tmp_path / "packaging/flatpak/cc.docking.Docking.json", "")

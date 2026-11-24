@@ -8,8 +8,6 @@
 # POINTER: headless wlroots creates no input devices (`WLR_LIBINPUT_NO_DEVICES=1`),
 # so no client is offered a `wl_pointer`. `swaymsg seat - cursor set` moves the
 # cursor but delivers no enter event, so it cannot drive hover/autohide-reveal.
-# `adapter_pointer` is therefore declared unavailable rather than implemented as a
-# no-op that would make pointer scenarios look like they ran.
 #
 # IMPORTANT: sway exposes NO compositor-side rectangle for a layer-shell surface.
 # Verified against sway-ipc.7.scd: GET_TREE's `shell` field documents only
@@ -186,8 +184,6 @@ adapter_change_output() {
     esac
     sleep 1
 }
-
-adapter_pointer() { [ "$LAB_INPUT_SUPPORTED" = true ] && lab_pointer "$@"; }
 
 adapter_stop() {
     if [ -n "$ADAPTER_COMPOSITOR_PID" ]; then

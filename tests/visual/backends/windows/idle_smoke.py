@@ -67,12 +67,13 @@ def main():
     import gi
 
     gi.require_version("Gtk", "3.0")
-    from gi.repository import GLib, Gtk
+    from gi.repository import Gtk
     from PIL import ImageGrab
 
     import docking.app as app
     from docking.platform.backends.windows.idle import WindowsIdleService
     from tests.visual.backends.windows.desktop_driver import WindowsDesktop
+    from tests.visual.backends.windows.desktop_driver import call_on_gtk_thread as call
 
     config = output / "config/docking/dock.json"
     config.parent.mkdir(parents=True)
@@ -110,24 +111,6 @@ def main():
 
     def publish():
         (output / "result.json").write_text(json.dumps(report, indent=2))
-
-    def call(callback):
-        done, values, failures = threading.Event(), [], []
-
-        def invoke():
-            try:
-                values.append(callback())
-            except Exception as exc:
-                failures.append(exc)
-            finally:
-                done.set()
-            return False
-
-        GLib.idle_add(invoke)
-        assert done.wait(20), "GTK did not service an observation"
-        if failures:
-            raise failures[0]
-        return values[0]
 
     def independent_input():
         program = (

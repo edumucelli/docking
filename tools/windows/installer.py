@@ -74,7 +74,6 @@ def build_upgrade_fixture(
         inputs = (
             "pyproject.toml",
             "setup.py",
-            "setup.cfg",
             "MANIFEST.in",
             "README.md",
             "LICENSE",

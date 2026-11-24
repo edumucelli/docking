@@ -26,7 +26,6 @@ def test_bump_version_updates_all_known_surfaces(tmp_path):
     mod.ROOT = tmp_path
 
     _write(tmp_path / "pyproject.toml", '[project]\nversion = "0.1.1"\n')
-    _write(tmp_path / "setup.cfg", "[metadata]\nversion = 0.1.1\n")
     _write(tmp_path / "docking/__init__.py", '__version__ = "0.1.1"\n')
     _write(
         tmp_path / "packaging/rpm/docking.spec",
@@ -53,7 +52,6 @@ def test_bump_version_updates_all_known_surfaces(tmp_path):
     assert 'version = "0.2.0"' in (tmp_path / "pyproject.toml").read_text(
         encoding="utf-8"
     )
-    assert "version = 0.2.0" in (tmp_path / "setup.cfg").read_text(encoding="utf-8")
     assert '__version__ = "0.2.0"' in (tmp_path / "docking/__init__.py").read_text(
         encoding="utf-8"
     )
@@ -85,7 +83,6 @@ def test_bump_version_is_idempotent_for_current_version(tmp_path):
     mod.ROOT = tmp_path
 
     _write(tmp_path / "pyproject.toml", '[project]\nversion = "0.2.0"\n')
-    _write(tmp_path / "setup.cfg", "[metadata]\nversion = 0.2.0\n")
     _write(tmp_path / "docking/__init__.py", '__version__ = "0.2.0"\n')
     _write(
         tmp_path / "packaging/rpm/docking.spec",

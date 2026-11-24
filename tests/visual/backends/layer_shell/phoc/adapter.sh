@@ -49,5 +49,4 @@ adapter_capabilities() {
 
 adapter_screenshot() { grim -s 1 "$1"; }
 adapter_geometry() { /usr/bin/python3 "$LAB_SCRIPTS/probes/session_probe.py" geometry; }
-adapter_pointer() { [ "$LAB_INPUT_SUPPORTED" = true ] && lab_pointer "$@"; }
 adapter_stop() { adapter_cleanup; }

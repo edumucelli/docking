@@ -228,6 +228,7 @@ def main(monitor):
     monitor["output_directory"] = str(output)
     os.environ["XDG_CONFIG_HOME"] = str(output / "config")
     os.environ["XDG_CACHE_HOME"] = str(output / "cache")
+    from tests.visual.backends.windows.desktop_driver import call_on_gtk_thread as call
     from tests.visual.backends.windows.desktop_driver import write_shared_json
     from tests.visual.backends.windows.input_requests import (
         record_input_origins,
@@ -263,7 +264,7 @@ def main(monitor):
     import gi
 
     gi.require_version("Gtk", "3.0")
-    from gi.repository import GLib, Gtk
+    from gi.repository import Gtk
     from PIL import ImageGrab
 
     import docking.app as app
@@ -442,24 +443,6 @@ def main(monitor):
         return ui
 
     app.build_dock_window = build
-
-    def call(callback):
-        done, values, failures = threading.Event(), [], []
-
-        def invoke():
-            try:
-                values.append(callback())
-            except Exception as exc:
-                failures.append(exc)
-            finally:
-                done.set()
-            return False
-
-        GLib.idle_add(invoke)
-        assert done.wait(20), "GTK did not service an observation"
-        if failures:
-            raise failures[0]
-        return values[0]
 
     # The driver is defined below so all input, restoration and errors are
     # captured by the same durable result and the normal app shutdown path.

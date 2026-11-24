@@ -10,6 +10,7 @@ import subprocess
 import sys
 import threading
 import time
+from functools import partial
 from pathlib import Path
 
 
@@ -32,7 +33,6 @@ def main():
     import gi
 
     gi.require_version("Gtk", "3.0")
-    from gi.repository import GLib
     from PIL import ImageGrab
 
     import docking.app as app
@@ -41,6 +41,7 @@ def main():
     from docking.platform.native.windows.ffi import bind
     from tests.visual.backends.windows.desktop_driver import (
         WindowsDesktop,
+        call_on_gtk_thread,
         read_shared_json,
     )
 
@@ -84,23 +85,7 @@ def main():
 
     app.build_dock_window, WindowsCaptureStream.read = build, read
 
-    def call(callback):
-        done, values, failures = threading.Event(), [], []
-
-        def invoke():
-            try:
-                values.append(callback())
-            except Exception as exc:
-                failures.append(exc)
-            finally:
-                done.set()
-            return False
-
-        GLib.idle_add(invoke)
-        assert done.wait(30), "GTK did not service an observation"
-        if failures:
-            raise failures[0]
-        return values[0]
+    call = partial(call_on_gtk_thread, timeout=30)
 
     def publish():
         (output / "result.json").write_text(json.dumps(report, indent=2))

@@ -390,8 +390,9 @@ and `node_modules` are ignored by Git. Tailwind runs at build time; visitors
 do not download a CSS compiler. Applet icons come from the repository, and the
 original `website/hero.gif` is copied without recompression.
 
-Edit the English template in `website/index.html` and the corresponding strings
-in `website/translations.json`. Translation keys are the exact English text;
+Edit the English template in `website/index.html`, applet cards in
+`website/applets.mjs`, and corresponding strings in `website/translations.json`.
+Translation keys are the exact English text;
 builds fail on missing translations. Keep shell commands and technical names
 unchanged. The build generates `/`, `/pt/`, `/fr/` and `/es/`, with reciprocal
 `hreflang` links and a self-canonical URL for each language. All content remains

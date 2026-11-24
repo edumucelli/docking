@@ -135,7 +135,6 @@ def test_upgrade_fixture_builds_owned_copy_and_preserves_source(
     (source / "pyproject.toml").write_text(original, encoding="utf-8")
     for name in (
         "setup.py",
-        "setup.cfg",
         "MANIFEST.in",
         "README.md",
         "LICENSE",

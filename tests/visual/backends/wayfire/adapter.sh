@@ -80,8 +80,6 @@ adapter_screenshot() {
 
 adapter_geometry() { framebuffer_geometry; }
 
-adapter_pointer() { [ "$LAB_INPUT_SUPPORTED" = true ] && lab_pointer "$@"; }
-
 adapter_stop() {
     if [ -n "$ADAPTER_COMPOSITOR_PID" ]; then
         terminate_pid "$ADAPTER_COMPOSITOR_PID"

@@ -23,26 +23,8 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def test_check_package_data_sync_passes_on_matching_inputs(tmp_path):
+def test_check_package_data_sync_passes_on_expected_includes(tmp_path):
     mod = _load_module()
-    _write(
-        tmp_path / "pyproject.toml",
-        """
-[tool.setuptools.package-data]
-docking = ["assets/*.png", "locale/*.pot"]
-""".strip()
-        + "\n",
-    )
-    _write(
-        tmp_path / "setup.cfg",
-        """
-[options.package_data]
-docking =
-    assets/*.png
-    locale/*.pot
-""".strip()
-        + "\n",
-    )
     _write(
         tmp_path / "MANIFEST.in",
         """
@@ -55,30 +37,12 @@ recursive-include docking/locale *.pot *.po *.mo
     assert mod.check_package_data_sync(tmp_path) == []
 
 
-def test_check_package_data_sync_reports_drift(tmp_path):
+def test_check_package_data_sync_reports_missing_includes(tmp_path):
     mod = _load_module()
-    _write(
-        tmp_path / "pyproject.toml",
-        """
-[tool.setuptools.package-data]
-docking = ["assets/*.png", "locale/*.pot"]
-""".strip()
-        + "\n",
-    )
-    _write(
-        tmp_path / "setup.cfg",
-        """
-[options.package_data]
-docking =
-    assets/*.png
-""".strip()
-        + "\n",
-    )
     _write(tmp_path / "MANIFEST.in", "recursive-include docking/assets *.png\n")
 
     errors = mod.check_package_data_sync(tmp_path)
 
-    assert any("pyproject.toml and setup.cfg" in error for error in errors)
     assert any(
         "MANIFEST.in is missing expected recursive includes" in error
         for error in errors
