@@ -330,7 +330,7 @@ msgstr ""
 #: docking/applets/apod/applet.py:131 docking/applets/certwatch/applet.py:139
 #: docking/applets/crypto/applet.py:153
 #: docking/applets/currencyfx/applet.py:203
-#: docking/applets/hackernews/applet.py:193
+#: docking/applets/hackernews/applet.py:191
 #: docking/applets/lastfm/applet.py:173 docking/applets/news/applet.py:276
 #: docking/applets/reddit/applet.py:198 docking/applets/speedtest/applet.py:114
 #: docking/applets/thermals/applet.py:156 docking/applets/tooltip.py:46
@@ -352,7 +352,7 @@ msgstr ""
 #: docking/applets/capslock/applet.py:108
 #: docking/applets/certwatch/applet.py:156 docking/applets/crypto/applet.py:156
 #: docking/applets/currencyfx/applet.py:211 docking/applets/docker/applet.py:96
-#: docking/applets/hackernews/applet.py:210
+#: docking/applets/hackernews/applet.py:211
 #: docking/applets/kdeconnect/applet.py:274
 #: docking/applets/lastfm/applet.py:197 docking/applets/micshield/applet.py:164
 #: docking/applets/moon/applet.py:136 docking/applets/news/applet.py:304
@@ -1593,30 +1593,30 @@ msgstr ""
 msgid "Refreshes"
 msgstr ""
 
-#: docking/applets/hackernews/applet.py:177
+#: docking/applets/hackernews/applet.py:176
 #: docking/applets/hackernews/state.py:197
 #, python-brace-format
 msgid "{score} points, {comments} comments"
 msgstr ""
 
-#: docking/applets/hackernews/applet.py:198
+#: docking/applets/hackernews/applet.py:195
 msgid "Open Story"
 msgstr ""
 
-#: docking/applets/hackernews/applet.py:202
+#: docking/applets/hackernews/applet.py:199
 msgid "Open Comments"
 msgstr ""
 
-#: docking/applets/hackernews/applet.py:206 docking/applets/news/applet.py:291
+#: docking/applets/hackernews/applet.py:207 docking/applets/news/applet.py:291
 #: docking/applets/reddit/applet.py:209
 msgid "Next Headline"
 msgstr ""
 
-#: docking/applets/hackernews/applet.py:215
+#: docking/applets/hackernews/applet.py:216
 msgid "Page"
 msgstr ""
 
-#: docking/applets/hackernews/applet.py:360
+#: docking/applets/hackernews/applet.py:359
 msgid "No Hacker News stories"
 msgstr ""
 
@@ -2221,7 +2221,8 @@ msgstr ""
 msgid "Open Publication"
 msgstr ""
 
-#: docking/applets/news/applet.py:281 docking/applets/reddit/applet.py:203
+#: docking/applets/hackernews/applet.py:203 docking/applets/news/applet.py:281
+#: docking/applets/reddit/applet.py:203
 msgid "Previous Headline"
 msgstr ""
 
