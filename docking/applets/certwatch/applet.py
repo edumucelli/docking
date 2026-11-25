@@ -51,6 +51,7 @@ from docking.applets.live_state import (
 )
 from docking.applets.menu import disabled_menu_item, menu_sections
 from docking.applets.popup import add_cancel_ok_buttons, prepare_dialog_content
+from docking.applets.timer import OneShotTimer
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -78,7 +79,7 @@ class CertwatchApplet(Applet):
 
     def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
-        self._startup_fetch_timer_id: int = 0
+        self._startup_fetch = OneShotTimer()
         self._retry_timer_id: int = 0
         self._fetch_request_id: int = 0
         self._last_updated: dt.datetime | None = None
@@ -178,18 +179,13 @@ class CertwatchApplet(Applet):
         super().start(notify=notify)
         self._timer_id = GLib.timeout_add_seconds(REFRESH_INTERVAL_S, self._tick)
         if self._domains:
-            self._startup_fetch_timer_id = GLib.timeout_add_seconds(
-                STARTUP_FETCH_DELAY_S,
-                self._run_startup_fetch,
-            )
+            self._startup_fetch.schedule(STARTUP_FETCH_DELAY_S, self._fetch_all)
 
     def stop(self) -> None:
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
-        if self._startup_fetch_timer_id:
-            GLib.source_remove(self._startup_fetch_timer_id)
-            self._startup_fetch_timer_id = 0
+        self._startup_fetch.cancel()
         if self._retry_timer_id:
             GLib.source_remove(self._retry_timer_id)
             self._retry_timer_id = 0
@@ -207,17 +203,10 @@ class CertwatchApplet(Applet):
         self._fetch_all()
         return True
 
-    def _run_startup_fetch(self) -> bool:
-        self._startup_fetch_timer_id = 0
-        self._fetch_all()
-        return False
-
     def _fetch_all(self) -> None:
         if not self._domains:
             return
-        if self._startup_fetch_timer_id:
-            GLib.source_remove(self._startup_fetch_timer_id)
-            self._startup_fetch_timer_id = 0
+        self._startup_fetch.cancel()
 
         self._fetch_request_id += 1
         request_id = self._fetch_request_id

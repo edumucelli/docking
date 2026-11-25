@@ -426,7 +426,7 @@ class TestAppletLifecycleAndFetch:
 
         assert removed == [11, 12, 13]
         assert applet._timer_id == 0
-        assert applet._startup_fetch_timer_id == 0
+
         assert applet._retry_timer_id == 0
 
     def test_current_certs_preserves_domain_order(self):
@@ -443,14 +443,20 @@ class TestAppletLifecycleAndFetch:
 
     def test_tick_and_startup_fetch(self, monkeypatch):
         applet = _make_applet()
+        applet._domains = [DomainPref("a.test", 443)]
+        add = MagicMock(side_effect=[11, 12])
+        monkeypatch.setattr(certwatch_applet_mod.GLib, "timeout_add_seconds", add)
+        remove = MagicMock()
+        monkeypatch.setattr(certwatch_applet_mod.GLib, "source_remove", remove)
         calls: list[str] = []
         monkeypatch.setattr(applet, "_fetch_all", lambda: calls.append("fetch"))
 
+        applet.start(lambda: None)
         assert applet._tick() is True
-        applet._startup_fetch_timer_id = 99
-        assert applet._run_startup_fetch() is False
+        assert add.call_args.args[1]() is False
+        applet.stop()
+        remove.assert_called_once_with(11)
 
-        assert applet._startup_fetch_timer_id == 0
         assert calls == ["fetch", "fetch"]
 
     def test_fetch_all_no_domains_is_noop(self):
@@ -464,7 +470,10 @@ class TestAppletLifecycleAndFetch:
     def test_fetch_all_queues_worker_and_removes_startup_timer(self, monkeypatch):
         applet = _make_applet()
         applet._domains = [DomainPref("a.test", 443)]
-        applet._startup_fetch_timer_id = 77
+        added = iter([11, 77])
+        monkeypatch.setattr(
+            certwatch_applet_mod.GLib, "timeout_add_seconds", lambda *_: next(added)
+        )
         removed: list[int] = []
         worker_calls: list[dict[str, object]] = []
         monkeypatch.setattr(
@@ -479,6 +488,7 @@ class TestAppletLifecycleAndFetch:
         )
         applet._worker.run = lambda **kwargs: worker_calls.append(kwargs)
 
+        applet.start(lambda: None)
         applet._fetch_all()
 
         assert removed == [77]

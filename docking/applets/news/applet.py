@@ -52,6 +52,7 @@ from docking.applets.news.state import (
 )
 from docking.applets.popup import prepare_dialog_content
 from docking.applets.selection import retained_index
+from docking.applets.timer import OneShotTimer
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -121,7 +122,7 @@ class NewsApplet(Applet):
         self._loading = False
         self._error = ""
         self._refresh_timer_id = 0
-        self._startup_fetch_timer_id = 0
+        self._startup_fetch = OneShotTimer()
         self._fetch_request_id = 0
         self._worker = BackgroundWorker(logger=log)
 
@@ -186,19 +187,15 @@ class NewsApplet(Applet):
             self._refresh_tick,
         )
         if self._current_source is not None:
-            self._startup_fetch_timer_id = GLib.timeout_add_seconds(
-                STARTUP_FETCH_DELAY_S,
-                self._run_startup_fetch,
-            )
+            self._startup_fetch.schedule(STARTUP_FETCH_DELAY_S, self._fetch_async)
 
     def stop(self) -> None:
         self._fetch_request_id += 1
         self._loading = False
-        for attr in ("_refresh_timer_id", "_startup_fetch_timer_id"):
-            timer_id = getattr(self, attr, 0)
-            if timer_id:
-                GLib.source_remove(timer_id)
-                setattr(self, attr, 0)
+        if self._refresh_timer_id:
+            GLib.source_remove(self._refresh_timer_id)
+            self._refresh_timer_id = 0
+        self._startup_fetch.cancel()
         if self._source_dialog is not None:
             self._source_dialog.destroy()
             self._source_dialog = None
@@ -348,11 +345,6 @@ class NewsApplet(Applet):
             self._fetch_async()
         return True
 
-    def _run_startup_fetch(self) -> bool:
-        self._startup_fetch_timer_id = 0
-        self._fetch_async()
-        return False
-
     def _set_active_article(self, index: int) -> None:
         normalized = normalize_active_index(index=index, count=len(self._articles))
         if normalized == self._active_article_index:
@@ -384,9 +376,7 @@ class NewsApplet(Applet):
         source = self._current_source
         if source is None:
             return
-        if self._startup_fetch_timer_id:
-            GLib.source_remove(self._startup_fetch_timer_id)
-            self._startup_fetch_timer_id = 0
+        self._startup_fetch.cancel()
         self._fetch_request_id += 1
         request_id = self._fetch_request_id
         self._loading = True

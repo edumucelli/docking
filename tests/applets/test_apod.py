@@ -417,10 +417,10 @@ class TestAppletLifecycle:
 
         applet.start(lambda: None)
         assert applet._refresh_timer_id == 11
-        assert applet._startup_fetch_timer_id == 12
+        assert add.call_count == 2
 
         assert applet._tick() is True
-        assert applet._run_startup_fetch() is False
+        assert add.call_args.args[1]() is False
 
         applet._retry_timer_id = 13
         applet.stop()
@@ -428,7 +428,7 @@ class TestAppletLifecycle:
         assert removed == [11, 13]
         assert applet._refresh_timer_id == 0
         assert applet._retry_timer_id == 0
-        assert applet._startup_fetch_timer_id == 0
+
         assert applet._fetch_async.call_count == 2
 
     def test_run_retry_only_fetches_when_needed(self, monkeypatch):

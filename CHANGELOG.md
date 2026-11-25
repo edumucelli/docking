@@ -4,10 +4,17 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
+- Separated standalone downloads from package-manager setup and added one
+  installer for APT, DNF, and Zypper, with a link to read the source.
+- Made package-manager setup safe to retry after interrupted writes and
+  refreshed APT package lists before resolving dependencies.
+- Clarified how to preserve other repositories when resolving setup conflicts.
+- Added APT release checks for Linux Mint 22.3 with Cinnamon, MATE, and Xfce.
 - Added a SignPath test-signing workflow for the Windows installer.
 - Added Music setup tips for Rhythmbox track details and mpv playback controls.
 - Fixed the Music play/pause badge when pausing Rhythmbox.
 - Added a Music applet menu for choosing which installed app to open when playback is idle.
+- Added **Previous Headline** to the Hacker News applet's right-click menu.
 - Temporarily disabled the Reddit applet while its RSS feeds are unreliable.
   Existing Reddit pins and preferences are retained.
 - Added contributor guidance, a code of conduct, and a security reporting policy.
