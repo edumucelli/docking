@@ -16,6 +16,9 @@ Build-Depends:
     python3-wheel,
     python3-pip,
     python3-venv,
+    python3-pywayland <!pkg.docking.release>,
+    python3-cffi-backend <!pkg.docking.release>,
+    pkg-config <!pkg.docking.release>,
     libwayland-dev,
     wayland-protocols,
     gettext

@@ -51,6 +51,8 @@ unsigned; see [Windows coverage](docs/WINDOWS.md) for accepted behavior and limi
 Choose the instructions for your system:
 
 - [Debian and Ubuntu (APT)](docs/INSTALLATION.md#debian-and-ubuntu-apt)
+- [Ubuntu PPA](docs/INSTALLATION.md#launchpad-ppa) for 22.04, 24.04, and 26.04
+  (amd64 and arm64).
 - [Fedora and openSUSE (RPM)](docs/INSTALLATION.md#fedora-and-opensuse-rpm)
 - [Release downloads and local installation](docs/INSTALLATION.md#release-downloads)
   for AppImage, Debian, RPM, Flatpak, Snap, Arch, and Nix packages.

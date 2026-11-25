@@ -644,6 +644,12 @@ A source of Docking releases that users can add to their system package
 manager for installation and future updates.
 [Installation guide](docs/INSTALLATION.md#debian-and-ubuntu-apt)
 
+**Docking PPA**
+
+A Docking APT repository hosted by Launchpad, with packages built from
+Docking source uploads for particular Ubuntu releases.
+[PPA release guide](packaging/ppa/README.md)
+
 **Standalone package**
 
 A Docking release file for local installation with its native package manager.

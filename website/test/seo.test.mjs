@@ -83,6 +83,10 @@ for (const [lang, route] of Object.entries(languages)) {
     assert.equal(byAttr(standalone, "data-install-link", "").length, 7);
     assert.equal(byAttr(managers, "data-install-link", "").length, 0);
     assert.equal(byAttr(managers, "id", "apt-install").length, 1);
+    const ppa = byAttr(managers, "id", "ppa-install")[0];
+    const ppaCommands = text(byTag(ppa, "pre")[0]);
+    assert.match(ppaCommands, /^sudo add-apt-repository ppa:docking\/docking\n/);
+    assert.ok(guide.includes(ppaCommands), "website and guide must show the same PPA commands");
     assert.equal(byAttr(managers, "id", "rpm-install").length, 1);
     const englishCommands = byTag(parse(source), "pre").map(text);
     assert.deepEqual(byTag(document, "pre").map(text), englishCommands, "installation commands must remain unchanged");
