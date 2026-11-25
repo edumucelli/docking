@@ -339,13 +339,16 @@ class TestThermalsApplet:
         applet.start(lambda: None)
 
         assert applet._timer_id == 11
-        assert applet._startup_fetch_timer_id == 12
+        assert add.call_count == 2
 
     def test_stop_removes_timers(self, monkeypatch):
         removed = []
         applet = _make_applet()
-        applet._timer_id = 11
-        applet._startup_fetch_timer_id = 12
+        added = iter([11, 12])
+        monkeypatch.setattr(
+            thermals_applet_mod.GLib, "timeout_add_seconds", lambda *_: next(added)
+        )
+        applet.start(lambda: None)
         monkeypatch.setattr(
             thermals_applet_mod.GLib,
             "source_remove",
@@ -356,7 +359,6 @@ class TestThermalsApplet:
 
         assert removed == [11, 12]
         assert applet._timer_id == 0
-        assert applet._startup_fetch_timer_id == 0
 
     def test_fetch_result_updates_snapshot(self):
         applet = _make_applet()

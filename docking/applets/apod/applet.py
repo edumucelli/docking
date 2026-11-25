@@ -46,6 +46,7 @@ from docking.applets.live_state import (
     resolve_live_status,
 )
 from docking.applets.menu import disabled_menu_item, menu_sections
+from docking.applets.timer import OneShotTimer
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -73,7 +74,7 @@ class ApodApplet(Applet):
     def __init__(self, icon_size: int, config: Config) -> None:
         self._refresh_timer_id: int = 0
         self._retry_timer_id: int = 0
-        self._startup_fetch_timer_id: int = 0
+        self._startup_fetch = OneShotTimer()
         self._fetch_request_id: int = 0
         self._loading = False
         self._error: str | None = None
@@ -151,16 +152,15 @@ class ApodApplet(Applet):
             REFRESH_CHECK_INTERVAL_S, self._tick
         )
         if self._needs_fetch():
-            self._startup_fetch_timer_id = GLib.timeout_add_seconds(
-                STARTUP_FETCH_DELAY_S, self._run_startup_fetch
-            )
+            self._startup_fetch.schedule(STARTUP_FETCH_DELAY_S, self._fetch_async)
 
     def stop(self) -> None:
-        for attr in ("_refresh_timer_id", "_retry_timer_id", "_startup_fetch_timer_id"):
+        for attr in ("_refresh_timer_id", "_retry_timer_id"):
             tid = getattr(self, attr, 0)
             if tid:
                 GLib.source_remove(tid)
                 setattr(self, attr, 0)
+        self._startup_fetch.cancel()
         super().stop()
 
     def _needs_fetch(self) -> bool:
@@ -178,15 +178,8 @@ class ApodApplet(Applet):
             self._fetch_async()
         return True
 
-    def _run_startup_fetch(self) -> bool:
-        self._startup_fetch_timer_id = 0
-        self._fetch_async()
-        return False
-
     def _fetch_async(self) -> None:
-        if self._startup_fetch_timer_id:
-            GLib.source_remove(self._startup_fetch_timer_id)
-            self._startup_fetch_timer_id = 0
+        self._startup_fetch.cancel()
         self._fetch_request_id += 1
         request_id = self._fetch_request_id
         self._loading = True
