@@ -17,8 +17,8 @@ make -C "$port" BATCH=yes "DISTDIR=$work/distfiles" \
     "DEFAULT_VERSIONS=python=$python python3=$python" \
     checksum stage-qa check-plist package
 
-package=$(make -C "$port" -V PKGFILE "DEFAULT_VERSIONS=python=$python python3=$python")
-pkg install -y "$package"
+package=$(make -C "$port" -V WRKDIR_PKGFILE "DEFAULT_VERSIONS=python=$python python3=$python")
+pkg add "$package"
 pkg check -d docking
 test -x /usr/local/bin/docking
 PYTHONPATH=/usr/local/lib/docking/python python3 -P - <<'EOF'

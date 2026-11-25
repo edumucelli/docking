@@ -19,7 +19,7 @@ RUN_DEPENDS=	${PYTHON_PKGNAMEPREFIX}pycairo>0:graphics/py-pycairo@${PY_FLAVOR} \
 		pkexec:sysutils/polkit \
 		xterm:x11/xterm
 
-USES=		desktop-file-utils gettext-tools gnome python:3.11+
+USES=		gettext-tools gnome python:3.11+
 USE_GITHUB=	yes
 GH_ACCOUNT=	edumucelli
 USE_GNOME=	gtk30 libwnck3
