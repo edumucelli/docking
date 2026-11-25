@@ -773,8 +773,21 @@ class DockRenderer:
             state=state,
         )
         if state.input_region_alpha > 0:
-            # Some window systems derive input from rendered alpha. Apply the
-            # backend's alpha floor behind content before the atomic blit.
+            # Win32 tests the alpha of a layered window to decide whether a
+            # pointer event passes through. Put the alpha floor behind the
+            # dock pixels so transparent corners can still take dock input.
+            #
+            #   alpha in a transparent pixel   outside cursor_rect  0
+            #                                   inside cursor_rect  1 / 255
+            #
+            #   CLEAR offscreen -> paint dock -> DEST_OVER the input floor
+            #                                        |
+            #                                        v
+            #                         SOURCE the full frame to the window
+            #
+            # DEST_OVER keeps existing icon and shelf colors in front.
+            # SOURCE replaces the old frame so a displaced input region
+            # cannot leave event-catching pixels behind.
             rect = frame.cursor_rect
             ocr.save()
             ocr.set_operator(cairo.OPERATOR_DEST_OVER)
@@ -865,6 +878,20 @@ class DockRenderer:
         bg_height = frame.shelf_cross_extent
         as_bottom_bg_y = frame.shelf_as_bottom_y
 
+        # Two nested Cairo states keep the shelf clip away from icons, which
+        # are free to zoom and bounce beyond the rounded background.
+        #
+        #   window coordinates
+        #     + save and transform to shelf coordinates
+        #     |   paint shelf fill and strokes
+        #     |   + save and clip to the shelf path
+        #     |   | paint active and drop-target glows
+        #     |   + restore the previous clip
+        #     + restore the window transform
+        #   paint icons and indicators in window coordinates
+        #
+        # Apply the same transform to the clip and shelf path so their
+        # corners match on every edge.
         cr.save()
         self._apply_shelf_transform(
             cr=cr,
@@ -1242,6 +1269,21 @@ class DockRenderer:
         - LEFT: rotate so horizontal becomes vertical, square edge at left
         - RIGHT: rotate so horizontal becomes vertical, square edge at right
         """
+        # Author shelf paths in (u, v), with u increasing along the row and
+        # v increasing toward the edge. Let W and H be the window dimensions.
+        #
+        #   Dock edge     window x   window y     +u points   +v points
+        #   ---------     --------   --------     ---------   ---------
+        #   BOTTOM           u          v           right        down
+        #   TOP              u        H - v         right        up
+        #   LEFT           W - v        u           down         left
+        #   RIGHT            v          u           down         right
+        #
+        # Both vertical docks keep item order from top to bottom. RIGHT needs
+        # an axis swap to preserve that order while pointing +v toward the
+        # right edge. Geometry mirrors the shelf interval for TOP and LEFT,
+        # so shelf_as_bottom_y subtracts both the shelf's cross position and
+        # its cross extent for those edges.
         if pos == Position.TOP:
             cr.translate(0, height)
             cr.scale(1, -1)
@@ -1249,8 +1291,6 @@ class DockRenderer:
             cr.translate(width, 0)
             cr.rotate(math.pi / 2)
         elif pos == Position.RIGHT:
-            # Swap axes without reversing the main axis: top-aligned icons
-            # and their shelf must both remain at the top of a right dock.
             cr.transform(cairo.Matrix(0, 1, 1, 0, 0, 0))
         # BOTTOM: identity -- no transform needed
 

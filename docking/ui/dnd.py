@@ -404,7 +404,20 @@ class DnDHandler:
         main_coord = x if is_horizontal(pos=self._config.pos) else y
 
         if self._drag_from < 0:
-            # External drag -- compute insert position for gap effect
+            # Choose an insertion index in a frame without the gap. An
+            # index based on already-displaced items could move every time its
+            # own preview shifts the item centers away from the pointer.
+            #
+            #   plain frame       [ A ] [ B ] | [ C ] [ D ]
+            #                                 ^ insert at index 2
+            #
+            #   paint and pick   [ A ] [ B ] | gap | [ C ] [ D ]
+            #                                         ^ same index, new position
+            #
+            # A second frame reserves the gap in the shelf while keeping the
+            # item indices. The renderer and the drop-target test add the
+            # gap to the draw positions at or after that index. Use the
+            # shifted icon bounds when highlighting an app or applet.
             frame = self._geometry_builder.build_frame(main_cursor=-1.0)
             insert = frame.insertion_index_for_main(main_coord, pos=self._config.pos)
             changed = insert != self.drop_insert_index

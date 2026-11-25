@@ -1089,6 +1089,21 @@ class StackPopupController:
         cr.set_operator(cairo.OPERATOR_OVER)
         now_us = GLib.get_monotonic_time()
         total_cards = len(self._folder_stack_cards)
+        # Cards are stored top to bottom within the popup on every dock edge.
+        # The bottom card reveals first and is the first tested for a pointer hit.
+        #
+        #   upper card  [ C ]    paint first   reveal third   test third
+        #   middle card [ B ]         |       reveal second  test second
+        #   bottom card [ A ]    paint last    reveal first   test first
+        #                 ^
+        #               fold
+        #
+        # Both drawing and _stack_card_at evaluate _stack_card_geometry at the
+        # current time. Each card moves outward from the fold center as it
+        # appears. Hit testing follows its moving axis-aligned icon and label
+        # rectangles while Cairo rotates the artwork about their centers.
+        # If animated rectangles overlap, the reverse walk picks the card
+        # painted on top.
         for draw_index, card in enumerate(self._folder_stack_cards):
             self._draw_stack_card(
                 cr=cr,

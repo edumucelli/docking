@@ -21,6 +21,18 @@ class ScreenMapping:
     workarea: Rect
     scale: int
 
+    # GTK and Win32 may disagree on the desktop origin of the same monitor.
+    # A monitor left of the primary display can have a negative Win32 origin
+    # while its GTK origin is zero. Scale the offset inside the monitor and
+    # then add the origin in the destination coordinate system.
+    #
+    #   GTK screen     logical monitor    physical monitor    Win32 screen
+    #   (25, 40)  --->    (25, 40)   --->      (50, 80)    ---> (-1550, 80)
+    #            subtract (0, 0)      scale 2      add (-1600, 0)
+    #
+    # Rectangles travel back through these same spaces in reverse.
+    # device_to_logical rounds outward so the logical rectangle still covers
+    # the original device pixels when either edge lands between GTK units.
     def to_physical(self, rect: Rect) -> Rect:
         return Rect(
             self.physical.x + (rect.x - self.logical.x) * self.scale,
