@@ -321,7 +321,7 @@ makepkg -si
 
 `docking` builds the tagged release. Use the generated `docking-git` directory
 to build the current `master`. These source recipes are ready to submit to the
-AUR. AUR users can already install the community-maintained `docking-bin`.
+AUR.
 
 ## Nix
 

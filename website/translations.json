@@ -1169,20 +1169,20 @@
     "fr": "Guide d’installation des RPM pour Fedora",
     "es": "Guía de instalación de RPM para Fedora"
   },
-  "Arch Linux (AUR)": {
-    "pt": "Arch Linux (AUR)",
-    "fr": "Arch Linux (AUR)",
-    "es": "Arch Linux (AUR)"
+  "Arch Linux": {
+    "pt": "Arch Linux",
+    "fr": "Arch Linux",
+    "es": "Arch Linux"
   },
-  "Use Yay to install the prebuilt package from the community-maintained AUR entry.": {
-    "pt": "Use o Yay para instalar o pacote pré-compilado da AUR, mantido pela comunidade.",
-    "fr": "Utilisez Yay pour installer le paquet précompilé depuis l’entrée AUR maintenue par la communauté.",
-    "es": "Usa Yay para instalar el paquete precompilado desde la entrada de AUR que mantiene la comunidad."
+  "The Arch release package installs as docking. Download the file for your architecture and use its filename in the command below.": {
+    "pt": "O pacote Arch da versão é instalado como docking. Descarregue o ficheiro para a sua arquitetura e use o nome do ficheiro no comando abaixo.",
+    "fr": "Le paquet Arch de la version s’installe sous le nom docking. Téléchargez le fichier correspondant à votre architecture et utilisez son nom dans la commande ci-dessous.",
+    "es": "El paquete de Arch de la versión se instala como docking. Descarga el archivo para tu arquitectura y usa su nombre en el comando siguiente."
   },
-  "AUR package": {
-    "pt": "Pacote da AUR",
-    "fr": "Paquet AUR",
-    "es": "Paquete de AUR"
+  "Arch package downloads": {
+    "pt": "Descarregar os pacotes Arch",
+    "fr": "Télécharger les paquets Arch",
+    "es": "Descargar los paquetes de Arch"
   },
   "Build from source on Arch": {
     "pt": "Compilar a partir do código-fonte no Arch",

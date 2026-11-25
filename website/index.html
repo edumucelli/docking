@@ -740,14 +740,14 @@ sudo zypper refresh docking-rpm docking-rpm-noarch &amp;&amp; sudo zypper update
             </details>
             <details id="arch-install" class="group mt-4 scroll-mt-24 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
               <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
-                <span>Arch Linux (AUR)</span>
+                <span>Arch Linux</span>
                 <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
               </summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Use Yay to install the prebuilt package from the community-maintained AUR entry.</p>
+              <p class="mt-4 text-sm leading-7 text-slate-300">The Arch release package installs as docking. Download the file for your architecture and use its filename in the command below.</p>
               <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
-                <pre class="text-sm leading-7 text-slate-200"><code>yay -S docking-bin</code></pre>
+                <pre class="text-sm leading-7 text-slate-200"><code>sudo pacman -U ./PACKAGE_FILE</code></pre>
               </div>
-              <p class="mt-3 text-sm leading-7 text-slate-300"><a href="https://aur.archlinux.org/packages/docking-bin" class="text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">AUR package</a> · <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#arch-linux-aur" class="text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">Build from source on Arch</a></p>
+              <p class="mt-3 text-sm leading-7 text-slate-300"><a href="#standalone-packages" class="text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">Arch package downloads</a> · <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#arch-linux" class="text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">Build from source on Arch</a></p>
             </details>
             <details id="nix-install" class="group mt-4 scroll-mt-24 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
               <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">

@@ -56,8 +56,8 @@ Choose the instructions for your system:
 - [Fedora and openSUSE (RPM)](docs/INSTALLATION.md#fedora-and-opensuse-rpm)
 - [Fedora release RPMs](docs/INSTALLATION.md#fedora-release-packages) for Fedora 44
   and 45 on x86_64 and aarch64.
-- [Arch Linux (AUR)](docs/INSTALLATION.md#arch-linux-aur) for the prebuilt package
-  and local source builds.
+- [Arch Linux](docs/INSTALLATION.md#arch-linux) for the `docking` package and
+  local source builds.
 - [Nix flake](docs/INSTALLATION.md#nix) for x86_64 and aarch64 Linux.
 - [Release downloads and local installation](docs/INSTALLATION.md#release-downloads)
   for AppImage, Debian, RPM, Flatpak, Snap, Arch, and Nix packages.

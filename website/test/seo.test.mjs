@@ -92,7 +92,8 @@ for (const [lang, route] of Object.entries(languages)) {
     const arch = byAttr(managers, "id", "arch-install")[0];
     const nix = byAttr(managers, "id", "nix-install")[0];
     assert.equal(text(fedora), "sudo dnf install ./PACKAGE.rpm");
-    assert.equal(text(byTag(arch, "pre")[0]), "yay -S docking-bin");
+    assert.equal(text(byTag(arch, "pre")[0]), "sudo pacman -U ./PACKAGE_FILE");
+    assert.equal(byAttr(arch, "href", "#standalone-packages").length, 1);
     const nixCommand = text(byTag(nix, "pre")[0]);
     assert.match(nixCommand, / run github:edumucelli\/docking$/);
     for (const installCommand of [text(fedora), text(byTag(arch, "pre")[0]), nixCommand]) {

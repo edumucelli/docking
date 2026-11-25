@@ -115,18 +115,18 @@ sudo dnf install ./PACKAGE.rpm
 The matching `docking-devel`, `docking-debuginfo`, and `docking-debugsource`
 RPMs are available for applet development and native Wayland debugging.
 
-## Arch Linux (AUR)
+## Arch Linux
 
-The community-maintained [docking-bin](https://aur.archlinux.org/packages/docking-bin)
-package installs the prebuilt release. Install it with Yay using the following
-command.
+Download the [Arch package](#release-downloads) for x86_64 or aarch64. It
+installs as `docking`. Run the command from the download directory and replace
+`PACKAGE_FILE` with the downloaded filename.
 
 ```sh
-yay -S docking-bin
+sudo pacman -U ./PACKAGE_FILE
 ```
 
-Docking also provides recipes for stable source and development builds. Follow
-the [Arch packaging guide](../packaging/README.md#arch) to build them locally.
+Follow the [Arch packaging guide](../packaging/README.md#arch) to build the
+stable `docking` or development `docking-git` source package locally.
 
 ## Nix
 
