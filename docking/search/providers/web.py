@@ -153,12 +153,8 @@ class WebSearchProvider:
         action_identity: SearchIdentity,
     ) -> bool:
         """Open or copy the cached target for a validated web action."""
-        parts = action_parts(action_identity)
-        if (
-            result_identity.provider_id != self.provider_id
-            or parts is None
-            or parts[0] != result_identity.key
-        ):
+        parts = action_parts(self.provider_id, result_identity, action_identity)
+        if parts is None:
             return False
         target = self._targets.get(parts[0])
         if target is None:

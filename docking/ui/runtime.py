@@ -59,17 +59,11 @@ class DockRuntime:
     def on_hide_mode_changed(self) -> None:
         self._window.on_hide_mode_changed()
 
-    def get_monitor_menu_choices(self) -> list[tuple[str, int]]:
-        return self._window.placement.get_monitor_menu_choices()
-
     def get_monitor_choices(self) -> list[MonitorChoice]:
         return self._window.placement.get_monitor_choices()
 
     def current_monitor_choice(self) -> int:
         return self._window.placement.current_monitor_choice()
-
-    def primary_monitor_index(self) -> int:
-        return self._window.placement.primary_monitor_index()
 
     def reposition(self) -> None:
         self._window.placement.reposition()

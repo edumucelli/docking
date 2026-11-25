@@ -132,7 +132,6 @@ def test_lists_existing_files_most_recent_first_as_frozen_snapshots():
     assert manager.get_items_calls == 1
     assert generations == [1]
     assert catalog.generation == 1
-    assert catalog.entries == catalog.snapshot()
     assert catalog.snapshot() == (
         RecentFileSnapshot(
             name="new.pdf",
@@ -158,7 +157,7 @@ def test_manager_changes_advance_generation_only_for_new_data():
     catalog = _catalog()
     catalog._manager_factory = lambda: manager
     notifications: list[int] = []
-    unsubscribe = catalog.subscribe(
+    unsubscribe = catalog.add_listener(
         lambda: notifications.append(catalog.generation),
     )
 
@@ -261,7 +260,7 @@ def test_open_and_clear_failures_are_contained():
     catalog._uri_launcher = fail_to_launch
 
     assert catalog.open_uri("file:///notes.txt") is False
-    assert catalog.clear_recent() is False
+    assert catalog.clear() is False
 
 
 def test_injected_target_service_controls_exact_open_result():

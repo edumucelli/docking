@@ -59,10 +59,17 @@ def action(
     )
 
 
-def action_parts(identity: SearchIdentity) -> tuple[str, str] | None:
-    """Decode the entity and action IDs from a provider-owned action."""
-    parts = identity.key.rsplit("\x1f", 1)
-    if len(parts) != 2 or not all(parts):
+def action_parts(
+    provider_id: str, result_identity: SearchIdentity, action_identity: SearchIdentity
+) -> tuple[str, str] | None:
+    """Decode the action and check the owning provider and result."""
+    if (
+        action_identity.provider_id != provider_id
+        or result_identity.provider_id != provider_id
+    ):
+        return None
+    parts = action_identity.key.rsplit("\x1f", 1)
+    if len(parts) != 2 or not all(parts) or parts[0] != result_identity.key:
         return None
     return parts[0], parts[1]
 

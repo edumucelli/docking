@@ -107,13 +107,8 @@ class CalculatorSearchProvider:
         action_identity: SearchIdentity,
     ) -> bool:
         """Copy the cached answer for a validated result and action identity."""
-        parts = action_parts(action_identity)
-        if (
-            result_identity.provider_id != self.provider_id
-            or parts is None
-            or parts[0] != result_identity.key
-            or parts[1] != "copy"
-        ):
+        parts = action_parts(self.provider_id, result_identity, action_identity)
+        if parts is None or parts[1] != "copy":
             return False
         answer = self._answers.get(parts[0])
         if answer is None:

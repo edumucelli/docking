@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
@@ -54,6 +55,23 @@ class TestLoadState:
         save_state(state, path=path)
 
         assert load_state(path=path) == state
+
+    def test_failed_replace_preserves_state_and_cleans_up(self, tmp_path, monkeypatch):
+        path = tmp_path / "startup.json"
+        previous = StartupGreetingState(completed_first_launch=True)
+        save_state(previous, path=path)
+        error = OSError("replace failed")
+
+        def fail_replace(_file, _target):
+            raise error
+
+        monkeypatch.setattr(Path, "replace", fail_replace)
+        with pytest.raises(OSError) as failure:
+            save_state(StartupGreetingState(last_year_greeted=2026), path=path)
+
+        assert failure.value is error
+        assert load_state(path=path) == previous
+        assert len(list(tmp_path.iterdir())) == 1
 
     def test_load_state_with_str_path(self, tmp_path):
         """load_state accepts a string path."""

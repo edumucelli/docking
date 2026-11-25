@@ -7,6 +7,7 @@ from typing import cast
 from unittest.mock import MagicMock
 
 from docking.core.theme import Theme
+from docking.ui.placement import MonitorChoice
 from docking.ui.runtime import DockRuntime
 
 
@@ -35,9 +36,10 @@ def _make_window():
         ),
         placement=SimpleNamespace(
             update_struts=MagicMock(),
-            get_monitor_menu_choices=MagicMock(return_value=[("Display 1", 0)]),
+            get_monitor_choices=MagicMock(
+                return_value=[MonitorChoice(label="Display 1", index=0, connector=None)]
+            ),
             current_monitor_choice=MagicMock(return_value=1),
-            primary_monitor_index=MagicMock(return_value=0),
             reposition=MagicMock(),
             start_active_display=MagicMock(),
             stop_active_display=MagicMock(),
@@ -91,16 +93,16 @@ class TestDockRuntime:
         window = _make_window()
         runtime = DockRuntime(window, update_checker=_make_update_checker())
 
-        assert runtime.get_monitor_menu_choices() == [("Display 1", 0)]
+        assert runtime.get_monitor_choices() == [
+            MonitorChoice(label="Display 1", index=0, connector=None)
+        ]
         assert runtime.current_monitor_choice() == 1
-        assert runtime.primary_monitor_index() == 0
         runtime.reposition()
         runtime.set_active_display(True)
         runtime.set_active_display(False)
 
-        window.placement.get_monitor_menu_choices.assert_called_once()
+        window.placement.get_monitor_choices.assert_called_once()
         window.placement.current_monitor_choice.assert_called_once()
-        window.placement.primary_monitor_index.assert_called_once()
         window.placement.reposition.assert_called_once()
         window.placement.start_active_display.assert_called_once()
         window.placement.stop_active_display.assert_called_once()

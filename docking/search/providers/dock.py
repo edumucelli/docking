@@ -137,12 +137,8 @@ class DockSearchProvider:
         action_identity: SearchIdentity,
     ) -> bool:
         """Dispatch a validated open or unpin operation."""
-        parts = action_parts(action_identity)
-        if (
-            result_identity.provider_id != self.provider_id
-            or parts is None
-            or parts[0] != result_identity.key
-        ):
+        parts = action_parts(self.provider_id, result_identity, action_identity)
+        if parts is None:
             return False
         desktop_id, action_id = parts
         item = self._model.find_by_desktop_id(desktop_id=desktop_id)

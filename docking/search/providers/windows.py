@@ -127,12 +127,8 @@ class WindowSearchProvider:
         action_identity: SearchIdentity,
     ) -> bool:
         """Activate or close the cached window behind a validated action."""
-        parts = action_parts(action_identity)
-        if (
-            result_identity.provider_id != self.provider_id
-            or parts is None
-            or parts[0] != result_identity.key
-        ):
+        parts = action_parts(self.provider_id, result_identity, action_identity)
+        if parts is None:
             return False
         window_id = self._window_ids.get(parts[0])
         if window_id is None:

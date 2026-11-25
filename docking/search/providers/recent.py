@@ -87,13 +87,8 @@ class RecentFilesSearchProvider:
         action_identity: SearchIdentity,
     ) -> bool:
         """Open the URI encoded by a validated recent-file action."""
-        parts = action_parts(action_identity)
-        if (
-            result_identity.provider_id != self.provider_id
-            or parts is None
-            or parts[0] != result_identity.key
-            or parts[1] != "open"
-        ):
+        parts = action_parts(self.provider_id, result_identity, action_identity)
+        if parts is None or parts[1] != "open":
             return False
         return self._catalog.open_uri(parts[0])
 
