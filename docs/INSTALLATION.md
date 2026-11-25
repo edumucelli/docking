@@ -55,6 +55,21 @@ lists and update Docking directly, run the following command.
 sudo apt update && sudo apt install docking
 ```
 
+### Launchpad PPA
+
+The [Launchpad PPA](https://launchpad.net/~docking/+archive/ubuntu/docking)
+targets Ubuntu 26.04 LTS (amd64). After Launchpad publishes the build, install
+Docking with APT.
+
+```sh
+sudo add-apt-repository ppa:docking/docking
+sudo apt update
+sudo apt install docking
+```
+
+If you've also configured Docking's Cloudsmith repository, use
+`apt-cache policy docking` to see which repository supplies APT's candidate.
+
 ## Fedora and openSUSE (RPM)
 
 On Fedora 44/45 and openSUSE Tumbleweed/Leap 16.0, add Docking's RPM repository

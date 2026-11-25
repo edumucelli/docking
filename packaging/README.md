@@ -114,23 +114,9 @@ release downloads.
 
 ## PPA (Launchpad)
 
-```bash
-# Install tooling
-sudo apt install devscripts dput-ng
-
-# Build signed source package for a Ubuntu series
-./packaging/ppa/build.sh noble
-
-# Upload to your Launchpad PPA
-./packaging/ppa/upload.sh <launchpad-id>/<ppa-name>
-```
-
-Notes:
-
-- PPA uploads reuse the Debian metadata in `packaging/deb/debian/`.
-- Launchpad accepts signed source packages, not prebuilt `.deb` files.
-- Built source artifacts are copied to `artifacts/ppa/`.
-- See `packaging/ppa/README.md` for versioning and upload examples.
+The first PPA target is Ubuntu 26.04 LTS (`resolute`) on amd64. Launchpad builds
+the binary package from a signed source upload. Follow the
+[PPA release guide](ppa/README.md) to build, upload, and verify it.
 
 ## PyPI
 

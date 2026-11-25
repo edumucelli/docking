@@ -4,6 +4,7 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
+- Added a Docking Launchpad PPA for Ubuntu 26.04 LTS on amd64.
 - Separated standalone downloads from package-manager setup and added one
   installer for APT, DNF, and Zypper, with a link to read the source.
 - Aligned the standalone download buttons and architecture toggle above the BSD

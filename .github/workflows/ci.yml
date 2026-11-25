@@ -1667,3 +1667,87 @@ jobs:
     uses: ./.github/workflows/cloudsmith.yml
     with:
       release_tag: ${{ needs.release.outputs.tag }}
+
+  publish-launchpad:
+    name: Publish Launchpad PPA source packages
+    needs: [release]
+    if: needs.release.outputs.published == 'true' && vars.LAUNCHPAD_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    environment: launchpad
+    concurrency:
+      group: launchpad-${{ needs.release.outputs.tag }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ needs.release.outputs.tag }}
+          persist-credentials: false
+
+      - name: Install source packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            curl debhelper devscripts dpkg-dev dput-ng gnupg jq \
+            pybuild-plugin-pyproject python3-distro-info
+
+      - name: Build sources for the supported Ubuntu releases
+        env:
+          DEBEMAIL: hello@docking.cc
+        run: |
+          for series in jammy noble resolute; do
+            ./packaging/ppa/build.sh --unsigned "$series"
+          done
+
+      - name: Sign and upload source packages
+        env:
+          LAUNCHPAD_SIGNING_KEY: ${{ secrets.LAUNCHPAD_SIGNING_KEY }}
+          LAUNCHPAD_SIGNING_PASSPHRASE: ${{ secrets.LAUNCHPAD_SIGNING_PASSPHRASE }}
+        shell: bash
+        run: |
+          uploads=()
+          for changes in artifacts/ppa/unsigned/docking_*_source.changes; do
+            version=$(sed -n 's/^Version: //p' "$changes")
+            test -n "$version"
+            accepted=$(curl --fail --silent --show-error --retry 3 --max-time 30 --get \
+              https://api.launchpad.net/devel/~docking/+archive/ubuntu/docking \
+              --data-urlencode 'ws.op=getPublishedSources' --data-urlencode 'source_name=docking' \
+              --data-urlencode 'exact_match=true' --data-urlencode "version=$version" | jq -er '.total_size | numbers')
+            if (( accepted > 0 )); then
+              printf 'Launchpad already accepted %s\n' "$version"
+            else
+              uploads+=("$changes")
+            fi
+          done
+          if (( ${#uploads[@]} == 0 )); then exit 0; fi
+
+          umask 077
+          GNUPGHOME=$(mktemp -d)
+          export GNUPGHOME
+          trap 'gpgconf --kill all || true; rm -rf "$GNUPGHOME"' EXIT
+          printf '%s\n' "$LAUNCHPAD_SIGNING_KEY" | gpg --batch --import
+          unset LAUNCHPAD_SIGNING_KEY
+          fingerprint=$(gpg --batch --with-colons --list-secret-keys | \
+            awk -F: '$1 == "sec" { primary = 1; next } primary && $1 == "fpr" { print $10; primary = 0 }')
+          [[ "$fingerprint" =~ ^[A-F0-9]{40}$ ]] || { echo 'Expected one Launchpad private key.' >&2; exit 1; }
+
+          printf '%s\n' "$LAUNCHPAD_SIGNING_PASSPHRASE" > "$GNUPGHOME/passphrase"
+          unset LAUNCHPAD_SIGNING_PASSPHRASE
+          cat > "$GNUPGHOME/sign" <<'SH'
+          #!/bin/sh
+          exec gpg --batch --pinentry-mode loopback --passphrase-file "$GNUPGHOME/passphrase" "$@"
+          SH
+          chmod 700 "$GNUPGHOME/sign"
+
+          for changes in "${uploads[@]}"; do
+            debsign --no-conf --no-re-sign -p"$GNUPGHOME/sign" -k"$fingerprint" "$changes"
+            dput --check-only ppa:docking/docking "$changes"
+          done
+
+          upload_failed=0
+          for changes in "${uploads[@]}"; do
+            ./packaging/ppa/upload.sh docking/docking "$changes" || upload_failed=1
+          done
+          exit "$upload_failed"
