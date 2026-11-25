@@ -114,9 +114,9 @@ release downloads.
 
 ## PPA (Launchpad)
 
-Launchpad builds amd64 packages for Ubuntu 22.04, 24.04, and 26.04 from signed
-source uploads on each Docking release. See the [PPA guide](ppa/README.md) for
-local builds and release troubleshooting.
+Launchpad builds amd64 and arm64 packages for Ubuntu 22.04, 24.04, and 26.04
+from signed source uploads on each Docking release. See the
+[PPA guide](ppa/README.md) for local builds and release troubleshooting.
 
 ## PyPI
 

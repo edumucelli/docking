@@ -58,8 +58,9 @@ sudo apt update && sudo apt install docking
 ### Launchpad PPA
 
 The [Launchpad PPA](https://launchpad.net/~docking/+archive/ubuntu/docking)
-targets Ubuntu 22.04, 24.04, and 26.04 on amd64. After Launchpad publishes the
-build for your Ubuntu version, install Docking with APT.
+targets Ubuntu 22.04, 24.04, and 26.04 on amd64 and arm64. After Launchpad
+publishes the build for your Ubuntu version and architecture, install Docking
+with APT.
 
 ```sh
 sudo add-apt-repository ppa:docking/docking

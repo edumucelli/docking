@@ -1,8 +1,8 @@
 # Docking on Launchpad
 
 Release CI uploads signed Docking source packages to `ppa:docking/docking`.
-Launchpad builds amd64 packages for Ubuntu 22.04 (`jammy`), 24.04 (`noble`),
-and 26.04 (`resolute`). See the
+Launchpad builds amd64 and arm64 packages for Ubuntu 22.04 (`jammy`), 24.04
+(`noble`), and 26.04 (`resolute`). See the
 [PPA package status](https://launchpad.net/~docking/+archive/ubuntu/docking/+packages).
 
 ## Build locally
