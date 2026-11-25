@@ -264,7 +264,7 @@
           <div class="reveal flex flex-col items-center">
             <h1 class="max-w-3xl text-5xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">Docking <span class="mt-5 block text-2xl font-medium tracking-tight text-slate-100 sm:text-3xl">A free desktop dock for Linux, BSD and Windows</span></h1>
 
-            <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">A fast, customizable dock with built-in applets for Linux, FreeBSD, OpenBSD, NetBSD, and Windows 11. Supports X11 on Linux and BSD, Wayland on Linux, and native Windows integration.</p>
+            <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">Launch apps quickly and make the dock your own with themes and several built-in applets.</p>
             <div class="mt-10 flex flex-col gap-4 sm:flex-row">
               <a href="#install" class="inline-flex items-center justify-center rounded-2xl bg-linear-to-r/srgb from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_18px_48px_rgba(239,68,68,0.28)] transition hover:scale-[1.02]">Install Docking</a>
               <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">View on GitHub</a>
@@ -315,7 +315,7 @@
 
       <section id="features" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal max-w-3xl">
-          <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Features: built for your desktop workflow</h2>
+          <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Docking features</h2>
           <p class="mt-4 max-w-2xl text-lg leading-8 text-slate-300">Docking combines launcher speed, desktop awareness, and a modular widget system in one polished surface.</p>
         </div>
 
@@ -592,27 +592,22 @@
           <p class="mt-4 text-lg leading-8 text-slate-300"><a href="#package-managers" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">Install with a package manager</a> for future updates, or download a standalone package below.</p>
 
           <section id="standalone-packages" class="mt-8" aria-labelledby="standalone-packages-heading">
-            <div class="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-              <div>
-                <h3 id="standalone-packages-heading" class="text-xl font-semibold text-white">Standalone packages</h3>
-                <p class="mt-2 text-sm text-slate-300"><a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">GitHub Releases</a></p>
+            <h3 id="standalone-packages-heading" class="text-xl font-semibold text-white">Standalone packages</h3>
+            <p class="mt-2 text-sm text-slate-300"><a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">GitHub Releases</a></p>
+            <div class="mt-4 grid gap-4 xl:grid-cols-[auto_minmax(0,1fr)] xl:items-center">
+              <div class="mx-auto flex w-fit rounded-full border p-1 shadow-soft backdrop-blur-xl" data-install-arch-toggle role="group" aria-label="Linux package architecture">
+                <button type="button" class="rounded-full px-4 py-2 text-sm font-semibold text-slate-300 transition hover:text-white" data-install-arch-option="x64" aria-pressed="true">x64</button>
+                <button type="button" class="rounded-full px-4 py-2 text-sm font-semibold transition text-slate-300 hover:text-white" data-install-arch-option="arm64" aria-pressed="false">arm64</button>
               </div>
-              <div>
-                <div class="mb-4 mx-auto flex w-fit rounded-full border p-1 shadow-soft backdrop-blur-xl" data-install-arch-toggle role="group" aria-label="Linux package architecture">
-                  <button type="button" class="rounded-full px-4 py-2 text-sm font-semibold text-slate-300 transition hover:text-white" data-install-arch-option="x64" aria-pressed="true">x64</button>
-                  <button type="button" class="rounded-full px-4 py-2 text-sm font-semibold transition text-slate-300 hover:text-white" data-install-arch-option="arm64" aria-pressed="false">arm64</button>
-                </div>
-                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.AppImage" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">AppImage</a>
-                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.deb" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">.deb</a>
-                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">RPM</a>
-                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.flatpak" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Flatpak</a>
-                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.snap" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Snap</a>
-                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.xz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Arch</a>
-                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-output.tar.gz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Nix</a>
-                  <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-windows-x86_64-setup.exe" target="_blank" rel="noopener noreferrer" aria-label="Download Windows installer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">.exe</a>
-                </div>
-                <p class="mt-4 text-sm leading-7 text-slate-300">Nix release assets include an output tarball and a matching <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt" data-install-store-path data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-store-path.txt" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-store-path.txt" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 transition hover:decoration-white">store path</a> for the selected architecture.</p>
+              <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-8 xl:[&>a]:px-2">
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.AppImage" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.AppImage" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">AppImage</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.deb" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.deb" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">.deb</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.rpm" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.rpm" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">RPM</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.flatpak" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.flatpak" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Flatpak</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.snap" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.snap" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Snap</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64.pkg.tar.zst" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64.pkg.tar.xz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Arch</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-install-link data-href-x64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-x86_64-nix-output.tar.gz" data-href-arm64="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-linux-aarch64-nix-output.tar.gz" target="_blank" rel="noopener noreferrer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">Nix</a>
+                <a href="https://github.com/edumucelli/docking/releases/latest/download/docking-latest-windows-x86_64-setup.exe" target="_blank" rel="noopener noreferrer" aria-label="Download Windows installer" class="inline-flex w-full items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">.exe</a>
               </div>
             </div>
             <details id="bsd-install" class="group mt-4 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
@@ -756,16 +751,6 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
         </div>
       </section>
 
-      <section class="mx-auto max-w-5xl px-6 py-16 lg:px-8 lg:py-24">
-        <div class="reveal rounded-[2rem] border p-10 text-center shadow-glow backdrop-blur-2xl">
-          <div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-linear-to-br/srgb from-accent/30 to-skyline/20 text-white shadow-soft">
-            <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18"></path><path d="M3 12h18"></path><path d="M6.5 6.5 17.5 17.5"></path></svg>
-          </div>
-          <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Flexible, extensible, and built for real workflows.</h2>
-          <p class="mx-auto mt-5 max-w-3xl text-xl leading-9 text-slate-300">Docking gives you control without getting in your way.</p>
-        </div>
-      </section>
-
       <section id="faq" class="mx-auto max-w-4xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal">
           <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Frequently asked questions</h2>
@@ -795,7 +780,7 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
       </section>
 
       <section class="mx-auto max-w-6xl px-6 pb-24 pt-8 lg:px-8">
-        <div class="reveal overflow-hidden rounded-[2rem] border to-ember/10 p-10 shadow-glow backdrop-blur-2xl">
+        <div class="reveal overflow-hidden rounded-[2rem] border to-ember/10 p-6 shadow-glow backdrop-blur-2xl sm:p-10">
           <div class="absolute inset-x-20 bottom-0 h-32 rounded-full blur-3xl"></div>
           <div class="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
             <div class="max-w-2xl">
@@ -803,9 +788,9 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
               <p class="mt-4 text-lg leading-8 text-slate-300">Install a build, star the project, and shape a dock that fits the way you actually work.</p>
             </div>
 
-            <div class="flex flex-col gap-4 sm:flex-row">
-              <a href="#install" class="inline-flex items-center justify-center rounded-2xl bg-linear-to-r/srgb from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_16px_42px_rgba(239,68,68,0.24)] transition hover:scale-[1.01]">Install Docking</a>
-              <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white transition hover:border-white/30 hover:to-skyline/10">GitHub Star</a>
+            <div class="flex gap-3 text-center sm:gap-4 sm:whitespace-nowrap">
+              <a href="#install" class="inline-flex items-center justify-center rounded-2xl bg-linear-to-r/srgb from-red-500 via-rose-500 to-amber-400 px-3 py-3.5 text-base font-semibold text-white shadow-[0_16px_42px_rgba(239,68,68,0.24)] transition hover:scale-[1.01] sm:px-6">Install Docking</a>
+              <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-3 py-3.5 text-base font-semibold text-white transition hover:border-white/30 hover:to-skyline/10 sm:px-6">GitHub Star</a>
             </div>
           </div>
         </div>

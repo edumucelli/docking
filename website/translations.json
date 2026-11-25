@@ -84,10 +84,10 @@
     "fr": "Un dock gratuit pour Linux, BSD et Windows",
     "es": "Un dock gratuito para Linux, BSD y Windows"
   },
-  "A fast, customizable dock with built-in applets for Linux, FreeBSD, OpenBSD, NetBSD, and Windows 11. Supports X11 on Linux and BSD, Wayland on Linux, and native Windows integration.": {
-    "pt": "Um dock rápido e personalizável com applets integrados para Linux, FreeBSD, OpenBSD, NetBSD e Windows 11. Compatível com X11 no Linux e BSD, Wayland no Linux e integração nativa com Windows.",
-    "fr": "Un dock rapide et personnalisable avec des applets intégrés pour Linux, FreeBSD, OpenBSD, NetBSD et Windows 11. Compatible avec X11 sous Linux et BSD, Wayland sous Linux et l’intégration native à Windows.",
-    "es": "Un dock rápido y personalizable con applets integrados para Linux, FreeBSD, OpenBSD, NetBSD y Windows 11. Compatible con X11 en Linux y BSD, Wayland en Linux e integración nativa con Windows."
+  "Launch apps quickly and make the dock your own with themes and several built-in applets.": {
+    "pt": "Abra aplicações rapidamente e personalize o dock com temas e vários applets integrados.",
+    "fr": "Lancez rapidement vos applications et personnalisez votre dock avec des thèmes et plusieurs applets intégrés.",
+    "es": "Abre aplicaciones rápidamente y personaliza tu dock con temas y varios applets integrados."
   },
   "View on GitHub": {
     "pt": "Ver no GitHub",
@@ -134,10 +134,10 @@
     "fr": "Applets intégrés",
     "es": "Applets integrados"
   },
-  "Features: built for your desktop workflow": {
-    "pt": "Funcionalidades: pensadas para o seu ambiente de trabalho",
-    "fr": "Fonctionnalités : pensées pour votre bureau",
-    "es": "Funciones: pensadas para tu escritorio"
+  "Docking features": {
+    "pt": "Funcionalidades do Docking",
+    "fr": "Fonctionnalités de Docking",
+    "es": "Funciones de Docking"
   },
   "Docking combines launcher speed, desktop awareness, and a modular widget system in one polished surface.": {
     "pt": "O Docking combina o arranque rápido de aplicações, a integração com o ambiente de trabalho e um sistema modular de widgets numa interface cuidada.",
@@ -1144,21 +1144,6 @@
     "fr": "Architecture du paquet Linux",
     "es": "Arquitectura del paquete Linux"
   },
-  "Nix release assets include an output tarball and a matching": {
-    "pt": "Os ficheiros de lançamento Nix incluem um arquivo de saída e o respetivo",
-    "fr": "Les fichiers de version Nix comprennent une archive de sortie et le",
-    "es": "Los archivos de las versiones Nix incluyen un archivo de salida y su correspondiente"
-  },
-  "store path": {
-    "pt": "caminho de armazenamento",
-    "fr": "chemin de stockage",
-    "es": "ruta de almacenamiento"
-  },
-  "for the selected architecture.": {
-    "pt": "para a arquitetura selecionada.",
-    "fr": "correspondant à l’architecture choisie.",
-    "es": "para la arquitectura seleccionada."
-  },
   "Debian & Ubuntu: install with APT": {
     "pt": "Debian e Ubuntu: instalar com APT",
     "fr": "Debian et Ubuntu : installer avec APT",
@@ -1253,16 +1238,6 @@
     "pt": "antes de configurar o ambiente Python.",
     "fr": "avant de configurer l’environnement Python.",
     "es": "antes de configurar el entorno Python."
-  },
-  "Flexible, extensible, and built for real workflows.": {
-    "pt": "Flexível, extensível e pensado para o trabalho real.",
-    "fr": "Flexible, extensible et conçu pour vos usages quotidiens.",
-    "es": "Flexible, extensible y pensado para el trabajo real."
-  },
-  "Docking gives you control without getting in your way.": {
-    "pt": "O Docking dá-lhe controlo sem atrapalhar.",
-    "fr": "Docking vous donne le contrôle sans vous gêner.",
-    "es": "Docking te da el control sin estorbar."
   },
   "Frequently asked questions": {
     "pt": "Perguntas frequentes",

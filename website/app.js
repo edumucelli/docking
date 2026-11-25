@@ -113,7 +113,6 @@ if (navigator.clipboard?.writeText) {
 
   const buttons = toggle.querySelectorAll("[data-install-arch-option]");
   const links = document.querySelectorAll("[data-install-link]");
-  const storePath = document.querySelector("[data-install-store-path]");
   const inactiveClasses = ["text-slate-300", "hover:text-white"];
   const paletteByArch = {
     x64: {
@@ -176,10 +175,6 @@ if (navigator.clipboard?.writeText) {
       link.style.backgroundImage = "none";
       link.style.backgroundColor = palette.linkBg;
     });
-
-    if (storePath) {
-      storePath.href = arch === "arm64" ? storePath.dataset.hrefArm64 : storePath.dataset.hrefX64;
-    }
   }
 
   buttons.forEach((button) => {
