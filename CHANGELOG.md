@@ -4,6 +4,10 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
+- Added a Nix flake for x86_64 and aarch64 Linux, stable and development AUR
+  recipes, and a FreeBSD Ports recipe for source builds.
+- Added Fedora 44 and 45 release RPMs for x86_64 and aarch64, with applet
+  development files and PyWayland debug packages.
 - Added a Docking Launchpad PPA for Ubuntu 22.04, 24.04, and 26.04 on amd64 and
   arm64, with packages built for each release.
 - Separated standalone downloads from package-manager setup and added one

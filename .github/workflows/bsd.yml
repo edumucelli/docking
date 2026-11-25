@@ -68,8 +68,11 @@ jobs:
             pkg install -y "py${python_suffix}-pygobject" "py${python_suffix}-pycairo" \
               "py${python_suffix}-pytest" "py${python_suffix}-psutil" "py${python_suffix}-pip" \
               "py${python_suffix}-numpy" \
-              gtk3 libwnck3 libXtst libXScrnSaver xfce4-wm xorg-vfbserver dbus dejavu gettext-tools polkit xterm
+              gtk3 libwnck3 libXtst libXScrnSaver xfce4-wm xorg-vfbserver dbus dejavu gettext-tools polkit xterm \
+              bash desktop-file-utils git-lite
           run: |
+            set -e
+            sh packaging/bsd/check-freebsd-port.sh
             sh tools/bsd/vm-run.sh artifacts/bsd-visual/freebsd
       - name: OpenBSD desktop checks
         if: matrix.os == 'openbsd'

@@ -1,13 +1,20 @@
 Name:           docking
 Version:        %{?pkg_version}%{!?pkg_version:2.35.0}
+%if 0%{?docking_fedora}
+Release:        1%{?dist}
+%else
 # One artifact serves every RPM distribution, so a build-host dist tag would
 # misrepresent it on Fedora and openSUSE alike.
 Release:        1
+%endif
 Summary:        A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo
 
 License:        GPL-3.0-or-later
 URL:            https://github.com/edumucelli/docking
 Source0:        %{name}-%{version}.tar.gz
+%if 0%{?docking_fedora}
+Source1:        https://files.pythonhosted.org/packages/20/93/bc9b258dcb46aafc587438355a9170c3be05a6abb5cd55bf1d600d848fa0/pywayland-0.4.18.tar.gz
+%endif
 
 Requires:       python3
 Requires:       python3-gobject
@@ -36,6 +43,10 @@ BuildRequires:  python3-setuptools >= 61
 BuildRequires:  /usr/bin/pkg-config
 BuildRequires:  wayland-devel
 BuildRequires:  wayland-protocols-devel
+%if 0%{?docking_fedora}
+BuildRequires:  python3-cffi
+BuildRequires:  python3-wheel
+%endif
 
 %description
 Docking is a lightweight, feature-rich dock for Linux written in Python
@@ -43,11 +54,29 @@ with GTK 3 and Cairo. Inspired by Plank and Cairo-Dock, it provides
 pinned launchers, window indicators, previews, autohide, drag-and-drop,
 and an extensible applet system.
 
+%if 0%{?docking_fedora}
+%package devel
+Summary:        Python applet development files for Docking
+Requires:       %{name}%{?_isa} = %{version}-%{release}
+
+%description devel
+Makes the Docking Python applet API importable by Fedora's system Python and
+installs the applet development guides.
+%endif
+
 %prep
+%if 0%{?docking_fedora}
+%autosetup -n %{name}-%{version} -a 1
+%else
 %autosetup -n %{name}-%{version}
+%endif
 
 %build
-# No build step required; Python package install is done in %install.
+%if 0%{?docking_fedora}
+%set_build_flags
+python3 -m pip wheel --no-index --no-deps --no-build-isolation \
+  --wheel-dir wheelhouse ./pywayland-0.4.18
+%endif
 
 %install
 rm -rf %{buildroot}
@@ -56,12 +85,23 @@ bash tools/i18n.sh --compile
 
 mkdir -p %{buildroot}/usr/lib/docking/python
 python3 -m pip install --no-compile --no-deps \
+%if 0%{?docking_fedora}
+  --no-index --no-build-isolation \
+%endif
   --target %{buildroot}/usr/lib/docking/python .
 rm -rf %{buildroot}/usr/lib/docking/python/*.dist-info
 rm -rf %{buildroot}/usr/lib/docking/python/bin
 
 py_minor="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 mkdir -p "%{buildroot}/usr/lib/docking/vendor-python${py_minor}"
+%if 0%{?docking_fedora}
+python3 -m pip install --no-index --no-compile --no-deps \
+  --target "%{buildroot}/usr/lib/docking/vendor-python${py_minor}" \
+  wheelhouse/pywayland-*.whl
+install -Dm644 /dev/stdin %{buildroot}%{python3_sitelib}/docking-devel.pth << 'EOF'
+/usr/lib/docking/python
+EOF
+%else
 # PyWayland wheels bundle renamed libffi/Wayland libraries whose versioned
 # symbols produce unsatisfiable RPM Requires. Link against system Wayland,
 # just as the distribution-specific fallback builds do.
@@ -74,6 +114,7 @@ if [ -d "%{?extra_pywayland}" ]; then
   cp -a "%{?extra_pywayland}"/. %{buildroot}/usr/lib/docking/
   find %{buildroot}/usr/lib/docking -name .complete -delete
 fi
+%endif
 rm -rf %{buildroot}/usr/lib/docking/vendor-python*/bin
 
 install -Dm755 /dev/stdin %{buildroot}/usr/bin/docking << 'EOF'
@@ -140,6 +181,12 @@ fi
 /usr/share/polkit-1/actions/org.docking.camshield.policy
 /usr/share/gnome-shell/extensions/docking-bridge@docking.org
 /usr/share/icons/hicolor
+
+%if 0%{?docking_fedora}
+%files devel
+%doc docs/APPLETS.md docs/DEVELOPMENT.md
+%{python3_sitelib}/docking-devel.pth
+%endif
 
 %changelog
 * Tue Nov 24 2026 Eduardo Mucelli Rezende Oliveira <edumucelli@gmail.com> - 2.35.0-1

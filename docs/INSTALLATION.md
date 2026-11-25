@@ -101,6 +101,34 @@ sudo dnf --refresh upgrade docking  # Fedora
 sudo zypper refresh docking-rpm docking-rpm-noarch && sudo zypper update docking  # openSUSE
 ```
 
+### Fedora release packages
+
+[GitHub Releases](https://github.com/edumucelli/docking/releases) include native
+Fedora builds starting with the first release containing them. Choose the
+`docking-<version>-1.fc<release>.<arch>.rpm` matching your Fedora release and
+architecture, then install it with `sudo dnf install ./<filename>.rpm`.
+The matching `docking-devel`, `docking-debuginfo`, and `docking-debugsource`
+RPMs are available for applet development and native Wayland debugging.
+
+## Arch Linux (AUR)
+
+The community-maintained [docking-bin](https://aur.archlinux.org/packages/docking-bin)
+package installs the prebuilt release. Docking also provides recipes for stable
+source and development builds. See the [Arch packaging guide](../packaging/README.md#arch)
+to generate and build them locally.
+
+## Nix
+
+Use Docking's flake on x86_64 or aarch64 Linux.
+
+```sh
+nix --extra-experimental-features 'nix-command flakes' run github:edumucelli/docking
+```
+
+Use `nix build` to produce a local build or `nix profile install` to add Docking
+to your profile. The flake also exposes the `docking` package for use in other
+[Nix configurations](../packaging/README.md#nix).
+
 <a id="freebsd-and-openbsd"></a>
 
 ## FreeBSD, OpenBSD, and NetBSD
@@ -112,6 +140,9 @@ release containing BSD support. Current build targets are FreeBSD 15.1/amd64
 (Python 3.12). Use a package matching the OS release and architecture. The
 package includes Docking, translations, icons, and
 its Python runtime dependencies; GTK, Cairo, GI and psutil use native packages.
+
+FreeBSD users can also build the [Docking port](../packaging/README.md#freebsd-port)
+from source in a local Ports tree.
 
 Run the dependency installation and package-manager commands as root. Downloads
 and checksum verification can run as an ordinary user.

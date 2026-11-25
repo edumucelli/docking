@@ -1,0 +1,5 @@
+Docking is a desktop dock written in Python with GTK 3 and Cairo. It
+offers pinned launchers, window previews, drag-and-drop, multiple
+hide modes, and applets for desktop controls and information.
+
+On FreeBSD it runs in composited X11 sessions.

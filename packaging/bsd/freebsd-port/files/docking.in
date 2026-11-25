@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+export PYTHONDONTWRITEBYTECODE=1
+export PYTHONPATH="%%PREFIX%%/lib/docking/python${PYTHONPATH:+:$PYTHONPATH}"
+exec "%%PYTHON_CMD%%" -P -m docking.launcher "$@"
