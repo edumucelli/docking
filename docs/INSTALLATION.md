@@ -126,7 +126,7 @@ sudo pacman -U ./PACKAGE_FILE
 ```
 
 Follow the [Arch packaging guide](../packaging/README.md#arch) to build the
-stable `docking` or development `docking-git` source package locally.
+`docking` package from a local checkout.
 
 ## Nix
 

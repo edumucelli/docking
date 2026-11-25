@@ -310,19 +310,6 @@ rebuilds MIME and GSettings caches before testing because pacman hooks can be
 blocked by Docker's network namespace restrictions. This preparation applies
 only to the test container; it does not change the installed launcher.
 
-Generate the two AUR recipes and their `.SRCINFO` files as an ordinary user on
-Arch. Fetch the release tags first if your checkout is shallow.
-
-```bash
-bash packaging/arch/aur.sh v2.35.0 /tmp/docking-aur
-cd /tmp/docking-aur/docking
-makepkg -si
-```
-
-`docking` builds the tagged release. Use the generated `docking-git` directory
-to build the current `master`. These source recipes are ready to submit to the
-AUR.
-
 ## Nix
 
 ```bash

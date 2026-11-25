@@ -4,8 +4,8 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
-- Added a Nix flake for x86_64 and aarch64 Linux, stable and development AUR
-  recipes, and a FreeBSD Ports recipe for source builds.
+- Added a Nix flake for x86_64 and aarch64 Linux and a FreeBSD Ports recipe for
+  source builds.
 - Added Fedora 44 and 45 release RPMs for x86_64 and aarch64, with applet
   development files and PyWayland debug packages.
 - Documented the Fedora, Arch, Nix, and FreeBSD installation options on the website.

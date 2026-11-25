@@ -29,10 +29,9 @@ makedepends=(
 )
 source=("${pkgname}-${pkgver}.tar.gz")
 sha256sums=('SKIP')
-_source_directory="docking-${pkgver}"
 
 package() {
-  cd "${srcdir}/${_source_directory}"
+  cd "${srcdir}/${pkgname}-${pkgver}"
 
   bash tools/i18n.sh --compile
 
