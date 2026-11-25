@@ -14,6 +14,7 @@ Docking versions are listed in descending version order. Dates are in UTC.
 - Added Music setup tips for Rhythmbox track details and mpv playback controls.
 - Fixed the Music play/pause badge when pausing Rhythmbox.
 - Added a Music applet menu for choosing which installed app to open when playback is idle.
+- Added **Previous Headline** to the Hacker News applet's right-click menu.
 - Temporarily disabled the Reddit applet while its RSS feeds are unreliable.
   Existing Reddit pins and preferences are retained.
 - Added contributor guidance, a code of conduct, and a security reporting policy.

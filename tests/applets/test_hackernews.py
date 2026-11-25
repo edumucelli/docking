@@ -733,10 +733,26 @@ class TestHackerNewsApplet:
     def test_menu_without_story_disables_navigation(self):
         applet = _make_applet()
 
-        items = applet.get_menu_items()
-        next_item = next(item for item in items if item.get_label() == "Next Headline")
+        items = {item.get_label(): item for item in applet.get_menu_items()}
 
-        assert not next_item.get_sensitive()
+        assert not items["Previous Headline"].get_sensitive()
+        assert not items["Next Headline"].get_sensitive()
+
+    def test_previous_headline_moves_back_and_disables_at_first(self):
+        applet = _make_applet()
+        first = _story(id=1, title="First")
+        applet._stories = [first, _story(id=2, title="Second")]
+        applet._active_index = 1
+        items = {item.get_label(): item for item in applet.get_menu_items()}
+
+        assert items["Previous Headline"].get_sensitive()
+        items["Previous Headline"].activate()
+
+        assert applet._current_story == first
+        assert "First" in applet.item.name
+        items = {item.get_label(): item for item in applet.get_menu_items()}
+        assert not items["Previous Headline"].get_sensitive()
+        assert items["Next Headline"].get_sensitive()
 
     def test_start_schedules_timers(self, monkeypatch):
         add = MagicMock(side_effect=[11, 12])
