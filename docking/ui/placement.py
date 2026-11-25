@@ -246,14 +246,6 @@ class DockPlacementController:
             return self.primary_monitor_index()
         return selected
 
-    def get_monitor_menu_choices(self) -> list[tuple[str, int]]:
-        """Monitor choices for menu display. Empty when only one monitor."""
-        display = self._window.get_display()
-        if not display or display.get_n_monitors() <= 1:
-            return []
-        choices = self.get_monitor_choices()
-        return [(choice.label, choice.index) for choice in choices]
-
     def get_monitor_choices(self) -> list[MonitorChoice]:
         """Monitor choices with connector identity when GDK exposes it."""
         display = self._window.get_display()
@@ -478,6 +470,24 @@ class DockPlacementController:
         external = self._external_workarea(snapshot)
         icon_size = self._window.config.icon_size
         gap = effective_edge_gap(self._window.theme, self._window.config)
+        # A bottom dock illustrates why placement and reservation need
+        # separate sizes. The surface spans the placement area's full width
+        # and has enough cross-axis headroom for zoom and bounce. The
+        # reservation stays at the resting thickness plus the configured gap.
+        #
+        #   +--------------------------------------------------+
+        #   |         headroom inside the GTK surface          |
+        #   |            +---- requested span ---+             |
+        #   |            |   [ A ] [ B ] [ C ]   |             |
+        #   |            |     configured gap    |             |
+        #   +------------+-----------------------+-------------+ external edge
+        #                foreign inset (if present)
+        #   ---------------------------------------------------- monitor edge
+        #
+        # The partial reservation span shown here is available when the
+        # backend supplies an external workarea and supports partial spans.
+        # Report the foreign inset separately so a backend can express the
+        # reservation relative to the monitor edge without adding it twice.
         strut_height = (
             resting_dock_cross_extent(
                 icon_size=icon_size,

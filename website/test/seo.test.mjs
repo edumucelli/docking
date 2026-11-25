@@ -11,6 +11,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dist = path.join(root, "dist");
 const source = await readFile(path.join(root, "index.html"), "utf8");
 const catalog = JSON.parse(await readFile(path.join(root, "translations.json"), "utf8"));
+const guide = await readFile(path.join(root, "../docs/INSTALLATION.md"), "utf8");
 const text = (node) => node.nodeName === "#text" ? node.value : (node.childNodes || []).map(text).join("");
 function find(document, predicate) {
   const nodes = [];
@@ -66,6 +67,23 @@ for (const [lang, route] of Object.entries(languages)) {
       assert.equal(text(byTag(card, "h3")[0]), translate(title));
       assert.deepEqual(byTag(card, "p").map(text), [translate(category), translate(description)]);
     });
+    const command = text(byAttr(document, "id", "apt-setup-command")[0]);
+    assert.match(command, /^[^\n]*curl -fsSL https:\/\/docking\.cc\/install\.sh[^\n]*$/);
+    assert.ok(guide.includes(command), "website and guide must show the same command");
+    const apt = byAttr(document, "id", "apt-install")[0];
+    assert.equal(byAttr(apt, "href", "/install.sh.txt").length, 1);
+    assert.ok(attribute(byAttr(apt, "href", "/install.sh")[0], "download"));
+    const rpm = byAttr(document, "id", "rpm-install")[0];
+    assert.equal(text(byAttr(rpm, "id", "rpm-setup-command")[0]), command);
+    assert.equal(byAttr(rpm, "href", "/install.sh.txt").length, 1);
+    assert.ok(attribute(byAttr(rpm, "href", "/install.sh")[0], "download"));
+    const standalone = byAttr(document, "id", "standalone-packages")[0];
+    const managers = byAttr(document, "id", "package-managers")[0];
+    assert.ok(standalone && managers, "install choices have separate sections");
+    assert.equal(byAttr(standalone, "data-install-link", "").length, 7);
+    assert.equal(byAttr(managers, "data-install-link", "").length, 0);
+    assert.equal(byAttr(managers, "id", "apt-install").length, 1);
+    assert.equal(byAttr(managers, "id", "rpm-install").length, 1);
     const englishCommands = byTag(parse(source), "pre").map(text);
     assert.deepEqual(byTag(document, "pre").map(text), englishCommands, "installation commands must remain unchanged");
     const scriptSources = byTag(document, "script")
@@ -125,6 +143,12 @@ for (const [lang, route] of Object.entries(languages)) {
     }
   });
 }
+
+test("the published installer and the readable source contain the same checked-in code", async () => {
+  const script = await readFile(path.join(root, "../packaging/install.sh"));
+  assert.deepEqual(await readFile(path.join(dist, "install.sh")), script);
+  assert.deepEqual(await readFile(path.join(dist, "install.sh.txt")), script);
+});
 
 test("sitemap includes every canonical language URL and robots allows crawling", async () => {
   const xml = await readFile(path.join(dist, "sitemap.xml"), "utf8");

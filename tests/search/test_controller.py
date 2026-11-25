@@ -568,6 +568,21 @@ def test_plain_text_keeps_all_providers_and_ranks_local_match(monkeypatch) -> No
     assert window.snapshots[-1].results[0].score == 250
 
 
+def test_local_provider_skips_web_fallback_snapshot(monkeypatch) -> None:
+    controller, _window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
+    coordinator = controller._coordinator
+    request = coordinator.begin("Firefox")
+    run_provider = MagicMock()
+    snapshot = MagicMock()
+    monkeypatch.setattr(coordinator, "run_provider", run_provider)
+    monkeypatch.setattr(coordinator, "snapshot", snapshot)
+
+    controller._run_provider(coordinator, request, ("applications",), 0)
+
+    snapshot.assert_not_called()
+    run_provider.assert_called_once()
+
+
 def test_hostless_http_urls_use_conditional_web_fallback(monkeypatch) -> None:
     controller, window, _apps, _recent, _shortcuts = _make_controller(monkeypatch)
     controller._config.global_search_web_engine = "google"

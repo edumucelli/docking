@@ -165,9 +165,14 @@ def test_serial_worker_orders_io_and_closes_on_its_thread_without_gtk_delivery()
         observed.append(("first", threading.get_ident()))
         return 1
 
+    def failed():
+        observed.append(("failed", threading.get_ident()))
+        raise RuntimeError("serial task failed")
+
     try:
         worker.run(name="first", fn=first, on_result=lambda _value: None)
         assert entered.wait(3)
+        worker.run(name="failed", fn=failed, on_error=lambda _error: None)
         worker.run(
             name="second", fn=lambda: observed.append(("second", threading.get_ident()))
         )
@@ -175,10 +180,12 @@ def test_serial_worker_orders_io_and_closes_on_its_thread_without_gtk_delivery()
         assert not closed.is_set()
         resume.set()
         assert closed.wait(3)
-        assert [row[0] for row in observed] == ["first", "second", "close"]
+        assert [row[0] for row in observed] == ["first", "failed", "second", "close"]
         assert len({row[1] for row in observed}) == 1
         assert observed[0][1] != threading.get_ident()
-        assert len(replies) == 1  # No GTK reply was needed for cleanup.
+        assert len(replies) == 2  # No GTK reply was needed for cleanup.
+        assert replies[0][1] == (1,)
+        assert str(replies[1][1][0]) == "serial task failed"
         with pytest.raises(RuntimeError, match="stopped"):
             worker.run(name="late", fn=lambda: None)
     finally:

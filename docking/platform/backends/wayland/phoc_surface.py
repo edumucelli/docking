@@ -64,6 +64,22 @@ class PhocLayerShellSurfaceService(WaylandLayerShellSurfaceService):
         window, position = self._window, self._position
         if window is None or position is None:
             return
+        # A TOP-edge example. F is the height of the foreign TOP panel and
+        # D is this dock's reservation. Layer-shell places the BOTTOM-layer
+        # helper after the foreign TOP panel, regardless of creation order.
+        #
+        #   y = 0       +------------------------------------+ output edge
+        #               | foreign TOP panel                 | F
+        #   y = F       +------------------------------------+ visible dock starts
+        #               | dock space reserved by the helper | D
+        #   y = F + D   +------------------------------------+ application workarea
+        #               ^
+        #               default start of the non-exclusive dock
+        #
+        # Move the visible dock outward by D with a negative edge margin.
+        # It cancels the helper's inset and leaves F intact. The helper draws
+        # no pixels and takes no pointer input, so the visible dock controls
+        # both appearance and interaction in the reserved band.
         call_if_available(self._layer_shell, "set_exclusive_zone", window, 0)
         self._set_margins(position=position, gap=0)
         helper = self._reservation_window

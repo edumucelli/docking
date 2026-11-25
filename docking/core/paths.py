@@ -11,10 +11,13 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 
-"""Filesystem path helpers."""
+"""Filesystem helpers."""
 
 from __future__ import annotations
 
+import json
+import tempfile
+from contextlib import suppress
 from pathlib import Path
 
 from docking.platform.host.selection import host_services
@@ -42,3 +45,27 @@ def ensure_parent_dir(path: Path | str) -> Path:
     file_path = Path(path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
     return file_path
+
+
+def write_json_atomically(path: Path, payload: object) -> None:
+    """Replace a JSON state file once its new contents have been written."""
+    ensure_parent_dir(path)
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
+            json.dump(payload, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+        temporary.replace(path)
+    except BaseException:
+        if temporary is not None:
+            with suppress(OSError):
+                temporary.unlink(missing_ok=True)
+        raise

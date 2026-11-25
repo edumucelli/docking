@@ -316,6 +316,16 @@ def compute_struts(
     default_end = default_start + (monitor_w if horizontal else monitor_h)
     logical_span_start = default_start if span_start is None else span_start
     logical_span_end = default_end if span_end is None else span_end
+    # ReservationRequest uses a half-open logical interval. The same
+    # physical pixels must become an inclusive start/end pair for X11.
+    #
+    #   logical span at 2x  [10     |11     |12     |13)
+    #   device pixels       [20  21 |22  23 |24  25 |26)
+    #                        ^                   ^
+    #                    X11 start            X11 end
+    #
+    # Scale the open boundary first, then step back one physical pixel.
+    # At 2x, subtracting before scaling would leave pixel 25 unreserved.
     physical_span_start = int(logical_span_start * scale)
     physical_span_end = int(logical_span_end * scale) - 1
 

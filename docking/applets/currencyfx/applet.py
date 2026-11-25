@@ -73,6 +73,7 @@ from docking.applets.popup import (
     entry_completion_combo,
     prepare_dialog_content,
 )
+from docking.applets.timer import OneShotTimer
 from docking.applets.worker import BackgroundWorker
 from docking.core.math import clamp_index
 from docking.i18n import _
@@ -111,7 +112,7 @@ class CurrencyFxApplet(Applet):
         their chart points are remote daily history.
         """
         self._timer_id: int = 0
-        self._startup_fetch_timer_id: int = 0
+        self._startup_fetch = OneShotTimer()
         self._pulse_timer_id: int = 0
         self._pulse_phase: float = 0.0
         self._pulse_started_us: int = 0
@@ -261,10 +262,7 @@ class CurrencyFxApplet(Applet):
         """Start periodic refresh and one delayed startup fetch."""
         super().start(notify=notify)
         self._timer_id = GLib.timeout_add_seconds(REFRESH_INTERVAL_S, self._tick)
-        self._startup_fetch_timer_id = GLib.timeout_add_seconds(
-            STARTUP_FETCH_DELAY_S,
-            self._run_startup_fetch,
-        )
+        self._startup_fetch.schedule(STARTUP_FETCH_DELAY_S, self._fetch_async)
         self._ensure_pulse_timer()
 
     def stop(self) -> None:
@@ -274,9 +272,7 @@ class CurrencyFxApplet(Applet):
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
-        if self._startup_fetch_timer_id:
-            GLib.source_remove(self._startup_fetch_timer_id)
-            self._startup_fetch_timer_id = 0
+        self._startup_fetch.cancel()
         if self._pulse_timer_id:
             GLib.source_remove(self._pulse_timer_id)
             self._pulse_timer_id = 0
@@ -287,21 +283,13 @@ class CurrencyFxApplet(Applet):
         self._fetch_async()
         return True
 
-    def _run_startup_fetch(self) -> bool:
-        """Run the first refresh after the dock has settled."""
-        self._startup_fetch_timer_id = 0
-        self._fetch_async()
-        return False
-
     def _fetch_async(self) -> None:
         """Fetch the active pair without blocking the GTK main loop.
 
         ``request_id`` prevents slower, older requests from overwriting a newer
         pair or interval selection.
         """
-        if self._startup_fetch_timer_id:
-            GLib.source_remove(self._startup_fetch_timer_id)
-            self._startup_fetch_timer_id = 0
+        self._startup_fetch.cancel()
 
         self._fetch_request_id += 1
         request_id = self._fetch_request_id

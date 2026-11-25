@@ -505,7 +505,7 @@ class TestPlacementControllerGeometry:
         )
         assert controller.primary_monitor_index() == 0
 
-    def test_get_monitor_menu_choices_skips_missing_monitors(self):
+    def test_get_monitor_choices_skips_missing_monitors(self):
         geom1 = SimpleNamespace(width=1920, height=1080)
         mon1 = _fake_monitor(geometry=geom1)
         display = FakeDisplay(
@@ -515,8 +515,10 @@ class TestPlacementControllerGeometry:
         )
         controller = _make_controller(_make_window(get_display=lambda: display))
 
-        assert controller.get_monitor_menu_choices() == [
-            ("Display 1: 1920x1080 (Primary)", 0)
+        assert controller.get_monitor_choices() == [
+            placement_mod.MonitorChoice(
+                label="Display 1: 1920x1080 (Primary)", index=0, connector=None
+            )
         ]
 
     def test_position_dock_horizontal_bottom(self):
@@ -682,7 +684,7 @@ class TestPlacementControllerGeometry:
         window.move.assert_not_called()
         window.resize.assert_not_called()
 
-    def test_get_monitor_menu_choices_only_for_multiple_monitors(self):
+    def test_get_monitor_choices_includes_single_primary_monitor(self):
         geom = SimpleNamespace(width=1920, height=1080)
         primary = _fake_monitor(geometry=geom)
         display = FakeDisplay(
@@ -692,9 +694,13 @@ class TestPlacementControllerGeometry:
         )
         controller = _make_controller(_make_window(get_display=lambda: display))
 
-        assert controller.get_monitor_menu_choices() == []
+        assert controller.get_monitor_choices() == [
+            placement_mod.MonitorChoice(
+                label="Display 1: 1920x1080 (Primary)", index=0, connector=None
+            )
+        ]
 
-    def test_get_monitor_menu_choices_does_not_duplicate_primary(self):
+    def test_get_monitor_choices_does_not_duplicate_primary(self):
         geom1 = SimpleNamespace(width=1920, height=1080)
         geom2 = SimpleNamespace(width=2560, height=1440)
         mon1 = _fake_monitor(geometry=geom1)
@@ -706,9 +712,9 @@ class TestPlacementControllerGeometry:
         )
         controller = _make_controller(_make_window(get_display=lambda: display))
 
-        choices = controller.get_monitor_menu_choices()
+        choices = controller.get_monitor_choices()
 
-        labels = [label for label, _ in choices]
+        labels = [choice.label for choice in choices]
         assert labels == ["Display 1: 1920x1080 (Primary)", "Display 2: 2560x1440"]
 
     def test_get_monitor_choices_includes_connector_when_available(self):

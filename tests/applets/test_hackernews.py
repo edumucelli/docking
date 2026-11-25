@@ -733,10 +733,26 @@ class TestHackerNewsApplet:
     def test_menu_without_story_disables_navigation(self):
         applet = _make_applet()
 
-        items = applet.get_menu_items()
-        next_item = next(item for item in items if item.get_label() == "Next Headline")
+        items = {item.get_label(): item for item in applet.get_menu_items()}
 
-        assert not next_item.get_sensitive()
+        assert not items["Previous Headline"].get_sensitive()
+        assert not items["Next Headline"].get_sensitive()
+
+    def test_previous_headline_moves_back_and_disables_at_first(self):
+        applet = _make_applet()
+        first = _story(id=1, title="First")
+        applet._stories = [first, _story(id=2, title="Second")]
+        applet._active_index = 1
+        items = {item.get_label(): item for item in applet.get_menu_items()}
+
+        assert items["Previous Headline"].get_sensitive()
+        items["Previous Headline"].activate()
+
+        assert applet._current_story == first
+        assert "First" in applet.item.name
+        items = {item.get_label(): item for item in applet.get_menu_items()}
+        assert not items["Previous Headline"].get_sensitive()
+        assert items["Next Headline"].get_sensitive()
 
     def test_start_schedules_timers(self, monkeypatch):
         add = MagicMock(side_effect=[11, 12])
@@ -750,13 +766,15 @@ class TestHackerNewsApplet:
         applet.start(lambda: None)
 
         assert applet._refresh_timer_id == 11
-        assert applet._startup_fetch_timer_id == 12
         assert add.call_count == 2
 
     def test_stop_removes_timers(self, monkeypatch):
         applet = _make_applet()
-        applet._refresh_timer_id = 11
-        applet._startup_fetch_timer_id = 12
+        added = iter([11, 12])
+        monkeypatch.setattr(
+            hackernews_applet_mod.GLib, "timeout_add_seconds", lambda *_: next(added)
+        )
+        applet.start(lambda: None)
         removed: list[int] = []
         monkeypatch.setattr(
             hackernews_applet_mod.GLib,
@@ -768,18 +786,22 @@ class TestHackerNewsApplet:
 
         assert removed == [11, 12]
         assert applet._refresh_timer_id == 0
-        assert applet._startup_fetch_timer_id == 0
 
     def test_refresh_and_startup_ticks_fetch(self, monkeypatch):
         applet = _make_applet()
         calls: list[str] = []
         monkeypatch.setattr(applet, "_fetch_async", lambda: calls.append("fetch"))
 
+        add = MagicMock(side_effect=[11, 12])
+        monkeypatch.setattr(hackernews_applet_mod.GLib, "timeout_add_seconds", add)
+        remove = MagicMock()
+        monkeypatch.setattr(hackernews_applet_mod.GLib, "source_remove", remove)
+        applet.start(lambda: None)
         assert applet._refresh_tick() is True
-        applet._startup_fetch_timer_id = 99
-        assert applet._run_startup_fetch() is False
+        assert add.call_args.args[1]() is False
+        applet.stop()
+        remove.assert_called_once_with(11)
 
-        assert applet._startup_fetch_timer_id == 0
         assert calls == ["fetch", "fetch"]
 
     def test_advance_and_move_story_edge_cases(self):
@@ -839,7 +861,11 @@ class TestHackerNewsApplet:
         applet = _make_applet()
         worker = _PendingWorker()
         applet._worker = worker
-        applet._startup_fetch_timer_id = 77
+        added = iter([11, 77])
+        monkeypatch.setattr(
+            hackernews_applet_mod.GLib, "timeout_add_seconds", lambda *_: next(added)
+        )
+        applet.start(lambda: None)
         removed: list[int] = []
         monkeypatch.setattr(
             hackernews_applet_mod.GLib,
@@ -850,7 +876,7 @@ class TestHackerNewsApplet:
         applet._fetch_async()
 
         assert removed == [77]
-        assert applet._startup_fetch_timer_id == 0
+
         assert applet._loading is True
         assert worker.calls[0]["name"] == "hackernews-fetch"
 

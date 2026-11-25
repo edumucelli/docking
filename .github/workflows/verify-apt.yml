@@ -31,6 +31,10 @@ jobs:
             runner: ubuntu-24.04
           - arch: arm64
             runner: ubuntu-24.04-arm
+          - image: linuxmintd/mint22.3-amd64:latest
+            arch: amd64
+            runner: ubuntu-24.04
+            mint_suite: zena
     steps:
       - uses: actions/checkout@v7
       - name: Download current and previous stable release assets
@@ -45,10 +49,11 @@ jobs:
         env:
           IMAGE: ${{ matrix.image }}
           PACKAGE_ARCH: ${{ matrix.arch }}
+          MINT_SUITE: ${{ matrix.mint_suite }}
         run: |
           set -euo pipefail
           test "$(docker run --rm "$IMAGE" dpkg --print-architecture)" = "$PACKAGE_ARCH"
           docker run --rm \
             -v "$PWD/incoming:/release:ro" \
             -v "$PWD/packaging:/checks:ro" \
-            "$IMAGE" bash /checks/cloudsmith/verify-apt.sh
+            "$IMAGE" bash /checks/cloudsmith/verify-apt.sh "$MINT_SUITE"

@@ -720,14 +720,16 @@ class TestCurrencyFxApplet:
         applet.start(lambda: None)
 
         assert applet._timer_id == 11
-        assert applet._startup_fetch_timer_id == 12
         assert add.call_count == 2
         pulse_add.assert_not_called()
 
     def test_stop_removes_all_timers(self, monkeypatch):
         applet = _make_applet()
-        applet._timer_id = 11
-        applet._startup_fetch_timer_id = 12
+        added = iter([11, 12])
+        monkeypatch.setattr(
+            currencyfx_applet_mod.GLib, "timeout_add_seconds", lambda *_: next(added)
+        )
+        applet.start(lambda: None)
         applet._pulse_timer_id = 13
         removed: list[int] = []
         monkeypatch.setattr(
@@ -740,7 +742,7 @@ class TestCurrencyFxApplet:
 
         assert removed == [11, 12, 13]
         assert applet._timer_id == 0
-        assert applet._startup_fetch_timer_id == 0
+
         assert applet._pulse_timer_id == 0
 
     def test_pulse_timer_starts_when_chart_dot_visible(self, monkeypatch):
@@ -822,13 +824,17 @@ class TestCurrencyFxApplet:
         remove = MagicMock()
         monkeypatch.setattr(currencyfx_applet_mod.GLib, "source_remove", remove)
         applet = _make_applet()
-        applet._startup_fetch_timer_id = 42
+        added = iter([11, 42])
+        monkeypatch.setattr(
+            currencyfx_applet_mod.GLib, "timeout_add_seconds", lambda *_: next(added)
+        )
+        applet.start(lambda: None)
         applet._worker.run = MagicMock()
 
         applet._fetch_async()
 
         remove.assert_called_once_with(42)
-        assert applet._startup_fetch_timer_id == 0
+
         assert applet._fetch_request_id == 1
         assert applet._worker.run.call_args.kwargs["name"] == "currencyfx-fetch"
 
@@ -837,11 +843,16 @@ class TestCurrencyFxApplet:
         calls: list[str] = []
         monkeypatch.setattr(applet, "_fetch_async", lambda: calls.append("fetch"))
 
+        add = MagicMock(side_effect=[11, 12])
+        monkeypatch.setattr(currencyfx_applet_mod.GLib, "timeout_add_seconds", add)
+        remove = MagicMock()
+        monkeypatch.setattr(currencyfx_applet_mod.GLib, "source_remove", remove)
+        applet.start(lambda: None)
         assert applet._tick() is True
-        applet._startup_fetch_timer_id = 99
-        assert applet._run_startup_fetch() is False
+        assert add.call_args.args[1]() is False
+        applet.stop()
+        remove.assert_called_once_with(11)
 
-        assert applet._startup_fetch_timer_id == 0
         assert calls == ["fetch", "fetch"]
 
     def test_fetch_result_updates_snapshot_and_codes(self):

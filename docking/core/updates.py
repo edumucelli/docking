@@ -22,14 +22,13 @@ from __future__ import annotations
 
 import json
 import re
-import tempfile
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import cast
 
-from docking.core.paths import ensure_parent_dir
+from docking.core.paths import write_json_atomically
 from docking.log import get_logger
 from docking.platform.environment import docking_state_dir
 
@@ -103,31 +102,17 @@ def load_state(path: Path | str | None = None) -> UpdateState:
 def save_state(state: UpdateState, *, path: Path | str | None = None) -> None:
     """Persist update state atomically."""
     state_path = Path(path) if path is not None else DEFAULT_STATE_FILE
-    ensure_parent_dir(state_path)
-    with tempfile.NamedTemporaryFile(
-        "w",
-        encoding="utf-8",
-        dir=state_path.parent,
-        prefix=f".{state_path.name}.",
-        suffix=".tmp",
-        delete=False,
-    ) as handle:
-        tmp_path = Path(handle.name)
-        json.dump(
-            {
-                "ignored_version": state.ignored_version,
-                "last_checked_at": state.last_checked_at,
-                "last_error": state.last_error,
-                "last_result": state.last_result,
-                "last_seen_version": state.last_seen_version,
-                "remind_after": state.remind_after,
-            },
-            handle,
-            indent=2,
-            sort_keys=True,
-        )
-        handle.write("\n")
-    tmp_path.replace(state_path)
+    write_json_atomically(
+        state_path,
+        {
+            "ignored_version": state.ignored_version,
+            "last_checked_at": state.last_checked_at,
+            "last_error": state.last_error,
+            "last_result": state.last_result,
+            "last_seen_version": state.last_seen_version,
+            "remind_after": state.remind_after,
+        },
+    )
 
 
 def should_check_for_updates(

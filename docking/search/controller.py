@@ -422,11 +422,10 @@ class GlobalSearchController(ShortcutController):
             and request.query.context_value("intent_kind")
             == QueryIntentKind.GLOBAL.value
         )
-        has_strong_local_result = any(
+        if is_web_fallback and any(
             result.score >= WEB_FALLBACK_STRONG_SCORE
             for result in coordinator.snapshot().results
-        )
-        if is_web_fallback and has_strong_local_result:
+        ):
             coordinator.finish_provider(
                 provider_id=provider_id,
                 generation=request.generation,

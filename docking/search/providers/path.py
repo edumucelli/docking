@@ -101,12 +101,8 @@ class PathSearchProvider:
         action_identity: SearchIdentity,
     ) -> bool:
         """Dispatch a validated open or copy action for the resolved target."""
-        parts = action_parts(action_identity)
-        if (
-            result_identity.provider_id != self.provider_id
-            or parts is None
-            or parts[0] != result_identity.key
-        ):
+        parts = action_parts(self.provider_id, result_identity, action_identity)
+        if parts is None:
             return False
         if parts[1] == "open":
             return self._target_service.open_target(parts[0])
