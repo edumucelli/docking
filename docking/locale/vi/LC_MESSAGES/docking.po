@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -2653,7 +2641,6 @@ msgstr "Nhắc lại sau 1 ngày"
 msgid "{count} more due task"
 msgid_plural "{count} more due tasks"
 msgstr[0] "{count} nhiệm vụ đến hạn khác"
-msgstr[1] "{count} nhiệm vụ đến hạn khác"
 
 #: docking/applets/plantcare/applet.py:244
 #: docking/search/providers/applications.py:192 docking/ui/diagnostics.py:137
@@ -2784,7 +2771,6 @@ msgstr "Cây"
 msgid "overdue by {count} day"
 msgid_plural "overdue by {count} days"
 msgstr[0] "quá hạn {count} ngày"
-msgstr[1] "quá hạn {count} ngày"
 
 #: docking/applets/plantcare/state.py:421
 msgid "due today"
@@ -2795,7 +2781,6 @@ msgstr "đến hạn hôm nay"
 msgid "in {count} day"
 msgid_plural "in {count} days"
 msgstr[0] "trong {count} ngày"
-msgstr[1] "trong {count} ngày"
 
 #: docking/applets/plantcare/state.py:428
 #, python-brace-format
@@ -2819,7 +2804,6 @@ msgstr "Chưa bật lịch chăm sóc nào"
 msgid "{count} task due"
 msgid_plural "{count} tasks due"
 msgstr[0] "{count} nhiệm vụ đến hạn"
-msgstr[1] "{count} nhiệm vụ đến hạn"
 
 #: docking/applets/plantcare/state.py:455
 msgid "All plants are on schedule"
@@ -2830,7 +2814,6 @@ msgstr "Tất cả cây đều đúng lịch"
 msgid "{count} more task"
 msgid_plural "{count} more tasks"
 msgstr[0] "{count} nhiệm vụ khác"
-msgstr[1] "{count} nhiệm vụ khác"
 
 #: docking/applets/plantcare/state.py:492
 #, python-brace-format
@@ -3441,10 +3424,6 @@ msgstr "Kích hoạt"
 msgid "Context Menu"
 msgstr "Trình đơn ngữ cảnh"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-Bus không có sẵn"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3551,10 +3530,6 @@ msgstr "Khay hệ thống: {n} mục"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "Khay hệ thống: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "Khay hệ thống: D-Bus không khả dụng"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3883,10 +3858,6 @@ msgstr "Thao tác này xoá phiên WhatsApp Web do Docking lưu. Bạn sẽ cầ
 msgid "Could not disconnect WhatsApp"
 msgstr "Không thể ngắt kết nối WhatsApp"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "Lỗi WebKit không xác định"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK không khả dụng"
@@ -3894,10 +3865,6 @@ msgstr "WebKitGTK không khả dụng"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Tiện ích Docking"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "Tải lại WhatsApp Web"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3915,11 +3882,6 @@ msgstr "camera"
 msgid "microphone"
 msgstr "micrô"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "Cho phép WhatsApp sử dụng {device} của bạn?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "Từ chối"
@@ -3927,10 +3889,6 @@ msgstr "Từ chối"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "Cho phép"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp yêu cầu WebKitGTK"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3941,10 +3899,6 @@ msgstr "Cài đặt gói introspection WebKitGTK 4.1 hoặc 4.0, rồi khởi đ
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "lỗi trình duyệt không xác định"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: chưa cài đặt WebKitGTK"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5249,10 +5203,6 @@ msgid "Show item names and details when hovering over dock items."
 msgstr ""
 "Hiển thị tên và thông tin chi tiết của mục khi di chuột qua các mục trên đế."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr ""
@@ -5657,28 +5607,1022 @@ msgstr "Bỏ qua"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "Camera đã bị khóa"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "Không lấy được trạng thái micrô"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "Không rõ micrô có đang bị tắt tiếng hay không"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "Không rõ micrô có đang được sử dụng hay không"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "Cài đặt micrô"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "Không lấy được trạng thái camera"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "Không rõ camera có đang được sử dụng hay không"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "Không thể khóa camera"
 
 msgid "Camera Settings"
+msgstr "Cài đặt camera"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "Duy trì kết nối"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "Kết nối âm thanh"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "Ngừng duy trì kết nối"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "Ngắt kết nối âm thanh"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "Nhập mã PIN"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "Nhập mã PIN này trên thiết bị: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "Mã PIN này có khớp với mã hiển thị trên thiết bị không? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "Danh sách kiểm tra"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "{count} mục chưa đánh dấu"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "Thêm mục"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "Xóa các mục đã hoàn thành"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "Nội dung mục"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "Đã tạm dừng theo dõi bảng tạm"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "Lịch sử bảng tạm"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "Bật theo dõi bảng tạm"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "Theo dõi nội dung được chọn bằng chuột"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "Cần X11 để theo dõi nội dung được chọn bằng chuột"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "Theo dõi hình ảnh"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "Số mục tối đa"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "Đã tắt"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "Hình ảnh ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "Báo thức: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "Không đọc được danh sách thiết bị KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "Cài đặt KDE Connect để mở phần cài đặt thiết bị"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "Đang liên hệ với thiết bị đã chọn..."
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
+msgstr "Thao tác KDE Connect thất bại. Hãy thử lại khi thiết bị trực tuyến"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "Đã gửi yêu cầu phát chuông tới {name}"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr "Chọn một thiết bị đã ghép đôi, đang trực tuyến và đã bật chia sẻ tệp"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "Chờ thao tác KDE Connect hiện tại hoàn tất"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "Không đọc được các tệp đã chọn"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "Đã yêu cầu gửi tệp tới {name}"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "Gửi tệp bằng KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "Gửi"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "Đổ chuông điện thoại"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "Gửi tệp..."
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "Mở KDE Connect / Ghép đôi thiết bị"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "Cài đặt và khởi chạy KDE Connect để kết nối điện thoại"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "KDE Connect đã khởi động lại. Đang làm mới danh sách thiết bị"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr "Không liên hệ được với KDE Connect. Hãy thử lại hoặc mở phần cài đặt"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "KDE Connect trả về mã định danh thiết bị không hợp lệ"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
 msgstr ""
+"Không đọc được danh sách thiết bị KDE Connect. Hãy thử lại hoặc mở phần cài "
+"đặt"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "Thiết bị đã chọn đang ngoại tuyến hoặc không còn được ghép đôi"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "Thiết bị đã chọn không hỗ trợ thao tác này"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "Một tệp đã chọn không còn khả dụng"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: ngoại tuyến"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: đã kết nối"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (đang sạc)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr ""
+"Chưa có thiết bị nào được ghép đôi. Mở KDE Connect để ghép đôi điện thoại"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "Thiết bị đã chọn không còn được ghép đôi. Hãy chọn thiết bị khác"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "Thả tệp vào đây để gửi tới thiết bị này"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "Chọn ít nhất một tệp cục bộ"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "Chỉ có thể gửi tệp cục bộ bằng KDE Connect"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "Mặc định của hệ thống"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "Ứng dụng ưu tiên không khả dụng"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "Không tìm thấy ứng dụng tương thích"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "Khởi chạy ứng dụng"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"Cài đặt hoặc bật %(plugin)s rồi khởi động lại mpv để điều khiển phát và xem "
+"thông tin bản nhạc."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr "Bật phần bổ trợ MPRIS của Rhythmbox để xem thông tin bản nhạc."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "Cài đặt %(package)s rồi khởi động lại Rhythmbox."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "Không cập nhật được thông báo"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr "Cần cấp quyền trong Cài đặt Windows để truy cập lịch sử thông báo"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Mở Telegram"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Ẩn Telegram"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Ngắt kết nối Telegram"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Ngắt kết nối Telegram?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"Phiên Telegram Web do Docking lưu sẽ bị xóa. Bạn sẽ cần đăng nhập lại."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Không ngắt được kết nối Telegram"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: trình duyệt không khả dụng"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: đang tải..."
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram: quét mã QR hoặc đăng nhập bằng số điện thoại"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: đang đồng bộ..."
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: ngoại tuyến"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "không tải được Telegram Web"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: {count} thông báo mới"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: {count} cuộc trò chuyện chưa đọc"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: không có cuộc trò chuyện chưa đọc"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: nhấp để mở"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "Lỗi trình duyệt không xác định"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "Tải lại {service}"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "Cho phép {service} sử dụng {device} của bạn?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "{service} cần WebKitGTK"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "Không mở được phiên trình duyệt"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Microsoft Edge WebView2 không khả dụng"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "Không ngắt được kết nối {service}"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "không tải được {service}"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "Tải xuống"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "Hoàn tất"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "Đang tải xuống"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "Tiếp tục"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: trình duyệt không khả dụng"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "Nhập bố cục dock hiện có"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Mở Tùy chọn → Nhập để xem lại các mục đã ghim và cài đặt từ Plank, Plank "
+"Reloaded hoặc Cairo-Dock trước khi đưa chúng vào Docking."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "Tệp Docking"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "Giao diện nguồn không khả dụng."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr "Đặt phím tắt hiện dock trong Tùy chọn Docking."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "Đã bỏ qua một mục ghim không hợp lệ."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "Đã bỏ qua {item}."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Không xác định được dock chính của Plank."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "Đã bỏ qua bố cục Plank chiếm toàn bộ cạnh màn hình."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"Không lấy được cài đặt Plank. Các tệp khởi chạy được liệt kê theo tên tệp."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "Dock chính"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "Đã bỏ qua dock con trùng lặp {item}."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "Đã bỏ qua dock riêng {item}."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "Đã bỏ qua trình khởi chạy tùy chỉnh {item}."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "Đã bỏ qua phần bổ trợ {item}."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "Đã bỏ qua desklet tách rời {item}."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "Đã bỏ qua lựa chọn màn hình theo số của Cairo-Dock."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr "Chế độ Luôn ở phía sau không hiện dock khi trỏ vào cạnh màn hình."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "Không có ứng dụng khả dụng cho {item}."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "Màn hình từ cấu hình nguồn không khả dụng."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr ""
+"Đã điều chỉnh khoảng cách tới cạnh màn hình từ {requested} px thành "
+"{applied} px."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "Mục này đã được ghim."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "Ứng dụng đã chọn không khả dụng."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "Applet đã chọn không khả dụng."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "Tệp hoặc thư mục đã chọn không khả dụng."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Hiện hoặc ẩn tìm kiếm của Docking"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Chọn tệp cấu hình Docking"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Tệp cấu hình Docking"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "Căn chỉnh"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "Màn hình"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "Theo màn hình hiện hoạt"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "Bật phóng to"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "Mức phóng to"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "Khóa biểu tượng"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "Chỉ hiện mục đã ghim"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "Hiện bản xem trước cửa sổ"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "Chiều rộng bản xem trước"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "Viền cửa sổ khi trỏ vào bản xem trước"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "Khoảng cách bổ sung tới cạnh màn hình"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "Cố định vị trí applet"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "Cố định vị trí tệp"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "Bật hiệu ứng khi nhấp vào mục trên dock"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "Hiệu ứng nhấp"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "Mở ngăn xếp"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "Luôn ở phía sau"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "Dưới"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "Trái"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "Phải"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "Các mục ghim sẽ thêm"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "Dock nguồn không có mục nào được ghim."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "Tùy chọn sẽ áp dụng"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "Không có thay đổi nào để nhập."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Nhập tệp Docking"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "Nhập từ dock khác"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "Bỏ qua"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "Nhập"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "Chọn dock để nhập."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr "Chọn dock để xem lại các mục đã ghim và tùy chọn."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Chọn một tệp cấu hình JSON Docking hợp lệ."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "Không đọc được cài đặt của dock nguồn."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Không tìm thấy cấu hình Plank hoặc Plank Reloaded."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Không tìm thấy cấu hình Cairo-Dock."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Không tìm thấy cấu hình Plank hoặc Cairo-Dock."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "Sửa bố cục dock"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "Áp dụng"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "Không có mục đã ghim"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "Ứng dụng…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "Applet…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "Tệp…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "Thư mục…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "Di chuyển lên"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "Di chuyển xuống"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "Tải lại bố cục"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "Bố cục dock đã thay đổi trong lúc bạn chỉnh sửa."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "Không lưu được bố cục dock."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "Đã lưu bố cục. Không tải được một số mục mới."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "Tệp và thư mục có vị trí cố định"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "Applet có vị trí cố định"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "Chọn thư mục"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "Chọn tệp"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "Chọn tệp hoặc thư mục cục bộ."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "Thêm ứng dụng"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Hiện hoặc ẩn Docking"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "Đặt phím tắt trước khi bật chế độ này."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "Môi trường máy tính chưa gán phím tắt."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Đang dùng Tự động ẩn: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "Chưa bật chế độ: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "Không mở được thư mục trong trình dòng lệnh."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "Không mở được mục này bằng ứng dụng khác."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "Mở trong trình dòng lệnh"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "Mở bằng…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "Chính"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "Chỉ hiện bằng phím tắt"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "Nảy"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "Nhấp nhô"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "Lắc lư"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "Phím tắt dock"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "Đặt dock dọc theo cạnh màn hình đã chọn."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "Xem trước"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "Hiện ảnh thu nhỏ của cửa sổ"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr ""
+"Vẽ viền quanh cửa sổ thật trên màn hình nền khi trỏ vào ảnh thu nhỏ của nó."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"Vẽ viền quanh cửa sổ thật trên màn hình nền khi trỏ vào ảnh thu nhỏ của nó. "
+"Không khả dụng trong phiên này, cần X11 hoặc Sway."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "Chiều rộng ảnh thu nhỏ"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"Đặt chiều rộng ảnh thu nhỏ của cửa sổ theo pixel. Ảnh rộng hơn sẽ hiện nhiều"
+" phần tiêu đề cửa sổ hơn."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "Sửa bố cục…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr "Chỉ hiện các ứng dụng, applet, tệp và thư mục đã ghim."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "Mục đã ghim"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "Phát hiệu ứng đã chọn khi khởi chạy ứng dụng từ dock."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "Chọn hiệu ứng khi khởi chạy ứng dụng."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "Phím tắt dock"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"Gán phím tắt hoạt động để bật chế độ này. Nếu không đăng ký được phím tắt, "
+"dock sẽ tạm thời dùng Tự động ẩn."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "Dock khác"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Nút Plank cũng hỗ trợ Plank Reloaded. Hãy xem lại các mục đã ghim, tùy chọn "
+"và mục bị bỏ qua trước khi nhập."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "Duyệt…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr "Chọn tệp JSON Docking để xem lại các mục đã ghim và tùy chọn bố cục."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "Nhập từ"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "Không lưu được dock đã nhập."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr "Không xóa được các mục ghim này khỏi cấu hình đã lưu."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "Không tải được một số mục ghim đã nhập."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "Giữa"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"Nằm trên màn hình nền và dưới các cửa sổ ứng dụng mà không dành riêng không "
+"gian màn hình. Hãy dời các cửa sổ đang che dock để dùng. Trỏ vào dock không "
+"đưa nó lên trước."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"Chỉ hiện khi nhấn phím tắt của dock, rồi ẩn sau khi con trỏ đi vào và rời "
+"khỏi dock. Nhấn lại phím tắt để ẩn dock."

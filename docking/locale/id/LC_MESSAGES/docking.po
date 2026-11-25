@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -2654,7 +2642,6 @@ msgstr "Tunda 1 Hari"
 msgid "{count} more due task"
 msgid_plural "{count} more due tasks"
 msgstr[0] "{count} tugas lagi yang jatuh tempo"
-msgstr[1] "{count} tugas lagi yang jatuh tempo"
 
 #: docking/applets/plantcare/applet.py:244
 #: docking/search/providers/applications.py:192 docking/ui/diagnostics.py:137
@@ -2785,7 +2772,6 @@ msgstr "Tanaman"
 msgid "overdue by {count} day"
 msgid_plural "overdue by {count} days"
 msgstr[0] "terlambat {count} hari"
-msgstr[1] "terlambat {count} hari"
 
 #: docking/applets/plantcare/state.py:421
 msgid "due today"
@@ -2796,7 +2782,6 @@ msgstr "jatuh tempo hari ini"
 msgid "in {count} day"
 msgid_plural "in {count} days"
 msgstr[0] "dalam {count} hari"
-msgstr[1] "dalam {count} hari"
 
 #: docking/applets/plantcare/state.py:428
 #, python-brace-format
@@ -2820,7 +2805,6 @@ msgstr "Tidak ada jadwal perawatan yang diaktifkan"
 msgid "{count} task due"
 msgid_plural "{count} tasks due"
 msgstr[0] "{count} tugas jatuh tempo"
-msgstr[1] "{count} tugas jatuh tempo"
 
 #: docking/applets/plantcare/state.py:455
 msgid "All plants are on schedule"
@@ -2831,7 +2815,6 @@ msgstr "Semua tanaman sesuai jadwal"
 msgid "{count} more task"
 msgid_plural "{count} more tasks"
 msgstr[0] "{count} tugas lagi"
-msgstr[1] "{count} tugas lagi"
 
 #: docking/applets/plantcare/state.py:492
 #, python-brace-format
@@ -3442,10 +3425,6 @@ msgstr "Mengaktifkan"
 msgid "Context Menu"
 msgstr "Menu Konteks"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-Bus tidak tersedia"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3553,10 +3532,6 @@ msgstr "Baki Sistem: {n} item"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "Baki Sistem: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "Baki Sistem: D-Bus tidak tersedia"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3886,10 +3861,6 @@ msgstr "Ini akan menghapus sesi WhatsApp Web yang disimpan oleh Docking. Anda "
 msgid "Could not disconnect WhatsApp"
 msgstr "Tidak dapat memutuskan WhatsApp"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "Kesalahan WebKit tidak dikenal"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK tidak tersedia"
@@ -3897,10 +3868,6 @@ msgstr "WebKitGTK tidak tersedia"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Applet Docking"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "Muat Ulang WhatsApp Web"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3918,11 +3885,6 @@ msgstr "kamera"
 msgid "microphone"
 msgstr "mikrofon"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "Izinkan WhatsApp menggunakan {device} Anda?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "Tolak"
@@ -3930,10 +3892,6 @@ msgstr "Tolak"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "Izinkan"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp memerlukan WebKitGTK"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3944,10 +3902,6 @@ msgstr "Pasang paket introspeksi WebKitGTK 4.1 atau 4.0, lalu mulai ulang "
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "kesalahan peramban tidak dikenal"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: WebKitGTK tidak terpasang"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5256,10 +5210,6 @@ msgstr "Tampilkan tooltip"
 msgid "Show item names and details when hovering over dock items."
 msgstr "Tampilkan nama dan detail item saat mengarahkan kursor ke item dok."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr ""
@@ -5671,28 +5621,1033 @@ msgstr "Abaikan"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "Kamera terkunci"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "Status mikrofon tidak tersedia"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "Tidak diketahui apakah mikrofon dibisukan"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "Aktivitas mikrofon tidak diketahui"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "Pengaturan Mikrofon"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "Status kamera tidak tersedia"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "Aktivitas kamera tidak diketahui"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "Kamera tidak dapat dikunci"
 
 msgid "Camera Settings"
+msgstr "Pengaturan Kamera"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "Pertahankan Sambungan"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "Sambungkan Audio"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "Lepaskan Sambungan"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "Putuskan Audio"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "Masukkan PIN"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "Masukkan PIN ini pada perangkat: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "Apakah PIN ini cocok dengan yang ditampilkan perangkat? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "Daftar Periksa"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "{count} item belum dicentang"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "Tambahkan item"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "Hapus Item yang Selesai"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "Teks item"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "Pelacakan papan klip dijeda"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "Riwayat Papan Klip"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "Aktifkan Pelacakan Papan Klip"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "Lacak Pilihan dengan Mouse"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "Pelacakan pilihan dengan mouse memerlukan X11"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "Lacak Gambar"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "Jumlah Entri Maksimum"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "Dinonaktifkan"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "Gambar ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "Alarm: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "Tidak dapat membaca daftar perangkat KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "Instal KDE Connect untuk membuka pengaturan perangkatnya"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "Menghubungi perangkat yang dipilih..."
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
+msgstr "Tindakan KDE Connect gagal. Coba lagi saat perangkat daring"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "Permintaan untuk membunyikan perangkat telah dikirim ke {name}"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
 msgstr ""
+"Pilih perangkat tersanding yang daring dan telah mengaktifkan berbagi file"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "Tunggu hingga tindakan KDE Connect saat ini selesai"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "Tidak dapat membaca file yang dipilih"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "Pengiriman file ke {name} telah diminta"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "Kirim File dengan KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "Kirim"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "Bunyikan Ponsel"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "Kirim File..."
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "Buka KDE Connect / Sandingkan Perangkat"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "Instal dan jalankan KDE Connect untuk menyambungkan ponsel"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "KDE Connect dimulai ulang. Daftar perangkat sedang diperbarui"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+"Tidak dapat menghubungi KDE Connect. Coba lagi atau buka pengaturannya"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "KDE Connect mengembalikan pengenal perangkat yang tidak valid"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"Tidak dapat membaca daftar perangkat KDE Connect. Coba lagi atau buka "
+"pengaturannya"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "Perangkat yang dipilih luring atau tidak lagi tersanding"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "Perangkat yang dipilih tidak mendukung tindakan ini"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "Salah satu file yang dipilih tidak lagi tersedia"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: luring"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: tersambung"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (mengisi daya)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr ""
+"Tidak ada perangkat tersanding. Buka KDE Connect untuk menyandingkan ponsel "
+"Anda"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "Perangkat yang dipilih tidak lagi tersanding. Pilih perangkat lain"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "Jatuhkan file di sini untuk mengirimkannya ke perangkat ini"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "Pilih setidaknya satu file lokal"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "Hanya file lokal yang dapat dikirim dengan KDE Connect"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "Bawaan Sistem"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "Aplikasi pilihan tidak tersedia"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "Tidak ditemukan aplikasi yang kompatibel"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "Jalankan Aplikasi"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"Instal atau aktifkan %(plugin)s dan mulai ulang mpv untuk menggunakan "
+"kendali pemutaran dan melihat detail trek."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr "Aktifkan pengaya MPRIS di Rhythmbox untuk melihat detail trek."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "Instal %(package)s dan mulai ulang Rhythmbox."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "Tidak dapat memperbarui notifikasi"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr "Riwayat notifikasi memerlukan izin akses di Pengaturan Windows"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Buka Telegram"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Sembunyikan Telegram"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Putuskan Sambungan Telegram"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Putuskan sambungan Telegram?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"Ini akan menghapus sesi Telegram Web yang disimpan oleh Docking. Anda perlu "
+"masuk kembali."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Tidak dapat memutuskan sambungan Telegram"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: peramban tidak tersedia"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: memuat..."
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram: pindai kode QR atau masuk dengan nomor ponsel Anda"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: menyinkronkan..."
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: luring"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "tidak dapat memuat Telegram Web"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: {count} notifikasi baru"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: {count} percakapan belum dibaca"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: tidak ada percakapan yang belum dibaca"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: klik untuk membuka"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "Kesalahan peramban tidak diketahui"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "Muat Ulang {service}"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "Izinkan {service} menggunakan {device} Anda?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "{service} memerlukan WebKitGTK"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "Tidak dapat membuka sesi peramban"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Microsoft Edge WebView2 tidak tersedia"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "Tidak dapat memutuskan sambungan {service}"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "tidak dapat memuat {service}"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "Unduh"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "Selesai"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "Mengunduh"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "Lanjutkan"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: peramban tidak tersedia"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "Impor tata letak dock yang ada"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Buka Preferensi → Impor untuk meninjau item yang disematkan dan pengaturan "
+"dari Plank, Plank Reloaded, atau Cairo-Dock sebelum mengimpornya ke Docking."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "File Docking"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "Tema sumber tidak tersedia."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr "Tetapkan pintasan untuk menampilkan dock di Preferensi Docking."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "Item sematan yang tidak valid dilewati."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "{item} dilewati."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Dock utama Plank tidak dapat ditentukan."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "Tata letak Plank yang memenuhi seluruh tepi layar dilewati."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"Pengaturan Plank tidak tersedia. File peluncur dicantumkan menurut nama "
+"filenya."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "Dock utama"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "Subdock duplikat {item} dilewati."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "Dock terpisah {item} dilewati."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "Peluncur kustom {item} dilewati."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "Pengaya {item} dilewati."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "Desklet terpisah {item} dilewati."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "Pemilihan tampilan berdasarkan angka di Cairo-Dock dilewati."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr ""
+"Mode Selalu di Belakang tidak menampilkan dock saat penunjuk berada di tepi "
+"layar."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "Aplikasi untuk {item} tidak tersedia."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "Tampilan sumber tidak tersedia."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr ""
+"Jarak dari tepi layar disesuaikan dari {requested} px menjadi {applied} px."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "Item ini sudah disematkan."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "Aplikasi yang dipilih tidak tersedia."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "Applet yang dipilih tidak tersedia."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "File atau folder yang dipilih tidak tersedia."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Tampilkan atau sembunyikan pencarian Docking"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Pilih file konfigurasi Docking"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "File konfigurasi Docking"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "Perataan"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "Tampilan"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "Ikuti Tampilan Aktif"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "Aktifkan Pembesaran"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "Tingkat Pembesaran"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "Kunci Ikon"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "Hanya Item Sematan"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "Tampilkan Pratinjau Jendela"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "Lebar Pratinjau"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "Tampilkan Garis Tepi Jendela Saat Penunjuk di Atas Pratinjau"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "Jarak Tambahan dari Tepi"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "Kunci Posisi Applet"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "Kunci Posisi File"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "Aktifkan Efek Saat Mengeklik Item Dock"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "Efek Klik"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "Buka Tumpukan"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "Selalu di belakang"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "Bawah"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "Kiri"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "Kanan"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "Item Sematan yang akan Ditambahkan"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "Dock sumber tidak memiliki item yang disematkan."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "Preferensi yang akan Diterapkan"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "Tidak ada perubahan untuk diimpor."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Impor File Docking"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "Impor dari Dock Lain"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "Lewati"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "Impor"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "Pilih dock yang akan diimpor."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr "Pilih dock untuk meninjau item yang disematkan dan preferensinya."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Pilih file konfigurasi JSON Docking yang valid."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "Tidak dapat membaca pengaturan dock sumber."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Pengaturan Plank atau Plank Reloaded tidak ditemukan."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Pengaturan Cairo-Dock tidak ditemukan."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Pengaturan Plank atau Cairo-Dock tidak ditemukan."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "Edit Tata Letak Dock"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "Terapkan"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "Tidak Ada Item Sematan"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "Aplikasi…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "Applet…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "File…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "Folder…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "Geser ke Atas"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "Geser ke Bawah"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "Muat Ulang Tata Letak"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "Tata letak dock berubah saat sedang diedit."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "Tidak dapat menyimpan tata letak dock."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "Tata letak disimpan. Beberapa item baru tidak dapat dimuat."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "File dan Folder yang Dikunci Posisinya"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "Applet yang Dikunci Posisinya"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "Pilih Folder"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "Pilih File"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "Pilih file atau folder lokal."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "Tambahkan Aplikasi"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Tampilkan atau sembunyikan Docking"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "Tetapkan pintasan sebelum mengaktifkan mode ini."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "Desktop belum menetapkan pintasan."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Menggunakan Sembunyi Otomatis: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "Mode tidak diaktifkan: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "Tidak dapat membuka folder di terminal."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "Tidak dapat membuka item ini dengan aplikasi lain."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "Buka di Terminal"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "Buka Dengan…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "Utama"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "Tampilkan Hanya dengan Pintasan"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "Pantul"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "Denyut"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "Goyang"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "Pintasan dock"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "Tempatkan dock di sepanjang tepi layar yang dipilih."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "Pratinjau"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "Tampilkan Gambar Mini Pratinjau Jendela"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr ""
+"Tampilkan garis tepi jendela yang sebenarnya di desktop saat penunjuk berada"
+" di atas gambar mininya."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"Tampilkan garis tepi jendela yang sebenarnya di desktop saat penunjuk berada"
+" di atas gambar mininya. Tidak tersedia dalam sesi ini karena memerlukan X11"
+" atau Sway."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "Lebar Gambar Mini"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"Atur lebar gambar mini jendela dalam piksel. Gambar mini yang lebih lebar "
+"menampilkan lebih banyak bagian judul jendela."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "Edit Tata Letak…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr "Hanya tampilkan aplikasi, applet, file, dan folder yang disematkan."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "Item Sematan"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "Putar efek yang dipilih saat menjalankan aplikasi dari dock."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "Pilih efek yang diputar saat menjalankan aplikasi."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "Pintasan Dock"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"Tetapkan pintasan yang berfungsi untuk mengaktifkan mode ini. Jika "
+"pendaftaran pintasan gagal, dock sementara menggunakan Sembunyi Otomatis."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "Dock lain"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Tombol Plank juga mendukung Plank Reloaded. Tinjau item yang disematkan, "
+"preferensi, dan item yang dilewati sebelum mengimpor."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "Telusuri…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"Pilih file JSON Docking untuk meninjau item yang disematkan dan preferensi "
+"tata letaknya."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "Impor dari"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "Tidak dapat menyimpan dock yang diimpor."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr ""
+"Tidak dapat menghapus item sematan ini dari konfigurasi yang disimpan."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "Beberapa item sematan yang diimpor tidak dapat dimuat."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "Tengah"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"Tetap di atas desktop dan di bawah jendela aplikasi tanpa mencadangkan ruang"
+" layar. Singkirkan jendela yang menutupi dock untuk menggunakannya. "
+"Menempatkan penunjuk di atasnya tidak akan membawanya ke depan."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"Hanya tampil saat pintasannya ditekan, lalu bersembunyi setelah penunjuk "
+"masuk dan keluar dari dock. Tekan pintasan lagi untuk menyembunyikannya."

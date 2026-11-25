@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=3; plural=n % 10 == 1 && n % 100 != 11 ? 0 : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 1 : 2;\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -2653,8 +2641,9 @@ msgstr "Odgodi 1 dan"
 #, python-brace-format
 msgid "{count} more due task"
 msgid_plural "{count} more due tasks"
-msgstr[0] "još {count} zadatak"
-msgstr[1] "još {count} zadataka"
+msgstr[0] "još {count} dospjeli zadatak"
+msgstr[1] "još {count} dospjela zadatka"
+msgstr[2] "još {count} dospjelih zadataka"
 
 #: docking/applets/plantcare/applet.py:244
 #: docking/search/providers/applications.py:192 docking/ui/diagnostics.py:137
@@ -2784,8 +2773,9 @@ msgstr "Biljka"
 #, python-brace-format
 msgid "overdue by {count} day"
 msgid_plural "overdue by {count} days"
-msgstr[0] "{count} dan zakašnjenja"
-msgstr[1] "{count} dana zakašnjenja"
+msgstr[0] "kasni {count} dan"
+msgstr[1] "kasni {count} dana"
+msgstr[2] "kasni {count} dana"
 
 #: docking/applets/plantcare/state.py:421
 msgid "due today"
@@ -2797,6 +2787,7 @@ msgid "in {count} day"
 msgid_plural "in {count} days"
 msgstr[0] "za {count} dan"
 msgstr[1] "za {count} dana"
+msgstr[2] "za {count} dana"
 
 #: docking/applets/plantcare/state.py:428
 #, python-brace-format
@@ -2819,8 +2810,9 @@ msgstr "Nema omogućenih rasporeda njege"
 #, python-brace-format
 msgid "{count} task due"
 msgid_plural "{count} tasks due"
-msgstr[0] "{count} zadatak dospijeva"
-msgstr[1] "{count} zadataka dospijeva"
+msgstr[0] "{count} dospjeli zadatak"
+msgstr[1] "{count} dospjela zadatka"
+msgstr[2] "{count} dospjelih zadataka"
 
 #: docking/applets/plantcare/state.py:455
 msgid "All plants are on schedule"
@@ -2831,7 +2823,8 @@ msgstr "Sve biljke su prema rasporedu"
 msgid "{count} more task"
 msgid_plural "{count} more tasks"
 msgstr[0] "još {count} zadatak"
-msgstr[1] "još {count} zadataka"
+msgstr[1] "još {count} zadatka"
+msgstr[2] "još {count} zadataka"
 
 #: docking/applets/plantcare/state.py:492
 #, python-brace-format
@@ -3442,10 +3435,6 @@ msgstr "Aktivirati"
 msgid "Context Menu"
 msgstr "Kontekstni izbornik"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-Bus nedostupan"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3553,10 +3542,6 @@ msgstr "Sistemska traka: {n} stavki"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "Sistemska traka: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "Sistemska traka: D-Bus nedostupan"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3695,6 +3680,7 @@ msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
 msgstr[0] "{n} stavka u Smeću"
 msgstr[1] "{n} stavke u Smeću"
+msgstr[2] "{n} stavki u Smeću"
 
 #: docking/applets/trivia/applet.py:55 docking/applets/trivia/applet.py:199
 msgid "Random Trivia"
@@ -3887,10 +3873,6 @@ msgstr "Time se briše sesija WhatsApp Weba koju je pohranio Docking. Morat "
 msgid "Could not disconnect WhatsApp"
 msgstr "Nije moguće odspojiti WhatsApp"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "Nepoznata WebKit pogreška"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK nije dostupan"
@@ -3898,10 +3880,6 @@ msgstr "WebKitGTK nije dostupan"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Docking applet"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "Ponovno učitaj WhatsApp Web"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3919,11 +3897,6 @@ msgstr "kamera"
 msgid "microphone"
 msgstr "mikrofon"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "Dopustiti WhatsAppu da koristi vaš {device}?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "Odbij"
@@ -3931,10 +3904,6 @@ msgstr "Odbij"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "Dopusti"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp zahtijeva WebKitGTK"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3945,10 +3914,6 @@ msgstr "Instalirajte WebKitGTK 4.1 ili 4.0 introspection paket, a zatim "
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "nepoznata pogreška preglednika"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: WebKitGTK nije instaliran"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5259,10 +5224,6 @@ msgstr "Prikaži opise"
 msgid "Show item names and details when hovering over dock items."
 msgstr "Prikažite nazive stavki i pojedinosti kada lebdite iznad stavki doka."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr "Prikaži minijature prozora kada lebdite iznad pokrenutih aplikacija."
@@ -5677,28 +5638,1043 @@ msgstr "Zanemari"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "Kamera je zaključana"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "Stanje mikrofona nije dostupno"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "Nije poznato je li mikrofon utišan"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "Nije poznato je li mikrofon u uporabi"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "Postavke mikrofona"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "Stanje kamere nije dostupno"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "Nije poznato koristi li se kamera"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "Kameru nije moguće zaključati"
 
 msgid "Camera Settings"
+msgstr "Postavke kamere"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "Održi vezu"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "Poveži zvuk"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "Prekini održavanje veze"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "Odspoji zvuk"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "Unesite PIN"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "Unesite ovaj PIN na uređaju: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "Odgovara li ovaj PIN onome na uređaju? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "Kontrolna popis"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "{count} neoznačena stavka"
+msgstr[1] "{count} neoznačene stavke"
+msgstr[2] "{count} neoznačenih stavki"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "Dodaj stavku"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "Ukloni dovršene stavke"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "Tekst stavke"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "Praćenje međuspremnika privremeno je zaustavljeno"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "Povijest međuspremnika"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "Omogući praćenje međuspremnika"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "Prati odabire mišem"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "Praćenje odabira mišem zahtijeva X11"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "Prati slike"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "Najveći broj unosa"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "Onemogućeno"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "Slika ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "Alarm: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "Nije bilo moguće pročitati popis uređaja KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "Instalirajte KDE Connect da biste otvorili njegove postavke uređaja"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "Uspostavljanje veze s odabranim uređajem…"
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
 msgstr ""
+"Radnja KDE Connect nije uspjela. Pokušajte ponovno kada uređaj bude na mreži"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "Zahtjev za zvonjenje poslan je uređaju {name}"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr ""
+"Odaberite upareni uređaj koji je na mreži i na kojem je omogućeno dijeljenje"
+" datoteka"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "Pričekajte da trenutna radnja KDE Connect završi"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "Nije bilo moguće pročitati odabrane datoteke"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "Zatražen je prijenos datoteka na {name}"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "Pošalji datoteke putem KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "Pošalji"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "Pozvoni na telefon"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "Pošalji datoteke…"
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "Otvori KDE Connect / Upari uređaj"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "Instalirajte i pokrenite KDE Connect da biste povezali telefon"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "KDE Connect je ponovno pokrenut. Popis uređaja se osvježava"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+"Nije bilo moguće kontaktirati KDE Connect. Pokušajte ponovno ili otvorite "
+"njegove postavke"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "KDE Connect je vratio nevažeći identifikator uređaja"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"Nije bilo moguće pročitati popis uređaja KDE Connect. Pokušajte ponovno ili "
+"otvorite njegove postavke"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "Odabrani uređaj nije na mreži ili više nije uparen"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "Odabrani uređaj ne podržava ovu radnju"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "Jedna od odabranih datoteka više nije dostupna"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: izvan mreže"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: povezano"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (puni se)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr "Nema uparenih uređaja. Otvorite KDE Connect da biste uparili telefon"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "Odabrani uređaj više nije uparen. Odaberite drugi uređaj"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "Povucite datoteke ovdje da ih pošaljete na ovaj uređaj"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "Odaberite najmanje jednu lokalnu datoteku"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "Putem KDE Connect mogu se slati samo lokalne datoteke"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "Zadano na sustavu"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "Željena aplikacija nije dostupna"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "Nisu pronađene kompatibilne aplikacije"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "Pokreni aplikaciju"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"Instalirajte ili omogućite %(plugin)s te ponovno pokrenite mpv kako biste "
+"mogli upravljati reprodukcijom i vidjeti pojedinosti o skladbi."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr ""
+"Omogućite MPRIS dodatak u Rhythmboxu kako biste vidjeli pojedinosti o "
+"skladbi."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "Instalirajte %(package)s pa ponovno pokrenite Rhythmbox."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "Nije bilo moguće ažurirati obavijesti"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr ""
+"Za povijest obavijesti potrebno je dopustiti pristup u postavkama sustava "
+"Windows"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Otvori Telegram"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Sakrij Telegram"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Odspoji Telegram"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Odspojiti Telegram?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"Ovo briše sesiju Telegram Web koju je Docking spremio. Morat ćete se ponovno"
+" prijaviti."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Nije bilo moguće odspojiti Telegram"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: preglednik nije dostupan"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: učitavanje…"
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram: skenirajte QR kôd ili se prijavite brojem telefona"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: sinkronizacija…"
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: izvan mreže"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "Nije bilo moguće učitati Telegram Web"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: {count} nova obavijest"
+msgstr[1] "Telegram: {count} nove obavijesti"
+msgstr[2] "Telegram: {count} novih obavijesti"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: {count} nepročitani razgovor"
+msgstr[1] "Telegram: {count} nepročitana razgovora"
+msgstr[2] "Telegram: {count} nepročitanih razgovora"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: nema nepročitanih razgovora"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: kliknite za otvaranje"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "Nepoznata pogreška preglednika"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "Ponovno učitaj {service}"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "Dopustiti servisu {service} da koristi vaš uređaj {device}?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "{service} zahtijeva WebKitGTK"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "Nije bilo moguće otvoriti sesiju preglednika"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Microsoft Edge WebView2 nije dostupan"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "Nije bilo moguće odspojiti {service}"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "Nije bilo moguće učitati {service}"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "Preuzmi"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "Dovršeno"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "Preuzimanje"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "Nastavi"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: preglednik nije dostupan"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "Uvezi postojeći raspored docka"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Otvorite Postavke → Uvoz da biste pregledali prikvačene stavke i postavke iz"
+" Plank, Plank Reloaded ili Cairo-Dock prije uvoza u Docking."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "Datoteka Docking"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "Izvorna tema nije dostupna."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr "Postavite prečac za prikaz docka u postavkama Docking."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "Preskočena je nevažeća prikvačena stavka."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "Preskočeno: {item}."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Nije bilo moguće odrediti glavni dock programa Plank."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "Preskočen je raspored Plank preko cijele ruba zaslona."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"Postavke programa Plank nisu bile dostupne. Datoteke pokretača navedene su "
+"po nazivima."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "Glavni dock"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "Preskočen je ponovljeni poddok {item}."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "Preskočen je zasebni dock {item}."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "Preskočen je prilagođeni pokretač {item}."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "Preskočen je dodatak {item}."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "Preskočen je odvojeni element radne površine {item}."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "Preskočen je numerički odabir zaslona u Cairo-Dock."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr ""
+"U načinu rada Uvijek u pozadini dock se neće pojaviti kada pokazivač "
+"pomaknete na rub zaslona."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "Aplikacija za {item} nije dostupna."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "Izvorni zaslon nije dostupan."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr ""
+"Razmak od ruba zaslona promijenjen je sa {requested} px na {applied} px."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "Ova je stavka već prikvačena."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "Odabrana aplikacija nije dostupna."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "Odabrani aplet nije dostupan."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "Odabrana datoteka ili mapa nije dostupna."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Prikaži ili sakrij pretragu Docking"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Odaberi konfiguracijsku datoteku Docking"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Konfiguracijske datoteke Docking"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "Poravnanje"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "Zaslon"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "Prati aktivni zaslon"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "Omogući uvećanje"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "Razina uvećanja"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "Zaključaj ikone"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "Samo prikvačeno"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "Prikaži preglede prozora"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "Širina pregleda"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "Iscrtaj obris prozora pri prelasku preko pregleda"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "Dodatni razmak od ruba"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "Usidri aplete"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "Usidri datoteke"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "Omogući učinke pri kliku na stavke docka"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "Učinak klika"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "Otvori skupove"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "Uvijek u pozadini"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "Dolje"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "Lijevo"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "Desno"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "Stavke za prikvačivanje"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "Izvorni dock nema prikvačenih stavki."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "Postavke za primjenu"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "Nema promjena za uvoz."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Uvezi datoteku Docking"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "Uvezi iz drugog docka"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "Preskoči"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "Uvezi"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "Odaberite dock za uvoz."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr "Odaberite dock da pregledate njegove prikvačene stavke i postavke."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Odaberite važeću konfiguracijsku datoteku Docking u formatu JSON."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "Nije bilo moguće pročitati postavke izvornog docka."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Nisu pronađene postavke za Plank ili Plank Reloaded."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Nisu pronađene postavke za Cairo-Dock."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Nisu pronađene postavke za Plank ili Cairo-Dock."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "Uredi raspored docka"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "Primijeni"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "Nema prikvačenih stavki"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "Aplikacija…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "Aplet…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "Datoteka…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "Mapa…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "Pomakni gore"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "Pomakni dolje"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "Ponovno učitaj raspored"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "Raspored docka promijenjen je tijekom uređivanja."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "Nije bilo moguće spremiti raspored docka."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "Raspored je spremljen. Neke nove stavke nije bilo moguće učitati."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "Usidrene datoteke i mape"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "Usidreni apleti"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "Odaberi mapu"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "Odaberi datoteku"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "Odaberite lokalnu datoteku ili mapu."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "Dodaj aplikaciju"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Prikaži ili sakrij Docking"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "Dodijelite prečac prije uključivanja ovog režima."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "Radno okruženje nije dodijelilo prečac."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Aktivno je automatsko skrivanje: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "Način rada nije omogućen: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "Nije bilo moguće otvoriti mapu u terminalu."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "Nije bilo moguće otvoriti ovu stavku drugom aplikacijom."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "Otvori u terminalu"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "Otvori pomoću…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "Glavni"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "Prikaži samo prečacem"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "Odskok"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "Pulsiranje"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "Ljuljanje"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "Prečac docka"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "Postavite dock duž odabranog ruba zaslona."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "Pregled"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "Prikaži minijaturne preglede prozora"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr ""
+"Iscrtaj obris prozora na radnoj površini kada je pokazivač iznad njegove "
+"minijature."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"Iscrtaj obris prozora na radnoj površini kada je pokazivač iznad njegove "
+"minijature. Nije dostupno u ovoj sesiji. Zahtijeva X11 ili Sway."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "Širina minijature"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"Postavite širinu minijatura prozora u pikselima. Šire minijature pokazuju "
+"više teksta naslova prozora."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "Uredi raspored…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr "Prikaži samo prikvačene aplikacije, aplete, datoteke i mape."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "Prikvačene stavke"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "Prikaži odabrani učinak pri pokretanju aplikacije iz docka."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "Odaberite učinak koji će se prikazati pri pokretanju aplikacije."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "Prečac docka"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"Dodijelite valjani tipkovni prečac kako biste uključili ovaj način rada. Ako"
+" registracija ne uspije, dock će se privremeno automatski skrivati."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "Drugi dock"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Gumb Plank podržava i Plank Reloaded. Prije uvoza pregledajte prikvačene "
+"stavke, postavke i preskočene stavke."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "Pregledaj…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"Odaberite JSON datoteku Docking da pregledate njene prikvačene stavke i "
+"postavke rasporeda."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "Uvezi iz"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "Nije bilo moguće spremiti uvezeni dock."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr ""
+"Ove prikvačene stavke nije bilo moguće ukloniti iz spremljene konfiguracije."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "Neke uvezene prikvačene stavke nije bilo moguće učitati."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "Sredina"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"Dock ostaje iznad radne površine i ispod prozora aplikacija bez rezervacije "
+"prostora na zaslonu. Pomaknite prozore koji ga prekrivaju kako biste ga "
+"mogli koristiti. Prelazak pokazivačem ne dovodi ga u prvi plan."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"Prikazuje se samo prečacem, a zatim se skriva nakon što pokazivač uđe u dock"
+" i izađe iz njega. Ponovno pritisnite prečac da ga sakrijete."

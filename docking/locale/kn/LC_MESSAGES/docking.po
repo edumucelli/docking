@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -3441,10 +3429,6 @@ msgstr "Activate"
 msgid "Context Menu"
 msgstr "Context Menu"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-Bus unavailable"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3551,10 +3535,6 @@ msgstr "System Tray: {n} item(s)"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "System Tray: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "System Tray: D-Bus unavailable"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3884,10 +3864,6 @@ msgstr "ಇದು Docking ಸಂಗ್ರಹಿಸಿದ WhatsApp Web ಸೆಷ�
 msgid "Could not disconnect WhatsApp"
 msgstr "WhatsApp ಸಂಪರ್ಕ ಕಡಿತಗೊಳಿಸಲಾಗಲಿಲ್ಲ"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "ಅಜ್ಞಾತ WebKit ದೋಷ"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK ಲಭ್ಯವಿಲ್ಲ"
@@ -3895,10 +3871,6 @@ msgstr "WebKitGTK ಲಭ್ಯವಿಲ್ಲ"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Docking ಅಪ್ಲೆಟ್"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "WhatsApp Web ಮರುಲೋಡ್ ಮಾಡಿ"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3916,11 +3888,6 @@ msgstr "ಕ್ಯಾಮೆರಾ"
 msgid "microphone"
 msgstr "ಮೈಕ್ರೊಫೋನ್"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "ನಿಮ್ಮ {device} ಬಳಸಲು WhatsApp ಗೆ ಅನುಮತಿಸುವುದೇ?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "ನಿರಾಕರಿಸಿ"
@@ -3928,10 +3895,6 @@ msgstr "ನಿರಾಕರಿಸಿ"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "ಅನುಮತಿಸಿ"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp ಗೆ WebKitGTK ಅಗತ್ಯವಿದೆ"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3942,10 +3905,6 @@ msgstr "WebKitGTK 4.1 ಅಥವಾ 4.0 ಇಂಟ್ರೊಸ್ಪೆಕ್ಷ�
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "ಅಜ್ಞಾತ ಬ್ರೌಸರ್ ದೋಷ"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: WebKitGTK ಸ್ಥಾಪಿಸಲಾಗಿಲ್ಲ"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5247,10 +5206,6 @@ msgstr "ಟೂಲ್‌ಟಿಪ್‌ಗಳನ್ನು ತೋರಿಸಿ"
 msgid "Show item names and details when hovering over dock items."
 msgstr "Show item names and details when hovering over dock items."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr "Show window thumbnails when hovering over running apps."
@@ -5650,28 +5605,1037 @@ msgstr "Ignore"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "ಕ್ಯಾಮೆರಾ ಲಾಕ್ ಆಗಿದೆ"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "ಮೈಕ್ರೊಫೋನ್‌ನ ಸ್ಥಿತಿ ಲಭ್ಯವಿಲ್ಲ"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "ಮೈಕ್ರೊಫೋನ್ ಮ್ಯೂಟ್ ಆಗಿದೆಯೇ ಎಂಬುದು ತಿಳಿದಿಲ್ಲ"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "ಮೈಕ್ರೊಫೋನ್ ಬಳಕೆಯಲ್ಲಿದೆಯೇ ಎಂಬುದು ತಿಳಿದಿಲ್ಲ"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "ಮೈಕ್ರೊಫೋನ್ ಸೆಟ್ಟಿಂಗ್‌ಗಳು"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "ಕ್ಯಾಮೆರಾದ ಸ್ಥಿತಿ ಲಭ್ಯವಿಲ್ಲ"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "ಕ್ಯಾಮೆರಾ ಬಳಕೆಯಲ್ಲಿದೆಯೇ ಎಂಬುದು ತಿಳಿದಿಲ್ಲ"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "ಕ್ಯಾಮೆರಾವನ್ನು ಲಾಕ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ"
 
 msgid "Camera Settings"
+msgstr "ಕ್ಯಾಮೆರಾ ಸೆಟ್ಟಿಂಗ್‌ಗಳು"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "ಸಂಪರ್ಕವನ್ನು ಉಳಿಸಿಕೊಳ್ಳಿ"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "ಆಡಿಯೊ ಸಂಪರ್ಕಿಸಿ"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "ಸಂಪರ್ಕವನ್ನು ಉಳಿಸಿಕೊಳ್ಳುವುದನ್ನು ನಿಲ್ಲಿಸಿ"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "ಆಡಿಯೊ ಸಂಪರ್ಕ ಕಡಿತಗೊಳಿಸಿ"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "PIN ನಮೂದಿಸಿ"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "ಸಾಧನದಲ್ಲಿ ಈ PIN ನಮೂದಿಸಿ: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "ಈ PIN ಸಾಧನದಲ್ಲಿ ತೋರಿಸಿರುವ PIN‌ಗೆ ಹೊಂದಿಕೆಯಾಗುತ್ತದೆಯೇ? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "ಪರಿಶೀಲನಾ ಪಟ್ಟಿ"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "ಗುರುತು ಹಾಕದ {count} ಐಟಂ"
+msgstr[1] "ಗುರುತು ಹಾಕದ {count} ಐಟಂಗಳು"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "ಐಟಂ ಸೇರಿಸಿ"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "ಪೂರ್ಣಗೊಂಡ ಐಟಂಗಳನ್ನು ತೆಗೆದುಹಾಕಿ"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "ಐಟಂನ ಪಠ್ಯ"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "ಕ್ಲಿಪ್‌ಬೋರ್ಡ್ ಟ್ರ್ಯಾಕಿಂಗ್ ವಿರಾಮದಲ್ಲಿದೆ"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "ಕ್ಲಿಪ್‌ಬೋರ್ಡ್ ಇತಿಹಾಸ"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "ಕ್ಲಿಪ್‌ಬೋರ್ಡ್ ಟ್ರ್ಯಾಕಿಂಗ್ ಸಕ್ರಿಯಗೊಳಿಸಿ"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "ಮೌಸ್‌ನಿಂದ ಆಯ್ಕೆಮಾಡಿದ ವಿಷಯವನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಿ"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "ಮೌಸ್‌ನಿಂದ ಆಯ್ಕೆಮಾಡಿದ ವಿಷಯವನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಲು X11 ಬೇಕು"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "ಚಿತ್ರಗಳನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಿ"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "ಗರಿಷ್ಠ ನಮೂದುಗಳ ಸಂಖ್ಯೆ"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "ನಿಷ್ಕ್ರಿಯ"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "ಚಿತ್ರ ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "ಅಲಾರಂ: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "KDE Connect ಸಾಧನಗಳ ಪಟ್ಟಿಯನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "ಸಾಧನಗಳ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯಲು KDE Connect ಅನ್ನು ಸ್ಥಾಪಿಸಿ"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "ಆಯ್ಕೆಮಾಡಿದ ಸಾಧನವನ್ನು ಸಂಪರ್ಕಿಸಲಾಗುತ್ತಿದೆ..."
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
 msgstr ""
+"KDE Connect ಕ್ರಿಯೆ ವಿಫಲವಾಯಿತು. ಸಾಧನ ಆನ್‌ಲೈನ್‌ನಲ್ಲಿದ್ದಾಗ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "{name} ಸಾಧನದಲ್ಲಿ ಗಂಟೆ ಬಾರಿಸಲು ವಿನಂತಿ ಕಳುಹಿಸಲಾಗಿದೆ"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr ""
+"ಫೈಲ್ ಹಂಚಿಕೆಯನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿರುವ ಆನ್‌ಲೈನ್ ಜೋಡಿಸಲಾದ ಸಾಧನವನ್ನು ಆಯ್ಕೆಮಾಡಿ"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "ಈಗ ನಡೆಯುತ್ತಿರುವ KDE Connect ಕ್ರಿಯೆ ಪೂರ್ಣಗೊಳ್ಳುವವರೆಗೆ ಕಾಯಿರಿ"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "ಆಯ್ಕೆಮಾಡಿದ ಫೈಲ್‌ಗಳನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "{name} ಸಾಧನಕ್ಕೆ ಫೈಲ್ ಕಳುಹಿಸಲು ವಿನಂತಿಸಲಾಗಿದೆ"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "KDE Connect ಮೂಲಕ ಫೈಲ್‌ಗಳನ್ನು ಕಳುಹಿಸಿ"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "ಕಳುಹಿಸಿ"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "ಫೋನ್ ರಿಂಗ್ ಮಾಡಿ"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "ಫೈಲ್‌ಗಳನ್ನು ಕಳುಹಿಸಿ..."
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "KDE Connect ತೆರೆಯಿರಿ / ಸಾಧನವನ್ನು ಜೋಡಿಸಿ"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "ಫೋನ್ ಸಂಪರ್ಕಿಸಲು KDE Connect ಅನ್ನು ಸ್ಥಾಪಿಸಿ ಮತ್ತು ಚಲಾಯಿಸಿ"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "KDE Connect ಮರುಪ್ರಾರಂಭಗೊಂಡಿದೆ. ಸಾಧನಗಳ ಪಟ್ಟಿಯನ್ನು ನವೀಕರಿಸಲಾಗುತ್ತಿದೆ"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+"KDE Connect ಅನ್ನು ಸಂಪರ್ಕಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ ಅಥವಾ ಅದರ "
+"ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "KDE Connect ಅಮಾನ್ಯ ಸಾಧನ ಗುರುತನ್ನು ಹಿಂತಿರುಗಿಸಿದೆ"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"KDE Connect ಸಾಧನಗಳ ಪಟ್ಟಿಯನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ ಅಥವಾ ಅದರ "
+"ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "ಆಯ್ಕೆಮಾಡಿದ ಸಾಧನ ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿದೆ ಅಥವಾ ಇನ್ನು ಜೋಡಿಸಲ್ಪಟ್ಟಿಲ್ಲ"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "ಆಯ್ಕೆಮಾಡಿದ ಸಾಧನವು ಈ ಕ್ರಿಯೆಯನ್ನು ಬೆಂಬಲಿಸುವುದಿಲ್ಲ"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "ಆಯ್ಕೆಮಾಡಿದ ಫೈಲ್‌ಗಳಲ್ಲಿ ಒಂದು ಇನ್ನು ಲಭ್ಯವಿಲ್ಲ"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: ಆಫ್‌ಲೈನ್"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: ಸಂಪರ್ಕಗೊಂಡಿದೆ"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (ಚಾರ್ಜ್ ಆಗುತ್ತಿದೆ)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr "ಜೋಡಿಸಿದ ಸಾಧನಗಳಿಲ್ಲ. ಫೋನ್ ಜೋಡಿಸಲು KDE Connect ತೆರೆಯಿರಿ"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "ಆಯ್ಕೆಮಾಡಿದ ಸಾಧನ ಇನ್ನು ಜೋಡಿಸಲ್ಪಟ್ಟಿಲ್ಲ. ಬೇರೆ ಸಾಧನ ಆಯ್ಕೆಮಾಡಿ"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "ಈ ಸಾಧನಕ್ಕೆ ಕಳುಹಿಸಲು ಫೈಲ್‌ಗಳನ್ನು ಇಲ್ಲಿ ಬಿಡಿ"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "ಕನಿಷ್ಠ ಒಂದು ಸ್ಥಳೀಯ ಫೈಲ್ ಆಯ್ಕೆಮಾಡಿ"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "KDE Connect ಮೂಲಕ ಸ್ಥಳೀಯ ಫೈಲ್‌ಗಳನ್ನು ಮಾತ್ರ ಕಳುಹಿಸಬಹುದು"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "ಸಿಸ್ಟಂ ಪೂರ್ವನಿಯೋಜಿತ"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "ಆದ್ಯತೆಯ ಆ್ಯಪ್ ಲಭ್ಯವಿಲ್ಲ"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "ಹೊಂದಾಣಿಕೆಯ ಆ್ಯಪ್‌ಗಳು ಕಂಡುಬರಲಿಲ್ಲ"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "ಆ್ಯಪ್ ಪ್ರಾರಂಭಿಸಿ"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"ಪ್ಲೇಬ್ಯಾಕ್ ನಿಯಂತ್ರಣಗಳು ಮತ್ತು ಟ್ರ್ಯಾಕ್ ವಿವರಗಳಿಗಾಗಿ %(plugin)s ಅನ್ನು ಸ್ಥಾಪಿಸಿ "
+"ಅಥವಾ ಸಕ್ರಿಯಗೊಳಿಸಿ, ನಂತರ mpv ಅನ್ನು ಮರುಪ್ರಾರಂಭಿಸಿ."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr "ಟ್ರ್ಯಾಕ್ ವಿವರಗಳನ್ನು ನೋಡಲು Rhythmbox‌ನ MPRIS ಪ್ಲಗಿನ್ ಸಕ್ರಿಯಗೊಳಿಸಿ."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "%(package)s ಅನ್ನು ಸ್ಥಾಪಿಸಿ ಮತ್ತು Rhythmbox ಮರುಪ್ರಾರಂಭಿಸಿ."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "ಅಧಿಸೂಚನೆಗಳನ್ನು ನವೀಕರಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr "ಅಧಿಸೂಚನೆ ಇತಿಹಾಸಕ್ಕಾಗಿ Windows ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಪ್ರವೇಶ ಅನುಮತಿ ಬೇಕು"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Telegram ತೆರೆಯಿರಿ"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Telegram ಮರೆಮಾಡಿ"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Telegram ಸಂಪರ್ಕ ಕಡಿತಗೊಳಿಸಿ"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Telegram ಸಂಪರ್ಕ ಕಡಿತಗೊಳಿಸಬೇಕೇ?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"Docking ಸಂಗ್ರಹಿಸಿದ Telegram Web ಸೆಷನ್ ತೆರವುಗೊಳ್ಳುತ್ತದೆ. ನೀವು ಮತ್ತೆ ಸೈನ್ ಇನ್ "
+"ಮಾಡಬೇಕು."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Telegram ಸಂಪರ್ಕ ಕಡಿತಗೊಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: ಬ್ರೌಸರ್ ಲಭ್ಯವಿಲ್ಲ"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: ಲೋಡ್ ಆಗುತ್ತಿದೆ..."
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram: QR ಕೋಡ್ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ ಅಥವಾ ಫೋನ್ ಸಂಖ್ಯೆಯಿಂದ ಸೈನ್ ಇನ್ ಮಾಡಿ"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: ಸಿಂಕ್ ಆಗುತ್ತಿದೆ..."
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: ಆಫ್‌ಲೈನ್"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "Telegram Web ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: {count} ಹೊಸ ಅಧಿಸೂಚನೆ"
+msgstr[1] "Telegram: {count} ಹೊಸ ಅಧಿಸೂಚನೆಗಳು"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: ಓದದ {count} ಚಾಟ್"
+msgstr[1] "Telegram: ಓದದ {count} ಚಾಟ್‌ಗಳು"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: ಓದದ ಚಾಟ್‌ಗಳಿಲ್ಲ"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: ತೆರೆಯಲು ಕ್ಲಿಕ್ ಮಾಡಿ"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "ಅಜ್ಞಾತ ಬ್ರೌಸರ್ ದೋಷ"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "{service} ಮರುಲೋಡ್ ಮಾಡಿ"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "{service} ನಿಮ್ಮ {device} ಬಳಸಲು ಅನುಮತಿಸಬೇಕೇ?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "{service} ಗೆ WebKitGTK ಬೇಕು"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "ಬ್ರೌಸರ್ ಸೆಷನ್ ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Microsoft Edge WebView2 ಲಭ್ಯವಿಲ್ಲ"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "{service} ಸಂಪರ್ಕ ಕಡಿತಗೊಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "{service} ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "ಪೂರ್ಣಗೊಂಡಿದೆ"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "ಡೌನ್‌ಲೋಡ್ ಆಗುತ್ತಿದೆ"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "ಮುಂದುವರಿಸಿ"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: ಬ್ರೌಸರ್ ಲಭ್ಯವಿಲ್ಲ"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "ಈಗಿರುವ ಡಾಕ್ ವಿನ್ಯಾಸವನ್ನು ಆಮದು ಮಾಡಿ"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Plank, Plank Reloaded ಅಥವಾ Cairo-Dock‌ನ ಪಿನ್ ಮಾಡಿದ ಐಟಂಗಳು ಮತ್ತು "
+"ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು Docking‌ಗೆ ತರುವ ಮೊದಲು ಆದ್ಯತೆಗಳು → ಆಮದು ತೆರೆಯಿರಿ ಮತ್ತು "
+"ಅವನ್ನು ಪರಿಶೀಲಿಸಿ."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "Docking ಫೈಲ್"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "ಮೂಲ ಥೀಮ್ ಲಭ್ಯವಿಲ್ಲ."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr "Docking ಆದ್ಯತೆಗಳಲ್ಲಿ ಡಾಕ್ ತೋರಿಸುವ ಶಾರ್ಟ್‌ಕಟ್ ಹೊಂದಿಸಿ."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "ಅಮಾನ್ಯ ಪಿನ್ ಮಾಡಿದ ಐಟಂ ಅನ್ನು ಬಿಟ್ಟುಬಿಡಲಾಗಿದೆ."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "{item} ಅನ್ನು ಬಿಟ್ಟುಬಿಡಲಾಗಿದೆ."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Plank‌ನ ಮುಖ್ಯ ಡಾಕ್ ಅನ್ನು ಗುರುತಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "ಪರದೆಯ ಇಡೀ ಅಂಚನ್ನು ಆವರಿಸುವ Plank ವಿನ್ಯಾಸವನ್ನು ಬಿಟ್ಟುಬಿಡಲಾಗಿದೆ."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"Plank ಸೆಟ್ಟಿಂಗ್‌ಗಳು ಲಭ್ಯವಿರಲಿಲ್ಲ. ಲಾಂಚರ್ ಫೈಲ್‌ಗಳನ್ನು ಅವುಗಳ ಹೆಸರಿನಿಂದ ಪಟ್ಟಿ "
+"ಮಾಡಲಾಗಿದೆ."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "ಮುಖ್ಯ ಡಾಕ್"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "ಪುನರಾವರ್ತಿತ ಉಪ-ಡಾಕ್ {item} ಅನ್ನು ಬಿಟ್ಟುಬಿಡಲಾಗಿದೆ."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "ಪ್ರತ್ಯೇಕ ಡಾಕ್ {item} ಅನ್ನು ಬಿಟ್ಟುಬಿಡಲಾಗಿದೆ."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "ಕಸ್ಟಮ್ ಲಾಂಚರ್ {item} ಅನ್ನು ಬಿಟ್ಟುಬಿಡಲಾಗಿದೆ."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "ಪ್ಲಗಿನ್ {item} ಅನ್ನು ಬಿಟ್ಟುಬಿಡಲಾಗಿದೆ."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "ಬೇರ್ಪಟ್ಟ ಡೆಸ್ಕ್‌ಲೆಟ್ {item} ಅನ್ನು ಬಿಟ್ಟುಬಿಡಲಾಗಿದೆ."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "Cairo-Dock‌ನ ಸಂಖ್ಯೆಯ ಆಧಾರದ ಪರದೆ ಆಯ್ಕೆಯನ್ನು ಬಿಟ್ಟುಬಿಡಲಾಗಿದೆ."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr ""
+"ಯಾವಾಗಲೂ ಹಿಂದೆ ಮೋಡ್‌ನಲ್ಲಿ ಪರದೆಯ ಅಂಚಿನ ಮೇಲೆ ಪಾಯಿಂಟರ್ ಇಟ್ಟರೂ ಡಾಕ್ ಕಾಣುವುದಿಲ್ಲ."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "{item} ಗೆ ಆ್ಯಪ್ ಲಭ್ಯವಿಲ್ಲ."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "ಮೂಲ ಪರದೆ ಲಭ್ಯವಿಲ್ಲ."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr ""
+"ಪರದೆಯ ಅಂಚಿನಿಂದ ಇರುವ ಅಂತರವನ್ನು {requested} px ನಿಂದ {applied} px ಗೆ "
+"ಹೊಂದಿಸಲಾಗಿದೆ."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "ಈ ಐಟಂ ಅನ್ನು ಈಗಾಗಲೇ ಪಿನ್ ಮಾಡಲಾಗಿದೆ."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "ಆಯ್ಕೆಮಾಡಿದ ಆ್ಯಪ್ ಲಭ್ಯವಿಲ್ಲ."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "ಆಯ್ಕೆಮಾಡಿದ ಆ್ಯಪ್‌ಲೆಟ್ ಲಭ್ಯವಿಲ್ಲ."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "ಆಯ್ಕೆಮಾಡಿದ ಫೈಲ್ ಅಥವಾ ಫೋಲ್ಡರ್ ಲಭ್ಯವಿಲ್ಲ."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Docking ಹುಡುಕಾಟವನ್ನು ತೋರಿಸಿ ಅಥವಾ ಮರೆಮಾಡಿ"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Docking ಕಾನ್ಫಿಗರೇಶನ್ ಫೈಲ್ ಆಯ್ಕೆಮಾಡಿ"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Docking ಕಾನ್ಫಿಗರೇಶನ್ ಫೈಲ್‌ಗಳು"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "ಜೋಡಣೆ"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "ಪರದೆ"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "ಸಕ್ರಿಯ ಪರದೆಯನ್ನು ಅನುಸರಿಸಿ"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "ಝೂಮ್ ಸಕ್ರಿಯಗೊಳಿಸಿ"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "ಝೂಮ್ ಮಟ್ಟ"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "ಐಕಾನ್‌ಗಳನ್ನು ಲಾಕ್ ಮಾಡಿ"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "ಪಿನ್ ಮಾಡಿದ ಐಟಂಗಳು ಮಾತ್ರ"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "ಕಿಟಕಿಯ ಮುನ್ನೋಟಗಳನ್ನು ತೋರಿಸಿ"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "ಮುನ್ನೋಟದ ಅಗಲ"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "ಮುನ್ನೋಟದ ಮೇಲೆ ಪಾಯಿಂಟರ್ ಇಟ್ಟಾಗ ಕಿಟಕಿಯ ಹೊರರೇಖೆ ತೋರಿಸಿ"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "ಅಂಚಿನಿಂದ ಹೆಚ್ಚುವರಿ ಅಂತರ"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "ಆ್ಯಪ್‌ಲೆಟ್‌ಗಳ ಸ್ಥಾನ ಸ್ಥಿರಗೊಳಿಸಿ"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "ಫೈಲ್‌ಗಳ ಸ್ಥಾನ ಸ್ಥಿರಗೊಳಿಸಿ"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "ಡಾಕ್ ಐಟಂಗಳನ್ನು ಕ್ಲಿಕ್ ಮಾಡಿದಾಗ ಪರಿಣಾಮಗಳನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "ಕ್ಲಿಕ್ ಪರಿಣಾಮ"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "ಸ್ಟ್ಯಾಕ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "ಯಾವಾಗಲೂ ಹಿಂದೆ"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "ಕೆಳಗೆ"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "ಎಡ"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "ಬಲ"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "ಸೇರಿಸಬೇಕಾದ ಪಿನ್ ಮಾಡಿದ ಐಟಂಗಳು"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "ಮೂಲ ಡಾಕ್‌ನಲ್ಲಿ ಪಿನ್ ಮಾಡಿದ ಐಟಂಗಳು ಇಲ್ಲ."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "ಅನ್ವಯಿಸಬೇಕಾದ ಆದ್ಯತೆಗಳು"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "ಆಮದು ಮಾಡಲು ಯಾವುದೇ ಬದಲಾವಣೆಗಳಿಲ್ಲ."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Docking ಫೈಲ್ ಆಮದು ಮಾಡಿ"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "ಇನ್ನೊಂದು ಡಾಕ್‌ನಿಂದ ಆಮದು ಮಾಡಿ"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "ಬಿಟ್ಟುಬಿಡಿ"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "ಆಮದು ಮಾಡಿ"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "ಆಮದು ಮಾಡಲು ಡಾಕ್ ಆಯ್ಕೆಮಾಡಿ."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr "ಪಿನ್ ಮಾಡಿದ ಐಟಂಗಳು ಮತ್ತು ಆದ್ಯತೆಗಳನ್ನು ಪರಿಶೀಲಿಸಲು ಡಾಕ್ ಆಯ್ಕೆಮಾಡಿ."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "ಮಾನ್ಯ Docking JSON ಕಾನ್ಫಿಗರೇಶನ್ ಫೈಲ್ ಆಯ್ಕೆಮಾಡಿ."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "ಮೂಲ ಡಾಕ್‌ನ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Plank ಅಥವಾ Plank Reloaded ಸೆಟಪ್ ಕಂಡುಬರಲಿಲ್ಲ."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Cairo-Dock ಸೆಟಪ್ ಕಂಡುಬರಲಿಲ್ಲ."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Plank ಅಥವಾ Cairo-Dock ಸೆಟಪ್ ಕಂಡುಬರಲಿಲ್ಲ."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "ಡಾಕ್ ವಿನ್ಯಾಸ ಸಂಪಾದಿಸಿ"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "ಅನ್ವಯಿಸಿ"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "ಪಿನ್ ಮಾಡಿದ ಐಟಂಗಳು ಇಲ್ಲ"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "ಆ್ಯಪ್…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "ಆ್ಯಪ್‌ಲೆಟ್…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "ಫೈಲ್…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "ಫೋಲ್ಡರ್…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "ಮೇಲೆ ಸರಿಸಿ"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "ಕೆಳಗೆ ಸರಿಸಿ"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "ವಿನ್ಯಾಸ ಮರುಲೋಡ್ ಮಾಡಿ"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "ಸಂಪಾದಿಸುತ್ತಿರುವಾಗ ಡಾಕ್ ವಿನ್ಯಾಸ ಬದಲಾಗಿದೆ."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "ಡಾಕ್ ವಿನ್ಯಾಸವನ್ನು ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "ವಿನ್ಯಾಸ ಉಳಿಸಲಾಗಿದೆ. ಕೆಲವು ಹೊಸ ಐಟಂಗಳನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "ಸ್ಥಾನ ಸ್ಥಿರಗೊಳಿಸಿದ ಫೈಲ್‌ಗಳು ಮತ್ತು ಫೋಲ್ಡರ್‌ಗಳು"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "ಸ್ಥಾನ ಸ್ಥಿರಗೊಳಿಸಿದ ಆ್ಯಪ್‌ಲೆಟ್‌ಗಳು"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "ಫೈಲ್ ಆಯ್ಕೆಮಾಡಿ"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "ಸ್ಥಳೀಯ ಫೈಲ್ ಅಥವಾ ಫೋಲ್ಡರ್ ಆಯ್ಕೆಮಾಡಿ."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "ಆ್ಯಪ್ ಸೇರಿಸಿ"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Docking ತೋರಿಸಿ ಅಥವಾ ಮರೆಮಾಡಿ"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "ಈ ಮೋಡ್ ಸಕ್ರಿಯಗೊಳಿಸುವ ಮೊದಲು ಶಾರ್ಟ್‌ಕಟ್ ನಿಗದಿಪಡಿಸಿ."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "ಡೆಸ್ಕ್‌ಟಾಪ್ ಶಾರ್ಟ್‌ಕಟ್ ನಿಗದಿಪಡಿಸಿಲ್ಲ."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "ಸ್ವಯಂ ಮರೆಮಾಡುವ ಮೋಡ್ ಬಳಸಲಾಗುತ್ತಿದೆ: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "ಮೋಡ್ ಸಕ್ರಿಯವಾಗಿಲ್ಲ: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "ಟರ್ಮಿನಲ್‌ನಲ್ಲಿ ಫೋಲ್ಡರ್ ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "ಈ ಐಟಂ ಅನ್ನು ಇನ್ನೊಂದು ಆ್ಯಪ್‌ನಿಂದ ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "ಟರ್ಮಿನಲ್‌ನಲ್ಲಿ ತೆರೆಯಿರಿ"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "ಇದರೊಂದಿಗೆ ತೆರೆಯಿರಿ…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "ಮುಖ್ಯ"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "ಶಾರ್ಟ್‌ಕಟ್‌ನಿಂದ ಮಾತ್ರ ತೋರಿಸಿ"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "ಪುಟಿತ"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "ಮಿಡಿತ"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "ಅಲುಗಾಟ"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "ಡಾಕ್ ಶಾರ್ಟ್‌ಕಟ್"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "ಆಯ್ಕೆಮಾಡಿದ ಪರದೆಯ ಅಂಚಿನಲ್ಲಿ ಡಾಕ್ ಇರಿಸಿ."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "ಮುನ್ನೋಟ"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "ಕಿಟಕಿಯ ಮುನ್ನೋಟದ ಕಿರುಚಿತ್ರಗಳನ್ನು ತೋರಿಸಿ"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr ""
+"ಕಿರುಚಿತ್ರದ ಮೇಲೆ ಪಾಯಿಂಟರ್ ಇಟ್ಟಾಗ ಡೆಸ್ಕ್‌ಟಾಪ್‌ನ ನಿಜವಾದ ಕಿಟಕಿಯ ಹೊರರೇಖೆ ತೋರಿಸಿ."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"ಕಿರುಚಿತ್ರದ ಮೇಲೆ ಪಾಯಿಂಟರ್ ಇಟ್ಟಾಗ ಡೆಸ್ಕ್‌ಟಾಪ್‌ನ ನಿಜವಾದ ಕಿಟಕಿಯ ಹೊರರೇಖೆ ತೋರಿಸಿ. "
+"ಈ ಸೆಷನ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ, X11 ಅಥವಾ Sway ಬೇಕು."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "ಕಿರುಚಿತ್ರದ ಅಗಲ"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"ಕಿಟಕಿಯ ಕಿರುಚಿತ್ರದ ಅಗಲವನ್ನು ಪಿಕ್ಸೆಲ್‌ಗಳಲ್ಲಿ ಹೊಂದಿಸಿ. ಅಗಲವಾದ ಕಿರುಚಿತ್ರದಲ್ಲಿ "
+"ಕಿಟಕಿಯ ಶೀರ್ಷಿಕೆಯ ಹೆಚ್ಚಿನ ಭಾಗ ಕಾಣುತ್ತದೆ."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "ವಿನ್ಯಾಸ ಸಂಪಾದಿಸಿ…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr ""
+"ಪಿನ್ ಮಾಡಿದ ಆ್ಯಪ್‌ಗಳು, ಆ್ಯಪ್‌ಲೆಟ್‌ಗಳು, ಫೈಲ್‌ಗಳು ಮತ್ತು ಫೋಲ್ಡರ್‌ಗಳನ್ನು ಮಾತ್ರ "
+"ತೋರಿಸಿ."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "ಪಿನ್ ಮಾಡಿದ ಐಟಂಗಳು"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "ಡಾಕ್‌ನಿಂದ ಆ್ಯಪ್ ಪ್ರಾರಂಭಿಸಿದಾಗ ಆಯ್ಕೆಮಾಡಿದ ಪರಿಣಾಮವನ್ನು ತೋರಿಸಿ."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "ಆ್ಯಪ್ ಪ್ರಾರಂಭಿಸಿದಾಗ ತೋರಿಸಬೇಕಾದ ಪರಿಣಾಮ ಆಯ್ಕೆಮಾಡಿ."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "ಡಾಕ್ ಶಾರ್ಟ್‌ಕಟ್"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"ಈ ಮೋಡ್ ಸಕ್ರಿಯಗೊಳಿಸಲು ಕೆಲಸ ಮಾಡುವ ಶಾರ್ಟ್‌ಕಟ್ ನಿಗದಿಪಡಿಸಿ. ಅದನ್ನು ನೋಂದಾಯಿಸಲು "
+"ಸಾಧ್ಯವಾಗದಿದ್ದರೆ ಡಾಕ್ ತಾತ್ಕಾಲಿಕವಾಗಿ ಸ್ವಯಂ ಮರೆಮಾಡುವ ಮೋಡ್ ಬಳಸುತ್ತದೆ."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "ಇನ್ನೊಂದು ಡಾಕ್"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Plank ಬಟನ್ Plank Reloaded ಅನ್ನೂ ಬೆಂಬಲಿಸುತ್ತದೆ. ಆಮದು ಮಾಡುವ ಮೊದಲು ಪಿನ್ ಮಾಡಿದ "
+"ಐಟಂಗಳು, ಆದ್ಯತೆಗಳು ಮತ್ತು ಬಿಟ್ಟ ಐಟಂಗಳನ್ನು ಪರಿಶೀಲಿಸಿ."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "ಬ್ರೌಸ್ ಮಾಡಿ…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"ಪಿನ್ ಮಾಡಿದ ಐಟಂಗಳು ಮತ್ತು ವಿನ್ಯಾಸದ ಆದ್ಯತೆಗಳನ್ನು ಪರಿಶೀಲಿಸಲು Docking JSON ಫೈಲ್ "
+"ಆಯ್ಕೆಮಾಡಿ."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "ಇಲ್ಲಿಂದ ಆಮದು ಮಾಡಿ"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "ಆಮದು ಮಾಡಿದ ಡಾಕ್ ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr ""
+"ಉಳಿಸಿದ ಕಾನ್ಫಿಗರೇಶನ್‌ನಿಂದ ಈ ಪಿನ್ ಮಾಡಿದ ಐಟಂಗಳನ್ನು ತೆಗೆದುಹಾಕಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "ಆಮದು ಮಾಡಿದ ಕೆಲವು ಪಿನ್ ಐಟಂಗಳನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "ಮಧ್ಯ"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"ಪರದೆಯ ಜಾಗ ಮೀಸಲಿಡದೆ ಡೆಸ್ಕ್‌ಟಾಪ್‌ನ ಮೇಲೆ ಮತ್ತು ಆ್ಯಪ್ ಕಿಟಕಿಗಳ ಹಿಂದೆ ಇರುತ್ತದೆ. "
+"ಬಳಸಲು ಡಾಕ್ ಅನ್ನು ಮುಚ್ಚಿರುವುದನ್ನು ಸರಿಸಿ. ಅದರ ಮೇಲೆ ಪಾಯಿಂಟರ್ ಇಟ್ಟರೂ ಮುಂಭಾಗಕ್ಕೆ "
+"ಬರುವುದಿಲ್ಲ."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"ಅದರ ಶಾರ್ಟ್‌ಕಟ್ ಒತ್ತಿದಾಗ ಮಾತ್ರ ಕಾಣುತ್ತದೆ. ಪಾಯಿಂಟರ್ ಡಾಕ್ ಒಳಗೆ ಬಂದು ಹೊರಹೋದಾಗ "
+"ಮರೆಯಾಗುತ್ತದೆ. ಮರೆಮಾಡಲು ಶಾರ್ಟ್‌ಕಟ್ ಮತ್ತೆ ಒತ್ತಿ."

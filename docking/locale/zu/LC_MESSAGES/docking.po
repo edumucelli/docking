@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -3442,10 +3430,6 @@ msgstr "Yenza kusebenze"
 msgid "Context Menu"
 msgstr "Imenyu Yokuqukethwe"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "I-D-Bus ayitholakali"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3554,10 +3538,6 @@ msgstr "Ithreyi Yesistimu: {n} izinto"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "Ithreyi Yesistimu: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "Ithreyi Yesistimu: I-D-Bus ayitholakali"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3888,10 +3868,6 @@ msgstr "Lokhu kususa iseshini ye-WhatsApp Web egcinwe yi-Docking. Kuzodingeka "
 msgid "Could not disconnect WhatsApp"
 msgstr "Ayikwazanga ukunqamula i-WhatsApp"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "Iphutha le-WebKit elingaziwa"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "I-WebKitGTK ayitholakali"
@@ -3899,10 +3875,6 @@ msgstr "I-WebKitGTK ayitholakali"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "I-applet ye-Docking"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "Layisha kabusha i-WhatsApp Web"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3920,11 +3892,6 @@ msgstr "ikhamera"
 msgid "microphone"
 msgstr "imakrofoni"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "Vumela i-WhatsApp ukuthi isebenzise i-{device} yakho?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "Nqaba"
@@ -3932,10 +3899,6 @@ msgstr "Nqaba"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "Vumela"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "I-WhatsApp idinga i-WebKitGTK"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3946,10 +3909,6 @@ msgstr "Faka iphakethe le-introspection le-WebKitGTK 4.1 noma 4.0, bese uqala "
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "iphutha lesiphequluli elingaziwa"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: i-WebKitGTK ayifakiwe"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5270,10 +5229,6 @@ msgid "Show item names and details when hovering over dock items."
 msgstr ""
 "Bonisa amagama ezinto nemininingwane lapho uhambisa phezu kwezinto zedokhi."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr ""
@@ -5699,28 +5654,1046 @@ msgstr "Ziba"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "Ikhamera ikhiyiwe"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "Isimo semakrofoni asitholakali"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "Akwaziwa ukuthi imakrofoni ithulisiwe yini"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "Akwaziwa ukuthi imakrofoni iyasetshenziswa yini"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "Izilungiselelo zemakrofoni"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "Isimo sekhamera asitholakali"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "Akwaziwa ukuthi ikhamera iyasetshenziswa yini"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "Ikhamera ayikwazi ukukhiywa"
 
 msgid "Camera Settings"
+msgstr "Izilungiselelo zekhamera"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "Gcina uxhumano"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "Xhuma umsindo"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "Yeka ukugcina uxhumano"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "Nqamula uxhumano lomsindo"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "Faka i-PIN"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "Faka le PIN kudivayisi: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "Ingabe le PIN iyafana naleyo eboniswa kudivayisi? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "Uhlu lokuhlola"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "Into engamakiwe: {count}"
+msgstr[1] "Izinto ezingamakiwe: {count}"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "Engeza into"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "Susa izinto eziqediwe"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "Umbhalo wento"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "Ukulandelela i-clipboard kumisiwe okwesikhashana"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "Umlando we-clipboard"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "Nika amandla ukulandelela i-clipboard"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "Landelela okukhethwe ngegundane"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "Ukulandelela okukhethwe ngegundane kudinga i-X11"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "Landelela izithombe"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "Inani eliphezulu lamarekhodi"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "Kukhutshaziwe"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "Isithombe ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "I-alamu: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "Uhlu lwamadivayisi e-KDE Connect alukwazanga ukufundwa"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "Faka i-KDE Connect ukuze uvule izilungiselelo zamadivayisi ayo"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "Idivayisi ekhethiwe iyaxhunyanwa…"
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
 msgstr ""
+"Isenzo se-KDE Connect sihlulekile. Zama futhi uma idivayisi iku-inthanethi"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "Kuthunyelwe isicelo sokuthi {name} ikhale"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr ""
+"Khetha idivayisi ebhangqiwe, eku-inthanethi nenokwabelana ngamafayela "
+"okuvuliwe"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "Linda kuze kuqedwe isenzo samanje se-KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "Amafayela akhethiwe awakwazanga ukufundwa"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "Kucelwe ukudluliselwa kwamafayela ku-{name}"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "Thumela amafayela nge-KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "Thumela"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "Yenza ifoni ikhale"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "Thumela amafayela…"
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "Vula i-KDE Connect / Bhangqa idivayisi"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "Faka futhi uqalise i-KDE Connect ukuze uxhume ifoni"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "I-KDE Connect iqale kabusha. Uhlu lwamadivayisi luyavuselelwa"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+"Akukwazekanga ukuxhumana ne-KDE Connect. Zama futhi noma uvule "
+"izilungiselelo zayo"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "I-KDE Connect ibuyise isihlonzi sedivayisi esingavumelekile"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"Uhlu lwamadivayisi e-KDE Connect alukwazanga ukufundwa. Zama futhi noma "
+"uvule izilungiselelo zayo"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "Idivayisi ekhethiwe ayikho ku-inthanethi noma ayisabhangqiwe"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "Idivayisi ekhethiwe ayisekeli lesi senzo"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "Elinye lamafayela akhethiwe alisatholakali"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: ayikho ku-inthanethi"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: ixhunyiwe"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (iyashaja)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr ""
+"Awekho amadivayisi abhangqiwe. Vula i-KDE Connect ukuze ubhangqe ifoni yakho"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "Idivayisi ekhethiwe ayisabhangqiwe. Khetha enye idivayisi"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "Hudulela amafayela lapha ukuze uwathumele kule divayisi"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "Khetha okungenani ifayela elilodwa elikule khompyutha"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "Nge-KDE Connect kungathunyelwa kuphela amafayela akule khompyutha"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "Okuzenzakalelayo kwesistimu"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "Uhlelo lokusebenza olukhethwayo alutholakali"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "Azitholakalanga izinhlelo zokusebenza ezihambisanayo"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "Qalisa uhlelo lokusebenza"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"Faka noma unike amandla i-%(plugin)s bese uqala kabusha i-mpv ukuze "
+"usebenzise izilawuli zokudlala futhi ubone imininingwane yengoma."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr ""
+"Nika amandla i-plugin ye-MPRIS ku-Rhythmbox ukuze ubone imininingwane "
+"yengoma."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "Faka i-%(package)s bese uqala kabusha i-Rhythmbox."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "Izaziso azikwazanga ukubuyekezwa"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr ""
+"Umlando wezaziso udinga imvume yokufinyelela kuzilungiselelo ze-Windows"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Vula i-Telegram"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Fihla i-Telegram"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Nqamula uxhumano lwe-Telegram"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Unqamule uxhumano lwe-Telegram?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"Lokhu kuzosula iseshini ye-Telegram Web egcinwe i-Docking. Kuzodingeka "
+"ungene ngemvume futhi."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Uxhumano lwe-Telegram alukwazanga ukunqanyulwa"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: isiphequluli asitholakali"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: iyalayisha…"
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram: skena ikhodi ye-QR noma ungene ngenombolo yakho yocingo"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: iyavumelanisa…"
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: ayikho ku-inthanethi"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "I-Telegram Web ayikwazanga ukulayishwa"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: isaziso esisha esingu-{count}"
+msgstr[1] "Telegram: izaziso ezintsha ezingu-{count}"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: ingxoxo engafundiwe engu-{count}"
+msgstr[1] "Telegram: izingxoxo ezingafundiwe ezingu-{count}"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: azikho izingxoxo ezingafundiwe"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: chofoza ukuze uvule"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "Iphutha lesiphequluli elingaziwa"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "Layisha kabusha {service}"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "Vumela {service} isebenzise idivayisi yakho {device}?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "{service} idinga i-WebKitGTK"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "Iseshini yesiphequluli ayikwazanga ukuvulwa"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "I-Microsoft Edge WebView2 ayitholakali"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "Uxhumano lwe-{service} alukwazanga ukunqanyulwa"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "{service} ayikwazanga ukulayishwa"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "Landa"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "Kuqediwe"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "Iyalanda"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "Qhubeka"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: isiphequluli asitholakali"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "Ngenisa isakhiwo sedokhi esivele sikhona"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Vula Okuthandwayo → Ngenisa ukuze ubuyekeze izinto eziphiniwe "
+"nezilungiselelo ze-Plank, Plank Reloaded noma i-Cairo-Dock ngaphambi "
+"kokuzingenisa ku-Docking."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "Ifayela le-Docking"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "Itimu yomthombo ayitholakali."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr "Setha isinqamuleli sokubonisa idokhi kokuthandwayo kwe-Docking."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "Kweqiwe into ephiniwe engavumelekile."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "Kweqiwe {item}."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Idokhi eyinhloko ye-Plank ayikwazanga ukutholwa."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "Kweqiwe isakhiwo se-Plank esithatha lonke unqenqema lwesikrini."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"Izilungiselelo ze-Plank bezingatholakali. Amafayela eziqalisi abhalwe "
+"ngamagama awo."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "Idokhi eyinhloko"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "Kweqiwe idokhi encane ephindaphindiwe {item}."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "Kweqiwe idokhi ehlukile {item}."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "Kweqiwe isiqalisi esenziwe ngendlela oyifunayo {item}."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "Kweqiwe i-plugin {item}."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "Kweqiwe iwijethi yedeskithophu ehlukanisiwe {item}."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "Kweqiwe ukukhetha isikrini ngenombolo ku-Cairo-Dock."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr ""
+"Kumodi ethi Njalo Ngemuva, ukuhambisa isikhombi emaphethelweni esikrini "
+"akuyivezi idokhi."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "Uhlelo lokusebenza lwe-{item} alutholakali."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "Isikrini somthombo asitholakali."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr ""
+"Ibanga ukusuka onqenqemeni lwesikrini lilungiswe kusuka ku-{requested} px "
+"laya ku-{applied} px."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "Le nto isivele iphiniwe."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "Uhlelo lokusebenza olukhethiwe alutholakali."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "I-applet ekhethiwe ayitholakali."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "Ifayela noma ifolda ekhethiwe ayitholakali."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Bonisa noma ufihle ukusesha kwe-Docking"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Khetha ifayela lokumisa le-Docking"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Amafayela okumisa e-Docking"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "Ukuqondanisa"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "Isikrini"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "Landela isikrini esisebenzayo"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "Vumela ukusondeza"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "Izinga lokusondeza"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "Khiya izithonjana"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "Izinto eziphiniwe kuphela"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "Bonisa ukubuka kuqala kwamawindi"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "Ububanzi bokubuka kuqala"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "Dweba umngcele wewindi uma isikhombi siphezu kokubuka kuqala kwalo"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "Ibanga elengeziwe ukusuka onqenqemeni"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "Bambelela ama-applet"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "Bambelela amafayela"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "Vumela imiphumela lapho kuchofozwa izinto zedokhi"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "Umphumela wokuchofoza"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "Vula izinqwaba"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "Njalo Ngemuva"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "Phansi"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "Kwesokunxele"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "Kwesokudla"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "Izinto ezizophinwa"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "Idokhi yomthombo ayinazinto eziphiniwe."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "Okuthandwayo okuzosetshenziswa"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "Azikho izinguquko ezingangeniswa."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Ngenisa ifayela le-Docking"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "Ngenisa kusuka kwenye idokhi"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "Yeqa"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "Ngenisa"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "Khetha idokhi ozoyingenisa."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr ""
+"Khetha idokhi ukuze ubuyekeze izinto zayo eziphiniwe nokuthandwayo kwayo."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Khetha ifayela le-JSON elivumelekile lokumisa i-Docking."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "Izilungiselelo zedokhi yomthombo azikwazanga ukufundwa."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Akutholakalanga ukulungiselelwa kwe-Plank noma i-Plank Reloaded."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Akutholakalanga ukulungiselelwa kwe-Cairo-Dock."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Akutholakalanga ukulungiselelwa kwe-Plank noma kwe-Cairo-Dock."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "Hlela isakhiwo sedokhi"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "Sebenzisa"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "Azikho izinto eziphiniwe"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "Uhlelo lokusebenza…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "I-applet…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "Ifayela…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "Ifolda…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "Yisa phezulu"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "Yisa phansi"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "Layisha kabusha isakhiwo"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "Isakhiwo sedokhi sishintshile ngesikhathi usihlela."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "Isakhiwo sedokhi asikwazanga ukulondolozwa."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr ""
+"Isakhiwo silondoloziwe. Ezinye izinto ezintsha azikwazanga ukulayishwa."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "Amafayela namafolda abambelele"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "Ama-applet abambelele"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "Khetha ifolda"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "Khetha ifayela"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "Khetha ifayela noma ifolda ekule khompyutha."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "Engeza uhlelo lokusebenza"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Bonisa noma ufihle i-Docking"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "Yabela isinqamuleli ngaphambi kokunika amandla le modi."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "Indawo yedeskithophu ayabelanga isinqamuleli."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Kusetshenziswa ukuzifihla okuzenzakalelayo: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "Imodi ayinikwanga amandla: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "Ifolda ayikwazanga ukuvulwa kutheminali."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "Le nto ayikwazanga ukuvulwa ngolunye uhlelo lokusebenza."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "Vula kutheminali"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "Vula nge…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "Esiyinhloko"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "Bonisa ngesinqamuleli kuphela"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "Ukugxuma"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "Ukushaya"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "Ukuntengantenga"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "Isinqamuleli sedokhi"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "Beka idokhi onqenqemeni lwesikrini olukhethiwe."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "Ukubuka kuqala"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "Bonisa izithonjana zokubuka kuqala amawindi"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr ""
+"Dweba umngcele wewindi kudeskithophu uma isikhombi siphezu kwesithonjana "
+"salo."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"Dweba umngcele wewindi kudeskithophu uma isikhombi siphezu kwesithonjana "
+"salo. Akutholakali kule seshini. Kudinga i-X11 noma i-Sway."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "Ububanzi besithonjana"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"Setha ububanzi bezithonjana zamawindi ngamaphikseli. Izithonjana ezibanzi "
+"zibonisa ingxenye enkulu yesihloko sewindi."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "Hlela isakhiwo…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr ""
+"Bonisa kuphela izinhlelo zokusebenza, ama-applet, amafayela namafolda "
+"aphiniwe."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "Izinto eziphiniwe"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "Bonisa umphumela okhethiwe uma kuqaliswa uhlelo lokusebenza edokhini."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "Khetha umphumela ozoboniswa uma kuqaliswa uhlelo lokusebenza."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "Isinqamuleli sedokhi"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"Yabela isinqamuleli esisebenzayo ukuze unike amandla le modi. Uma "
+"singabhaliseki, idokhi izozifihla ngokuzenzakalelayo okwesikhashana."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "Enye idokhi"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Inkinobho ye-Plank nayo isekela i-Plank Reloaded. Buyekeza izinto "
+"eziphiniwe, okuthandwayo nezinto ezeqiwe ngaphambi kokungenisa."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "Phequlula…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"Khetha ifayela le-JSON le-Docking ukuze ubuyekeze izinto zalo eziphiniwe "
+"nokuthandwayo kwesakhiwo."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "Ngenisa kusuka"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "Idokhi engenisiwe ayikwazanga ukulondolozwa."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr ""
+"Lezi zinto eziphiniwe azikwazanga ukususwa ekulungiselelweni okulondoloziwe."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "Ezinye izinto eziphiniwe ezingenisiwe azikwazanga ukulayishwa."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "Phakathi nendawo"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"Ihlala ngaphezu kwedeskithophu nangaphansi kwamawindi ezinhlelo zokusebenza "
+"ngaphandle kokubekisa indawo esikrinini. Susa amawindi ayimbozile ukuze "
+"uyisebenzise. Ukuhambisa isikhombi phezu kwayo akuyilethi ngaphambili."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"Ivela kuphela ngesinqamuleli sayo, bese izifihla uma isikhombi singena "
+"edokhini bese siphuma. Cindezela isinqamuleli futhi ukuze uyifihle."

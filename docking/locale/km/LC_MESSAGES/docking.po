@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -2654,7 +2642,6 @@ msgstr "ពន្យារ 1 ថ្ងៃ"
 msgid "{count} more due task"
 msgid_plural "{count} more due tasks"
 msgstr[0] "កិច្ចការត្រូវធ្វើថែម {count}"
-msgstr[1] "កិច្ចការត្រូវធ្វើថែម {count}"
 
 #: docking/applets/plantcare/applet.py:244
 #: docking/search/providers/applications.py:192 docking/ui/diagnostics.py:137
@@ -2785,7 +2772,6 @@ msgstr "រុក្ខជាតិ"
 msgid "overdue by {count} day"
 msgid_plural "overdue by {count} days"
 msgstr[0] "ហួសកំណត់ {count} ថ្ងៃ"
-msgstr[1] "ហួសកំណត់ {count} ថ្ងៃ"
 
 #: docking/applets/plantcare/state.py:421
 msgid "due today"
@@ -2796,7 +2782,6 @@ msgstr "ត្រូវធ្វើថ្ងៃនេះ"
 msgid "in {count} day"
 msgid_plural "in {count} days"
 msgstr[0] "ក្នុង {count} ថ្ងៃ"
-msgstr[1] "ក្នុង {count} ថ្ងៃ"
 
 #: docking/applets/plantcare/state.py:428
 #, python-brace-format
@@ -2820,7 +2805,6 @@ msgstr "គ្មានកាលវិភាគថែទាំត្រូវប
 msgid "{count} task due"
 msgid_plural "{count} tasks due"
 msgstr[0] "កិច្ចការត្រូវធ្វើ {count}"
-msgstr[1] "កិច្ចការត្រូវធ្វើ {count}"
 
 #: docking/applets/plantcare/state.py:455
 msgid "All plants are on schedule"
@@ -2831,7 +2815,6 @@ msgstr "រុក្ខជាតិទាំងអស់ស្ថិតក្ន
 msgid "{count} more task"
 msgid_plural "{count} more tasks"
 msgstr[0] "កិច្ចការថែម {count}"
-msgstr[1] "កិច្ចការថែម {count}"
 
 #: docking/applets/plantcare/state.py:492
 #, python-brace-format
@@ -3442,10 +3425,6 @@ msgstr "Activate"
 msgid "Context Menu"
 msgstr "Context Menu"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-Bus unavailable"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3552,10 +3531,6 @@ msgstr "System Tray: {n} item(s)"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "System Tray: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "System Tray: D-Bus unavailable"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3691,8 +3666,7 @@ msgstr "No items in Trash"
 #, python-brace-format
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
-msgstr[0] "{n} ធាតុក្នុងធុdelays"
-msgstr[1] "{n} ធdelaysក្នdelays"
+msgstr[0] "{n} ធdelaysក្នdelays"
 
 #: docking/applets/trivia/applet.py:55 docking/applets/trivia/applet.py:199
 msgid "Random Trivia"
@@ -3885,10 +3859,6 @@ msgstr "ប្រតិបត្តិការនេះនឹងសម្អា
 msgid "Could not disconnect WhatsApp"
 msgstr "មិនអាចផ្តាច់ WhatsApp បានទេ"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "កំហុស WebKit មិនស្គាល់"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK មិនអាចប្រើបានទេ"
@@ -3896,10 +3866,6 @@ msgstr "WebKitGTK មិនអាចប្រើបានទេ"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "អាប់ឡេត Docking"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "ផ្ទុក WhatsApp Web ឡើងវិញ"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3917,11 +3883,6 @@ msgstr "កាមេរ៉ា"
 msgid "microphone"
 msgstr "មីក្រូហ្វូន"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "អនុញ្ញាតឱ្យ WhatsApp ប្រើ {device} របស់អ្នក?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "បដិសេធ"
@@ -3929,10 +3890,6 @@ msgstr "បដិសេធ"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "អនុញ្ញាត"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp ត្រូវការ WebKitGTK"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3943,10 +3900,6 @@ msgstr "ដំឡើងកញ្ចប់ introspection WebKitGTK 4.1 ឬ 4.0 �
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "កំហុសកម្មវិធីរុករកមិនស្គាល់"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp៖ WebKitGTK មិនត្រូវបានដំឡើងទេ"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5245,10 +5198,6 @@ msgstr "បង្ហាញព័ត៌មានជំនួយ"
 msgid "Show item names and details when hovering over dock items."
 msgstr "Show item names and details when hovering over dock items."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr "Show window thumbnails when hovering over running apps."
@@ -5645,28 +5594,1018 @@ msgstr "Ignore"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "កាមេរ៉ាត្រូវបានចាក់សោ"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "មិនអាចទទួលបានស្ថានភាពមីក្រូហ្វូន"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "មិនដឹងថាមីក្រូហ្វូនត្រូវបានបិទសំឡេងឬអត់"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "មិនដឹងថាមីក្រូហ្វូនកំពុងដំណើរការឬអត់"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "ការកំណត់មីក្រូហ្វូន"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "មិនអាចទទួលបានស្ថានភាពកាមេរ៉ា"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "មិនដឹងថាកាមេរ៉ាកំពុងដំណើរការឬអត់"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "មិនអាចចាក់សោកាមេរ៉ាបាន"
 
 msgid "Camera Settings"
+msgstr "ការកំណត់កាមេរ៉ា"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "រក្សាការតភ្ជាប់"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "ភ្ជាប់សំឡេង"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "លែងរក្សាការតភ្ជាប់"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "ផ្ដាច់សំឡេង"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "បញ្ចូលកូដ PIN"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "បញ្ចូលកូដ PIN នេះនៅលើឧបករណ៍៖ {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "តើកូដ PIN នេះដូចគ្នានឹងកូដនៅលើឧបករណ៍ឬ? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "បញ្ជីត្រួតពិនិត្យ"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "ធាតុ {count} មិនទាន់គូសធីក"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "បន្ថែមធាតុ"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "សម្អាតធាតុដែលបានបញ្ចប់"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "អត្ថបទរបស់ធាតុ"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "ការតាមដានក្ដារតម្បៀតខ្ទាស់ត្រូវបានផ្អាក"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "ប្រវត្តិក្ដារតម្បៀតខ្ទាស់"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "បើកការតាមដានក្ដារតម្បៀតខ្ទាស់"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "តាមដានអ្វីដែលបានជ្រើសដោយប្រើកណ្ដុរ"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "ការតាមដានការជ្រើសដោយកណ្ដុរត្រូវការ X11"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "តាមដានរូបភាព"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "ចំនួនធាតុអតិបរមា"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "បានបិទ"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "រូបភាព ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "ម៉ោងរោទ៍៖ {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "មិនអាចអានបញ្ជីឧបករណ៍ KDE Connect បាន"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "ដំឡើង KDE Connect ដើម្បីបើកការកំណត់ឧបករណ៍របស់វា"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "កំពុងទាក់ទងឧបករណ៍ដែលបានជ្រើស…"
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
+msgstr "សកម្មភាព KDE Connect បានបរាជ័យ។ សាកម្ដងទៀតពេលឧបករណ៍នៅលើបណ្ដាញ។"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "បានផ្ញើសំណើឱ្យឧបករណ៍ {name} បន្លឺសំឡេង"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr "ជ្រើសឧបករណ៍ដែលបានផ្គូផ្គង កំពុងនៅលើបណ្ដាញ និងបានបើកការចែករំលែកឯកសារ"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "រង់ចាំរហូតដល់សកម្មភាព KDE Connect បច្ចុប្បន្នបញ្ចប់"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "មិនអាចអានឯកសារដែលបានជ្រើសបាន"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "បានស្នើផ្ទេរឯកសារទៅឧបករណ៍ {name}"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "ផ្ញើឯកសារដោយប្រើ KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "ផ្ញើ"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "ឱ្យទូរសព្ទរោទ៍"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "ផ្ញើឯកសារ…"
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "បើក KDE Connect ឬផ្គូផ្គងឧបករណ៍"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "ដំឡើង និងបើក KDE Connect ដើម្បីភ្ជាប់ទូរសព្ទ"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "KDE Connect បានចាប់ផ្ដើមឡើងវិញ។ កំពុងធ្វើបច្ចុប្បន្នភាពបញ្ជីឧបករណ៍។"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr "មិនអាចទាក់ទង KDE Connect បាន។ សាកម្ដងទៀត ឬបើកការកំណត់របស់វា។"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "KDE Connect បានផ្ដល់អត្តសញ្ញាណឧបករណ៍មិនត្រឹមត្រូវ"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr "មិនអាចអានបញ្ជីឧបករណ៍ KDE Connect បាន។ សាកម្ដងទៀត ឬបើកការកំណត់របស់វា។"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "ឧបករណ៍ដែលបានជ្រើសនៅក្រៅបណ្ដាញ ឬលែងត្រូវបានផ្គូផ្គង"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "ឧបករណ៍ដែលបានជ្រើសមិនគាំទ្រសកម្មភាពនេះទេ"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "ឯកសារមួយដែលបានជ្រើសលែងអាចប្រើបាន"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}៖ ក្រៅបណ្ដាញ"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}៖ បានភ្ជាប់"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}៖ {charge}% (កំពុងសាកថ្ម)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}៖ {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
 msgstr ""
+"គ្មានឧបករណ៍ដែលបានផ្គូផ្គងទេ។ បើក KDE Connect ដើម្បីផ្គូផ្គងទូរសព្ទរបស់អ្នក។"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "ឧបករណ៍ដែលបានជ្រើសលែងត្រូវបានផ្គូផ្គង។ ជ្រើសឧបករណ៍ផ្សេង។"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "អូសឯកសារមកទម្លាក់ទីនេះដើម្បីផ្ញើទៅឧបករណ៍នេះ"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "ជ្រើសយ៉ាងហោចណាស់ឯកសារក្នុងម៉ាស៊ីនមួយ"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "អាចផ្ញើតែឯកសារក្នុងម៉ាស៊ីនតាម KDE Connect"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "លំនាំដើមរបស់ប្រព័ន្ធ"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "កម្មវិធីដែលពេញចិត្តមិនអាចប្រើបាន"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "រកមិនឃើញកម្មវិធីដែលត្រូវគ្នា"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "បើកដំណើរការកម្មវិធី"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"ដំឡើង ឬបើក %(plugin)s រួចចាប់ផ្ដើម mpv ឡើងវិញ ដើម្បីប្រើប៊ូតុងចាក់ "
+"និងមើលព័ត៌មានបទ។"
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr "បើកកម្មវិធីជំនួយ MPRIS របស់ Rhythmbox ដើម្បីមើលព័ត៌មានបទ។"
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "ដំឡើង %(package)s រួចចាប់ផ្ដើម Rhythmbox ឡើងវិញ។"
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "មិនអាចធ្វើបច្ចុប្បន្នភាពការជូនដំណឹងបាន"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr "ប្រវត្តិការជូនដំណឹងត្រូវការសិទ្ធិចូលប្រើក្នុងការកំណត់ Windows"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "បើក Telegram"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "លាក់ Telegram"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "ផ្ដាច់ការតភ្ជាប់ Telegram"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "ផ្ដាច់ការតភ្ជាប់ Telegram ឬ?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"វានឹងសម្អាតសម័យប្រើប្រាស់ Telegram Web ដែល Docking បានរក្សាទុក។ "
+"អ្នកត្រូវចូលគណនីម្ដងទៀត។"
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "មិនអាចផ្ដាច់ការតភ្ជាប់ Telegram បាន"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram៖ {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram៖ មិនអាចប្រើកម្មវិធីរុករកបាន"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram៖ កំពុងផ្ទុក…"
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram៖ ស្កេនកូដ QR ឬចូលដោយប្រើលេខទូរសព្ទរបស់អ្នក"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram៖ កំពុងធ្វើសមកាលកម្ម…"
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram៖ ក្រៅបណ្ដាញ"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "មិនអាចផ្ទុក Telegram Web បាន"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram៖ ការជូនដំណឹងថ្មី {count}"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram៖ ការជជែកមិនទាន់អាន {count}"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram៖ គ្មានការជជែកមិនទាន់អាន"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram៖ ចុចដើម្បីបើក"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "កំហុសកម្មវិធីរុករកមិនស្គាល់"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "ផ្ទុក {service} ឡើងវិញ"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "អនុញ្ញាតឱ្យ {service} ប្រើ {device} របស់អ្នកឬ?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "{service} ត្រូវការ WebKitGTK"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "មិនអាចបើកសម័យប្រើប្រាស់កម្មវិធីរុករកបាន"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Microsoft Edge WebView2 មិនអាចប្រើបាន"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "មិនអាចផ្ដាច់ការតភ្ជាប់ {service} បាន"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "មិនអាចផ្ទុក {service} បាន"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "ទាញយក"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "បានបញ្ចប់"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "កំពុងទាញយក…"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "បន្ត"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp៖ មិនអាចប្រើកម្មវិធីរុករកបាន"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "នាំចូលប្លង់ដុកដែលមានស្រាប់"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"បើក ចំណូលចិត្ត → នាំចូល ដើម្បីពិនិត្យធាតុខ្ទាស់ និងការកំណត់ពី Plank, Plank "
+"Reloaded ឬ Cairo-Dock មុននាំចូលទៅ Docking។"
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "ឯកសារ Docking"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "រូបរាងពីប្រភពមិនអាចប្រើបាន។"
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr "កំណត់ផ្លូវកាត់សម្រាប់បង្ហាញដុកក្នុងចំណូលចិត្ត Docking។"
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "បានរំលងធាតុខ្ទាស់ដែលមិនត្រឹមត្រូវ។"
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "បានរំលង {item}។"
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "មិនអាចកំណត់ដុកចម្បងរបស់ Plank បាន។"
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "បានរំលងប្លង់ Plank ដែលលាតសន្ធឹងពេញគែម។"
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr "មិនអាចអានការកំណត់ Plank បាន។ បញ្ជីកម្មវិធីបើកបង្ហាញតាមឈ្មោះឯកសារ។"
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "ដុកចម្បង"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "បានរំលងដុករង {item} ដែលស្ទួន។"
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "បានរំលងដុកដាច់ដោយឡែក {item}។"
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "បានរំលងកម្មវិធីបើកផ្ទាល់ខ្លួន {item}។"
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "បានរំលងកម្មវិធីជំនួយ {item}។"
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "បានរំលងធាតុក្រាហ្វិកផ្ទៃតុ {item} ដែលបំបែកចេញ។"
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "បានរំលងការជ្រើសអេក្រង់តាមលេខរបស់ Cairo-Dock។"
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr "របៀបនៅពីក្រោយជានិច្ចមិនបង្ហាញដុកពេលដាក់ព្រួញនៅគែមអេក្រង់ទេ។"
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "មិនអាចប្រើកម្មវិធីសម្រាប់ {item} បាន។"
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "មិនអាចប្រើអេក្រង់ប្រភពបាន។"
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr "គម្លាតពីគែមអេក្រង់ត្រូវបានកែពី {requested} px ទៅ {applied} px។"
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "ធាតុនេះបានខ្ទាស់រួចហើយ។"
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "មិនអាចប្រើកម្មវិធីដែលបានជ្រើសបាន។"
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "មិនអាចប្រើអាប់ភ្លេតដែលបានជ្រើសបាន។"
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "មិនអាចប្រើឯកសារ ឬថតដែលបានជ្រើសបាន។"
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "បង្ហាញ ឬលាក់ការស្វែងរករបស់ Docking"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "ជ្រើសឯកសារកំណត់រចនាសម្ព័ន្ធ Docking"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "ឯកសារកំណត់រចនាសម្ព័ន្ធ Docking"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "ការតម្រឹម"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "អេក្រង់"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "តាមអេក្រង់ដែលកំពុងប្រើ"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "បើកការពង្រីក"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "កម្រិតពង្រីក"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "ចាក់សោរូបតំណាង"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "តែធាតុដែលបានខ្ទាស់"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "បង្ហាញការមើលបង្អួចជាមុន"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "ទទឹងការមើលជាមុន"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "បង្ហាញស៊ុមបង្អួចពេលដាក់ព្រួញលើការមើលជាមុន"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "គម្លាតបន្ថែមពីគែម"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "ដាក់អាប់ភ្លេតជាក្រុមនៅចុងដុក"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "ដាក់ឯកសារជាក្រុមនៅចុងដុក"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "បើកបែបផែនពេលចុចធាតុនៅលើដុក"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "បែបផែនពេលចុច"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "បើកក្រុមធាតុ"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "នៅពីក្រោយជានិច្ច"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "ខាងក្រោម"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "ខាងឆ្វេង"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "ខាងស្ដាំ"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "ធាតុដែលត្រូវខ្ទាស់"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "ដុកប្រភពគ្មានធាតុខ្ទាស់ទេ។"
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "ចំណូលចិត្តដែលត្រូវអនុវត្ត"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}៖ {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "គ្មានការផ្លាស់ប្ដូរសម្រាប់នាំចូលទេ។"
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "នាំចូលឯកសារ Docking"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "នាំចូលពីដុកផ្សេង"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "រំលង"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "នាំចូល"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "ជ្រើសដុកដែលត្រូវនាំចូល។"
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr "ជ្រើសដុកដើម្បីពិនិត្យធាតុខ្ទាស់ និងចំណូលចិត្តរបស់វា។"
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "ជ្រើសឯកសារកំណត់រចនាសម្ព័ន្ធ JSON របស់ Docking ដែលត្រឹមត្រូវ។"
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "មិនអាចអានការកំណត់ដុកប្រភពបាន។"
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "រកមិនឃើញការកំណត់ Plank ឬ Plank Reloaded។"
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "រកមិនឃើញការកំណត់ Cairo-Dock។"
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "រកមិនឃើញការកំណត់ Plank ឬ Cairo-Dock។"
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "កែប្លង់ដុក"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "អនុវត្ត"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "គ្មានធាតុខ្ទាស់"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "កម្មវិធី…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "អាប់ភ្លេត…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "ឯកសារ…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "ថត…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "ផ្លាស់ទីឡើង"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "ផ្លាស់ទីចុះ"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "ផ្ទុកប្លង់ឡើងវិញ"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "ប្លង់ដុកបានផ្លាស់ប្ដូរពេលអ្នកកំពុងកែ។"
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "មិនអាចរក្សាទុកប្លង់ដុកបាន។"
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "បានរក្សាទុកប្លង់។ មិនអាចផ្ទុកធាតុថ្មីមួយចំនួនបាន។"
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "ឯកសារ និងថតជាក្រុមនៅចុងដុក"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "អាប់ភ្លេតជាក្រុមនៅចុងដុក"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "ជ្រើសថត"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "ជ្រើសឯកសារ"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "ជ្រើសឯកសារ ឬថតនៅក្នុងម៉ាស៊ីន។"
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "បន្ថែមកម្មវិធី"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "បង្ហាញ ឬលាក់ Docking"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "កំណត់ផ្លូវកាត់មុនបើករបៀបនេះ។"
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "បរិស្ថានផ្ទៃតុមិនទាន់កំណត់ផ្លូវកាត់ទេ។"
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "កំពុងប្រើការលាក់ស្វ័យប្រវត្តិ៖ {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "មិនបានបើករបៀបនេះ៖ {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "មិនអាចបើកថតក្នុងស្ថានីយបាន។"
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "មិនអាចបើកធាតុនេះដោយប្រើកម្មវិធីផ្សេងបាន។"
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "បើកក្នុងស្ថានីយ"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "បើកដោយប្រើ…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "ចម្បង"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "បង្ហាញតែដោយប្រើផ្លូវកាត់"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "លោត"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "លោតញ័រតាមចង្វាក់"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "យោល"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "ផ្លូវកាត់ដុក"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "ដាក់ដុកតាមគែមអេក្រង់ដែលបានជ្រើស។"
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "ការមើលជាមុន"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "បង្ហាញរូបភាពតូចនៃបង្អួចសម្រាប់មើលជាមុន"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr "បង្ហាញស៊ុមបង្អួចពិតនៅលើផ្ទៃតុ ពេលដាក់ព្រួញលើរូបភាពតូចរបស់វា។"
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"បង្ហាញស៊ុមបង្អួចពិតនៅលើផ្ទៃតុ ពេលដាក់ព្រួញលើរូបភាពតូចរបស់វា។ "
+"មិនអាចប្រើក្នុងសម័យនេះបានទេ ព្រោះត្រូវការ X11 ឬ Sway។"
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "ទទឹងរូបភាពតូច"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"កំណត់ទទឹងរូបភាពតូចនៃបង្អួចជាភីកសែល។ រូបភាពតូចដែលទូលាយជាង "
+"អាចបង្ហាញចំណងជើងបង្អួចបានច្រើនជាង។"
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "កែប្លង់…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr "បង្ហាញតែកម្មវិធី អាប់ភ្លេត ឯកសារ និងថតដែលបានខ្ទាស់។"
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "ធាតុដែលបានខ្ទាស់"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "បង្ហាញបែបផែនដែលបានជ្រើសពេលបើកកម្មវិធីពីដុក។"
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "ជ្រើសបែបផែនដែលបង្ហាញពេលបើកកម្មវិធី។"
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "ផ្លូវកាត់ដុក"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"កំណត់ផ្លូវកាត់ដែលអាចប្រើបានដើម្បីបើករបៀបនេះ។ បើចុះឈ្មោះផ្លូវកាត់មិនបាន "
+"ដុកនឹងប្រើការលាក់ស្វ័យប្រវត្តិជាបណ្ដោះអាសន្ន។"
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "ដុកផ្សេង"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"ប៊ូតុង Plank គាំទ្រ Plank Reloaded ផងដែរ។ ពិនិត្យធាតុខ្ទាស់ ចំណូលចិត្ត "
+"និងធាតុដែលរំលងមុននាំចូល។"
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "រកមើល…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"ជ្រើសឯកសារ JSON របស់ Docking ដើម្បីពិនិត្យធាតុខ្ទាស់ "
+"និងចំណូលចិត្តប្លង់របស់វា។"
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "នាំចូលពី"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "មិនអាចរក្សាទុកដុកដែលបាននាំចូលបាន។"
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr "មិនអាចយកធាតុខ្ទាស់ទាំងនេះចេញពីការកំណត់ដែលបានរក្សាទុកបាន។"
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "មិនអាចផ្ទុកធាតុខ្ទាស់ដែលបាននាំចូលមួយចំនួនបាន។"
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "កណ្ដាល"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"ដុកស្ថិតនៅលើផ្ទៃតុ និងក្រោយបង្អួចកម្មវិធី ដោយមិនបម្រុងទុកកន្លែងលើអេក្រង់។ "
+"ផ្លាស់ទីបង្អួចដែលបាំងដុកដើម្បីប្រើវា។ ការដាក់ព្រួញលើដុកមិននាំវាមកខាងមុខទេ។"
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"ដុកបង្ហាញតែដោយប្រើផ្លូវកាត់ រួចលាក់បន្ទាប់ពីព្រួញចូលនិងចេញពីដុក។ "
+"ចុចផ្លូវកាត់ម្ដងទៀតដើម្បីលាក់វា។"

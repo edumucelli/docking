@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=6; plural=(n == 0 ? 0 : n == 1 ? 1 : n == 2 ? 2 : n == 3 ? 3 : n == 6 ? 4 : 5);\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -2653,8 +2641,12 @@ msgstr "Ailatgoffa 1 Diwrnod"
 #, python-brace-format
 msgid "{count} more due task"
 msgid_plural "{count} more due tasks"
-msgstr[0] "{count} tasg arall yn ddyledus"
-msgstr[1] "{count} tasgau eraill yn ddyledus"
+msgstr[0] "{count} o dasgau eraill yn ddyledus"
+msgstr[1] "{count} tasg arall yn ddyledus"
+msgstr[2] "{count} o dasgau eraill yn ddyledus"
+msgstr[3] "{count} o dasgau eraill yn ddyledus"
+msgstr[4] "{count} o dasgau eraill yn ddyledus"
+msgstr[5] "{count} o dasgau eraill yn ddyledus"
 
 #: docking/applets/plantcare/applet.py:244
 #: docking/search/providers/applications.py:192 docking/ui/diagnostics.py:137
@@ -2784,8 +2776,12 @@ msgstr "Planhigyn"
 #, python-brace-format
 msgid "overdue by {count} day"
 msgid_plural "overdue by {count} days"
-msgstr[0] "yn hwyr o {count} diwrnod"
+msgstr[0] "yn hwyr o {count} o ddiwrnodau"
 msgstr[1] "yn hwyr o {count} diwrnod"
+msgstr[2] "yn hwyr o {count} o ddiwrnodau"
+msgstr[3] "yn hwyr o {count} o ddiwrnodau"
+msgstr[4] "yn hwyr o {count} o ddiwrnodau"
+msgstr[5] "yn hwyr o {count} o ddiwrnodau"
 
 #: docking/applets/plantcare/state.py:421
 msgid "due today"
@@ -2795,8 +2791,12 @@ msgstr "yn ddyledus heddiw"
 #, python-brace-format
 msgid "in {count} day"
 msgid_plural "in {count} days"
-msgstr[0] "ymhen {count} diwrnod"
+msgstr[0] "ymhen {count} o ddiwrnodau"
 msgstr[1] "ymhen {count} diwrnod"
+msgstr[2] "ymhen {count} o ddiwrnodau"
+msgstr[3] "ymhen {count} o ddiwrnodau"
+msgstr[4] "ymhen {count} o ddiwrnodau"
+msgstr[5] "ymhen {count} o ddiwrnodau"
 
 #: docking/applets/plantcare/state.py:428
 #, python-brace-format
@@ -2819,8 +2819,12 @@ msgstr "Dim amserlenni gofal wedi'u galluogi"
 #, python-brace-format
 msgid "{count} task due"
 msgid_plural "{count} tasks due"
-msgstr[0] "{count} tasg yn ddyledus"
+msgstr[0] "{count} o dasgau yn ddyledus"
 msgstr[1] "{count} tasg yn ddyledus"
+msgstr[2] "{count} o dasgau yn ddyledus"
+msgstr[3] "{count} o dasgau yn ddyledus"
+msgstr[4] "{count} o dasgau yn ddyledus"
+msgstr[5] "{count} o dasgau yn ddyledus"
 
 #: docking/applets/plantcare/state.py:455
 msgid "All plants are on schedule"
@@ -2830,8 +2834,12 @@ msgstr "Mae pob planhigyn ar amserlen"
 #, python-brace-format
 msgid "{count} more task"
 msgid_plural "{count} more tasks"
-msgstr[0] "{count} tasg arall"
-msgstr[1] "{count} tasgau eraill"
+msgstr[0] "{count} o dasgau eraill"
+msgstr[1] "{count} tasg arall"
+msgstr[2] "{count} o dasgau eraill"
+msgstr[3] "{count} o dasgau eraill"
+msgstr[4] "{count} o dasgau eraill"
+msgstr[5] "{count} o dasgau eraill"
 
 #: docking/applets/plantcare/state.py:492
 #, python-brace-format
@@ -3442,10 +3450,6 @@ msgstr "Ysgogi"
 msgid "Context Menu"
 msgstr "Dewislen Cyd-destun"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-Bus ddim ar gael"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3554,10 +3558,6 @@ msgstr "Hambwrdd System: {n} eitem(au)"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "Hambwrdd System: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "Hambwrdd System: D-Bus ddim ar gael"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3694,8 +3694,12 @@ msgstr "No items in Trash"
 #, python-brace-format
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
-msgstr[0] "{n} eitem yn y Sbwriel"
+msgstr[0] "{n} o eitemau yn y Sbwriel"
 msgstr[1] "{n} eitem yn y Sbwriel"
+msgstr[2] "{n} o eitemau yn y Sbwriel"
+msgstr[3] "{n} o eitemau yn y Sbwriel"
+msgstr[4] "{n} o eitemau yn y Sbwriel"
+msgstr[5] "{n} o eitemau yn y Sbwriel"
 
 #: docking/applets/trivia/applet.py:55 docking/applets/trivia/applet.py:199
 msgid "Random Trivia"
@@ -3888,10 +3892,6 @@ msgstr "Mae hyn yn clirio sesiwn WhatsApp Web a storiwyd gan Docking. Bydd "
 msgid "Could not disconnect WhatsApp"
 msgstr "Methu datgysylltu WhatsApp"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "Gwall WebKit anhysbys"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "Nid yw WebKitGTK ar gael"
@@ -3899,10 +3899,6 @@ msgstr "Nid yw WebKitGTK ar gael"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Applet Docking"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "Ail-lwytho WhatsApp Web"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3920,11 +3916,6 @@ msgstr "camera"
 msgid "microphone"
 msgstr "meicroffon"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "Caniatáu i WhatsApp ddefnyddio'ch {device}?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "Gwrthod"
@@ -3932,10 +3923,6 @@ msgstr "Gwrthod"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "Caniatáu"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "Mae WhatsApp yn gofyn am WebKitGTK"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3946,10 +3933,6 @@ msgstr "Gosodwch y pecyn introspection WebKitGTK 4.1 neu 4.0, yna ailgychwyn "
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "gwall porwr anhysbys"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: nid yw WebKitGTK wedi'i osod"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5257,10 +5240,6 @@ msgstr "Dangos awgrymiadau"
 msgid "Show item names and details when hovering over dock items."
 msgstr "Dangoswch enwau a manylion eitemau wrth hofran dros eitemau doc."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr "Dangos mân-luniau ffenestr wrth hofran dros apiau rhedeg."
@@ -5671,28 +5650,1047 @@ msgstr "Anwybyddu"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "Camera wedi'i gloi"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "Nid yw statws y meicroffon ar gael"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "Ni wyddys a yw'r meicroffon wedi'i dewi"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "Nid yw gweithgarwch y meicroffon yn hysbys"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "Gosodiadau'r meicroffon"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "Nid yw statws y camera ar gael"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "Nid yw gweithgarwch y camera'n hysbys"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "Nid yw cloi'r camera ar gael"
 
 msgid "Camera Settings"
+msgstr "Gosodiadau'r camera"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "Cadw'r cysylltiad"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "Cysylltu sain"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "Rhyddhau'r cysylltiad"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "Datgysylltu sain"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "Rhoi'r PIN"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "Rhowch y PIN hwn ar y ddyfais: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "A yw'r PIN hwn yn cyfateb i'r un ar y ddyfais? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "Rhestr wirio"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "{count} o eitemau heb eu ticio"
+msgstr[1] "{count} eitem heb ei thicio"
+msgstr[2] "{count} eitem heb eu ticio"
+msgstr[3] "{count} o eitemau heb eu ticio"
+msgstr[4] "{count} o eitemau heb eu ticio"
+msgstr[5] "{count} o eitemau heb eu ticio"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "Ychwanegu eitem"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "Tynnu eitemau sydd wedi'u cwblhau"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "Testun yr eitem"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "Oedwyd monitro'r clipfwrdd"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "Hanes y clipfwrdd"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "Galluogi monitro'r clipfwrdd"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "Olrhain dewisiadau'r llygoden"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "Mae angen X11 i olrhain dewisiadau'r llygoden"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "Olrhain delweddau"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "Uchafswm y cofnodion"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "Analluog"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "Delwedd ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "Larwm: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "Methu darllen rhestr dyfeisiau KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "Gosodwch KDE Connect i agor gosodiadau'r ddyfais"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "Yn cysylltu â'r ddyfais a ddewiswyd..."
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
 msgstr ""
+"Methodd gweithred KDE Connect. Rhowch gynnig arall pan fydd y ddyfais ar-"
+"lein"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "Anfonwyd cais i ganu at {name}"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr ""
+"Dewiswch ddyfais wedi'i pharu sydd ar-lein ac sydd â rhannu ffeiliau wedi'i "
+"alluogi"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "Arhoswch i weithred gyfredol KDE Connect orffen"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "Methu darllen y ffeiliau a ddewiswyd"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "Gofynnwyd am drosglwyddo ffeiliau i {name}"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "Anfon ffeiliau drwy KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "Anfon"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "Canu'r ffôn"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "Anfon ffeiliau..."
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "Agor KDE Connect / Paru dyfais"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "Gosodwch a dechreuwch KDE Connect i gysylltu ffôn"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "Ailddechreuodd KDE Connect. Wrthi'n diweddaru'r rhestr dyfeisiau"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+"Methu cysylltu â KDE Connect. Rhowch gynnig arall neu agorwch ei osodiadau"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "Dychwelodd KDE Connect ddynodwr dyfais annilys"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"Methu darllen rhestr dyfeisiau KDE Connect. Rhowch gynnig arall neu agorwch "
+"ei osodiadau"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "Mae'r ddyfais a ddewiswyd all-lein neu heb ei pharu mwyach"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "Nid yw'r ddyfais a ddewiswyd yn cefnogi'r weithred hon"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "Nid yw un o'r ffeiliau a ddewiswyd ar gael mwyach"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: all-lein"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: wedi cysylltu"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (yn gwefru)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr "Dim dyfeisiau wedi'u paru. Agorwch KDE Connect i baru'ch ffôn"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "Nid yw'r ddyfais a ddewiswyd wedi'i pharu mwyach. Dewiswch un arall"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "Gollyngwch y ffeiliau yma i'w hanfon i'r ddyfais hon"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "Dewiswch o leiaf un ffeil leol"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "Dim ond ffeiliau lleol y gellir eu hanfon drwy KDE Connect"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "Rhagosodiad y system"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "Nid yw'r rhaglen ddewisol ar gael"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "Heb ganfod rhaglenni cydnaws"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "Lansio rhaglen"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"Gosodwch neu alluogwch %(plugin)s ac ailgychwynnwch mpv i reoli chwarae a "
+"gweld manylion y trac."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr "Galluogwch ategyn MPRIS Rhythmbox i weld manylion y trac."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "Gosodwch %(package)s ac ailgychwynnwch Rhythmbox."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "Methu diweddaru'r hysbysiadau"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr ""
+"Mae angen caniatáu mynediad yng ngosodiadau Windows i weld hanes hysbysiadau"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Agor Telegram"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Cuddio Telegram"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Datgysylltu Telegram"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Datgysylltu Telegram?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"Bydd hyn yn dileu sesiwn Telegram Web a gadwyd gan Docking. Bydd angen "
+"mewngofnodi eto."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Methu datgysylltu Telegram"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: nid yw'r porwr ar gael"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: yn llwytho..."
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram: sganiwch y cod QR neu fewngofnodwch gyda'ch rhif ffôn"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: yn cysoni..."
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: all-lein"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "methu llwytho Telegram Web"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: {count} o hysbysiadau newydd"
+msgstr[1] "Telegram: {count} hysbysiad newydd"
+msgstr[2] "Telegram: {count} hysbysiad newydd"
+msgstr[3] "Telegram: {count} o hysbysiadau newydd"
+msgstr[4] "Telegram: {count} o hysbysiadau newydd"
+msgstr[5] "Telegram: {count} o hysbysiadau newydd"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: {count} o sgyrsiau heb eu darllen"
+msgstr[1] "Telegram: {count} sgwrs heb ei darllen"
+msgstr[2] "Telegram: {count} sgwrs heb eu darllen"
+msgstr[3] "Telegram: {count} o sgyrsiau heb eu darllen"
+msgstr[4] "Telegram: {count} o sgyrsiau heb eu darllen"
+msgstr[5] "Telegram: {count} o sgyrsiau heb eu darllen"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: dim sgyrsiau heb eu darllen"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: cliciwch i agor"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "Gwall porwr anhysbys"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "Ail-lwytho {service}"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "Caniatáu i {service} ddefnyddio'r ddyfais ({device})?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "Mae angen WebKitGTK ar {service}"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "Methu agor sesiwn y porwr"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Nid yw Microsoft Edge WebView2 ar gael"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "Methu datgysylltu {service}"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "methu llwytho {service}"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "Lawrlwytho"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "Wedi cwblhau"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "Yn lawrlwytho"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "Ailddechrau"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: nid yw'r porwr ar gael"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "Mewnforio cynllun doc sy'n bodoli eisoes"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Agorwch Dewisiadau -> Mewnforio i adolygu eitemau wedi'u pinio a gosodiadau "
+"Plank, Plank Reloaded, neu Cairo-Dock cyn eu mewnforio i Docking."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "Ffeil Docking"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "Nid yw'r thema wreiddiol ar gael."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr "Gosodwch y llwybr byr i ddangos y doc yn newisiadau Docking."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "Hepgorwyd eitem annilys wedi'i phinio."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "Hepgorwyd {item}."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Methu adnabod prif ddoc Plank."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "Hepgorwyd cynllun Plank sy'n llenwi'r ymyl cyfan."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"Nid oedd gosodiadau Plank ar gael. Rhestrir y lanswyr yn ôl enw'r ffeil."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "Prif ddoc"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "Hepgorwyd is-ddoc dyblyg {item}."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "Hepgorwyd y doc ar wahân {item}."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "Hepgorwyd y lansiwr addasedig {item}."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "Hepgorwyd yr ategyn {item}."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "Hepgorwyd y teclyn bwrdd gwaith ar wahân {item}."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "Hepgorwyd dewis sgrin yn ôl rhif yn Cairo-Dock."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr ""
+"Yn y modd Bob amser y tu ôl, nid yw symud y pwyntydd at yr ymyl yn dangos y "
+"doc."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "Dim rhaglen ar gael ar gyfer {item}."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "Nid yw'r sgrin wreiddiol ar gael."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr "Addaswyd y pellter o ymyl y sgrin o {requested} px i {applied} px."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "Mae'r eitem hon wedi'i phinio eisoes."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "Nid yw'r rhaglen a ddewiswyd ar gael."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "Nid yw'r appled a ddewiswyd ar gael."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "Nid yw'r ffeil neu'r ffolder a ddewiswyd ar gael."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Dangos neu guddio chwiliad Docking"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Dewiswch ffeil ffurfweddu Docking"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Ffeiliau ffurfweddu Docking"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "Aliniad"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "Sgrin"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "Dilyn y sgrin weithredol"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "Galluogi chwyddo"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "Lefel chwyddo"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "Cloi eiconau"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "Eitemau wedi'u pinio yn unig"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "Dangos rhagolygon ffenestri"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "Lled y rhagolwg"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "Amlinellu'r ffenestr pan fo'r pwyntydd dros y rhagolwg"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "Pellter ychwanegol o'r ymyl"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "Angori appledau"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "Angori ffeiliau"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "Galluogi effeithiau wrth glicio eitemau'r doc"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "Effaith clic"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "Agor pentyrrau"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "Bob amser y tu ôl"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "Gwaelod"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "Chwith"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "Dde"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "Eitemau i'w pinio"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "Nid oes eitemau wedi'u pinio yn y doc gwreiddiol."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "Dewisiadau i'w gweithredu"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "Nid oes unrhyw newidiadau i'w mewnforio."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Mewnforio ffeil Docking"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "Mewnforio o ddoc arall"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "Hepgor"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "Mewnforio"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "Dewiswch ddoc i'w fewnforio."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr "Dewiswch ddoc i adolygu ei eitemau wedi'u pinio a'i ddewisiadau."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Dewiswch ffeil ffurfweddu JSON dilys Docking."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "Methu darllen gosodiadau'r doc gwreiddiol."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Heb ganfod ffurfweddiad Plank na Plank Reloaded."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Heb ganfod ffurfweddiad Cairo-Dock."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Heb ganfod ffurfweddiad Plank na Cairo-Dock."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "Golygu cynllun y doc"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "Gweithredu"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "Dim eitemau wedi'u pinio"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "Rhaglen…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "Appled…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "Ffeil…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "Ffolder…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "Symud i fyny"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "Symud i lawr"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "Ail-lwytho'r cynllun"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "Newidiodd cynllun y doc tra oeddech yn ei olygu."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "Methu cadw cynllun y doc."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "Cadwyd y cynllun. Nid oedd modd llwytho rhai eitemau newydd."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "Ffeiliau a ffolderi wedi'u hangori"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "Appledau wedi'u hangori"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "Dewis ffolder"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "Dewis ffeil"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "Dewiswch ffeil neu ffolder leol."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "Ychwanegu rhaglen"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Dangos neu guddio Docking"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "Neilltuwch lwybr byr cyn galluogi'r modd hwn."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "Nid yw'r amgylchedd bwrdd gwaith wedi neilltuo llwybr byr."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Yn defnyddio'r modd Auto-hide: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "Ni alluogwyd y modd: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "Methu agor y ffolder yn y derfynell."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "Methu agor yr eitem hon gyda rhaglen arall."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "Agor yn y derfynell"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "Agor gyda…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "Prif"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "Dangos drwy lwybr byr yn unig"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "Bownsio"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "Curiad"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "Siglo"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "Llwybr byr y doc"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "Gosodwch y doc ar hyd ymyl penodedig y sgrin."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "Rhagolwg"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "Dangos mân-luniau ffenestri"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr ""
+"Amlinella'r ffenestr wirioneddol ar y bwrdd gwaith wrth ddal y pwyntydd dros"
+" ei mân-lun."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"Amlinella'r ffenestr wirioneddol ar y bwrdd gwaith wrth ddal y pwyntydd dros"
+" ei mân-lun. Nid yw ar gael yn y sesiwn hon. Mae angen X11 neu Sway."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "Lled y mân-lun"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"Gosodwch led mân-luniau ffenestri mewn picseli. Mae mân-luniau lletach yn "
+"dangos mwy o deitl y ffenestr."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "Golygu'r cynllun…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr ""
+"Yn dangos rhaglenni, appledau, ffeiliau a ffolderi wedi'u pinio yn unig."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "Eitemau wedi'u pinio"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "Yn chwarae'r effaith a ddewiswyd wrth lansio rhaglen o'r doc."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "Dewiswch yr effaith a chwaraeir wrth lansio rhaglen."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "Llwybr byr y doc"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"Neilltuwch lwybr byr sy'n gweithio i alluogi'r modd hwn. Os bydd cofrestru'n"
+" methu, bydd y doc yn defnyddio'r modd Auto-hide dros dro."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "Doc arall"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Mae'r botwm Plank hefyd yn cefnogi Plank Reloaded. Adolygwch yr eitemau "
+"wedi'u pinio, y dewisiadau, a'r eitemau a hepgorwyd cyn mewnforio."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "Pori…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"Dewiswch ffeil JSON Docking i adolygu'r eitemau wedi'u pinio a'r dewisiadau "
+"cynllun."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "Mewnforio o"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "Methu cadw'r doc a fewnforiwyd."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr "Methu tynnu'r eitemau hyn o'r ffurfweddiad a gadwyd."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "Methu llwytho rhai eitemau wedi'u pinio a fewnforiwyd."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "Canol"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"Mae'n aros uwchben y bwrdd gwaith ac o dan ffenestri rhaglenni, heb gadw lle"
+" ar y sgrin. Datguddiwch y doc i'w ddefnyddio. Nid yw dal y pwyntydd "
+"drosto'n dod ag ef i'r blaen."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"Mae'n ymddangos dim ond gyda'i lwybr byr ac yn cuddio ar ôl i'r pwyntydd "
+"fynd i mewn ac allan. Pwyswch y llwybr byr eto i'w guddio."

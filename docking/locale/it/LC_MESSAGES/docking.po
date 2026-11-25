@@ -773,10 +773,6 @@ msgstr "Lock Camera"
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
 
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
-
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
 msgid "{command} (PID {pid}) using {devices}"
@@ -1771,17 +1767,9 @@ msgstr "Pausa"
 msgid "Play"
 msgstr "Riproduci"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "In riproduzione"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "In pausa"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Fermato"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -3442,10 +3430,6 @@ msgstr "Attivare"
 msgid "Context Menu"
 msgstr "Menù contestuale"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-Bus non disponibile"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3555,10 +3539,6 @@ msgstr "Vassoio di sistema: {n} elemento/i"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "Vassoio di sistema: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "Vassoio di sistema: D-Bus non disponibile"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3889,10 +3869,6 @@ msgstr "Questa operazione cancella la sessione di WhatsApp Web memorizzata da "
 msgid "Could not disconnect WhatsApp"
 msgstr "Impossibile disconnettere WhatsApp"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "Errore WebKit sconosciuto"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK non è disponibile"
@@ -3900,10 +3876,6 @@ msgstr "WebKitGTK non è disponibile"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Applet di Docking"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "Ricarica WhatsApp Web"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3921,11 +3893,6 @@ msgstr "fotocamera"
 msgid "microphone"
 msgstr "microfono"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "Consentire a WhatsApp di usare {device}?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "Nega"
@@ -3933,10 +3900,6 @@ msgstr "Nega"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "Consenti"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp richiede WebKitGTK"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3947,10 +3910,6 @@ msgstr "Installa il pacchetto di introspezione WebKitGTK 4.1 o 4.0, poi "
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "errore del browser sconosciuto"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: WebKitGTK non è installato"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5272,10 +5231,6 @@ msgstr ""
 "Mostra i nomi e i dettagli degli elementi quando passi il mouse sugli "
 "elementi del Dock."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Anteprime finestre"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr ""
@@ -5698,28 +5653,1052 @@ msgstr "Ignora"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "Fotocamera bloccata"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "Stato del microfono non disponibile"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "Non è possibile stabilire se il microfono sia disattivato"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "Attività del microfono sconosciuta"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "Impostazioni del microfono"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "Stato della fotocamera non disponibile"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "Attività della fotocamera sconosciuta"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "Blocco della fotocamera non disponibile"
 
 msgid "Camera Settings"
+msgstr "Impostazioni della fotocamera"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "Mantieni la connessione"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "Connetti l’audio"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "Rilascia la connessione"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "Disconnetti l’audio"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "Inserisci il PIN"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "Inserisci questo PIN sul dispositivo: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "Questo PIN corrisponde a quello del dispositivo? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "Lista di controllo"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "{count} elemento non spuntato"
+msgstr[1] "{count} elementi non spuntati"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "Aggiungi un elemento"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "Rimuovi gli elementi completati"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "Testo dell’elemento"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "Monitoraggio degli appunti in pausa"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "Cronologia degli appunti"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "Attiva il monitoraggio degli appunti"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "Monitora le selezioni con il mouse"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "Il monitoraggio delle selezioni con il mouse richiede X11"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "Monitora le immagini"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "Numero massimo di voci"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "Disattivato"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "Immagine ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "Sveglia: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "Impossibile leggere l’elenco dei dispositivi di KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "Installa KDE Connect per aprire le impostazioni del dispositivo"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "Connessione al dispositivo selezionato..."
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
 msgstr ""
+"L’azione di KDE Connect non è riuscita. Riprova quando il dispositivo è in "
+"linea"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "Richiesta di squillo inviata a {name}"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr ""
+"Seleziona un dispositivo associato, in linea e con la condivisione dei file "
+"attiva"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "Attendi il completamento dell’azione di KDE Connect in corso"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "Impossibile leggere i file selezionati"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "Trasferimento di file richiesto per {name}"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "Invia file con KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "Invia"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "Fai squillare il telefono"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "Invia file..."
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "Apri KDE Connect / Associa dispositivo"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "Installa e avvia KDE Connect per connettere un telefono"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr ""
+"KDE Connect è stato riavviato. Aggiornamento dell’elenco dei dispositivi"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+"Impossibile contattare KDE Connect. Riprova oppure apri le impostazioni"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "KDE Connect ha restituito un identificativo di dispositivo non valido"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"Impossibile leggere l’elenco dei dispositivi di KDE Connect. Riprova oppure "
+"apri le impostazioni"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "Il dispositivo selezionato è fuori linea o non è più associato"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "Il dispositivo selezionato non supporta questa azione"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "Uno dei file selezionati non è più disponibile"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: fuori linea"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: connesso"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (in carica)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr ""
+"Nessun dispositivo associato. Apri KDE Connect per associare il telefono"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "Il dispositivo selezionato non è più associato. Scegline un altro"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "Rilascia qui i file per inviarli a questo dispositivo"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "Scegli almeno un file locale"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "Con KDE Connect puoi inviare soltanto file locali"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "Predefinito di sistema"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "Applicazione preferita non disponibile"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "Nessuna applicazione compatibile trovata"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "Avvia applicazione"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"Installa o attiva %(plugin)s e riavvia mpv per usare i controlli di "
+"riproduzione e visualizzare i dettagli della traccia."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr ""
+"Attiva il componente aggiuntivo MPRIS di Rhythmbox per visualizzare i "
+"dettagli della traccia."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "Installa %(package)s e riavvia Rhythmbox."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "Impossibile aggiornare le notifiche"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr ""
+"La cronologia delle notifiche richiede l’autorizzazione nelle impostazioni "
+"di Windows"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Apri Telegram"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Nascondi Telegram"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Disconnetti Telegram"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Disconnettere Telegram?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"La sessione di Telegram Web memorizzata da Docking verrà cancellata. Dovrai "
+"accedere di nuovo."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Impossibile disconnettere Telegram"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: browser non disponibile"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: caricamento..."
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr ""
+"Telegram: scansiona il codice QR o accedi con il tuo numero di telefono"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: sincronizzazione..."
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: fuori linea"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "impossibile caricare Telegram Web"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: {count} nuova notifica"
+msgstr[1] "Telegram: {count} nuove notifiche"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: {count} chat non letta"
+msgstr[1] "Telegram: {count} chat non lette"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: nessuna chat non letta"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: fai clic per aprire"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "Errore sconosciuto del browser"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "Ricarica {service}"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "Consentire a {service} di usare il dispositivo ({device})?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "{service} richiede WebKitGTK"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "Impossibile aprire la sessione del browser"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Microsoft Edge WebView2 non è disponibile"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "Impossibile disconnettere {service}"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "impossibile caricare {service}"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "Scarica"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "Completato"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "Scaricamento in corso"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "Riprendi"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: browser non disponibile"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "Importa una disposizione del dock esistente"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Apri Preferenze -> Importa per esaminare gli elementi appuntati e le "
+"impostazioni di Plank, Plank Reloaded o Cairo-Dock prima di importarli in "
+"Docking."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "File di Docking"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "Il tema di origine non è disponibile."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr ""
+"Configura la scorciatoia per mostrare il dock nelle preferenze di Docking."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "È stato ignorato un elemento appuntato non valido."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "Elemento ignorato: {item}."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Impossibile individuare il dock principale di Plank."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "La disposizione di Plank che occupa l’intero bordo è stata ignorata."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"Le impostazioni di Plank non erano disponibili. I lanciatori sono elencati "
+"per nome del file."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "Dock principale"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "Il dock secondario duplicato {item} è stato ignorato."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "Il dock separato {item} è stato ignorato."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "Il lanciatore personalizzato {item} è stato ignorato."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "Il componente aggiuntivo {item} è stato ignorato."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "Il widget della scrivania separato {item} è stato ignorato."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "La selezione numerica dello schermo di Cairo-Dock è stata ignorata."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr ""
+"La modalità Sempre in secondo piano non mostra il dock al passaggio del "
+"puntatore sul bordo."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "Applicazione non disponibile per {item}."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "Lo schermo di origine non è disponibile."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr ""
+"La distanza dal bordo dello schermo è stata regolata da {requested} px a "
+"{applied} px."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "Questo elemento è già appuntato."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "L’applicazione selezionata non è disponibile."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "L’applet selezionata non è disponibile."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "Il file o la cartella selezionati non sono disponibili."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Mostra o nascondi la ricerca di Docking"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Scegli un file di configurazione di Docking"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "File di configurazione di Docking"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "Allineamento"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "Schermo"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "Segui lo schermo attivo"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "Attiva lo zoom"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "Livello di zoom"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "Blocca le icone"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "Solo elementi appuntati"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "Mostra le anteprime delle finestre"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "Larghezza dell’anteprima"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr ""
+"Evidenzia il contorno della finestra al passaggio del puntatore "
+"sull’anteprima"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "Distanza aggiuntiva dal bordo"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "Ancora le applet"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "Ancora i file"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "Attiva gli effetti quando fai clic sugli elementi del dock"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "Effetto al clic"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "Apri le pile"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "Sempre in secondo piano"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "In basso"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "A sinistra"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "A destra"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "Elementi da appuntare"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "Il dock di origine non ha elementi appuntati."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "Preferenze da applicare"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "Non ci sono modifiche da importare."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Importa un file di Docking"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "Importa da un altro dock"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "Ignora"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "Importa"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "Scegli il dock da importare."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr "Scegli un dock per esaminarne gli elementi appuntati e le preferenze."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Scegli un file di configurazione JSON di Docking valido."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "Impossibile leggere le impostazioni del dock di origine."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Nessuna configurazione di Plank o Plank Reloaded trovata."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Nessuna configurazione di Cairo-Dock trovata."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Nessuna configurazione di Plank o Cairo-Dock trovata."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "Modifica la disposizione del dock"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "Applica"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "Nessun elemento appuntato"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "Applicazione…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "Applet…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "File…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "Cartella…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "Sposta in alto"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "Sposta in basso"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "Ricarica la disposizione"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "La disposizione del dock è cambiata durante la modifica."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "Impossibile salvare la disposizione del dock."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "Disposizione salvata. Impossibile caricare alcuni nuovi elementi."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "File e cartelle ancorati"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "Applet ancorate"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "Scegli una cartella"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "Scegli un file"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "Scegli un file o una cartella locale."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "Aggiungi applicazione"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Mostra o nascondi Docking"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "Assegna una scorciatoia prima di attivare questa modalità."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "L’ambiente desktop non ha assegnato alcuna scorciatoia."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Modalità Nascondi automaticamente in uso: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "Modalità non attivata: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "Impossibile aprire la cartella nel terminale."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "Impossibile aprire questo elemento con un’altra applicazione."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "Apri nel terminale"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "Apri con…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "Principale"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "Mostra solo con scorciatoia"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "Rimbalzo"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "Pulsazione"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "Oscillazione"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "Scorciatoia del dock"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "Posiziona il dock lungo il bordo dello schermo selezionato."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "Anteprima"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "Mostra le miniature delle finestre"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr ""
+"Evidenzia il contorno della finestra sulla scrivania quando il puntatore è "
+"sulla relativa miniatura."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"Evidenzia il contorno della finestra sulla scrivania quando il puntatore è "
+"sulla relativa miniatura. Non disponibile in questa sessione. Richiede X11 o"
+" Sway."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "Larghezza delle miniature"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"Imposta in pixel la larghezza delle miniature delle finestre. Le miniature "
+"più larghe mostrano anche una parte maggiore del titolo."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "Modifica disposizione…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr "Mostra soltanto applicazioni, applet, file e cartelle appuntati."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "Elementi appuntati"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr ""
+"Riproduce l’effetto selezionato quando avvii un’applicazione dal dock."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "Scegli l’effetto da riprodurre all’avvio di un’applicazione."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "Scorciatoia del dock"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"Assegna una scorciatoia funzionante per attivare questa modalità. Se la "
+"registrazione non riesce, il dock usa temporaneamente la modalità Nascondi "
+"automaticamente."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "Un altro dock"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Il pulsante Plank supporta anche Plank Reloaded. Controlla gli elementi "
+"appuntati, le preferenze e gli elementi ignorati prima di importarli."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "Sfoglia…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"Scegli un file JSON di Docking per esaminarne gli elementi appuntati e le "
+"preferenze di disposizione."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "Importa da"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "Impossibile salvare il dock importato."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr ""
+"Impossibile rimuovere questi elementi appuntati dalla configurazione "
+"salvata."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "Impossibile caricare alcuni elementi appuntati importati."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "Centro"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"Rimane sopra la scrivania e sotto le finestre delle applicazioni, senza "
+"riservare spazio sullo schermo. Scopri il dock per usarlo. Il passaggio del "
+"puntatore non lo porta in primo piano."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"Appare soltanto con la propria scorciatoia, poi si nasconde quando il "
+"puntatore entra ed esce. Premi di nuovo la scorciatoia per nasconderlo."

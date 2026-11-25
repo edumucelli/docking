@@ -773,10 +773,6 @@ msgstr "Lock Camera"
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
 
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
-
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
 msgid "{command} (PID {pid}) using {devices}"
@@ -1771,17 +1767,9 @@ msgstr "일시정지"
 msgid "Play"
 msgstr "재생"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "재생 중"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "일시정지됨"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "중지됨"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -3436,10 +3424,6 @@ msgstr "Activate"
 msgid "Context Menu"
 msgstr "Context Menu"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-Bus unavailable"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3546,10 +3530,6 @@ msgstr "System Tray: {n} item(s)"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "System Tray: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "System Tray: D-Bus unavailable"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3877,10 +3857,6 @@ msgstr "Docking에 저장된 WhatsApp Web 세션이 지워집니다. QR 코드�
 msgid "Could not disconnect WhatsApp"
 msgstr "WhatsApp 연결을 해제할 수 없습니다"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "알 수 없는 WebKit 오류"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK를 사용할 수 없습니다"
@@ -3888,10 +3864,6 @@ msgstr "WebKitGTK를 사용할 수 없습니다"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Docking 애플릿"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "WhatsApp Web 새로고침"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3909,11 +3881,6 @@ msgstr "카메라"
 msgid "microphone"
 msgstr "마이크"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "WhatsApp이 {device}를 사용하도록 허용할까요?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "거부"
@@ -3921,10 +3888,6 @@ msgstr "거부"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "허용"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp에는 WebKitGTK가 필요합니다"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3934,10 +3897,6 @@ msgstr "WebKitGTK 4.1 또는 4.0 introspection 패키지를 설치한 다음 Doc
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "알 수 없는 브라우저 오류"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: WebKitGTK가 설치되지 않았습니다"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5232,10 +5191,6 @@ msgstr "툴팁 표시"
 msgid "Show item names and details when hovering over dock items."
 msgstr "Show item names and details when hovering over dock items."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "창 미리보기"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr "Show window thumbnails when hovering over running apps."
@@ -5630,28 +5585,1002 @@ msgstr "무시"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "카메라가 잠겨 있음"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "마이크 상태를 확인할 수 없음"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "마이크 음소거 여부를 알 수 없음"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "마이크 사용 여부를 알 수 없음"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "마이크 설정"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "카메라 상태를 확인할 수 없음"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "카메라 사용 여부를 알 수 없음"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "카메라를 잠글 수 없음"
 
 msgid "Camera Settings"
+msgstr "카메라 설정"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "연결 유지"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "오디오 연결"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "연결 유지 해제"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "오디오 연결 끊기"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "PIN 입력"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "기기에서 다음 PIN을 입력하세요: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "이 PIN이 기기에 표시된 PIN과 일치합니까? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "체크리스트"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "미완료 항목 {count}개"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "항목 추가"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "완료된 항목 지우기"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "항목 텍스트"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "클립보드 추적이 일시 중지됨"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "클립보드 기록"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "클립보드 추적 사용"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "마우스로 선택한 내용 추적"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "마우스로 선택한 내용을 추적하려면 X11이 필요합니다"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "이미지 추적"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "최대 항목 수"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "사용 안 함"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "이미지 ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "알람: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "KDE Connect 기기 목록을 읽을 수 없습니다"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "기기 설정을 열려면 KDE Connect를 설치하세요"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "선택한 기기에 연결하는 중..."
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
+msgstr "KDE Connect 작업에 실패했습니다. 기기를 온라인으로 전환한 뒤 다시 시도하세요"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "{name}에 소리 울리기 요청을 보냈습니다"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr "파일 공유가 켜져 있는 온라인 페어링 기기를 선택하세요"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "진행 중인 KDE Connect 작업이 끝날 때까지 기다리세요"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "선택한 파일을 읽을 수 없습니다"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "{name}에 파일 전송을 요청했습니다"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "KDE Connect로 파일 보내기"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "보내기"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "휴대전화 벨 울리기"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "파일 보내기..."
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "KDE Connect 열기 / 기기 페어링"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "휴대전화를 연결하려면 KDE Connect를 설치하고 실행하세요"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "KDE Connect가 다시 시작되어 기기 목록을 새로 고치는 중입니다"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr "KDE Connect에 연결할 수 없습니다. 다시 시도하거나 설정을 여세요"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "KDE Connect가 잘못된 기기 식별자를 반환했습니다"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr "KDE Connect 기기 목록을 읽을 수 없습니다. 다시 시도하거나 설정을 여세요"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "선택한 기기가 오프라인이거나 페어링이 해제되었습니다"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "선택한 기기에서 이 작업을 지원하지 않습니다"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "선택한 파일 중 더 이상 사용할 수 없는 파일이 있습니다"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: 오프라인"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: 연결됨"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (충전 중)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr "페어링된 기기가 없습니다. KDE Connect를 열어 휴대전화를 페어링하세요"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "선택한 기기의 페어링이 해제되었습니다. 다른 기기를 선택하세요"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "이 기기로 보낼 파일을 여기에 놓으세요"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "로컬 파일을 하나 이상 선택하세요"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "KDE Connect로는 로컬 파일만 보낼 수 있습니다"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "시스템 기본값"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "선호하는 앱을 사용할 수 없음"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "호환되는 앱을 찾을 수 없음"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "앱 실행"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr "재생 제어 및 트랙 정보를 사용하려면 %(plugin)s 플러그인을 설치하거나 활성화한 다음 mpv를 다시 시작하세요."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr "트랙 정보를 보려면 Rhythmbox에서 MPRIS 플러그인을 활성화하세요."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "%(package)s 패키지를 설치한 다음 Rhythmbox를 다시 시작하세요."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "알림을 갱신할 수 없습니다"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr "알림 기록을 보려면 Windows 설정에서 액세스를 허용해야 합니다"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Telegram 열기"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Telegram 숨기기"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Telegram 연결 해제"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Telegram 연결을 해제할까요?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr "Docking에 저장된 Telegram Web 세션이 지워집니다. 다시 로그인해야 합니다."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Telegram 연결을 해제할 수 없습니다"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: 브라우저를 사용할 수 없음"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: 로딩 중..."
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram: QR 코드를 스캔하거나 전화번호로 로그인하세요"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: 동기화 중..."
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: 오프라인"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "Telegram Web을 불러올 수 없음"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: 새 알림 {count}개"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: 읽지 않은 채팅 {count}개"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: 읽지 않은 채팅 없음"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: 클릭하여 열기"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "알 수 없는 브라우저 오류"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "{service} 다시 불러오기"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "{service}에서 {device}을(를) 사용하도록 허용할까요?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "{service}을(를) 사용하려면 WebKitGTK가 필요합니다"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "브라우저 세션을 열 수 없습니다"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Microsoft Edge WebView2를 사용할 수 없음"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "{service} 연결을 해제할 수 없습니다"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "{service}을(를) 불러올 수 없음"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "다운로드"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "완료됨"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "다운로드 중"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "이어서 다운로드"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: 브라우저를 사용할 수 없음"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "기존 독 레이아웃 가져오기"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
 msgstr ""
+"환경설정의 ‘가져오기’에서 Plank, Plank Reloaded 또는 Cairo-Dock의 고정 항목과 설정을 검토한 후 "
+"Docking으로 가져오세요."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "Docking 파일"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "원본 테마를 사용할 수 없습니다."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr "Docking 환경설정에서 독 표시 단축키를 지정하세요."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "잘못된 고정 항목을 건너뛰었습니다."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "{item}을(를) 건너뛰었습니다."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Plank의 기본 독을 확인할 수 없습니다."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "Plank에서 화면 가장자리 전체를 차지하는 레이아웃을 건너뛰었습니다."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr "Plank 설정을 사용할 수 없습니다. 실행기 파일은 파일 이름으로 표시됩니다."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "기본 독"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "중복된 하위 독 {item}을(를) 건너뛰었습니다."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "별도의 독 {item}을(를) 건너뛰었습니다."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "사용자 지정 실행기 {item}을(를) 건너뛰었습니다."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "플러그인 {item}을(를) 건너뛰었습니다."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "분리된 데스크릿 {item}을(를) 건너뛰었습니다."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "Cairo-Dock의 숫자 기반 디스플레이 선택을 건너뛰었습니다."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr "‘항상 뒤에’ 모드에서는 화면 가장자리에 포인터를 올려도 독이 나타나지 않습니다."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "{item}에 해당하는 애플리케이션을 사용할 수 없습니다."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "원본에서 사용한 디스플레이를 사용할 수 없습니다."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr "화면 가장자리 간격을 {requested}픽셀에서 {applied}픽셀로 조정했습니다."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "이 항목은 이미 고정되어 있습니다."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "선택한 애플리케이션을 사용할 수 없습니다."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "선택한 애플릿을 사용할 수 없습니다."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "선택한 파일 또는 폴더를 사용할 수 없습니다."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Docking 검색 열기 및 닫기"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Docking 설정 파일 선택"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Docking 설정 파일"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "정렬"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "디스플레이"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "활성 디스플레이 따라가기"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "확대 사용"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "확대 수준"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "아이콘 잠그기"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "고정된 항목만 표시"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "창 미리보기 표시"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "미리보기 너비"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "미리보기에 포인터를 올리면 창 윤곽선 표시"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "화면 가장자리에서 추가로 띄울 간격"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "애플릿 위치 고정"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "파일 위치 고정"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "독 항목을 클릭할 때 효과 사용"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "클릭 효과"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "스택 펼치기"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "항상 뒤에"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "아래쪽"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "왼쪽"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "오른쪽"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value}ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value}픽셀"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "추가할 고정 항목"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "원본 독에 고정된 항목이 없습니다."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "적용할 환경설정"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "가져올 변경 사항이 없습니다."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Docking 파일 가져오기"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "다른 독에서 가져오기"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "건너뛰기"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "가져오기"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "가져올 독을 선택하세요."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr "고정 항목과 환경설정을 검토할 독을 선택하세요."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "올바른 Docking JSON 설정 파일을 선택하세요."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "원본 독의 설정을 읽을 수 없습니다."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Plank 또는 Plank Reloaded 설정을 찾을 수 없습니다."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Cairo-Dock 설정을 찾을 수 없습니다."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Plank 또는 Cairo-Dock 설정을 찾을 수 없습니다."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "독 레이아웃 편집"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "적용"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "고정된 항목 없음"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "애플리케이션…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "애플릿…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "파일…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "폴더…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "위로 이동"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "아래로 이동"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "레이아웃 다시 불러오기"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "편집하는 동안 독 레이아웃이 변경되었습니다."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "독 레이아웃을 저장할 수 없습니다."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "레이아웃을 저장했습니다. 일부 새 항목을 불러올 수 없습니다."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "위치가 고정된 파일 및 폴더"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "위치가 고정된 애플릿"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "폴더 선택"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "파일 선택"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "로컬 파일 또는 폴더를 선택하세요."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "애플리케이션 추가"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Docking 표시 또는 숨기기"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "이 모드를 사용하려면 먼저 단축키를 지정하세요."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "데스크톱에서 단축키를 지정하지 않았습니다."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "자동 숨기기 사용 중: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "모드가 활성화되지 않음: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "터미널에서 폴더를 열 수 없습니다."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "다른 애플리케이션으로 이 항목을 열 수 없습니다."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "터미널에서 열기"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "다른 앱으로 열기…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "기본"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "단축키로만 표시"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "튀어 오르기"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "맥동"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "흔들기"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "독 단축키"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "선택한 화면 가장자리에 독을 배치합니다."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "미리보기"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "창 미리보기 썸네일 표시"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr "썸네일에 포인터를 올리면 데스크톱의 실제 창에 윤곽선을 표시합니다."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"썸네일에 포인터를 올리면 데스크톱의 실제 창에 윤곽선을 표시합니다. 현재 세션에서는 사용할 수 없으며 X11 또는 Sway가 필요합니다."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "썸네일 너비"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr "창 썸네일의 너비를 픽셀 단위로 설정합니다. 너비가 클수록 창 제목이 더 많이 표시됩니다."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "레이아웃 편집…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr "고정된 애플리케이션, 애플릿, 파일 및 폴더만 표시합니다."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "고정된 항목"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "독에서 앱을 실행할 때 선택한 효과를 재생합니다."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "앱을 실행할 때 재생할 효과를 선택합니다."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "독 단축키"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr "이 모드를 사용하려면 작동하는 단축키를 지정하세요. 단축키를 등록할 수 없으면 독이 일시적으로 자동 숨기기를 사용합니다."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "다른 독"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr "Plank 버튼은 Plank Reloaded도 지원합니다. 가져오기 전에 고정 항목, 환경설정, 건너뛴 항목을 검토하세요."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "찾아보기…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr "고정 항목과 레이아웃 환경설정을 검토할 Docking JSON 파일을 선택하세요."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "가져올 원본"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "가져온 독을 저장할 수 없습니다."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr "저장된 설정에서 이 고정 항목을 제거할 수 없습니다."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "가져온 고정 항목 중 일부를 불러올 수 없습니다."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "가운데"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"화면 공간을 예약하지 않고 바탕 화면 위, 애플리케이션 창 아래에 유지됩니다. 사용하려면 독을 가린 창을 치우세요. 독에 포인터를 올려도"
+" 앞으로 나오지 않습니다."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr "단축키를 누를 때만 나타납니다. 포인터가 독에 들어갔다가 벗어나면 숨겨지며, 단축키를 다시 눌러 바로 숨길 수도 있습니다."

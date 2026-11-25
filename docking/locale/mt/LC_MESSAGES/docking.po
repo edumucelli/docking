@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=5; plural=(n == 1 ? 0 : n == 2 ? 1 : n == 0 || n % 100 >= 3 && n % 100 <= 10 ? 2 : n % 100 >= 11 && n % 100 <= 19 ? 3 : 4);\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -2655,6 +2643,9 @@ msgid "{count} more due task"
 msgid_plural "{count} more due tasks"
 msgstr[0] "{count} kompitu ieħor dovut"
 msgstr[1] "{count} kompiti oħra dovuti"
+msgstr[2] "{count} kompiti oħra dovuti"
+msgstr[3] "{count} kompitu ieħor dovut"
+msgstr[4] "{count} kompitu ieħor dovut"
 
 #: docking/applets/plantcare/applet.py:244
 #: docking/search/providers/applications.py:192 docking/ui/diagnostics.py:137
@@ -2784,8 +2775,11 @@ msgstr "Pjanta"
 #, python-brace-format
 msgid "overdue by {count} day"
 msgid_plural "overdue by {count} days"
-msgstr[0] "{count} jum tard"
-msgstr[1] "{count} jiem tard"
+msgstr[0] "tard b’{count} jum"
+msgstr[1] "tard b’{count} jiem"
+msgstr[2] "tard b’{count} jiem"
+msgstr[3] "tard b’{count} jum"
+msgstr[4] "tard b’{count} jum"
 
 #: docking/applets/plantcare/state.py:421
 msgid "due today"
@@ -2795,8 +2789,11 @@ msgstr "dovut illum"
 #, python-brace-format
 msgid "in {count} day"
 msgid_plural "in {count} days"
-msgstr[0] "f'{count} jum"
-msgstr[1] "f'{count} jiem"
+msgstr[0] "fi żmien {count} jum"
+msgstr[1] "fi żmien {count} jiem"
+msgstr[2] "fi żmien {count} jiem"
+msgstr[3] "fi żmien {count} jum"
+msgstr[4] "fi żmien {count} jum"
 
 #: docking/applets/plantcare/state.py:428
 #, python-brace-format
@@ -2821,6 +2818,9 @@ msgid "{count} task due"
 msgid_plural "{count} tasks due"
 msgstr[0] "{count} kompitu dovut"
 msgstr[1] "{count} kompiti dovuti"
+msgstr[2] "{count} kompiti dovuti"
+msgstr[3] "{count} kompitu dovut"
+msgstr[4] "{count} kompitu dovut"
 
 #: docking/applets/plantcare/state.py:455
 msgid "All plants are on schedule"
@@ -2832,6 +2832,9 @@ msgid "{count} more task"
 msgid_plural "{count} more tasks"
 msgstr[0] "{count} kompitu ieħor"
 msgstr[1] "{count} kompiti oħra"
+msgstr[2] "{count} kompiti oħra"
+msgstr[3] "{count} kompitu ieħor"
+msgstr[4] "{count} kompitu ieħor"
 
 #: docking/applets/plantcare/state.py:492
 #, python-brace-format
@@ -3442,10 +3445,6 @@ msgstr "Activate"
 msgid "Context Menu"
 msgstr "Context Menu"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-Bus unavailable"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3552,10 +3551,6 @@ msgstr "System Tray: {n} item(s)"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "System Tray: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "System Tray: D-Bus unavailable"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3691,8 +3686,11 @@ msgstr "No items in Trash"
 #, python-brace-format
 msgid "{n} item in Trash"
 msgid_plural "{n} items in Trash"
-msgstr[0] "{n} oġġett fil-Litter"
-msgstr[1] "{n} oġġetti fil-Litter"
+msgstr[0] "{n} oġġett fit-Trash"
+msgstr[1] "{n} oġġetti fit-Trash"
+msgstr[2] "{n} oġġetti fit-Trash"
+msgstr[3] "{n} oġġett fit-Trash"
+msgstr[4] "{n} oġġett fit-Trash"
 
 #: docking/applets/trivia/applet.py:55 docking/applets/trivia/applet.py:199
 msgid "Random Trivia"
@@ -3885,10 +3883,6 @@ msgstr "Dan iħassar is-sessjoni ta' WhatsApp Web maħżuna minn Docking. "
 msgid "Could not disconnect WhatsApp"
 msgstr "Ma setax jiġi skonnettjat WhatsApp"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "Żball WebKit mhux magħruf"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK mhux disponibbli"
@@ -3896,10 +3890,6 @@ msgstr "WebKitGTK mhux disponibbli"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Applet ta' Docking"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "Erġa' Tella' WhatsApp Web"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3917,11 +3907,6 @@ msgstr "kamera"
 msgid "microphone"
 msgstr "mikrofnu"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "Tħalli lil WhatsApp juża {device} tiegħek?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "Irrifjuta"
@@ -3929,10 +3914,6 @@ msgstr "Irrifjuta"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "Ippermetti"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp jeħtieġ WebKitGTK"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3943,10 +3924,6 @@ msgstr "Installa l-pakkett ta' introspezzjoni WebKitGTK 4.1 jew 4.0, imbagħad "
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "żball tal-browser mhux magħruf"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: WebKitGTK mhux installat"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5248,10 +5225,6 @@ msgstr "Uri tooltips"
 msgid "Show item names and details when hovering over dock items."
 msgstr "Show item names and details when hovering over dock items."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr "Show window thumbnails when hovering over running apps."
@@ -5653,28 +5626,1050 @@ msgstr "Injora"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "Il-kamera hija msakkra"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "L-istat tal-mikrofonu mhux disponibbli"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "Mhux magħruf jekk il-mikrofonu huwiex imsikket"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "Mhux magħruf jekk il-mikrofonu huwiex qed jintuża"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "Is-settings tal-mikrofonu"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "L-istat tal-kamera mhux disponibbli"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "Mhux magħruf jekk il-kamera hijiex qed tintuża"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "Il-kamera ma tistax tissakkar"
 
 msgid "Camera Settings"
+msgstr "Is-settings tal-kamera"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "Żomm il-konnessjoni"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "Ikkonnettja l-awdjo"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "Waqqaf iż-żamma tal-konnessjoni"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "Skonnettja l-awdjo"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "Daħħal il-PIN"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "Daħħal dan il-PIN fuq l-apparat: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "Dan il-PIN jaqbel ma’ dak muri fuq l-apparat? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "Lista ta’ kontroll"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "{count} oġġett mhux immarkat"
+msgstr[1] "{count} oġġetti mhux immarkati"
+msgstr[2] "{count} oġġetti mhux immarkati"
+msgstr[3] "{count} oġġett mhux immarkat"
+msgstr[4] "{count} oġġett mhux immarkat"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "Żid oġġett"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "Neħħi l-oġġetti lesti"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "Test tal-oġġett"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "It-traċċar tal-clipboard huwa sospiż"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "Storja tal-clipboard"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "Attiva t-traċċar tal-clipboard"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "Traċċa l-għażliet bil-maws"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "It-traċċar tal-għażliet bil-maws jeħtieġ X11"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "Traċċa l-istampi"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "Għadd massimu ta’ entrati"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "Diżattivat"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "Stampa ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "Allarm: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "Ma setgħetx tinqara l-lista tal-apparati ta’ KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "Installa KDE Connect biex tiftaħ is-settings tal-apparati tiegħu"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "Qed isir kuntatt mal-apparat magħżul…"
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
 msgstr ""
+"L-azzjoni ta’ KDE Connect falliet. Erġa’ pprova meta l-apparat ikun online"
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "Intbagħtet talba biex {name} idoqq"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr ""
+"Agħżel apparat imqabbad u online li fuqu jkun attivat il-qsim tal-fajls"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "Stenna sakemm tintemm l-azzjoni kurrenti ta’ KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "Ma setgħux jinqraw il-fajls magħżula"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "Intalab it-trasferiment tal-fajls lil {name}"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "Ibgħat fajls b’KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "Ibgħat"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "Doqq it-telefon"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "Ibgħat fajls…"
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "Iftaħ KDE Connect / Qabbad apparat"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "Installa u ibda KDE Connect biex tikkonnettja telefon"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "KDE Connect reġa’ beda. Il-lista tal-apparati qed tiġi aġġornata"
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+"Ma setax isir kuntatt ma’ KDE Connect. Erġa’ pprova jew iftaħ is-settings "
+"tiegħu"
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "KDE Connect irritorna identifikatur tal-apparat invalidu"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"Ma setgħux jinqraw l-apparati ta’ KDE Connect. Erġa’ pprova jew iftaħ is-"
+"settings tiegħu"
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "L-apparat magħżul huwa offline jew m’għadux imqabbad"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "L-apparat magħżul ma jappoġġax din l-azzjoni"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "Wieħed mill-fajls magħżula m’għadux disponibbli"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: offline"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: konness"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (qed jiċċarġja)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr ""
+"M’hemmx apparati mqabbda. Iftaħ KDE Connect biex tqabbad it-telefon tiegħek"
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "L-apparat magħżul m’għadux imqabbad. Agħżel apparat ieħor"
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "Iddreggja l-fajls hawn biex tibgħathom lil dan l-apparat"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "Agħżel mill-inqas fajl lokali wieħed"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "KDE Connect jista’ jibgħat biss fajls lokali"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "Predefinit tas-sistema"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "L-applikazzjoni ppreferuta mhix disponibbli"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "Ma nstabet ebda applikazzjoni kompatibbli"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "Ibda l-applikazzjoni"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"Installa jew attiva %(plugin)s u erġa’ ibda mpv biex tuża l-kontrolli tad-"
+"daqq u tara d-dettalji tas-silta."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr "Attiva l-plug-in MPRIS ta’ Rhythmbox biex tara d-dettalji tas-silta."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "Installa %(package)s u erġa’ ibda Rhythmbox."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "Ma setgħux jiġu aġġornati n-notifiki"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr ""
+"L-istorja tan-notifiki teħtieġ permess ta’ aċċess fis-settings tal-Windows"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Iftaħ Telegram"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Aħbi Telegram"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Skonnettja Telegram"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Trid tiskonnettja Telegram?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"Dan iħassar is-sessjoni ta’ Telegram Web maħżuna minn Docking. Ikollok "
+"terġa’ tidħol."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Ma setax jiġi skonnettjat Telegram"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: il-brawżer mhux disponibbli"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: qed jitgħabba…"
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram: skennja l-kodiċi QR jew idħol bin-numru tat-telefon tiegħek"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: qed jissinkronizza…"
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: offline"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "Ma setax jitgħabba Telegram Web"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: {count} notifika ġdida"
+msgstr[1] "Telegram: {count} notifiki ġodda"
+msgstr[2] "Telegram: {count} notifiki ġodda"
+msgstr[3] "Telegram: {count} notifika ġdida"
+msgstr[4] "Telegram: {count} notifika ġdida"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: {count} konverżazzjoni mhux moqrija"
+msgstr[1] "Telegram: {count} konverżazzjonijiet mhux moqrija"
+msgstr[2] "Telegram: {count} konverżazzjonijiet mhux moqrija"
+msgstr[3] "Telegram: {count} konverżazzjoni mhux moqrija"
+msgstr[4] "Telegram: {count} konverżazzjoni mhux moqrija"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: m’hemmx konverżazzjonijiet mhux moqrija"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: ikklikkja biex tiftaħ"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "Żball mhux magħruf fil-brawżer"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "Erġa’ għabbi {service}"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr "Tippermetti lil {service} juża l-apparat {device} tiegħek?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "{service} jeħtieġ WebKitGTK"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "Ma setgħetx tinfetaħ sessjoni tal-brawżer"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Microsoft Edge WebView2 mhux disponibbli"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "Ma setax jiġi skonnettjat {service}"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "Ma setax jitgħabba {service}"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "Niżżel"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "Lest"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "Qed jitniżżel"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "Kompli"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: il-brawżer mhux disponibbli"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "Importa tqassim ta’ dock eżistenti"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Iftaħ Preferenzi → Importa biex tirrevedi l-oġġetti ppinnjati u s-settings "
+"ta’ Plank, Plank Reloaded jew Cairo-Dock qabel timportahom f’Docking."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "Fajl ta’ Docking"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "It-tema tas-sors mhix disponibbli."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr ""
+"Issettja l-buttuna ta’ tqassir biex turi d-dock fil-Preferenzi ta’ Docking."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "Oġġett ippinnjat invalidu nqabeż."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "{item} inqabeż."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Ma setax jiġi identifikat id-dock ewlieni ta’ Plank."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "It-tqassim ta’ Plank li jkopri x-xifer kollu tal-iskrin inqabeż."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"Is-settings ta’ Plank ma kinux disponibbli. Il-fajls tal-lanċjaturi huma "
+"elenkati skont isimhom."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "Dock ewlieni"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "Is-subdock ripetut {item} inqabeż."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "Id-dock separat {item} inqabeż."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "Il-lanċjatur personalizzat {item} inqabeż."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "Il-plug-in {item} inqabeż."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "Il-widget separat tad-desktop {item} inqabeż."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "L-għażla numerika tal-iskrin ta’ Cairo-Dock inqabżet."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr ""
+"Fil-modalità Dejjem wara, meta tressaq il-werrej lejn ix-xifer tal-iskrin "
+"id-dock jibqa’ moħbi."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "L-applikazzjoni għal {item} mhix disponibbli."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "L-iskrin tas-sors mhux disponibbli."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr ""
+"Id-distanza minn xifer l-iskrin ġiet aġġustata minn {requested} px għal "
+"{applied} px."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "Dan l-oġġett diġà huwa ppinnjat."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "L-applikazzjoni magħżula mhix disponibbli."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "L-applet magħżula mhix disponibbli."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "Il-fajl jew il-folder magħżul mhux disponibbli."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Uri jew aħbi t-tfittxija ta’ Docking"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Agħżel fajl ta’ konfigurazzjoni ta’ Docking"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Fajls ta’ konfigurazzjoni ta’ Docking"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "Allinjament"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "Skrin"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "Segwi l-iskrin attiv"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "Attiva ż-żum"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "Livell taż-żum"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "Sakkar l-ikoni"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "Oġġetti ppinnjati biss"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "Uri l-previżjonijiet tat-twieqi"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "Wisa’ tal-previżjoni"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr "Uri l-kontorn tat-tieqa meta l-werrej ikun fuq il-previżjoni"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "Distanza addizzjonali mix-xifer"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "Ankra l-applets"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "Ankra l-fajls"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "Attiva l-effetti meta tikklikkja l-oġġetti tad-dock"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "Effett tal-ikklikkjar"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "Iftaħ il-munzelli"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "Dejjem wara"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "Isfel"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "Xellug"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "Lemin"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} ms"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "Oġġetti li għandhom jiġu ppinnjati"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "Id-dock tas-sors m’għandux oġġetti ppinnjati."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "Preferenzi li se jiġu applikati"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "M’hemmx bidliet x’timporta."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Importa fajl ta’ Docking"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "Importa minn dock ieħor"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "Aqbeż"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "Importa"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "Agħżel dock biex timportah."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr "Agħżel dock biex tirrevedi l-oġġetti ppinnjati u l-preferenzi tiegħu."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Agħżel fajl ta’ konfigurazzjoni JSON validu ta’ Docking."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "Ma setgħux jinqraw is-settings tad-dock tas-sors."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Ma nstabet ebda konfigurazzjoni ta’ Plank jew Plank Reloaded."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Ma nstabet ebda konfigurazzjoni ta’ Cairo-Dock."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Ma nstabet ebda konfigurazzjoni ta’ Plank jew Cairo-Dock."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "Editja t-tqassim tad-dock"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "Applika"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "M’hemmx oġġetti ppinnjati"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "Applikazzjoni…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "Applet…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "Fajl…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "Folder…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "Mexxi ’l fuq"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "Mexxi ’l isfel"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "Erġa’ għabbi t-tqassim"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "It-tqassim tad-dock inbidel waqt li kont qed teditjah."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "It-tqassim tad-dock ma setax jiġi ssejvjat."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "It-tqassim ġie ssejvjat. Xi oġġetti ġodda ma setgħux jitgħabbew."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "Fajls u folders ankrati"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "Applets ankrati"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "Agħżel folder"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "Agħżel fajl"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "Agħżel fajl jew folder lokali."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "Żid applikazzjoni"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Uri jew aħbi Docking"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "Assenja buttuna ta’ tqassir qabel tattiva din il-modalità."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "L-ambjent tad-desktop ma assenjax buttuna ta’ tqassir."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Qed jintuża l-ħabi awtomatiku: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "Il-modalità mhix attivata: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "Ma setax jinfetaħ il-folder fit-terminal."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "Dan l-oġġett ma setax jinfetaħ b’applikazzjoni oħra."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "Iftaħ fit-terminal"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "Iftaħ b’applikazzjoni oħra…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "Ewlieni"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "Uri biss bil-buttuna ta’ tqassir"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "Qabża"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "Taħbita"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "Tbandil"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "Buttuna ta’ tqassir tad-dock"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "Qiegħed id-dock tul ix-xifer magħżul tal-iskrin."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "Previżjoni"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "Uri x-xbihat żgħar tal-previżjoni tat-twieqi"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr ""
+"Uri l-kontorn tat-tieqa fuq id-desktop meta l-werrej ikun fuq ix-xbieha "
+"żgħira tagħha."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"Uri l-kontorn tat-tieqa fuq id-desktop meta l-werrej ikun fuq ix-xbieha "
+"żgħira tagħha. Mhux disponibbli f’din is-sessjoni. Jeħtieġ X11 jew Sway."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "Wisa’ tax-xbieha żgħira"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"Issettja l-wisa’ tax-xbihat żgħar tat-twieqi f’pixels. Xbihat usa’ juru "
+"aktar mit-titlu tat-tieqa."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "Editja t-tqassim…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr ""
+"Uri biss l-applikazzjonijiet, l-applets, il-fajls u l-folders ippinnjati."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "Oġġetti ppinnjati"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "Uri l-effett magħżul meta tibda applikazzjoni mid-dock."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "Agħżel l-effett li se jintwera meta tibda applikazzjoni."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "Buttuna ta’ tqassir tad-dock"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"Assenja buttuna ta’ tqassir li taħdem biex tattiva din il-modalità. Jekk ma "
+"tistax tiġi rreġistrata, id-dock jinħeba awtomatikament għalissa."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "Dock ieħor"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Il-buttuna Plank tappoġġa wkoll Plank Reloaded. Irrevedi l-oġġetti "
+"ppinnjati, il-preferenzi u l-oġġetti li nqabżu qabel timporta."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "Fittex…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"Agħżel fajl JSON ta’ Docking biex tirrevedi l-oġġetti ppinnjati u "
+"l-preferenzi tat-tqassim tiegħu."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "Importa minn"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "Id-dock importat ma setax jiġi ssejvjat."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr ""
+"Dawn l-oġġetti ppinnjati ma setgħux jitneħħew mill-konfigurazzjoni "
+"ssejvjata."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "Xi oġġetti ppinnjati importati ma setgħux jitgħabbew."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "Fin-nofs"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"Jibqa’ fuq id-desktop u wara t-twieqi tal-applikazzjonijiet, mingħajr ma "
+"jirriżerva spazju fuq l-iskrin. Mexxi t-twieqi li jgħattu d-dock biex tużah."
+" Meta tressaq il-werrej fuqu ma jitlax ’il quddiem."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"Jidher biss bil-buttuna ta’ tqassir tiegħu, imbagħad jinħeba wara li "
+"l-werrej jidħol fih u joħroġ. Agħfas mill-ġdid il-buttuna biex taħbih."

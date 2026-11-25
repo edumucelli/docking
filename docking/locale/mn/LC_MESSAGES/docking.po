@@ -15,7 +15,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: docking/applets/aiusage/applet.py:75
 msgid "AI Usage"
@@ -772,10 +772,6 @@ msgstr "Lock Camera"
 #: docking/applets/camshield/applet.py:118
 msgid "Unlock Camera"
 msgstr "Unlock Camera"
-
-#: docking/applets/camshield/applet.py:124
-msgid "Camera lock helper unavailable"
-msgstr "Camera lock helper unavailable"
 
 #: docking/applets/camshield/state.py:83
 #, python-brace-format
@@ -1771,17 +1767,9 @@ msgstr "Pause"
 msgid "Play"
 msgstr "Play"
 
-#: docking/applets/music/state.py:110
-msgid "Playing"
-msgstr "Playing"
-
 #: docking/applets/music/state.py:112
 msgid "Paused"
 msgstr "Paused"
-
-#: docking/applets/music/state.py:114
-msgid "Stopped"
-msgstr "Stopped"
 
 #: docking/applets/network/applet.py:79 docking/applets/network/state.py:246
 #: docking/applets/network/state.py:257
@@ -3442,10 +3430,6 @@ msgstr "Activate"
 msgid "Context Menu"
 msgstr "Context Menu"
 
-#: docking/applets/systemtray/applet.py:225
-msgid "D-Bus unavailable"
-msgstr "D-Bus unavailable"
-
 #: docking/applets/systemtray/applet.py:234
 #, python-brace-format
 msgid "Legacy X11 tray is active with {n} item(s)."
@@ -3552,10 +3536,6 @@ msgstr "System Tray: {n} item(s)"
 #, python-brace-format
 msgid "System Tray: {error}"
 msgstr "System Tray: {error}"
-
-#: docking/applets/systemtray/state.py:13
-msgid "System Tray: D-Bus unavailable"
-msgstr "System Tray: D-Bus unavailable"
 
 #: docking/applets/systemtray/state.py:16
 #, python-brace-format
@@ -3885,10 +3865,6 @@ msgstr "Энэ нь Docking-д хадгалагдсан WhatsApp Web сесси�
 msgid "Could not disconnect WhatsApp"
 msgstr "WhatsApp салгаж чадсангүй"
 
-#: docking/applets/whatsapp/applet.py:194
-msgid "Unknown WebKit error"
-msgstr "Тодорхойгүй WebKit алдаа"
-
 #: docking/applets/whatsapp/browser.py:154
 msgid "WebKitGTK is unavailable"
 msgstr "WebKitGTK боломжгүй байна"
@@ -3896,10 +3872,6 @@ msgstr "WebKitGTK боломжгүй байна"
 #: docking/applets/whatsapp/browser.py:279
 msgid "Docking applet"
 msgstr "Docking аплет"
-
-#: docking/applets/whatsapp/browser.py:285
-msgid "Reload WhatsApp Web"
-msgstr "WhatsApp Web дахин ачаалах"
 
 #: docking/applets/whatsapp/browser.py:389
 msgid "browser process stopped"
@@ -3917,11 +3889,6 @@ msgstr "камер"
 msgid "microphone"
 msgstr "микрофон"
 
-#: docking/applets/whatsapp/browser.py:483
-#, python-brace-format
-msgid "Allow WhatsApp to use your {device}?"
-msgstr "WhatsApp-д таны {device} ашиглахыг зөвшөөрөх үү?"
-
 #: docking/applets/whatsapp/browser.py:485
 msgid "Deny"
 msgstr "Татгалзах"
@@ -3929,10 +3896,6 @@ msgstr "Татгалзах"
 #: docking/applets/whatsapp/browser.py:486
 msgid "Allow"
 msgstr "Зөвшөөрөх"
-
-#: docking/applets/whatsapp/browser.py:544
-msgid "WhatsApp requires WebKitGTK"
-msgstr "WhatsApp-д WebKitGTK шаардлагатай"
 
 #: docking/applets/whatsapp/browser.py:548
 msgid ""
@@ -3943,10 +3906,6 @@ msgstr "WebKitGTK 4.1 эсвэл 4.0 introspection багцыг суулгаад
 #: docking/applets/whatsapp/browser.py:590
 msgid "unknown browser error"
 msgstr "тодорхойгүй хөтчийн алдаа"
-
-#: docking/applets/whatsapp/state.py:152
-msgid "WhatsApp: WebKitGTK is not installed"
-msgstr "WhatsApp: WebKitGTK суулгаагүй байна"
 
 #: docking/applets/whatsapp/state.py:154
 msgid "WhatsApp: loading..."
@@ -5247,10 +5206,6 @@ msgstr "Зөвлөмж харуулах"
 msgid "Show item names and details when hovering over dock items."
 msgstr "Show item names and details when hovering over dock items."
 
-#: docking/ui/settings.py:654
-msgid "Window Previews"
-msgstr "Window Previews"
-
 #: docking/ui/settings.py:656
 msgid "Show window thumbnails when hovering over running apps."
 msgstr "Show window thumbnails when hovering over running apps."
@@ -5648,28 +5603,1041 @@ msgstr "Ignore"
 
 #: docking/applets/camshield/applet.py docking/applets/camshield/state.py
 msgid "Camera locked"
-msgstr ""
+msgstr "Камерыг түгжсэн"
 
 msgid "Microphone state unavailable"
-msgstr ""
+msgstr "Микрофоны төлөвийг мэдэх боломжгүй"
 
 msgid "Microphone mute state unknown"
-msgstr ""
+msgstr "Микрофоны дууг хаасан эсэх тодорхойгүй"
 
 msgid "Microphone activity unknown"
-msgstr ""
+msgstr "Микрофоны идэвх тодорхойгүй"
 
 msgid "Microphone Settings"
-msgstr ""
+msgstr "Микрофоны тохиргоо"
 
 msgid "Camera state unavailable"
-msgstr ""
+msgstr "Камерын төлөвийг мэдэх боломжгүй"
 
 msgid "Camera activity unknown"
-msgstr ""
+msgstr "Камерын идэвх тодорхойгүй"
 
 msgid "Camera locking unavailable"
-msgstr ""
+msgstr "Камерыг түгжих боломжгүй"
 
 msgid "Camera Settings"
+msgstr "Камерын тохиргоо"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:102
+msgid "Keep Connected"
+msgstr "Холболтыг хэвээр байлгах"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:104
+msgid "Connect Audio"
+msgstr "Аудио төхөөрөмжийг холбох"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:105
+msgid "Release Connection"
+msgstr "Холболтыг чөлөөлөх"
+
+#: docking/applets/bluetooth/implementations/windows/backend.py:107
+msgid "Disconnect Audio"
+msgstr "Аудио төхөөрөмжийг салгах"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:70
+msgid "Enter PIN"
+msgstr "PIN код оруулна уу"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:113
+#, python-brace-format
+msgid "Enter this PIN on the device: {pin}"
+msgstr "Төхөөрөмжид энэ PIN кодыг оруулна уу: {pin}"
+
+#: docking/applets/bluetooth/implementations/windows/pairing_ui.py:115
+#, python-brace-format
+msgid "Does this PIN match the device? {pin}"
+msgstr "Төхөөрөмж дээр ижил PIN код харагдаж байна уу? {pin}"
+
+#: docking/applets/checklist/applet.py:32
+msgid "Checklist"
+msgstr "Шалгах жагсаалт"
+
+#: docking/applets/checklist/applet.py:46
+#, python-brace-format
+msgid "{count} unchecked item"
+msgid_plural "{count} unchecked items"
+msgstr[0] "Тэмдэглээгүй {count} зүйл"
+msgstr[1] "Тэмдэглээгүй {count} зүйл"
+
+#: docking/applets/checklist/applet.py:100
+#: docking/applets/checklist/applet.py:101
+msgid "Add an item"
+msgstr "Зүйл нэмэх"
+
+#: docking/applets/checklist/applet.py:108
+msgid "Clear Completed"
+msgstr "Дууссан зүйлсийг цэвэрлэх"
+
+#: docking/applets/checklist/applet.py:139
+msgid "Item text"
+msgstr "Зүйлийн бичвэр"
+
+#: docking/applets/clippy/applet.py:101
+msgid "Clipboard tracking paused"
+msgstr "Түр санах ойг хянахыг түр зогсоосон"
+
+#: docking/applets/clippy/applet.py:180
+msgid "Clipboard History"
+msgstr "Түр санах ойн түүх"
+
+#: docking/applets/clippy/applet.py:184
+msgid "Enable Clipboard Tracking"
+msgstr "Түр санах ойг хянахыг идэвхжүүлэх"
+
+#: docking/applets/clippy/applet.py:187
+msgid "Track Mouse Selections"
+msgstr "Хулганаар сонгосныг хянах"
+
+#: docking/applets/clippy/applet.py:191
+msgid "Mouse selection tracking requires X11"
+msgstr "Хулганын сонголтыг хянахад X11 шаардлагатай"
+
+#: docking/applets/clippy/applet.py:193
+msgid "Track Images"
+msgstr "Зургийг хянах"
+
+#: docking/applets/clippy/applet.py:198
+msgid "Maximum Entries"
+msgstr "Бичлэгийн дээд тоо"
+
+#: docking/applets/clippy/applet.py:199 docking/ui/dock_import.py:150
+msgid "Disabled"
+msgstr "Идэвхгүй"
+
+#: docking/applets/clippy/state.py:87
+#, python-brace-format
+msgid "Image ({width} × {height})"
+msgstr "Зураг ({width} × {height})"
+
+#: docking/applets/clock/state.py:168
+#, python-brace-format
+msgid "Alarm: {time}"
+msgstr "Сэрүүлэг: {time}"
+
+#: docking/applets/kdeconnect/applet.py:45
+#: docking/applets/kdeconnect/state.py:63
+msgid "KDE Connect"
+msgstr "KDE Connect"
+
+#: docking/applets/kdeconnect/applet.py:136
+msgid "Could not read KDE Connect devices"
+msgstr "KDE Connect-ийн төхөөрөмжийн жагсаалтыг уншиж чадсангүй"
+
+#: docking/applets/kdeconnect/applet.py:156
+msgid "Install KDE Connect to open its device settings"
+msgstr "Төхөөрөмжийн тохиргоог нээхийн тулд KDE Connect-ийг суулгана уу"
+
+#: docking/applets/kdeconnect/applet.py:164
+msgid "Contacting selected device..."
+msgstr "Сонгосон төхөөрөмжтэй холбогдож байна…"
+
+#: docking/applets/kdeconnect/applet.py:181
+msgid "KDE Connect action failed; retry with the device online"
 msgstr ""
+"KDE Connect-ийн үйлдэл амжилтгүй боллоо. Төхөөрөмж сүлжээнд холбогдсон үед "
+"дахин оролдоно уу."
+
+#: docking/applets/kdeconnect/applet.py:190
+#, python-brace-format
+msgid "Ring request sent to {name}"
+msgstr "{name} төхөөрөмжид дуугаргах хүсэлт илгээлээ"
+
+#: docking/applets/kdeconnect/applet.py:209
+msgid "Select an online paired device with file sharing enabled"
+msgstr ""
+"Сүлжээнд холбогдсон, файл хуваалцахыг идэвхжүүлсэн хослуулсан төхөөрөмжийг "
+"сонгоно уу"
+
+#: docking/applets/kdeconnect/applet.py:213
+msgid "Wait for the current KDE Connect action to finish"
+msgstr "KDE Connect-ийн одоогийн үйлдэл дуусахыг хүлээнэ үү"
+
+#: docking/applets/kdeconnect/applet.py:222
+msgid "Could not read the selected files"
+msgstr "Сонгосон файлуудыг уншиж чадсангүй"
+
+#: docking/applets/kdeconnect/applet.py:228
+#, python-brace-format
+msgid "File transfer requested for {name}"
+msgstr "{name} төхөөрөмжид файл дамжуулах хүсэлт гаргалаа"
+
+#: docking/applets/kdeconnect/applet.py:237
+msgid "Send Files with KDE Connect"
+msgstr "KDE Connect-ээр файл илгээх"
+
+#: docking/applets/kdeconnect/applet.py:242
+msgid "Send"
+msgstr "Илгээх"
+
+#: docking/applets/kdeconnect/applet.py:264
+msgid "Ring Phone"
+msgstr "Утсыг дуугаргах"
+
+#: docking/applets/kdeconnect/applet.py:269
+msgid "Send Files..."
+msgstr "Файл илгээх…"
+
+#: docking/applets/kdeconnect/applet.py:272
+msgid "Open KDE Connect / Pair Device"
+msgstr "KDE Connect-ийг нээх эсвэл төхөөрөмж хослуулах"
+
+#: docking/applets/kdeconnect/backend.py:140
+#: docking/applets/kdeconnect/state.py:66
+msgid "Install and start KDE Connect to connect a phone"
+msgstr "Утас холбохын тулд KDE Connect-ийг суулгаад ажиллуулна уу"
+
+#: docking/applets/kdeconnect/backend.py:154
+msgid "KDE Connect restarted; refreshing devices"
+msgstr "KDE Connect дахин аслаа. Төхөөрөмжийн жагсаалтыг шинэчилж байна."
+
+#: docking/applets/kdeconnect/backend.py:158
+msgid "Could not contact KDE Connect; retry or open its settings"
+msgstr ""
+"KDE Connect-тэй холбогдож чадсангүй. Дахин оролдох эсвэл тохиргоог нь нээнэ "
+"үү."
+
+#: docking/applets/kdeconnect/backend.py:167
+msgid "KDE Connect returned an invalid device identifier"
+msgstr "KDE Connect төхөөрөмжийн хүчингүй таних тэмдэг буцаалаа"
+
+#: docking/applets/kdeconnect/backend.py:236
+msgid "Could not read KDE Connect devices; retry or open its settings"
+msgstr ""
+"KDE Connect-ийн төхөөрөмжүүдийг уншиж чадсангүй. Дахин оролдох эсвэл "
+"тохиргоог нь нээнэ үү."
+
+#: docking/applets/kdeconnect/backend.py:246
+msgid "The selected device is offline or no longer paired"
+msgstr "Сонгосон төхөөрөмж сүлжээгүй эсвэл хослол нь цуцлагдсан"
+
+#: docking/applets/kdeconnect/backend.py:249
+msgid "The selected device does not support this action"
+msgstr "Сонгосон төхөөрөмж энэ үйлдлийг дэмждэггүй"
+
+#: docking/applets/kdeconnect/backend.py:260
+msgid "A selected file is no longer available"
+msgstr "Сонгосон файлын нэгийг ашиглах боломжгүй болсон"
+
+#: docking/applets/kdeconnect/state.py:52
+#, python-brace-format
+msgid "{name}: offline"
+msgstr "{name}: сүлжээгүй"
+
+#: docking/applets/kdeconnect/state.py:54
+#, python-brace-format
+msgid "{name}: connected"
+msgstr "{name}: холбогдсон"
+
+#: docking/applets/kdeconnect/state.py:56
+#, python-brace-format
+msgid "{name}: {charge}% (charging)"
+msgstr "{name}: {charge}% (цэнэглэж байна)"
+
+#: docking/applets/kdeconnect/state.py:59
+#, python-brace-format
+msgid "{name}: {charge}%"
+msgstr "{name}: {charge}%"
+
+#: docking/applets/kdeconnect/state.py:69
+msgid "No paired devices; open KDE Connect to pair your phone"
+msgstr ""
+"Хослуулсан төхөөрөмж байхгүй. Утсаа хослуулахын тулд KDE Connect-ийг нээнэ "
+"үү."
+
+#: docking/applets/kdeconnect/state.py:74
+msgid "Selected device is no longer paired; choose another device"
+msgstr "Сонгосон төхөөрөмжийн хослол цуцлагдсан. Өөр төхөөрөмж сонгоно уу."
+
+#: docking/applets/kdeconnect/state.py:79
+msgid "Drop files here to send to this device"
+msgstr "Энэ төхөөрөмжид илгээх файлуудаа энд чирж тавина уу"
+
+#: docking/applets/kdeconnect/state.py:94
+msgid "Choose at least one local file"
+msgstr "Дор хаяж нэг дотоод файл сонгоно уу"
+
+#: docking/applets/kdeconnect/state.py:99
+msgid "Only local files can be sent with KDE Connect"
+msgstr "KDE Connect-ээр зөвхөн дотоод файл илгээх боломжтой"
+
+#: docking/applets/music/applet.py:282
+msgid "System Default"
+msgstr "Системийн өгөгдмөл"
+
+#: docking/applets/music/applet.py:288
+#, python-format
+msgid "%(name)s (%(id)s)"
+msgstr "%(name)s (%(id)s)"
+
+#: docking/applets/music/applet.py:295
+msgid "Preferred app unavailable"
+msgstr "Сонгосон апп боломжгүй байна"
+
+#: docking/applets/music/applet.py:322
+msgid "No compatible apps found"
+msgstr "Тохирох апп олдсонгүй"
+
+#: docking/applets/music/applet.py:325
+msgid "Launch App"
+msgstr "Апп эхлүүлэх"
+
+#: docking/applets/music/applet.py:309
+#, python-format
+msgid ""
+"Install or enable %(plugin)s and restart mpv for playback controls and track"
+" details."
+msgstr ""
+"Тоглуулах удирдлага болон дууны мэдээллийг ашиглахын тулд %(plugin)s-ийг "
+"суулгаж эсвэл идэвхжүүлээд mpv-г дахин эхлүүлнэ үү."
+
+#: docking/applets/music/implementations/unix/backend.py:961
+msgid "Enable Rhythmbox’s MPRIS plugin to see track details."
+msgstr ""
+"Дууны мэдээллийг харахын тулд Rhythmbox-ийн MPRIS залгаасыг идэвхжүүлнэ үү."
+
+#: docking/applets/music/implementations/unix/backend.py:968
+#, python-format
+msgid "Install %(package)s and restart Rhythmbox."
+msgstr "%(package)s-ийг суулгаад Rhythmbox-ийг дахин эхлүүлнэ үү."
+
+#: docking/applets/notifications/applet.py:110
+msgid "Could not update notifications"
+msgstr "Мэдэгдлүүдийг шинэчилж чадсангүй"
+
+#: docking/applets/notifications/applet.py:112
+msgid "Notification history requires access in Windows Settings"
+msgstr ""
+"Мэдэгдлийн түүхийг үзэхийн тулд Windows-ийн тохиргоонд хандах эрх олгох "
+"шаардлагатай"
+
+#: docking/applets/telegram/applet.py:22
+msgid "Telegram"
+msgstr "Telegram"
+
+#: docking/applets/telegram/applet.py:27
+msgid "Open Telegram"
+msgstr "Telegram нээх"
+
+#: docking/applets/telegram/applet.py:28
+msgid "Hide Telegram"
+msgstr "Telegram нуух"
+
+#: docking/applets/telegram/applet.py:29
+msgid "Disconnect Telegram"
+msgstr "Telegram-ийг салгах"
+
+#: docking/applets/telegram/applet.py:30
+msgid "Disconnect Telegram?"
+msgstr "Telegram-ийг салгах уу?"
+
+#: docking/applets/telegram/applet.py:32
+msgid ""
+"This clears the Telegram Web session stored by Docking. You will need to "
+"sign in again."
+msgstr ""
+"Docking-д хадгалсан Telegram Web-ийн сесс арилна. Та дахин нэвтрэх "
+"шаардлагатай."
+
+#: docking/applets/telegram/applet.py:35
+msgid "Could not disconnect Telegram"
+msgstr "Telegram-ийг салгаж чадсангүй"
+
+#: docking/applets/telegram/state.py:53 docking/applets/telegram/state.py:64
+#, python-brace-format
+msgid "Telegram: {error}"
+msgstr "Telegram: {error}"
+
+#: docking/applets/telegram/state.py:54
+msgid "Telegram: browser is unavailable"
+msgstr "Telegram: хөтөч боломжгүй"
+
+#: docking/applets/telegram/state.py:56
+msgid "Telegram: loading..."
+msgstr "Telegram: ачаалж байна…"
+
+#: docking/applets/telegram/state.py:58
+msgid "Telegram: scan the QR code or sign in with your phone number"
+msgstr "Telegram: QR кодыг уншуулах эсвэл утасны дугаараараа нэвтэрнэ үү"
+
+#: docking/applets/telegram/state.py:60
+msgid "Telegram: synchronizing..."
+msgstr "Telegram: синк хийж байна…"
+
+#: docking/applets/telegram/state.py:62
+msgid "Telegram: offline"
+msgstr "Telegram: сүлжээгүй"
+
+#: docking/applets/telegram/state.py:65
+msgid "could not load Telegram Web"
+msgstr "Telegram Web-ийг ачаалж чадсангүй"
+
+#: docking/applets/telegram/state.py:70
+#, python-brace-format
+msgid "Telegram: {count} new notification"
+msgid_plural "Telegram: {count} new notifications"
+msgstr[0] "Telegram: {count} шинэ мэдэгдэл"
+msgstr[1] "Telegram: {count} шинэ мэдэгдэл"
+
+#: docking/applets/telegram/state.py:76
+#, python-brace-format
+msgid "Telegram: {count} unread chat"
+msgid_plural "Telegram: {count} unread chats"
+msgstr[0] "Telegram: {count} уншаагүй чат"
+msgstr[1] "Telegram: {count} уншаагүй чат"
+
+#: docking/applets/telegram/state.py:80
+msgid "Telegram: no unread chats"
+msgstr "Telegram: уншаагүй чат байхгүй"
+
+#: docking/applets/telegram/state.py:81
+msgid "Telegram: click to open"
+msgstr "Telegram: нээхийн тулд товшино уу"
+
+#: docking/applets/webapp/applet.py:200
+msgid "Unknown browser error"
+msgstr "Хөтчийн үл мэдэгдэх алдаа"
+
+#: docking/applets/webapp/implementations/unix/backend.py:293
+#: docking/applets/webapp/implementations/windows/backend.py:171
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:210
+#, python-brace-format
+msgid "Reload {service}"
+msgstr "{service} үйлчилгээг дахин ачаалах"
+
+#: docking/applets/webapp/implementations/unix/backend.py:483
+#: docking/applets/webapp/implementations/windows/backend.py:509
+#: docking/applets/webapp/implementations/windows/companion/runtime.py:383
+#, python-brace-format
+msgid "Allow {service} to use your {device}?"
+msgstr ""
+"{service} үйлчилгээнд таны төхөөрөмжийг ({device}) ашиглахыг зөвшөөрөх үү?"
+
+#: docking/applets/webapp/implementations/unix/backend.py:563
+#, python-brace-format
+msgid "{service} requires WebKitGTK"
+msgstr "{service} үйлчилгээнд WebKitGTK шаардлагатай"
+
+#: docking/applets/webapp/implementations/windows/backend.py:121
+#: docking/applets/webapp/implementations/windows/companion/browser.py:242
+msgid "Could not open browser session"
+msgstr "Хөтчийн сессийг нээж чадсангүй"
+
+#: docking/applets/webapp/implementations/windows/backend.py:196
+msgid "Microsoft Edge WebView2 is unavailable"
+msgstr "Microsoft Edge WebView2 боломжгүй"
+
+#: docking/applets/webapp/implementations/windows/backend.py:373
+#: docking/applets/webapp/implementations/windows/backend.py:573
+#: docking/applets/webapp/implementations/windows/companion/browser.py:175
+#, python-brace-format
+msgid "Could not disconnect {service}"
+msgstr "{service} үйлчилгээг салгаж чадсангүй"
+
+#: docking/applets/webapp/implementations/windows/backend.py:381
+#, python-brace-format
+msgid "could not load {service}"
+msgstr "{service} үйлчилгээг ачаалж чадсангүй"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:28
+msgid "Download"
+msgstr "Татаж авах"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:71
+msgid "Completed"
+msgstr "Дууссан"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:79
+msgid "Downloading"
+msgstr "Татаж байна…"
+
+#: docking/applets/webapp/implementations/windows/companion/downloads.py:94
+msgid "Resume"
+msgstr "Үргэлжлүүлэх"
+
+#: docking/applets/whatsapp/state.py:52
+msgid "WhatsApp: browser is unavailable"
+msgstr "WhatsApp: хөтөч боломжгүй"
+
+#: docking/core/tips.py:79
+msgid "Import an existing dock layout"
+msgstr "Одоо байгаа Dock-ийн зохион байгуулалтыг импортлох"
+
+#: docking/core/tips.py:81
+msgid ""
+"Open Preferences -> Import to review pins and settings from Plank, Plank "
+"Reloaded, or Cairo-Dock before bringing them into Docking."
+msgstr ""
+"Plank, Plank Reloaded эсвэл Cairo-Dock-ийн бэхэлсэн зүйлс болон тохиргоог "
+"Docking-д оруулахаас өмнө харахын тулд Тохиргоо → Импортлох хэсгийг нээнэ "
+"үү."
+
+#: docking/platform/dock_import.py:222 docking/ui/settings.py:1144
+msgid "Docking file"
+msgstr "Docking файл"
+
+#: docking/platform/dock_import.py:230
+msgid "The source theme is unavailable."
+msgstr "Эх загвар байхгүй байна."
+
+#: docking/platform/dock_import.py:234 docking/platform/dock_import.py:805
+msgid "Set up the dock reveal shortcut in Docking Preferences."
+msgstr "Dock-ийг харуулах товчны хослолыг Docking-ийн тохиргоонд онооно уу."
+
+#: docking/platform/dock_import.py:252
+msgid "Skipped an invalid pinned item."
+msgstr "Хүчингүй бэхэлсэн зүйлийг алгаслаа."
+
+#: docking/platform/dock_import.py:265 docking/platform/dock_import.py:538
+#: docking/platform/dock_import.py:635 docking/platform/dock_import.py:679
+#: docking/platform/dock_import.py:863
+#, python-brace-format
+msgid "Skipped {item}."
+msgstr "{item}-ийг алгаслаа."
+
+#: docking/platform/dock_import.py:390
+msgid "Plank / Plank Reloaded"
+msgstr "Plank / Plank Reloaded"
+
+#: docking/platform/dock_import.py:460
+msgid "Plank’s primary dock could not be determined."
+msgstr "Plank-ийн үндсэн Dock-ийг тодорхойлж чадсангүй."
+
+#: docking/platform/dock_import.py:500
+msgid "Skipped Plank’s full-edge layout."
+msgstr "Ирмэгийг бүтнээр эзэлдэг Plank-ийн зохион байгуулалтыг алгаслаа."
+
+#: docking/platform/dock_import.py:508
+msgid ""
+"Plank settings were unavailable. Launcher files are listed by filename."
+msgstr ""
+"Plank-ийн тохиргоо байхгүй байлаа. Эхлүүлэгчдийг файлын нэрээр жагсаав."
+
+#: docking/platform/dock_import.py:577 docking/ui/settings.py:1122
+msgid "Cairo-Dock"
+msgstr "Cairo-Dock"
+
+#: docking/platform/dock_import.py:577
+msgid "Main dock"
+msgstr "Үндсэн Dock"
+
+#: docking/platform/dock_import.py:611
+#, python-brace-format
+msgid "Skipped repeated sub-dock {item}."
+msgstr "Давтагдсан {item} дэд Dock-ийг алгаслаа."
+
+#: docking/platform/dock_import.py:617
+#, python-brace-format
+msgid "Skipped separate dock {item}."
+msgstr "Тусдаа {item} Dock-ийг алгаслаа."
+
+#: docking/platform/dock_import.py:662
+#, python-brace-format
+msgid "Skipped custom launcher {item}."
+msgstr "Өөрчлөн тохируулсан {item} эхлүүлэгчийг алгаслаа."
+
+#: docking/platform/dock_import.py:698 docking/platform/dock_import.py:720
+#: docking/platform/dock_import.py:725 docking/platform/dock_import.py:741
+#, python-brace-format
+msgid "Skipped plug-in {item}."
+msgstr "{item} залгаасыг алгаслаа."
+
+#: docking/platform/dock_import.py:729
+#, python-brace-format
+msgid "Skipped detached desklet {item}."
+msgstr "Салангид {item} дэлгэцийн жижиг хэрэгслийг алгаслаа."
+
+#: docking/platform/dock_import.py:769
+msgid "Skipped Cairo-Dock’s numeric display selection."
+msgstr "Cairo-Dock-ийн дэлгэцийн дугаараар хийсэн сонголтыг алгаслаа."
+
+#: docking/platform/dock_import.py:801
+msgid "Always Behind does not reveal the dock on edge hover."
+msgstr "«Үргэлж ард» горимд заагчийг ирмэгт хүргэхэд Dock ил гарахгүй."
+
+#: docking/platform/dock_import.py:856
+#, python-brace-format
+msgid "Application unavailable for {item}."
+msgstr "{item} зүйлд зориулсан апп боломжгүй байна."
+
+#: docking/platform/dock_import.py:892
+msgid "The source display is unavailable."
+msgstr "Эх дэлгэц боломжгүй байна."
+
+#: docking/platform/dock_import.py:910
+#, python-brace-format
+msgid "Adjusted the screen edge gap from {requested} px to {applied} px."
+msgstr ""
+"Дэлгэцийн ирмэгийн зайг {requested} px-ээс {applied} px болгож өөрчиллөө."
+
+#: docking/platform/model.py:456 docking/platform/model.py:461
+#: docking/ui/dock_layout.py:338
+msgid "This item is already pinned."
+msgstr "Энэ зүйлийг аль хэдийн бэхэлсэн байна."
+
+#: docking/platform/model.py:466
+msgid "The selected application is unavailable."
+msgstr "Сонгосон апп боломжгүй байна."
+
+#: docking/platform/model.py:471
+msgid "The selected applet is unavailable."
+msgstr "Сонгосон апплет боломжгүй байна."
+
+#: docking/platform/model.py:481
+msgid "The selected file or folder is unavailable."
+msgstr "Сонгосон файл эсвэл хавтас боломжгүй байна."
+
+#: docking/platform/shortcuts.py:50
+msgid "Toggle Docking search"
+msgstr "Docking хайлтыг харуулах эсвэл нуух"
+
+#: docking/ui/dock_import.py:34
+msgid "Choose a Docking configuration file"
+msgstr "Docking-ийн тохиргооны файл сонгоно уу"
+
+#: docking/ui/dock_import.py:42
+msgid "Docking configuration files"
+msgstr "Docking-ийн тохиргооны файлууд"
+
+#: docking/ui/dock_import.py:81 docking/ui/settings.py:803
+msgid "Alignment"
+msgstr "Зэрэгцүүлэлт"
+
+#: docking/ui/dock_import.py:82
+msgid "Display"
+msgstr "Дэлгэц"
+
+#: docking/ui/dock_import.py:83
+msgid "Follow Active Display"
+msgstr "Идэвхтэй дэлгэцийг дагах"
+
+#: docking/ui/dock_import.py:87
+msgid "Enable Zoom"
+msgstr "Томруулалтыг идэвхжүүлэх"
+
+#: docking/ui/dock_import.py:88
+msgid "Zoom Level"
+msgstr "Томруулах хэмжээ"
+
+#: docking/ui/dock_import.py:94
+msgid "Lock Icons"
+msgstr "Дүрснүүдийг түгжих"
+
+#: docking/ui/dock_import.py:95 docking/ui/settings.py:879
+msgid "Pinned Only"
+msgstr "Зөвхөн бэхэлсэн зүйлс"
+
+#: docking/ui/dock_import.py:98
+msgid "Show Window Previews"
+msgstr "Цонхны урьдчилсан харагдацыг харуулах"
+
+#: docking/ui/dock_import.py:99
+msgid "Preview Width"
+msgstr "Урьдчилсан харагдацын өргөн"
+
+#: docking/ui/dock_import.py:101 docking/ui/settings.py:833
+msgid "Outline Window on Preview Hover"
+msgstr ""
+"Урьдчилсан харагдац дээр заагчийг байрлуулахад цонхны хүрээг тодруулах"
+
+#: docking/ui/dock_import.py:102
+msgid "Additional Distance from Edge"
+msgstr "Ирмэгээс авах нэмэлт зай"
+
+#: docking/ui/dock_import.py:103
+msgid "Anchor Applets"
+msgstr "Апплетуудыг Dock-ийн төгсгөлд бүлэглэх"
+
+#: docking/ui/dock_import.py:104
+msgid "Anchor Files"
+msgstr "Файлуудыг Dock-ийн төгсгөлд бүлэглэх"
+
+#: docking/ui/dock_import.py:107 docking/ui/settings.py:962
+msgid "Enable Effects When Clicking Dock Items"
+msgstr "Dock-ийн зүйлсийг товшиход эффект идэвхжүүлэх"
+
+#: docking/ui/dock_import.py:108 docking/ui/settings.py:967
+msgid "Click Effect"
+msgstr "Товшилтын эффект"
+
+#: docking/ui/dock_import.py:109
+msgid "Open Stacks"
+msgstr "Багцуудыг нээх"
+
+#: docking/ui/dock_import.py:122 docking/ui/settings.py:458
+msgid "Always behind"
+msgstr "Үргэлж ард"
+
+#: docking/ui/dock_import.py:132 docking/ui/settings.py:2121
+msgid "Bottom"
+msgstr "Доор"
+
+#: docking/ui/dock_import.py:133 docking/ui/settings.py:2119
+msgid "Left"
+msgstr "Зүүн"
+
+#: docking/ui/dock_import.py:134 docking/ui/settings.py:2119
+msgid "Right"
+msgstr "Баруун"
+
+#: docking/ui/dock_import.py:141
+#, python-brace-format
+msgid "{value} ms"
+msgstr "{value} мс"
+
+#: docking/ui/dock_import.py:148
+#, python-brace-format
+msgid "{value} px"
+msgstr "{value} px"
+
+#: docking/ui/dock_import.py:157
+msgid "Pins to add"
+msgstr "Бэхлэх зүйлс"
+
+#: docking/ui/dock_import.py:159
+msgid "The source dock has no pinned items."
+msgstr "Эх Dock-д бэхэлсэн зүйл байхгүй."
+
+#: docking/ui/dock_import.py:165
+msgid "Preferences to apply"
+msgstr "Хэрэглэх тохиргоо"
+
+#: docking/ui/dock_import.py:173
+#, python-brace-format
+msgid "{setting}: {value}"
+msgstr "{setting}: {value}"
+
+#: docking/ui/dock_import.py:182
+msgid "There are no changes to import."
+msgstr "Импортлох өөрчлөлт байхгүй."
+
+#: docking/ui/dock_import.py:226
+msgid "Import a Docking file"
+msgstr "Docking файл импортлох"
+
+#: docking/ui/dock_import.py:228
+msgid "Import from Another Dock"
+msgstr "Өөр Dock-оос импортлох"
+
+#: docking/ui/dock_import.py:235
+msgid "Skip"
+msgstr "Алгасах"
+
+#: docking/ui/dock_import.py:236 docking/ui/settings.py:433
+msgid "Import"
+msgstr "Импортлох"
+
+#: docking/ui/dock_import.py:242
+#, python-brace-format
+msgid "{source} ({profile})"
+msgstr "{source} ({profile})"
+
+#: docking/ui/dock_import.py:252
+msgid "Choose a dock to import."
+msgstr "Импортлох Dock-ийг сонгоно уу."
+
+#: docking/ui/dock_import.py:275
+msgid "Choose a dock to review its pins and preferences."
+msgstr "Бэхэлсэн зүйлс болон тохиргоог нь харах Dock-ийг сонгоно уу."
+
+#: docking/ui/dock_import.py:277
+msgid "Choose a valid Docking JSON configuration file."
+msgstr "Docking-ийн хүчинтэй JSON тохиргооны файл сонгоно уу."
+
+#: docking/ui/dock_import.py:279
+msgid "Could not read the source dock settings."
+msgstr "Эх Dock-ийн тохиргоог уншиж чадсангүй."
+
+#: docking/ui/dock_import.py:281
+msgid "No Plank or Plank Reloaded setup was found."
+msgstr "Plank эсвэл Plank Reloaded-ийн тохиргоо олдсонгүй."
+
+#: docking/ui/dock_import.py:283
+msgid "No Cairo-Dock setup was found."
+msgstr "Cairo-Dock-ийн тохиргоо олдсонгүй."
+
+#: docking/ui/dock_import.py:285
+msgid "No Plank or Cairo-Dock setup was found."
+msgstr "Plank эсвэл Cairo-Dock-ийн тохиргоо олдсонгүй."
+
+#: docking/ui/dock_layout.py:100
+msgid "Edit Dock Layout"
+msgstr "Dock-ийн зохион байгуулалтыг засах"
+
+#: docking/ui/dock_layout.py:107
+msgid "Apply"
+msgstr "Хэрэглэх"
+
+#: docking/ui/dock_layout.py:113
+msgid "No pinned items"
+msgstr "Бэхэлсэн зүйл байхгүй"
+
+#: docking/ui/dock_layout.py:124
+msgid "Application…"
+msgstr "Апп…"
+
+#: docking/ui/dock_layout.py:125
+msgid "Applet…"
+msgstr "Апплет…"
+
+#: docking/ui/dock_layout.py:126
+msgid "File…"
+msgstr "Файл…"
+
+#: docking/ui/dock_layout.py:127
+msgid "Folder…"
+msgstr "Хавтас…"
+
+#: docking/ui/dock_layout.py:137
+msgid "Move Up"
+msgstr "Дээш зөөх"
+
+#: docking/ui/dock_layout.py:138
+msgid "Move Down"
+msgstr "Доош зөөх"
+
+#: docking/ui/dock_layout.py:151
+msgid "Reload Layout"
+msgstr "Зохион байгуулалтыг дахин ачаалах"
+
+#: docking/ui/dock_layout.py:174
+msgid "The dock layout changed while you were editing it."
+msgstr "Засварлаж байх үед Dock-ийн зохион байгуулалт өөрчлөгдсөн."
+
+#: docking/ui/dock_layout.py:182
+msgid "Could not save the dock layout."
+msgstr "Dock-ийн зохион байгуулалтыг хадгалж чадсангүй."
+
+#: docking/ui/dock_layout.py:190
+msgid "Layout saved. Some new items could not be loaded."
+msgstr "Зохион байгуулалтыг хадгаллаа. Зарим шинэ зүйлийг ачаалж чадсангүй."
+
+#: docking/ui/dock_layout.py:256
+msgid "Anchored Files and Folders"
+msgstr "Dock-ийн төгсгөлд бүлэглэсэн файл, хавтас"
+
+#: docking/ui/dock_layout.py:258
+msgid "Anchored Applets"
+msgstr "Dock-ийн төгсгөлд бүлэглэсэн апплетууд"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a Folder"
+msgstr "Хавтас сонгоно уу"
+
+#: docking/ui/dock_layout.py:353
+msgid "Choose a File"
+msgstr "Файл сонгоно уу"
+
+#: docking/ui/dock_layout.py:371
+msgid "Choose a local file or folder."
+msgstr "Дотоод файл эсвэл хавтас сонгоно уу."
+
+#: docking/ui/dock_layout.py:377
+msgid "Add Application"
+msgstr "Апп нэмэх"
+
+#: docking/ui/dock_shortcut.py:25
+msgid "Show or hide Docking"
+msgstr "Docking-ийг харуулах эсвэл нуух"
+
+#: docking/ui/dock_shortcut.py:125
+msgid "Assign a shortcut before enabling this mode."
+msgstr "Энэ горимыг идэвхжүүлэхээс өмнө товчны хослол онооно уу."
+
+#: docking/ui/dock_shortcut.py:140
+msgid "The desktop has not assigned a shortcut."
+msgstr "Ажлын ширээний орчин товчны хослол оноогоогүй байна."
+
+#: docking/ui/dock_shortcut.py:145
+#, python-brace-format
+msgid "Using Auto-hide: {reason}"
+msgstr "Автоматаар нуух горимыг ашиглаж байна: {reason}"
+
+#: docking/ui/dock_shortcut.py:147
+#, python-brace-format
+msgid "Mode not enabled: {reason}"
+msgstr "Горим идэвхжээгүй: {reason}"
+
+#: docking/ui/file_actions.py:52 docking/ui/file_actions.py:54
+msgid "Could not open folder in terminal."
+msgstr "Хавтсыг терминалд нээж чадсангүй."
+
+#: docking/ui/file_actions.py:120
+msgid "Could not open this item with another application."
+msgstr "Энэ зүйлийг өөр аппаар нээж чадсангүй."
+
+#: docking/ui/menu.py:640
+msgid "Open in Terminal"
+msgstr "Терминалд нээх"
+
+#: docking/ui/menu.py:646
+msgid "Open With…"
+msgstr "Өөр аппаар нээх…"
+
+#: docking/ui/placement.py:291
+msgid "Primary"
+msgstr "Үндсэн"
+
+#: docking/ui/settings.py:460
+msgid "Show Only with Shortcut"
+msgstr "Зөвхөн товчны хослолоор харуулах"
+
+#: docking/ui/settings.py:496
+msgid "Bounce"
+msgstr "Ойх"
+
+#: docking/ui/settings.py:497
+msgid "Pulse"
+msgstr "Лугших"
+
+#: docking/ui/settings.py:498
+msgid "Wobble"
+msgstr "Савлах"
+
+#: docking/ui/settings.py:644
+msgid "Dock shortcut"
+msgstr "Dock-ийн товчны хослол"
+
+#: docking/ui/settings.py:805
+msgid "Position the dock along the selected screen edge."
+msgstr "Dock-ийг дэлгэцийн сонгосон ирмэгт байрлуулна."
+
+#: docking/ui/settings.py:820
+msgid "Preview"
+msgstr "Урьдчилсан харагдац"
+
+#: docking/ui/settings.py:823
+msgid "Display Window Preview Thumbnails"
+msgstr "Цонхны урьдчилсан харагдацын жижиг зургийг үзүүлэх"
+
+#: docking/ui/settings.py:836
+msgid "Outline the real window on the desktop while hovering its thumbnail."
+msgstr ""
+"Заагчийг жижиг зураг дээр байрлуулахад ажлын ширээн дээрх цонхны хүрээг "
+"тодруулна."
+
+#: docking/ui/settings.py:841
+msgid ""
+"Outline the real window on the desktop while hovering its thumbnail. Not "
+"available in this session; requires X11 or Sway."
+msgstr ""
+"Заагчийг жижиг зураг дээр байрлуулахад ажлын ширээн дээрх цонхны хүрээг "
+"тодруулна. Энэ сессэд боломжгүй, X11 эсвэл Sway шаардлагатай."
+
+#: docking/ui/settings.py:847
+msgid "Thumbnail Width"
+msgstr "Жижиг зургийн өргөн"
+
+#: docking/ui/settings.py:850
+msgid ""
+"Set the width in pixels of window thumbnails. Wider thumbnails also show "
+"more of the window title."
+msgstr ""
+"Цонхны жижиг зургийн өргөнийг пикселээр тохируулна. Өргөн зурагт цонхны "
+"гарчиг илүү бүтнээр харагдана."
+
+#: docking/ui/settings.py:871
+msgid "Edit Layout…"
+msgstr "Зохион байгуулалтыг засах…"
+
+#: docking/ui/settings.py:881
+msgid "Show only pinned applications, applets, files, and folders."
+msgstr "Зөвхөн бэхэлсэн апп, апплет, файл, хавтсыг харуулна."
+
+#: docking/ui/settings.py:901
+msgid "Pinned Items"
+msgstr "Бэхэлсэн зүйлс"
+
+#: docking/ui/settings.py:964
+msgid "Play the selected effect when launching an app from the dock."
+msgstr "Dock-оос апп эхлүүлэхэд сонгосон эффектийг үзүүлнэ."
+
+#: docking/ui/settings.py:969
+msgid "Choose the effect played when launching an app."
+msgstr "Апп эхлүүлэхэд үзүүлэх эффектийг сонгоно уу."
+
+#: docking/ui/settings.py:984
+msgid "Dock Shortcut"
+msgstr "Dock-ийн товчны хослол"
+
+#: docking/ui/settings.py:987
+msgid ""
+"Assign a working shortcut to enable this mode. If registration fails, the "
+"dock temporarily uses Auto-hide."
+msgstr ""
+"Энэ горимыг идэвхжүүлэхийн тулд ажилладаг товчны хослол онооно уу. Бүртгэж "
+"чадахгүй бол Dock түр хугацаанд автоматаар нуугдана."
+
+#: docking/ui/settings.py:1121
+msgid "Plank"
+msgstr "Plank"
+
+#: docking/ui/settings.py:1132
+msgid "Another dock"
+msgstr "Өөр Dock"
+
+#: docking/ui/settings.py:1135
+msgid ""
+"The Plank button also supports Plank Reloaded. Review the pins, preferences,"
+" and skipped items before importing."
+msgstr ""
+"Plank товч нь Plank Reloaded-ийг мөн дэмжинэ. Импортлохын өмнө бэхэлсэн "
+"зүйлс, тохиргоо болон алгасах зүйлсийг шалгана уу."
+
+#: docking/ui/settings.py:1140
+msgid "Browse…"
+msgstr "Хайх…"
+
+#: docking/ui/settings.py:1147
+msgid "Choose a Docking JSON file to review its pins and layout preferences."
+msgstr ""
+"Бэхэлсэн зүйлс болон зохион байгуулалтын тохиргоог нь харахын тулд Docking-"
+"ийн JSON файл сонгоно уу."
+
+#: docking/ui/settings.py:1152
+msgid "Import from"
+msgstr "Импортлох эх үүсвэр"
+
+#: docking/ui/settings.py:1183
+msgid "Could not save the imported dock."
+msgstr "Импортолсон Dock-ийг хадгалж чадсангүй."
+
+#: docking/ui/settings.py:1228
+msgid "Could not remove these pins from the saved configuration."
+msgstr "Эдгээр бэхэлсэн зүйлийг хадгалсан тохиргооноос арилгаж чадсангүй."
+
+#: docking/ui/settings.py:1233
+msgid "Some imported pins could not be loaded."
+msgstr "Импортолсон бэхэлсэн зүйлсийн заримыг ачаалж чадсангүй."
+
+#: docking/ui/settings.py:2119 docking/ui/settings.py:2121
+msgid "Center"
+msgstr "Төвд"
+
+#: docking/ui/settings.py:2153
+msgid ""
+"Stays above the desktop and below application windows, without reserving "
+"screen space. Uncover the dock to use it; hovering does not bring it "
+"forward."
+msgstr ""
+"Dock нь ажлын ширээний дээр, аппын цонхны ард үлдэх бөгөөд дэлгэцэд зай "
+"нөөцлөхгүй. Ашиглахын тулд дээрх цонхыг зайлуулна уу. Заагчийг дээгүүр нь "
+"зөөхөд Dock урд гарч ирэхгүй."
+
+#: docking/ui/settings.py:2159
+msgid ""
+"Shows only with its shortcut, then hides after the pointer enters and "
+"leaves. Press the shortcut again to hide it."
+msgstr ""
+"Dock зөвхөн товчны хослолоор гарч ирнэ. Заагч Dock дээр ирээд буцаж гарахад "
+"нуугдана. Нуухын тулд товчны хослолыг дахин дарна уу."

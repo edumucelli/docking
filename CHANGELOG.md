@@ -37,6 +37,7 @@ Docking versions are listed in descending version order. Dates are in UTC.
 - Fixed stale dock tooltips when opening or using a context menu.
 - Added Checklist with inline editing, struck-through completed items, and an unchecked count in the dock.
 - Fixed the applet count on the website.
+- Completed the gettext catalogs for all 74 supported locales and repaired plural rules.
 
 ## [2.34.0](https://github.com/edumucelli/docking/releases/tag/v2.34.0) (2026-11-21)
 
