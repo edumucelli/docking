@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
   push:
     branches: [master]
-    paths: ["website/**", "docking/assets/icons/applets/**", "packaging/deb/icons/**", ".github/workflows/website.yml"]
+    paths: ["website/**", "docs/INSTALLATION.md", "docking/assets/icons/applets/**", "packaging/deb/icons/**", "packaging/install.sh", ".github/workflows/website.yml"]
   pull_request:
-    paths: ["website/**", "docking/assets/icons/applets/**", "packaging/deb/icons/**", ".github/workflows/website.yml"]
+    paths: ["website/**", "docs/INSTALLATION.md", "docking/assets/icons/applets/**", "packaging/deb/icons/**", "packaging/install.sh", ".github/workflows/website.yml"]
 
 permissions:
   contents: read
@@ -56,7 +56,7 @@ jobs:
           git fetch https://github.com/"$REPO".git master
           latest=$(git rev-parse FETCH_HEAD)
           git merge-base --is-ancestor "$TESTED" "$latest"
-          inputs=(website docking/assets/icons/applets packaging/deb/icons .github/workflows/website.yml)
+          inputs=(website docs/INSTALLATION.md docking/assets/icons/applets packaging/deb/icons packaging/install.sh .github/workflows/website.yml)
           tested_inputs=$(git ls-tree -r "$TESTED" -- "${inputs[@]}" | sha256sum)
           latest_inputs=$(git ls-tree -r "$latest" -- "${inputs[@]}" | sha256sum)
           if [ "$tested_inputs" != "$latest_inputs" ]; then

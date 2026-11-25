@@ -1164,95 +1164,15 @@
     "fr": "Debian et Ubuntu : installer avec APT",
     "es": "Debian y Ubuntu: instalar con APT"
   },
-  "Add the repository once and receive updates through your package manager. Supports Ubuntu 22.04/24.04/26.04 and Debian 12/13, on both x64 and arm64.": {
-    "pt": "Adicione o repositório uma vez e receba atualizações pelo gestor de pacotes. Compatível com Ubuntu 22.04/24.04/26.04 e Debian 12/13, em x64 e arm64.",
-    "fr": "Ajoutez le dépôt une seule fois et recevez les mises à jour via votre gestionnaire de paquets. Compatible avec Ubuntu 22.04/24.04/26.04 et Debian 12/13, en x64 et arm64.",
-    "es": "Añade el repositorio una vez y recibe actualizaciones mediante tu gestor de paquetes. Compatible con Ubuntu 22.04/24.04/26.04 y Debian 12/13, en x64 y arm64."
-  },
-  "Ubuntu derivatives, including Linux Mint 21.x/22.x, use their Ubuntu base through": {
-    "pt": "As distribuições derivadas do Ubuntu, incluindo Linux Mint 21.x/22.x, utilizam a sua base Ubuntu através de",
-    "fr": "Les distributions dérivées d’Ubuntu, dont Linux Mint 21.x/22.x, utilisent leur base Ubuntu via",
-    "es": "Las distribuciones derivadas de Ubuntu, incluido Linux Mint 21.x/22.x, utilizan su base Ubuntu mediante"
-  },
-  ". Their desktops are not separately tested.": {
-    "pt": ". Os seus ambientes de trabalho não são testados separadamente.",
-    "fr": ". Leurs bureaux ne sont pas testés séparément.",
-    "es": ". Sus escritorios no se prueban por separado."
-  },
-  "1. Download and verify the signing key": {
-    "pt": "1. Transferir e verificar a chave de assinatura",
-    "fr": "1. Télécharger et vérifier la clé de signature",
-    "es": "1. Descargar y verificar la clave de firma"
-  },
-  "Before continuing, check that the fingerprint is": {
-    "pt": "Antes de continuar, confirme que a impressão digital é",
-    "fr": "Avant de continuer, vérifiez que l’empreinte est",
-    "es": "Antes de continuar, comprueba que la huella digital es"
-  },
-  "2. Add the repository and install Docking": {
-    "pt": "2. Adicionar o repositório e instalar o Docking",
-    "fr": "2. Ajouter le dépôt et installer Docking",
-    "es": "2. Añadir el repositorio e instalar Docking"
-  },
-  "Copy the complete block below. It detects your distribution base and stops before writing the source if the base is unsupported or cannot be identified. Quoted": {
-    "pt": "Copie o bloco completo abaixo. Deteta a base da distribuição e para antes de gravar a configuração se a base não for compatível ou não puder ser identificada. Os argumentos de",
-    "fr": "Copiez le bloc complet ci-dessous. Il détecte la base de votre distribution et s’arrête avant d’écrire la configuration si elle n’est pas prise en charge ou ne peut pas être identifiée. Les arguments de",
-    "es": "Copia el bloque completo de abajo. Detecta la base de tu distribución y se detiene antes de escribir la configuración si la base no es compatible o no se puede identificar. Los argumentos de"
-  },
-  "arguments keep the repository URL intact when pasting into Bash or Zsh.": {
-    "pt": "entre aspas mantêm o URL do repositório intacto ao colar no Bash ou no Zsh.",
-    "fr": "entre guillemets préservent l’URL du dépôt lors du collage dans Bash ou Zsh.",
-    "es": "entre comillas mantienen intacta la URL del repositorio al pegar en Bash o Zsh."
-  },
-  "For later updates, run": {
-    "pt": "Para atualizações posteriores, execute",
-    "fr": "Pour les mises à jour suivantes, exécutez",
-    "es": "Para actualizaciones posteriores, ejecuta"
-  },
-  "and": {
-    "pt": "e",
-    "fr": "et",
-    "es": "y"
-  },
-  ". Existing .deb installations can upgrade directly through APT.": {
-    "pt": ". As instalações .deb existentes podem ser atualizadas diretamente por APT.",
-    "fr": ". Les installations .deb existantes peuvent être mises à jour directement via APT.",
-    "es": ". Las instalaciones .deb existentes se pueden actualizar directamente mediante APT."
-  },
-  "APT packages hosted by": {
-    "pt": "Pacotes APT alojados por",
-    "fr": "Paquets APT hébergés par",
-    "es": "Paquetes APT alojados por"
-  },
   "Fedora & openSUSE: install with DNF or Zypper": {
     "pt": "Fedora e openSUSE: instalar com DNF ou Zypper",
     "fr": "Fedora et openSUSE : installer avec DNF ou Zypper",
     "es": "Fedora y openSUSE: instalar con DNF o Zypper"
   },
-  "Repository installation is available after the first verified RPM publication. Until then, use the RPM release downloads above.": {
-    "pt": "A instalação pelo repositório fica disponível após a primeira publicação RPM verificada. Até lá, utilize os pacotes RPM acima.",
-    "fr": "L’installation depuis le dépôt est disponible après la première publication RPM vérifiée. En attendant, utilisez les paquets RPM ci-dessus.",
-    "es": "La instalación desde el repositorio estará disponible tras la primera publicación RPM verificada. Hasta entonces, utiliza los paquetes RPM de arriba."
-  },
-  "Add the repository once and receive updates through your package manager. Supports Fedora 44/45 and openSUSE Tumbleweed/Leap 16.0, on both x64 and arm64.": {
-    "pt": "Adicione o repositório uma vez e receba atualizações pelo gestor de pacotes. Compatível com Fedora 44/45 e openSUSE Tumbleweed/Leap 16.0, em x64 e arm64.",
-    "fr": "Ajoutez le dépôt une seule fois et recevez les mises à jour via votre gestionnaire de paquets. Compatible avec Fedora 44/45 et openSUSE Tumbleweed/Leap 16.0, en x64 et arm64.",
-    "es": "Añade el repositorio una vez y recibe actualizaciones mediante tu gestor de paquetes. Compatible con Fedora 44/45 y openSUSE Tumbleweed/Leap 16.0, en x64 y arm64."
-  },
-  "Copy the complete block below. It selects DNF on Fedora or Zypper on openSUSE.": {
-    "pt": "Copie o bloco completo abaixo. Seleciona DNF no Fedora ou Zypper no openSUSE.",
-    "fr": "Copiez le bloc complet ci-dessous. Il choisit DNF sur Fedora ou Zypper sur openSUSE.",
-    "es": "Copia el bloque completo de abajo. Selecciona DNF en Fedora o Zypper en openSUSE."
-  },
   "or": {
     "pt": "ou",
     "fr": "ou",
     "es": "o"
-  },
-  ". Existing .rpm installations can upgrade directly through the repository.": {
-    "pt": ". As instalações .rpm existentes podem ser atualizadas diretamente pelo repositório.",
-    "fr": ". Les installations .rpm existantes peuvent être mises à jour directement via le dépôt.",
-    "es": ". Las instalaciones .rpm existentes se pueden actualizar directamente desde el repositorio."
   },
   "RPM packages hosted by": {
     "pt": "Pacotes RPM alojados por",
@@ -1594,16 +1514,6 @@
     "fr": "AppImage",
     "es": "AppImage"
   },
-  ".deb": {
-    "pt": ".deb",
-    "fr": ".deb",
-    "es": ".deb"
-  },
-  "RPM": {
-    "pt": "RPM",
-    "fr": "RPM",
-    "es": "RPM"
-  },
   "Flatpak": {
     "pt": "Flatpak",
     "fr": "Flatpak",
@@ -1719,11 +1629,6 @@
     "fr": "amd64 · .tgz · X11 avec composition",
     "es": "amd64 · .tgz · X11 con composición"
   },
-  "Choose a package below or expand the installation instructions for your system.": {
-    "pt": "Escolha um pacote abaixo ou expanda as instruções de instalação para o seu sistema.",
-    "fr": "Choisissez un paquet ci-dessous ou développez les instructions d’installation pour votre système.",
-    "es": "Elige un paquete a continuación o despliega las instrucciones de instalación para tu sistema."
-  },
   "Windows 11": {
     "pt": "Windows 11",
     "fr": "Windows 11",
@@ -1823,5 +1728,115 @@
     "pt": "Remova uma cópia instalada através de Aplicações instaladas no Windows. Para uma cópia portátil, feche o Docking e elimine a pasta. As preferências guardadas são mantidas.",
     "fr": "Supprimez une copie installée depuis Applications installées dans Windows. Pour une copie portable, fermez Docking et supprimez son dossier. Les préférences enregistrées sont conservées.",
     "es": "Elimina una copia instalada desde Aplicaciones instaladas de Windows. Para una copia portátil, cierra Docking y elimina su carpeta. Se conservan las preferencias guardadas."
+  },
+  "Add the repository and install or upgrade Docking": {
+    "pt": "Adicionar o repositório e instalar ou atualizar o Docking",
+    "fr": "Ajouter le dépôt et installer ou mettre à jour Docking",
+    "es": "Añadir el repositorio e instalar o actualizar Docking"
+  },
+  "Copied.": {
+    "pt": "Copiado.",
+    "fr": "Commande copiée.",
+    "es": "Comando copiado."
+  },
+  "Select and copy the command from the box below.": {
+    "pt": "Selecione e copie o comando da caixa abaixo.",
+    "fr": "Sélectionnez et copiez la commande dans l’encadré ci-dessous.",
+    "es": "Selecciona y copia el comando del recuadro de abajo."
+  },
+  "Update Docking": {
+    "pt": "Atualizar o Docking",
+    "fr": "Mettre à jour Docking",
+    "es": "Actualizar Docking"
+  },
+  "Once setup is complete, regular APT upgrades include Docking. To refresh package lists and update Docking directly, run the following command.": {
+    "pt": "Depois da configuração, as atualizações normais do APT incluem o Docking. Para atualizar as listas de pacotes e o Docking diretamente, execute o comando abaixo.",
+    "fr": "Une fois la configuration terminée, les mises à jour habituelles via APT incluent Docking. Pour actualiser les listes de paquets et mettre à jour Docking directement, exécutez la commande suivante.",
+    "es": "Después de configurar el repositorio, las actualizaciones habituales de APT incluyen Docking. Para actualizar las listas de paquetes y Docking directamente, ejecuta el siguiente comando."
+  },
+  "Run repository setup once, including if you already installed a standalone RPM.": {
+    "pt": "Configure o repositório uma vez, mesmo que já tenha instalado um RPM autónomo.",
+    "fr": "Configurez le dépôt une seule fois, même si vous avez déjà installé un RPM autonome.",
+    "es": "Configura el repositorio una vez, incluso si ya instalaste un RPM independiente."
+  },
+  "Supports Fedora 44/45 and openSUSE Tumbleweed/Leap 16.0, on both x64 and arm64.": {
+    "pt": "Compatível com Fedora 44/45 e openSUSE Tumbleweed/Leap 16.0, em x64 e arm64.",
+    "fr": "Compatible avec Fedora 44/45 et openSUSE Tumbleweed/Leap 16.0, en x64 et arm64.",
+    "es": "Compatible con Fedora 44/45 y openSUSE Tumbleweed/Leap 16.0, en x64 y arm64."
+  },
+  "Update Docking with DNF or Zypper": {
+    "pt": "Atualizar o Docking com DNF ou Zypper",
+    "fr": "Mettre à jour Docking avec DNF ou Zypper",
+    "es": "Actualizar Docking con DNF o Zypper"
+  },
+  "Use the command for your system after completing repository setup.": {
+    "pt": "Depois de configurar o repositório, use o comando correspondente ao seu sistema.",
+    "fr": "Une fois le dépôt configuré, utilisez la commande correspondant à votre système.",
+    "es": "Después de configurar el repositorio, usa el comando correspondiente a tu sistema."
+  },
+  "Read the installer source": {
+    "pt": "Consultar o código do instalador",
+    "fr": "Lire le code de l’installeur",
+    "es": "Leer el código del instalador"
+  },
+  "Install with a package manager": {
+    "pt": "Instale com um gestor de pacotes",
+    "fr": "Installez avec un gestionnaire de paquets",
+    "es": "Instala con un gestor de paquetes"
+  },
+  "for future updates, or download a standalone package below.": {
+    "pt": "para receber atualizações, ou transfira um pacote autónomo abaixo.",
+    "fr": "pour recevoir les prochaines mises à jour, ou téléchargez un paquet autonome ci-dessous.",
+    "es": "para recibir futuras actualizaciones, o descarga un paquete independiente abajo."
+  },
+  "Standalone packages": {
+    "pt": "Pacotes autónomos",
+    "fr": "Paquets autonomes",
+    "es": "Paquetes independientes"
+  },
+  "Package managers": {
+    "pt": "Gestores de pacotes",
+    "fr": "Gestionnaires de paquets",
+    "es": "Gestores de paquetes"
+  },
+  ".deb": {
+    "pt": ".deb",
+    "fr": ".deb",
+    "es": ".deb"
+  },
+  "RPM": {
+    "pt": "RPM",
+    "fr": "RPM",
+    "es": "RPM"
+  },
+  "Run once to get Docking updates through APT, even if you installed from a .deb. Supports Ubuntu 22.04/24.04/26.04 and Debian 12/13 on x64 and arm64, plus Linux Mint 21.x/22.x.": {
+    "pt": "Execute uma vez para receber atualizações do Docking através do APT, mesmo que o tenha instalado a partir de um .deb. Compatível com Ubuntu 22.04/24.04/26.04 e Debian 12/13 em x64 e arm64, bem como com Linux Mint 21.x/22.x.",
+    "fr": "Exécutez cette commande une seule fois pour recevoir les mises à jour de Docking via APT, même après une installation depuis un .deb. Compatible avec Ubuntu 22.04/24.04/26.04 et Debian 12/13 en x64 et arm64, ainsi qu’avec Linux Mint 21.x/22.x.",
+    "es": "Ejecuta este comando una vez para recibir las actualizaciones de Docking mediante APT, incluso si lo instalaste desde un .deb. Compatible con Ubuntu 22.04/24.04/26.04 y Debian 12/13 en x64 y arm64, además de Linux Mint 21.x/22.x."
+  },
+  "Copy install command": {
+    "pt": "Copiar o comando de instalação",
+    "fr": "Copier la commande d’installation",
+    "es": "Copiar el comando de instalación"
+  },
+  "Without curl,": {
+    "pt": "Sem curl,",
+    "fr": "Sans curl,",
+    "es": "Si no tienes curl,"
+  },
+  "download install.sh": {
+    "pt": "transfira install.sh",
+    "fr": "téléchargez install.sh",
+    "es": "descarga install.sh"
+  },
+  "and run": {
+    "pt": "e execute",
+    "fr": "et exécutez",
+    "es": "y ejecuta"
+  },
+  "from the download folder.": {
+    "pt": "na pasta de transferências.",
+    "fr": "depuis le dossier de téléchargement.",
+    "es": "desde la carpeta de descargas."
   }
 }

@@ -109,9 +109,8 @@ including manual publication retries.
 User installation instructions live in the
 [APT](../docs/INSTALLATION.md#debian-and-ubuntu-apt) and
 [RPM](../docs/INSTALLATION.md#fedora-and-opensuse-rpm) sections.
-The [website](https://docking.cc/#install) presents both sets of instructions in
-expandable panels. The RPM repository requires its first verified publication
-before users can install from it; release downloads remain available.
+The [website](https://docking.cc/#install) offers both repositories and standalone
+release downloads.
 
 ## PPA (Launchpad)
 

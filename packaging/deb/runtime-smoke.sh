@@ -4,18 +4,21 @@ set -euo pipefail
 checks="$(cd "$(dirname "$0")" && pwd)"
 if [ "${1:-}" = --session ]; then
     backend="$2"
+    desktop="${3:-}"
+    session="$backend${desktop:+-$desktop}"
     export DOCKING_LOG_LEVEL=INFO
-    export XDG_CONFIG_HOME="$HOME/config-$backend"
-    export XDG_CACHE_HOME="$HOME/cache-$backend"
-    export XDG_DATA_HOME="$HOME/data-$backend"
+    export XDG_CONFIG_HOME="$HOME/config-$session"
+    export XDG_CACHE_HOME="$HOME/cache-$session"
+    export XDG_DATA_HOME="$HOME/data-$session"
     app_pid=""
     compositor_pid=""
+    compositor_log="$HOME/sway.log"
     cleanup() {
         status=$?
         if [ "$status" -ne 0 ]; then
-            cat "$HOME/docking-$backend.log" 2>/dev/null || true
-            cat "$HOME/sway.log" 2>/dev/null || true
-            cat "$HOME/dbus-$backend.err" 2>/dev/null || true
+            cat "$HOME/docking-$session.log" 2>/dev/null || true
+            cat "$compositor_log" 2>/dev/null || true
+            cat "$HOME/dbus-$session.err" 2>/dev/null || true
         fi
         [ -z "$app_pid" ] || kill "$app_pid" 2>/dev/null || true
         [ -z "$compositor_pid" ] || kill "$compositor_pid" 2>/dev/null || true
@@ -28,7 +31,7 @@ if [ "${1:-}" = --session ]; then
         printf 'output HEADLESS-1 resolution 1280x720
 xwayland disable
 ' > "$HOME/sway.conf"
-        sway --config "$HOME/sway.conf" > "$HOME/sway.log" 2>&1 &
+        sway --config "$HOME/sway.conf" > "$compositor_log" 2>&1 &
         compositor_pid=$!
         for attempt in {1..60}; do
             kill -0 "$compositor_pid"
@@ -43,6 +46,22 @@ xwayland disable
     else
         export GDK_BACKEND=x11 XDG_SESSION_TYPE=x11
         unset WAYLAND_DISPLAY
+        if [ -n "$desktop" ]; then
+            case "$desktop" in
+                cinnamon) export XDG_CURRENT_DESKTOP=X-Cinnamon ;;
+                marco) export XDG_CURRENT_DESKTOP=MATE ;;
+                xfwm4) export XDG_CURRENT_DESKTOP=XFCE ;;
+            esac
+            compositor_log="$HOME/$desktop.log"
+            LIBGL_ALWAYS_SOFTWARE=1 "$desktop" --replace > "$compositor_log" 2>&1 &
+            compositor_pid=$!
+            for attempt in {1..60}; do
+                kill -0 "$compositor_pid"
+                if wmctrl -m; then break; fi
+                sleep 0.5
+            done
+            wmctrl -m > /dev/null
+        fi
         /usr/bin/python3 "$checks/smoke.py"
     fi
     if [ "$backend" = wayland ]; then
@@ -55,13 +74,13 @@ Exec=/usr/bin/true
 Icon=org.docking.Docking
 EOF
     fi
-    /usr/bin/docking > "$HOME/docking-$backend.log" 2>&1 &
+    /usr/bin/docking > "$HOME/docking-$session.log" 2>&1 &
     app_pid=$!
     ready=false
     for attempt in {1..60}; do
         kill -0 "$app_pid"
         if gdbus call --session --dest org.docking.Docking --object-path /org/docking/Docking \
-            --method org.docking.Docking.Items1.GetCount > "$HOME/dbus-$backend.log" 2> "$HOME/dbus-$backend.err"; then
+            --method org.docking.Docking.Items1.GetCount > "$HOME/dbus-$session.log" 2> "$HOME/dbus-$session.err"; then
             ready=true
             break
         fi
@@ -71,11 +90,11 @@ EOF
     sleep 2
     kill -0 "$app_pid"
     if [ "$backend" = wayland ]; then
-        grep -F 'Selected session backend: wayland-layer-shell' "$HOME/docking-$backend.log"
-        grep -F 'Wayland protocol runtime started: foreign_toplevel=True' "$HOME/docking-$backend.log"
+        grep -F 'Selected session backend: wayland-layer-shell' "$HOME/docking-$session.log"
+        grep -F 'Wayland protocol runtime started: foreign_toplevel=True' "$HOME/docking-$session.log"
         /usr/bin/python3 "$checks/wayland-smoke.py"
     else
-        grep -F 'Selected session backend: x11' "$HOME/docking-$backend.log"
+        grep -F 'Selected session backend: x11' "$HOME/docking-$session.log"
     fi
     echo "Checking D-Bus responsiveness before shutdown"
     gdbus call --session --timeout 3 --dest org.docking.Docking --object-path /org/docking/Docking \
@@ -95,8 +114,8 @@ EOF
     fi
     wait "$app_pid"
     app_pid=""
-    if grep -E 'Traceback|Failed to start runtime stage|Forcing shutdown after the cleanup timeout' "$HOME/docking-$backend.log"; then exit 1; fi
-    echo "Installed Docking passed $backend startup, D-Bus request, and graceful shutdown"
+    if grep -E 'Traceback|Failed to start runtime stage|Forcing shutdown after the cleanup timeout' "$HOME/docking-$session.log"; then exit 1; fi
+    echo "Installed Docking passed $session startup, D-Bus request, and graceful shutdown"
 else
     # Fedora gives Sway a scheduling file capability that Docker excludes from
     # its bounding set, causing exec to fail with EPERM. Headless rendering
@@ -108,8 +127,10 @@ else
     # Sway refuses to run with root privileges. Use an isolated unprivileged user.
     id docking-smoke >/dev/null 2>&1 || useradd --create-home --shell /bin/bash docking-smoke
     install -d -m 0700 -o docking-smoke -g docking-smoke /tmp/docking-runtime
-    timeout 120s runuser -u docking-smoke -- env XDG_RUNTIME_DIR=/tmp/docking-runtime \
-        xvfb-run -a dbus-run-session -- bash "$0" --session x11
+    for desktop in '' "$@"; do
+        timeout 120s runuser -u docking-smoke -- env XDG_RUNTIME_DIR=/tmp/docking-runtime \
+            xvfb-run -a dbus-run-session -- bash "$0" --session x11 "$desktop"
+    done
     timeout 120s runuser -u docking-smoke -- env XDG_RUNTIME_DIR=/tmp/docking-runtime \
         dbus-run-session -- bash "$0" --session wayland
 fi

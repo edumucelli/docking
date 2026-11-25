@@ -935,6 +935,8 @@ jobs:
 
       - name: Install Arch build tooling
         run: |
+          # Keep repository databases and package downloads on the same mirror.
+          sed -i '1iServer = https://ca.us.mirror.archlinuxarm.org/$arch/$repo' /etc/pacman.d/mirrorlist
           pacman -Sy --noconfirm archlinux-keyring
           pacman -Syu --noconfirm
           pacman -S --noconfirm --needed base-devel git python python-pip gettext

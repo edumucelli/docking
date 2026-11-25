@@ -87,6 +87,26 @@ if (mobileDockToggle && mobileDockMenu) {
   });
 }
 
+if (navigator.clipboard?.writeText) {
+  for (const installer of document.querySelectorAll("[data-package-installer]")) {
+    const button = installer.querySelector("[data-copy-install]");
+    const command = installer.querySelector("pre code");
+    const success = installer.querySelector("[data-install-copied]");
+    const error = installer.querySelector("[data-install-copy-error]");
+    button.hidden = false;
+    button.addEventListener("click", async () => {
+      success.hidden = true;
+      error.hidden = true;
+      try {
+        await navigator.clipboard.writeText(command.textContent);
+        success.hidden = false;
+      } catch {
+        error.hidden = false;
+      }
+    });
+  }
+}
+
 (function () {
   const toggle = document.querySelector("[data-install-arch-toggle]");
   if (!toggle) return;
