@@ -1671,7 +1671,7 @@ jobs:
   publish-launchpad:
     name: Publish Launchpad PPA source packages
     needs: [release]
-    if: needs.release.outputs.published == 'true' && vars.LAUNCHPAD_ENABLED == 'true'
+    if: needs.release.outputs.published == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:

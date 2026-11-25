@@ -114,9 +114,9 @@ release downloads.
 
 ## PPA (Launchpad)
 
-The first PPA target is Ubuntu 26.04 LTS (`resolute`) on amd64. Launchpad builds
-the binary package from a signed source upload. Follow the
-[PPA release guide](ppa/README.md) to build, upload, and verify it.
+Launchpad builds amd64 packages for Ubuntu 22.04, 24.04, and 26.04 from signed
+source uploads on each Docking release. See the [PPA guide](ppa/README.md) for
+local builds and release troubleshooting.
 
 ## PyPI
 
