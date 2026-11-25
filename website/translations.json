@@ -1774,6 +1774,21 @@
     "fr": "Gestionnaires de paquets",
     "es": "Gestores de paquetes"
   },
+  "Ubuntu PPA": {
+    "pt": "PPA para Ubuntu",
+    "fr": "PPA pour Ubuntu",
+    "es": "PPA para Ubuntu"
+  },
+  "The PPA targets Ubuntu 22.04, 24.04, and 26.04 on amd64.": {
+    "pt": "O PPA destina-se ao Ubuntu 22.04, 24.04 e 26.04 em amd64.",
+    "fr": "Le PPA est prévu pour Ubuntu 22.04, 24.04 et 26.04 sur amd64.",
+    "es": "El PPA está destinado a Ubuntu 22.04, 24.04 y 26.04 en amd64."
+  },
+  "View packages on Launchpad": {
+    "pt": "Ver pacotes no Launchpad",
+    "fr": "Voir les paquets sur Launchpad",
+    "es": "Ver paquetes en Launchpad"
+  },
   ".deb": {
     "pt": ".deb",
     "fr": ".deb",
