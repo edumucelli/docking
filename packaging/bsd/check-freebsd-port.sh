@@ -4,14 +4,15 @@ set -eu
 work=$(mktemp -d /tmp/docking-port.XXXXXX)
 trap 'rm -rf "$work"' EXIT
 export PORTSDIR="$work/ports"
+python=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 git clone --depth=1 --filter=blob:none --sparse \
     https://github.com/freebsd/freebsd-ports.git "$PORTSDIR"
-git -C "$PORTSDIR" sparse-checkout set Mk Templates Keywords
+git -C "$PORTSDIR" sparse-checkout set Mk Templates Keywords \
+    "lang/python${python%.*}${python#*.}"
 
 port="$PORTSDIR/x11/docking"
 mkdir -p "$port"
 cp -R "$(dirname "$0")/freebsd-port/." "$port/"
-python=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 make -C "$port" BATCH=yes "DISTDIR=$work/distfiles" \
     "DEFAULT_VERSIONS=python=$python python3=$python" \
     checksum stage-qa check-plist package
