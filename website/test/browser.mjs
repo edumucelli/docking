@@ -59,10 +59,32 @@ for (const javaScriptEnabled of [true, false]) {
       assert.equal(await page.locator("h1").evaluate((el) => getComputedStyle(el).opacity), "1");
       assert.equal(await page.locator('img[src="/hero.gif"]').evaluate((el) => new URL(el.currentSrc).pathname), "/hero.gif");
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      const installEntry = page.locator('main > section a[href="#install"]');
+      assert.equal(await installEntry.count(), 2);
+      await installEntry.first().click();
+      assert.equal(new URL(page.url()).hash, "#install");
+      const standalone = page.locator("#standalone-packages");
+      const managers = page.locator("#package-managers");
+      await page.locator('a[href="#package-managers"]').click();
+      const aptInstall = managers.locator("#apt-install");
+      await aptInstall.locator("summary").click();
+      assert.equal(await aptInstall.evaluate((el) => el.open), true);
+      const aptCommand = page.locator("#apt-setup-command");
+      assert.ok((await aptCommand.textContent()).includes("https://docking.cc/install.sh"));
+      assert.equal(await aptInstall.locator('a[href="/install.sh.txt"]').isVisible(), true);
+      const copyAptSetup = aptInstall.locator("[data-copy-install]");
+      if (javaScriptEnabled) {
+        await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin });
+        await copyAptSetup.click();
+        await aptInstall.locator("[data-install-copied]").waitFor();
+        assert.equal(await page.evaluate(() => navigator.clipboard.readText()), await aptCommand.textContent());
+      } else {
+        assert.equal(await copyAptSetup.isVisible(), false);
+      }
       const windowsInstall = page.locator("#windows-install");
       const windowsDownload = page.locator('#install a[href$="-setup.exe"]');
       const windowsDownloadUrl = await windowsDownload.getAttribute("href");
-      assert.equal(await page.locator("#install details").last().getAttribute("id"), "windows-install");
+      assert.equal(await standalone.locator("details").last().getAttribute("id"), "windows-install");
       assert.equal(await windowsInstall.evaluate((el) => el.open), false);
       assert.equal(await windowsInstall.locator("a").first().isVisible(), false);
       await windowsInstall.locator("summary").click();
@@ -92,6 +114,19 @@ for (const javaScriptEnabled of [true, false]) {
         assert.equal(await page.locator("#applet-controls").isVisible(), false);
       }
       await page.setViewportSize({ width: 390, height: 844 });
+      await aptInstall.locator("summary").click();
+      await aptInstall.locator("summary").click();
+      assert.equal(await aptCommand.isVisible(), true);
+      const rpmInstall = managers.locator("#rpm-install");
+      await rpmInstall.locator("summary").click();
+      assert.equal(await rpmInstall.evaluate((el) => el.open), true);
+      if (javaScriptEnabled) {
+        await rpmInstall.locator("[data-copy-install]").click();
+        await rpmInstall.locator("[data-install-copied]").waitFor();
+        assert.equal(await page.evaluate(() => navigator.clipboard.readText()), await aptCommand.textContent());
+      }
+      assert.equal(await standalone.locator('a[href$=".deb"]').isVisible(), true);
+      assert.equal(await standalone.locator('a[href$=".rpm"]').isVisible(), true);
       await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.equal(await page.locator("h1").isVisible(), true);
