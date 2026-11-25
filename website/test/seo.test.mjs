@@ -88,6 +88,19 @@ for (const [lang, route] of Object.entries(languages)) {
     assert.match(ppaCommands, /^sudo add-apt-repository ppa:docking\/docking\n/);
     assert.ok(guide.includes(ppaCommands), "website and guide must show the same PPA commands");
     assert.equal(byAttr(managers, "id", "rpm-install").length, 1);
+    const fedora = byAttr(rpm, "id", "fedora-release-command")[0];
+    const arch = byAttr(managers, "id", "arch-install")[0];
+    const nix = byAttr(managers, "id", "nix-install")[0];
+    assert.equal(text(fedora), "sudo dnf install ./PACKAGE.rpm");
+    assert.equal(text(byTag(arch, "pre")[0]), "sudo pacman -U ./PACKAGE_FILE");
+    assert.equal(byAttr(arch, "href", "#standalone-packages").length, 1);
+    const nixCommand = text(byTag(nix, "pre")[0]);
+    assert.match(nixCommand, / run github:edumucelli\/docking$/);
+    for (const installCommand of [text(fedora), text(byTag(arch, "pre")[0]), nixCommand]) {
+      assert.ok(guide.includes(installCommand), "website and guide must show the same install commands");
+    }
+    const bsd = byAttr(standalone, "id", "bsd-install")[0];
+    assert.ok(byTag(bsd, "a").some((link) => attribute(link, "href")?.value.endsWith("#freebsd-ports")));
     const englishCommands = byTag(parse(source), "pre").map(text);
     assert.deepEqual(byTag(document, "pre").map(text), englishCommands, "installation commands must remain unchanged");
     const scriptSources = byTag(document, "script")

@@ -276,11 +276,26 @@ Notes:
 Stable releases also publish the RPM to the `docking-rpm` Cloudsmith repository; see the
 [RPM installation instructions](../docs/INSTALLATION.md#fedora-and-opensuse-rpm).
 
+### Fedora-specific builds
+
+The Fedora 44 and 45 jobs build on x86_64 and aarch64. Each GitHub release includes
+their distro-tagged runtime, `-devel`, `-debuginfo`, and `-debugsource` RPMs. The
+debug packages contain symbols and build sources for the bundled PyWayland extension.
+
+Run these commands from a checkout on the target Fedora release.
+
+```bash
+sudo dnf install git-core rpm-build redhat-rpm-config gettext gcc \
+  python3-devel python3-pip python3-setuptools python3-wheel python3-cffi \
+  pkgconf-pkg-config wayland-devel wayland-protocols-devel
+bash packaging/rpm/build.sh --fedora
+```
+
 ## Arch
 
 ```bash
 # Install tooling
-sudo pacman -S --needed base-devel git python python-pip gettext
+sudo pacman -S --needed base-devel git python python-pip python-setuptools python-wheel gettext
 
 # Build package
 ./packaging/arch/build.sh
@@ -298,13 +313,17 @@ only to the test container; it does not change the installed launcher.
 ## Nix
 
 ```bash
-# Build package output
-./packaging/nix/build.sh
+# Build from the checkout
+nix --extra-experimental-features 'nix-command flakes' build .#docking
 
 # Run from the build output
-./result-nix/bin/docking
+./result/bin/docking
 ```
 
+Add `inputs.docking.url = "github:edumucelli/docking";` to use the package in
+another flake. Use `inputs.docking.packages.${system}.docking` in your package
+list. `packaging/nix/build.sh` builds the same flake and exports the release
+artifacts.
 
 ## BSD packages
 
@@ -318,3 +337,15 @@ installed before its visual tests run.
 The main CI release job requires these checks and stages the original package
 bytes, manifests, latest aliases, and `SHA256SUMS-bsd` through
 `packaging/bsd/release.py`. Distribution uses GitHub Releases.
+
+### FreeBSD port
+
+Copy the contents of [`bsd/freebsd-port`](bsd/freebsd-port) into `x11/docking`
+in a FreeBSD Ports checkout. From that directory, install with `make install
+clean` as root. The port uses the system's Python packages and installs under
+`/usr/local` with the same package origin as the standalone FreeBSD release.
+
+To update the port for a new release, update `DISTVERSION` and run
+`make makesum` followed by `make stage-qa check-plist package`. The BSD workflow
+checks the port in a FreeBSD VM. Official `pkg install docking` availability
+depends on acceptance into FreeBSD Ports.

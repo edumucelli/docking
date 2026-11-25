@@ -697,6 +697,47 @@ jobs:
           name: docking-rpm
           path: artifacts/*.rpm
 
+  build-fedora-rpm:
+    name: Build and test Fedora ${{ matrix.fedora }} RPM (${{ matrix.arch }})
+    needs: [quality]
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        fedora: [44, 45]
+        arch: [x86_64, aarch64]
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build on the target Fedora release
+        env:
+          IMAGE: fedora:${{ matrix.fedora }}
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo "$IMAGE" bash -euc '
+            dnf -y install git-core rpm-build redhat-rpm-config gettext gcc \
+              python3-devel python3-pip python3-setuptools python3-wheel python3-cffi \
+              pkgconf-pkg-config wayland-devel wayland-protocols-devel
+            git config --global --add safe.directory /repo
+            bash packaging/rpm/build.sh --fedora
+          '
+      - name: Install and verify runtime, development, and debug packages
+        env:
+          IMAGE: fedora:${{ matrix.fedora }}
+        run: |
+          docker run --rm -v "$PWD/artifacts:/packages:ro" \
+            -v "$PWD/packaging:/checks:ro" "$IMAGE" bash /checks/rpm/fedora-smoke.sh /packages
+      - uses: actions/upload-artifact@v7
+        with:
+          name: docking-fedora-${{ matrix.fedora }}-${{ matrix.arch }}
+          path: artifacts/*.fc${{ matrix.fedora }}.${{ matrix.arch }}.rpm
+          if-no-files-found: error
+
   build-flatpak:
     name: Build Flatpak
     runs-on: ubuntu-22.04
@@ -906,7 +947,7 @@ jobs:
         run: |
           pacman -Sy --noconfirm archlinux-keyring
           pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed base-devel git python python-pip gettext
+          pacman -S --noconfirm --needed base-devel git python python-pip python-setuptools python-wheel gettext
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
@@ -939,7 +980,7 @@ jobs:
           sed -i '1iServer = https://ca.us.mirror.archlinuxarm.org/$arch/$repo' /etc/pacman.d/mirrorlist
           pacman -Sy --noconfirm archlinux-keyring
           pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed base-devel git python python-pip gettext
+          pacman -S --noconfirm --needed base-devel git python python-pip python-setuptools python-wheel gettext
 
       - name: Compile translations
         run: bash tools/i18n.sh --compile
@@ -966,8 +1007,6 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v30
-        with:
-          nix_path: nixpkgs=channel:nixos-24.11
 
       - name: Install i18n tooling
         run: |
@@ -999,8 +1038,6 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v30
-        with:
-          nix_path: nixpkgs=channel:nixos-24.11
 
       - name: Install i18n tooling
         run: |
@@ -1227,6 +1264,7 @@ jobs:
       - test-deb-install
       - build-rpm
       - build-rpm-arm64
+      - build-fedora-rpm
       - test-rpm-install
       - build-flatpak
       - build-flatpak-arm64
@@ -1361,6 +1399,13 @@ jobs:
         with:
           name: docking-rpm-arm64
           path: artifacts/rpm-arm64
+
+      - name: Download Fedora RPM artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: docking-fedora-*
+          path: artifacts/fedora-rpm
+          merge-multiple: true
 
       - name: Download Flatpak artifact
         uses: actions/download-artifact@v8
@@ -1622,6 +1667,20 @@ jobs:
 
           echo "Standardized release assets:"
           ls -lh "${release_dir}"
+
+      - name: Stage verified Fedora RPMs
+        if: steps.release_check.outputs.should_release == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          for fedora in 44 45; do
+            for arch in x86_64 aarch64; do
+              for package in docking docking-devel docking-debuginfo docking-debugsource; do
+                asset="${package}-${VERSION}-1.fc${fedora}.${arch}.rpm"
+                cp "artifacts/fedora-rpm/$asset" artifacts/release/
+              done
+            done
+          done
 
       - name: Stage verified BSD release assets
         if: steps.release_check.outputs.should_release == 'true'
