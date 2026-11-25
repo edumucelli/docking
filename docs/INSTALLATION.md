@@ -59,8 +59,9 @@ sudo apt update && sudo apt install docking
 
 The [Launchpad PPA](https://launchpad.net/~docking/+archive/ubuntu/docking)
 targets Ubuntu 22.04, 24.04, and 26.04 on amd64 and arm64. After Launchpad
-publishes the build for your Ubuntu version and architecture, install Docking
-with APT.
+publishes the build for your Ubuntu version and architecture, run the commands
+below. If you also use Docking's Cloudsmith repository, replace the last command
+with the versioned install below.
 
 ```sh
 sudo add-apt-repository ppa:docking/docking
@@ -68,8 +69,16 @@ sudo apt update
 sudo apt install docking
 ```
 
-If you've also configured Docking's Cloudsmith repository, use
-`apt-cache policy docking` to see which repository supplies APT's candidate.
+The Cloudsmith package can take priority over the PPA package. Run
+`apt-cache policy docking` and find the version listed above the
+`docking/docking` Launchpad entry. Substitute that exact version for `VERSION`.
+
+```sh
+sudo apt install docking=VERSION
+```
+
+APT prompts for confirmation if this downgrades the installed package. For
+future updates from the PPA, disable Docking's Cloudsmith APT source.
 
 ## Fedora and openSUSE (RPM)
 

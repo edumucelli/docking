@@ -1784,10 +1784,40 @@
     "fr": "Le PPA est prévu pour Ubuntu 22.04, 24.04 et 26.04 sur amd64 et arm64.",
     "es": "El PPA está destinado a Ubuntu 22.04, 24.04 y 26.04 en amd64 y arm64."
   },
+  "Install once your build is published.": {
+    "pt": "Instale assim que o pacote para o seu sistema for publicado.",
+    "fr": "Installez Docking dès que le paquet pour votre système est publié.",
+    "es": "Instala Docking cuando se publique el paquete para tu sistema."
+  },
   "View packages on Launchpad": {
     "pt": "Ver pacotes no Launchpad",
     "fr": "Voir les paquets sur Launchpad",
     "es": "Ver paquetes en Launchpad"
+  },
+  "use the APT installer": {
+    "pt": "utilize o instalador APT",
+    "fr": "utilisez le programme d’installation APT",
+    "es": "usa el instalador de APT"
+  },
+  "while you wait.": {
+    "pt": "enquanto aguarda.",
+    "fr": "en attendant.",
+    "es": "mientras esperas."
+  },
+  "If you also use Cloudsmith, run": {
+    "pt": "Se também utiliza o Cloudsmith, execute",
+    "fr": "Si vous utilisez aussi Cloudsmith, exécutez",
+    "es": "Si también usas Cloudsmith, ejecuta"
+  },
+  "to check which repository APT will use.": {
+    "pt": "para saber que repositório o APT vai utilizar.",
+    "fr": "pour savoir quel dépôt APT utilisera.",
+    "es": "para saber qué repositorio usará APT."
+  },
+  "Select the PPA version": {
+    "pt": "Selecione a versão do PPA",
+    "fr": "Sélectionnez la version du PPA",
+    "es": "Selecciona la versión del PPA"
   },
   ".deb": {
     "pt": ".deb",
