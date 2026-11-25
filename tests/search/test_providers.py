@@ -467,9 +467,31 @@ def test_calculator_provider_uses_recognized_value_and_copies() -> None:
     assert error.actions == ()
     result = _results(provider, "2 + 2", recognized=recognized)[0]
     assert result.title == "4"
+    identity = result.actions[0].identity
+    assert not provider.invoke(
+        result_identity=replace(result.identity, provider_id="unrelated"),
+        action_identity=identity,
+    )
+    assert not provider.invoke(
+        result_identity=result.identity,
+        action_identity=replace(identity, provider_id="unrelated"),
+    )
+    assert not provider.invoke(
+        result_identity=replace(result.identity, key="unrelated"),
+        action_identity=identity,
+    )
+    assert not provider.invoke(
+        result_identity=result.identity,
+        action_identity=replace(identity, key="malformed"),
+    )
+    assert not provider.invoke(
+        result_identity=result.identity,
+        action_identity=replace(identity, key=f"{result.identity.key}\x1fopen"),
+    )
+    assert not copied
     assert provider.invoke(
         result_identity=result.identity,
-        action_identity=result.actions[0].identity,
+        action_identity=identity,
     )
     assert copied == ["4"]
 

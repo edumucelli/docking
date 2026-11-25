@@ -31,14 +31,13 @@ XDG state storage rather than in ``dock.json``.
 from __future__ import annotations
 
 import json
-import tempfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from docking.core.json_types import coerce_bool
-from docking.core.paths import ensure_parent_dir
+from docking.core.paths import write_json_atomically
 from docking.log import get_logger
 from docking.platform.environment import docking_state_dir
 
@@ -96,29 +95,13 @@ def save_state(
 ) -> None:
     """Persist greeting state atomically."""
     state_path = Path(path) if path else DEFAULT_STATE_FILE
-    ensure_parent_dir(state_path)
-
-    with tempfile.NamedTemporaryFile(
-        "w",
-        encoding="utf-8",
-        dir=state_path.parent,
-        prefix=f".{state_path.name}.",
-        suffix=".tmp",
-        delete=False,
-    ) as handle:
-        tmp_path = Path(handle.name)
-        json.dump(
-            {
-                "completed_first_launch": state.completed_first_launch,
-                "last_year_greeted": state.last_year_greeted,
-            },
-            handle,
-            indent=2,
-            sort_keys=True,
-        )
-        handle.write("\n")
-
-    tmp_path.replace(state_path)
+    write_json_atomically(
+        state_path,
+        {
+            "completed_first_launch": state.completed_first_launch,
+            "last_year_greeted": state.last_year_greeted,
+        },
+    )
 
 
 def consume_new_year_greeting(

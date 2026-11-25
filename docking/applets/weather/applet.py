@@ -35,6 +35,7 @@ from docking.applets.live_state import (
     resolve_live_status,
 )
 from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
+from docking.applets.timer import OneShotTimer
 from docking.applets.weather import meta
 from docking.applets.weather.api import (
     REFRESH_INTERVAL,
@@ -78,7 +79,7 @@ class WeatherApplet(Applet):
 
     def __init__(self, icon_size: int, config: Config) -> None:
         self._timer_id: int = 0
-        self._startup_fetch_timer_id: int = 0
+        self._startup_fetch = OneShotTimer()
         self._fetch_request_id: int = 0
         self._weather: WeatherData | None = None
         self._air_quality: AirQualityData | None = None
@@ -210,10 +211,7 @@ class WeatherApplet(Applet):
         super().start(notify=notify)
         self._timer_id = GLib.timeout_add_seconds(REFRESH_INTERVAL, self._tick)
         if self._active_city:
-            self._startup_fetch_timer_id = GLib.timeout_add_seconds(
-                STARTUP_FETCH_DELAY_S,
-                self._run_startup_fetch,
-            )
+            self._startup_fetch.schedule(STARTUP_FETCH_DELAY_S, self._fetch_async)
 
     def stop(self) -> None:
         self._stopped = True
@@ -223,9 +221,7 @@ class WeatherApplet(Applet):
         if self._timer_id:
             GLib.source_remove(self._timer_id)
             self._timer_id = 0
-        if self._startup_fetch_timer_id:
-            GLib.source_remove(self._startup_fetch_timer_id)
-            self._startup_fetch_timer_id = 0
+        self._startup_fetch.cancel()
         super().stop()
 
     def _on_toggle_temperature(self, widget: Gtk.CheckMenuItem) -> None:
@@ -251,11 +247,6 @@ class WeatherApplet(Applet):
         if self._active_city:
             self._fetch_async()
         return True
-
-    def _run_startup_fetch(self) -> bool:
-        self._startup_fetch_timer_id = 0
-        self._fetch_async()
-        return False
 
     def _add_city(self, display: str, lat: float, lng: float) -> None:
         """Add a city or switch to it if it already exists."""
@@ -302,9 +293,7 @@ class WeatherApplet(Applet):
         active = self._active_city
         if self._stopped or not active:
             return
-        if self._startup_fetch_timer_id:
-            GLib.source_remove(self._startup_fetch_timer_id)
-            self._startup_fetch_timer_id = 0
+        self._startup_fetch.cancel()
         if self._loading:
             self._fetch_pending = True
             return

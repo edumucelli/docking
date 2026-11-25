@@ -53,6 +53,7 @@ from docking.applets.live_state import (
 )
 from docking.applets.menu import disabled_menu_item, menu_sections, radio_submenu
 from docking.applets.selection import retained_index
+from docking.applets.timer import OneShotTimer
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -86,7 +87,7 @@ class HackerNewsApplet(Applet):
         )
         self._error = ""
         self._refresh_timer_id = 0
-        self._startup_fetch_timer_id = 0
+        self._startup_fetch = OneShotTimer()
         self._fetch_request_id = 0
         self._worker = BackgroundWorker(logger=log)
 
@@ -132,20 +133,13 @@ class HackerNewsApplet(Applet):
             REFRESH_INTERVAL_S,
             self._refresh_tick,
         )
-        self._startup_fetch_timer_id = GLib.timeout_add_seconds(
-            STARTUP_FETCH_DELAY_S,
-            self._run_startup_fetch,
-        )
+        self._startup_fetch.schedule(STARTUP_FETCH_DELAY_S, self._fetch_async)
 
     def stop(self) -> None:
-        for attr in (
-            "_refresh_timer_id",
-            "_startup_fetch_timer_id",
-        ):
-            timer_id = getattr(self, attr, 0)
-            if timer_id:
-                GLib.source_remove(timer_id)
-                setattr(self, attr, 0)
+        if self._refresh_timer_id:
+            GLib.source_remove(self._refresh_timer_id)
+            self._refresh_timer_id = 0
+        self._startup_fetch.cancel()
         super().stop()
 
     def on_clicked(self) -> None:
@@ -200,6 +194,10 @@ class HackerNewsApplet(Applet):
             open_comments.connect("activate", lambda _w: self._open_current_comments())
             primary.append(open_comments)
 
+        previous = Gtk.MenuItem(label=_("Previous Headline"))
+        previous.set_sensitive(current is not None and self._active_index > 0)
+        previous.connect("activate", lambda _w: self._move_story(step=-1))
+
         next_item = Gtk.MenuItem(label=_("Next Headline"))
         next_item.set_sensitive(bool(self._stories))
         next_item.connect("activate", lambda _w: self._advance_story())
@@ -219,7 +217,7 @@ class HackerNewsApplet(Applet):
         return menu_sections(
             status=status,
             primary=primary,
-            navigation=[next_item],
+            navigation=[previous, next_item],
             refresh=[refresh],
             display=display,
         )
@@ -236,11 +234,6 @@ class HackerNewsApplet(Applet):
     def _refresh_tick(self) -> bool:
         self._fetch_async()
         return True
-
-    def _run_startup_fetch(self) -> bool:
-        self._startup_fetch_timer_id = 0
-        self._fetch_async()
-        return False
 
     def _advance_story(self) -> None:
         if not self._stories:
@@ -289,9 +282,7 @@ class HackerNewsApplet(Applet):
         self._fetch_async()
 
     def _fetch_async(self) -> None:
-        if self._startup_fetch_timer_id:
-            GLib.source_remove(self._startup_fetch_timer_id)
-            self._startup_fetch_timer_id = 0
+        self._startup_fetch.cancel()
         self._fetch_request_id += 1
         request_id = self._fetch_request_id
         feed = self._feed

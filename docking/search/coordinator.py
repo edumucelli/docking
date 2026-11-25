@@ -269,20 +269,6 @@ class SearchCoordinator:
             self._waiting_for_initial_selection = selected_identity is not None
             return request
 
-    def start(
-        self,
-        query: str | SearchQuery,
-        *,
-        selected_identity: SearchIdentity | None = None,
-        recognized: object | None = None,
-    ) -> SearchRequest:
-        """Alias for :meth:`begin` for callers that prefer lifecycle wording."""
-        return self.begin(
-            query,
-            selected_identity=selected_identity,
-            recognized=recognized,
-        )
-
     def cancel(self, generation: int | None = None) -> bool:
         """Cancel the current generation and reject all subsequent batches."""
         with self._lock:

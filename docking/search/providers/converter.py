@@ -213,12 +213,8 @@ class ConverterSearchProvider:
         action_identity: SearchIdentity,
     ) -> bool:
         """Dispatch a validated copy or currency-retry action."""
-        parts = action_parts(action_identity)
-        if (
-            result_identity.provider_id != self.provider_id
-            or parts is None
-            or parts[0] != result_identity.key
-        ):
+        parts = action_parts(self.provider_id, result_identity, action_identity)
+        if parts is None:
             return False
         if parts[1] == "retry":
             self._currency_rates.retry()

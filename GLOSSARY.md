@@ -13,6 +13,7 @@ windows, and keeping files, folders, and applet tools within reach.
 - [Applets and tray](#applets-and-tray)
 - [Global Search](#global-search)
 - [Desktop integration](#desktop-integration)
+- [Package installation](#package-installation)
 
 ### Dock items and layout
 
@@ -634,3 +635,17 @@ The System Tray can also present native Windows tray icons.
 
 The desktop session's action for revealing the desktop and restoring the
 previous window view. The Desktop applet exposes it where supported.
+
+### Package installation
+
+**Docking package repository**
+
+A source of Docking releases that users can add to their system package
+manager for installation and future updates.
+[Installation guide](docs/INSTALLATION.md#debian-and-ubuntu-apt)
+
+**Standalone package**
+
+A Docking release file for local installation with its native package manager.
+Adding a Docking package repository is a separate action.
+[Release downloads](docs/INSTALLATION.md#release-downloads)

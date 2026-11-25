@@ -246,14 +246,6 @@ class DockPlacementController:
             return self.primary_monitor_index()
         return selected
 
-    def get_monitor_menu_choices(self) -> list[tuple[str, int]]:
-        """Monitor choices for menu display. Empty when only one monitor."""
-        display = self._window.get_display()
-        if not display or display.get_n_monitors() <= 1:
-            return []
-        choices = self.get_monitor_choices()
-        return [(choice.label, choice.index) for choice in choices]
-
     def get_monitor_choices(self) -> list[MonitorChoice]:
         """Monitor choices with connector identity when GDK exposes it."""
         display = self._window.get_display()

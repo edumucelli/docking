@@ -50,6 +50,7 @@ from docking.applets.thermals.state import (
     reading_label,
     temperature_unit_label,
 )
+from docking.applets.timer import OneShotTimer
 from docking.applets.worker import BackgroundWorker
 from docking.i18n import _
 from docking.log import get_logger, with_context
@@ -81,7 +82,7 @@ class ThermalsApplet(PlatformServicesApplet):
         self._loading = False
         self._last_error = ""
         self._timer_id = 0
-        self._startup_fetch_timer_id = 0
+        self._startup_fetch = OneShotTimer()
         self._request_id = 0
         self._worker = BackgroundWorker(logger=log)
         prefs = prefs_from_mapping(config.applet_prefs.get(meta.id, {}))
@@ -182,27 +183,18 @@ class ThermalsApplet(PlatformServicesApplet):
     def start(self, notify: Callable[[], None]) -> None:
         super().start(notify=notify)
         self._timer_id = GLib.timeout_add_seconds(REFRESH_INTERVAL_S, self._tick)
-        self._startup_fetch_timer_id = GLib.timeout_add_seconds(
-            STARTUP_FETCH_DELAY_S,
-            self._run_startup_fetch,
-        )
+        self._startup_fetch.schedule(STARTUP_FETCH_DELAY_S, self._fetch_async)
 
     def stop(self) -> None:
-        for attr in ("_timer_id", "_startup_fetch_timer_id"):
-            timer_id = getattr(self, attr, 0)
-            if timer_id:
-                GLib.source_remove(timer_id)
-                setattr(self, attr, 0)
+        if self._timer_id:
+            GLib.source_remove(self._timer_id)
+            self._timer_id = 0
+        self._startup_fetch.cancel()
         super().stop()
 
     def _tick(self) -> bool:
         self._fetch_async()
         return True
-
-    def _run_startup_fetch(self) -> bool:
-        self._startup_fetch_timer_id = 0
-        self._fetch_async()
-        return False
 
     def _on_temperature_unit_selected(
         self,
@@ -223,9 +215,7 @@ class ThermalsApplet(PlatformServicesApplet):
     def _fetch_async(self) -> None:
         if self._loading:
             return
-        if self._startup_fetch_timer_id:
-            GLib.source_remove(self._startup_fetch_timer_id)
-            self._startup_fetch_timer_id = 0
+        self._startup_fetch.cancel()
         self._request_id += 1
         request_id = self._request_id
         self._loading = self._snapshot is None

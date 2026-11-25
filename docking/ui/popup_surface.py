@@ -116,6 +116,17 @@ def create_startup_popup_window(
     return popup
 
 
+def show_startup_popup_content(
+    popup: Gtk.Window, build_content: Callable[[], Gtk.Widget]
+) -> None:
+    """Replace the existing popup child and show the new content."""
+    child = popup.get_child()
+    if child is not None:
+        popup.remove(child)
+    popup.add(build_content())
+    popup.show_all()
+
+
 def position_startup_popup(popup: Gtk.Window, dock: DockWindow, *, gap: int) -> None:
     """Place startup content outside the dock in the backend's coordinate space."""
     window_pos = window_screen_position(dock)
