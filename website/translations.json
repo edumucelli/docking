@@ -1154,6 +1154,61 @@
     "fr": "Fedora et openSUSE : installer avec DNF ou Zypper",
     "es": "Fedora y openSUSE: instalar con DNF o Zypper"
   },
+  "Fedora release RPMs": {
+    "pt": "Pacotes RPM para Fedora",
+    "fr": "Paquets RPM pour Fedora",
+    "es": "Paquetes RPM para Fedora"
+  },
+  "When a release includes Fedora-specific RPMs, download the main Docking RPM for Fedora 44 or 45 and your architecture. Use the downloaded filename in the command below.": {
+    "pt": "Quando uma versão incluir RPM específicos para Fedora, descarregue o pacote principal do Docking para Fedora 44 ou 45 e para a sua arquitetura. Use o nome do ficheiro descarregado no comando abaixo.",
+    "fr": "Lorsqu’une version inclut des RPM spécifiques à Fedora, téléchargez le RPM principal de Docking pour Fedora 44 ou 45 et votre architecture. Utilisez le nom du fichier téléchargé dans la commande ci-dessous.",
+    "es": "Cuando una versión incluya RPM específicos para Fedora, descarga el RPM principal de Docking para Fedora 44 o 45 y tu arquitectura. Usa el nombre del archivo descargado en el comando siguiente."
+  },
+  "Fedora RPM installation guide": {
+    "pt": "Guia de instalação dos RPM para Fedora",
+    "fr": "Guide d’installation des RPM pour Fedora",
+    "es": "Guía de instalación de RPM para Fedora"
+  },
+  "Arch Linux (AUR)": {
+    "pt": "Arch Linux (AUR)",
+    "fr": "Arch Linux (AUR)",
+    "es": "Arch Linux (AUR)"
+  },
+  "Use Yay to install the prebuilt package from the community-maintained AUR entry.": {
+    "pt": "Use o Yay para instalar o pacote pré-compilado da AUR, mantido pela comunidade.",
+    "fr": "Utilisez Yay pour installer le paquet précompilé depuis l’entrée AUR maintenue par la communauté.",
+    "es": "Usa Yay para instalar el paquete precompilado desde la entrada de AUR que mantiene la comunidad."
+  },
+  "AUR package": {
+    "pt": "Pacote da AUR",
+    "fr": "Paquet AUR",
+    "es": "Paquete de AUR"
+  },
+  "Build from source on Arch": {
+    "pt": "Compilar a partir do código-fonte no Arch",
+    "fr": "Compiler depuis les sources sur Arch",
+    "es": "Compilar desde el código fuente en Arch"
+  },
+  "Nix flake": {
+    "pt": "Flake do Nix",
+    "fr": "Flake Nix",
+    "es": "Flake de Nix"
+  },
+  "Run Docking with Nix on x86_64 or aarch64 Linux.": {
+    "pt": "Execute o Docking com o Nix em Linux x86_64 ou aarch64.",
+    "fr": "Lancez Docking avec Nix sous Linux sur x86_64 ou aarch64.",
+    "es": "Ejecuta Docking con Nix en Linux x86_64 o aarch64."
+  },
+  "Install to your Nix profile": {
+    "pt": "Instalar no seu perfil do Nix",
+    "fr": "Installer dans votre profil Nix",
+    "es": "Instalar en tu perfil de Nix"
+  },
+  "Build with a local FreeBSD Ports tree": {
+    "pt": "Compilar com uma árvore local do FreeBSD Ports",
+    "fr": "Compiler avec une arborescence locale de FreeBSD Ports",
+    "es": "Compilar con un árbol local de FreeBSD Ports"
+  },
   "or": {
     "pt": "ou",
     "fr": "ou",

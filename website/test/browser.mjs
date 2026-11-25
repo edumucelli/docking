@@ -127,6 +127,12 @@ for (const javaScriptEnabled of [true, false]) {
       }
       assert.equal(await standalone.locator('a[href$=".deb"]').isVisible(), true);
       assert.equal(await standalone.locator('a[href$=".rpm"]').isVisible(), true);
+      assert.equal(await rpmInstall.locator("#fedora-release-command").isVisible(), true);
+      for (const id of ["arch-install", "nix-install"]) {
+        const option = managers.locator(`#${id}`);
+        await option.locator("summary").click();
+        assert.equal(await option.locator("pre").isVisible(), true);
+      }
       await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.equal(await page.locator("h1").isVisible(), true);
