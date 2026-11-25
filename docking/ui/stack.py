@@ -1089,12 +1089,12 @@ class StackPopupController:
         cr.set_operator(cairo.OPERATOR_OVER)
         now_us = GLib.get_monotonic_time()
         total_cards = len(self._folder_stack_cards)
-        # Cards are stored top to bottom. The same reverse index gives a
-        # dock-near card an earlier reveal and first chance to take a pointer hit.
+        # Cards are stored top to bottom within the popup on every dock edge.
+        # The bottom card reveals first and is the first tested for a pointer hit.
         #
         #   upper card  [ C ]    paint first   reveal third   test third
         #   middle card [ B ]         |       reveal second  test second
-        #   dock-near   [ A ]    paint last    reveal first   test first
+        #   bottom card [ A ]    paint last    reveal first   test first
         #                 ^
         #               fold
         #
