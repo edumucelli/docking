@@ -118,7 +118,9 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         search=MagicMock(return_value=object()),
         session=MagicMock(),
         desktop=lambda: SimpleNamespace(
-            install_quit_handlers=install_quit_handlers, create_icon_source=MagicMock()
+            install_quit_handlers=install_quit_handlers,
+            create_icon_source=MagicMock(),
+            login_startup=lambda: None,
         ),
     )
 

@@ -171,6 +171,7 @@ class TestBuildDockWindow:
         application_launcher = MagicMock()
         icon_loader = MagicMock()
         target_service = MagicMock()
+        login_startup = MagicMock()
         preview_service = MagicMock()
         surface_service = MagicMock()
         visibility_service = MagicMock()
@@ -198,6 +199,7 @@ class TestBuildDockWindow:
             application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,
+            login_startup=login_startup,
         )
 
         assert result.window is window
@@ -278,6 +280,7 @@ class TestBuildDockWindow:
             model=model,
             config=config,
             application_registry=application_registry,
+            login_startup=login_startup,
             window_outline_supported=(
                 session_backend.capabilities.supports_window_outline
             ),

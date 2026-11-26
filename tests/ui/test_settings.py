@@ -2745,6 +2745,63 @@ class TestSettingsRuntimeCallbacks:
 
 
 @pytest.mark.skipif(not settings_mod.Gtk.init_check()[0], reason="GTK display required")
+def test_start_at_login_updates_desktop_entry_from_preferences(
+    tmp_path, monkeypatch, _fake_info_icon, _fake_shortcut_capture
+):
+    from gi.repository import GLib
+
+    from docking.platform.desktop.implementations.unix.startup import LinuxLoginStartup
+
+    monkeypatch.setattr(GLib, "get_system_config_dirs", list)
+    monkeypatch.setattr(settings_mod, "_InfoIcon", _fake_info_icon)
+    monkeypatch.setattr(settings_mod, "ShortcutCaptureButton", _fake_shortcut_capture)
+    monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
+    parent = settings_mod.Gtk.Window()
+    startup = LinuxLoginStartup(
+        tmp_path / "autostart", command="docking", try_exec="docking"
+    )
+    config = _config()
+    actions = MagicMock()
+    actions.search_shortcut_status.return_value = ""
+    controller = _settings_controller(
+        parent=parent,
+        actions=actions,
+        model=SimpleNamespace(pinned_items=[], get_applet=lambda _id: None),
+        config=config,
+        login_startup=startup,
+    )
+    try:
+        controller.show()
+        switch = controller._login_startup_switch
+        assert switch.get_visible()
+        assert not switch.get_active()
+        assert not startup.enabled()
+
+        switch.set_active(True)
+        assert startup.enabled()
+        assert switch.get_state()
+        controller.show()
+        assert switch.get_active()
+
+        switch.set_active(False)
+        assert not startup.enabled()
+        assert controller._window.get_visible()
+        config.save.assert_not_called()
+
+        report = MagicMock()
+        monkeypatch.setattr(controller, "_show_message", report)
+        monkeypatch.setattr(startup, "set_enabled", MagicMock(side_effect=OSError))
+        switch.set_active(True)
+        assert not switch.get_active()
+        assert not switch.get_state()
+        assert not startup.enabled()
+        report.assert_called_once()
+    finally:
+        controller.close()
+        parent.destroy()
+
+
+@pytest.mark.skipif(not settings_mod.Gtk.init_check()[0], reason="GTK display required")
 def test_real_shortcut_field_visibility_survives_show_all(
     monkeypatch, _fake_info_icon, _fake_shortcut_capture
 ):

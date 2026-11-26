@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from docking.log import get_logger
-from docking.platform.desktop.base import DesktopServices, OpenWithMode, OpenWithResult
+from docking.platform.desktop.base import (
+    DesktopServices,
+    LoginStartup,
+    OpenWithMode,
+    OpenWithResult,
+)
 
 from ...base import IconLocations
 
@@ -122,3 +128,50 @@ class UnixDesktopServices(DesktopServices):
         from .lifecycle import install_quit_handlers
 
         return install_quit_handlers(quit)
+
+    def login_startup(self) -> LoginStartup | None:
+        from docking.platform.commands import desktop_exec_argv
+        from docking.platform.environment import is_flatpak, xdg_config_home
+        from docking.platform.host.base import HostFamily
+        from docking.platform.host.selection import host_services
+
+        if (
+            host_services().family is not HostFamily.LINUX
+            or is_flatpak()
+            or any(os.environ.get(key) for key in ("APPIMAGE", "APPDIR", "SNAP"))
+        ):
+            return None
+
+        from gi.repository import Gio
+
+        from .startup import LinuxLoginStartup
+
+        config_home = xdg_config_home()
+        if not config_home.is_absolute():
+            return None
+        try:
+            desktop_entry = Gio.DesktopAppInfo.new(LinuxLoginStartup.DESKTOP_ID)
+        except TypeError:
+            # PyGObject raises for a NULL constructor result on some versions.
+            return None
+        if desktop_entry is None:
+            return None
+        command = desktop_entry.get_string("Exec")
+        if not command:
+            return None
+        try:
+            argv = desktop_exec_argv(command)
+        except ValueError:
+            return None
+        if not argv or not argv[0]:
+            return None
+        startup = LinuxLoginStartup(
+            config_home / "autostart",
+            command=command,
+            try_exec=desktop_entry.get_string("TryExec") or argv[0],
+        )
+        try:
+            startup.refresh_launcher()
+        except OSError as exc:
+            log.warning("Could not refresh the Docking startup entry: %s", exc)
+        return startup
