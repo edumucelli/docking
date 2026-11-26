@@ -146,9 +146,13 @@ class UnixDesktopServices(DesktopServices):
         from .startup import LinuxLoginStartup
 
         config_home = xdg_config_home()
-        if (
-            not config_home.is_absolute()
-            or Gio.DesktopAppInfo.new(LinuxLoginStartup.DESKTOP_ID) is None
-        ):
+        if not config_home.is_absolute():
+            return None
+        try:
+            desktop_entry = Gio.DesktopAppInfo.new(LinuxLoginStartup.DESKTOP_ID)
+        except TypeError:
+            # PyGObject raises for a NULL constructor result on some versions.
+            return None
+        if desktop_entry is None:
             return None
         return LinuxLoginStartup(config_home / "autostart")

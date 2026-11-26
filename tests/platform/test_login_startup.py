@@ -2,7 +2,20 @@ from __future__ import annotations
 
 import pytest
 
+from docking.platform.desktop.implementations.unix.backend import UnixDesktopServices
 from docking.platform.desktop.implementations.unix.startup import LinuxLoginStartup
+
+
+def test_source_install_without_desktop_entry_has_no_login_startup(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.setattr(
+        LinuxLoginStartup, "DESKTOP_ID", "org.docking.MissingLauncher.desktop"
+    )
+
+    assert UnixDesktopServices().login_startup() is None
+    assert not (tmp_path / "autostart").exists()
 
 
 @pytest.mark.parametrize(
