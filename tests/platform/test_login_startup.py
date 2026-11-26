@@ -55,8 +55,9 @@ def test_login_startup_uses_installed_absolute_launcher(tmp_path, monkeypatch):
     assert entry.get_string("TryExec") == str(launcher)
 
 
+@pytest.mark.parametrize("has_legacy_entry", [False, True])
 def test_login_startup_overrides_system_entry_without_changing_it(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, has_legacy_entry
 ):
     system_config = tmp_path / "etc"
     system_entry = system_config / "autostart" / LinuxLoginStartup.DESKTOP_ID
@@ -67,6 +68,10 @@ def test_login_startup_overrides_system_entry_without_changing_it(
     directory = tmp_path / "config" / "autostart"
     startup = LinuxLoginStartup(directory, command="/bin/sh", try_exec="/bin/sh")
     user_entry = directory / startup.DESKTOP_ID
+    legacy_entry = directory / "docking.desktop"
+    if has_legacy_entry:
+        directory.mkdir(parents=True)
+        legacy_entry.write_text(contents)
 
     assert startup.enabled()
     startup.set_enabled(False)
@@ -76,10 +81,16 @@ def test_login_startup_overrides_system_entry_without_changing_it(
 
     startup.set_enabled(True)
     assert startup.enabled()
-    assert "\nHidden=" not in user_entry.read_text()
+    if has_legacy_entry:
+        assert "\nHidden=true\n" in user_entry.read_text()
+        assert "\nHidden=false\n" in legacy_entry.read_text()
+    else:
+        assert "\nHidden=" not in user_entry.read_text()
     startup.set_enabled(False)
     assert not startup.enabled()
     assert "\nHidden=true\n" in user_entry.read_text()
+    if has_legacy_entry:
+        assert "\nHidden=true\n" in legacy_entry.read_text()
 
 
 @pytest.mark.parametrize("name", ["docking.desktop", LinuxLoginStartup.DESKTOP_ID])
@@ -105,6 +116,30 @@ def test_login_startup_reuses_an_existing_docking_entry(tmp_path, name):
 
     startup.set_enabled(True)
     assert startup.enabled()
+    assert entry.read_text() == contents
+    assert list(tmp_path.iterdir()) == [entry]
+
+
+@pytest.mark.parametrize("restriction", ["OnlyShowIn=KDE;", "NotShowIn=GNOME;"])
+def test_login_startup_preserves_excluded_desktop_restrictions(
+    tmp_path, monkeypatch, restriction
+):
+    show_in = Gio.DesktopAppInfo.get_show_in
+    monkeypatch.setattr(
+        Gio.DesktopAppInfo, "get_show_in", lambda app, _desktop: show_in(app, "GNOME")
+    )
+    entry = tmp_path / "docking.desktop"
+    contents = (
+        "[Desktop Entry]\nType=Application\nExec=/bin/sh\nName=Docking\n"
+        f"{restriction}\n"
+    )
+    entry.write_text(contents)
+    startup = LinuxLoginStartup(tmp_path, command="/bin/sh", try_exec="/bin/sh")
+
+    assert not startup.enabled()
+    with pytest.raises(OSError, match="excludes the current desktop"):
+        startup.set_enabled(True)
+    assert not startup.enabled()
     assert entry.read_text() == contents
     assert list(tmp_path.iterdir()) == [entry]
 

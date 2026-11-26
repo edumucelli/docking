@@ -28,11 +28,18 @@ class LinuxLoginStartup(LoginStartup):
 
     def __init__(self, directory: Path, *, command: str, try_exec: str) -> None:
         self._path = directory / self.DESKTOP_ID
+        self._legacy_path = directory / "docking.desktop"
         self._command = command
         self._try_exec = try_exec
 
     def enabled(self) -> bool:
-        _, entry = self._user_entry()
+        entry = self._primary_entry()
+        legacy = self._legacy_entry()
+        return self._primary_enabled(entry) or (
+            legacy is not None and self._entry_enabled(legacy)
+        )
+
+    def _primary_enabled(self, entry: GLib.KeyFile | None) -> bool:
         if entry is not None:
             return self._entry_enabled(entry)
 
@@ -51,19 +58,28 @@ class LinuxLoginStartup(LoginStartup):
         )
 
     def set_enabled(self, enabled: bool) -> None:
-        path, entry = self._user_entry()
+        entry = self._primary_entry()
+        legacy = self._legacy_entry()
+        if enabled:
+            if self._primary_enabled(entry):
+                return
+            if legacy is not None:
+                self._set_existing(self._legacy_path, legacy, True)
+                return
+
+        self._set_primary(entry, enabled)
+        if legacy is not None:
+            self._set_existing(self._legacy_path, legacy, False)
+
+    def _set_primary(self, entry: GLib.KeyFile | None, enabled: bool) -> None:
         if entry is not None and not desktop_entry_bool(entry, _MANAGED_KEY):
-            if self._entry_enabled(entry) != enabled:
-                entry.set_boolean(_GROUP, "Hidden", not enabled)
-                if desktop_entry_string(entry, _GNOME_ENABLED):
-                    entry.set_boolean(_GROUP, _GNOME_ENABLED, enabled)
-                self._write_entry(path, entry, replace=True)
+            self._set_existing(self._path, entry, enabled)
             return
         if not enabled and self._system_entry() is None:
             if entry is not None:
-                path.unlink(missing_ok=True)
+                self._path.unlink(missing_ok=True)
             return
-        if enabled and entry is not None and self._entry_enabled(entry):
+        if not enabled and entry is not None and desktop_entry_bool(entry, "Hidden"):
             return
 
         desktop_entry = GLib.KeyFile()
@@ -76,7 +92,18 @@ class LinuxLoginStartup(LoginStartup):
         desktop_entry.set_boolean(_GROUP, _MANAGED_KEY, True)
         if not enabled:
             desktop_entry.set_boolean(_GROUP, "Hidden", True)
-        self._write_entry(path, desktop_entry, replace=entry is not None)
+        self._write_entry(self._path, desktop_entry, replace=entry is not None)
+
+    def _set_existing(self, path: Path, entry: GLib.KeyFile, enabled: bool) -> None:
+        if enabled and not self._allows_desktop(entry):
+            raise OSError(f"Startup entry excludes the current desktop: {path}")
+        visible = not desktop_entry_bool(entry, "Hidden")
+        gnome_enabled = desktop_entry_string(entry, _GNOME_ENABLED)
+        if (visible and gnome_enabled != "false") != enabled:
+            entry.set_boolean(_GROUP, "Hidden", not enabled)
+            if gnome_enabled:
+                entry.set_boolean(_GROUP, _GNOME_ENABLED, enabled)
+            self._write_entry(path, entry, replace=True)
 
     @staticmethod
     def _write_entry(path: Path, desktop_entry: GLib.KeyFile, *, replace: bool) -> None:
@@ -92,18 +119,17 @@ class LinuxLoginStartup(LoginStartup):
                 # Publish the complete file without overwriting a concurrent entry.
                 path.hardlink_to(candidate)
 
-    def _user_entry(self) -> tuple[Path, GLib.KeyFile | None]:
+    def _primary_entry(self) -> GLib.KeyFile | None:
         entry = self._read_entry(self._path)
-        if entry is not None:
-            if desktop_entry_bool(entry, _MANAGED_KEY) or self._is_docking(entry):
-                return self._path, entry
+        if entry is not None and not (
+            desktop_entry_bool(entry, _MANAGED_KEY) or self._is_docking(entry)
+        ):
             raise FileExistsError(f"Startup entry already exists: {self._path}")
+        return entry
 
-        legacy_path = self._path.with_name("docking.desktop")
-        entry = self._read_entry(legacy_path)
-        if entry is not None and self._is_docking(entry):
-            return legacy_path, entry
-        return self._path, None
+    def _legacy_entry(self) -> GLib.KeyFile | None:
+        entry = self._read_entry(self._legacy_path)
+        return entry if entry is not None and self._is_docking(entry) else None
 
     @staticmethod
     def _read_entry(path: Path) -> GLib.KeyFile | None:
@@ -137,9 +163,20 @@ class LinuxLoginStartup(LoginStartup):
                 return path
         return None
 
-    @staticmethod
-    def _entry_enabled(entry: GLib.KeyFile) -> bool:
+    def _entry_enabled(self, entry: GLib.KeyFile) -> bool:
         return (
             not desktop_entry_bool(entry, "Hidden")
             and desktop_entry_string(entry, _GNOME_ENABLED) != "false"
+            and self._allows_desktop(entry)
         )
+
+    @staticmethod
+    def _allows_desktop(entry: GLib.KeyFile) -> bool:
+        keys, _ = entry.get_keys(_GROUP)
+        if not {"OnlyShowIn", "NotShowIn"}.intersection(keys):
+            return True
+        try:
+            app = Gio.DesktopAppInfo.new_from_keyfile(entry)
+        except TypeError:
+            return False
+        return app is not None and app.get_show_in(None)
