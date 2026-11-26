@@ -71,6 +71,9 @@ class WindowsDesktopServices(DesktopServices):
 
         return install_quit_handlers(quit)
 
+    def login_startup(self) -> None:
+        return None
+
     def text_modifier_active(self) -> bool:
         from docking.platform.native.windows.modifiers import altgr_pressed
 

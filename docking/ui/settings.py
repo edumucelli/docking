@@ -97,6 +97,7 @@ from docking.ui.dock_shortcut import DockShortcutController
 if TYPE_CHECKING:
     from docking.core.config import Config
     from docking.platform.applications.registry import ApplicationRegistry
+    from docking.platform.desktop.base import LoginStartup
     from docking.platform.dock_import import DockImportKind
     from docking.platform.model import DockModel
     from docking.search.controller import GlobalSearchController
@@ -297,6 +298,7 @@ class SettingsWindowController:
         config: Config,
         window_outline_supported: bool = False,
         application_registry: ApplicationRegistry,
+        login_startup: LoginStartup | None = None,
     ) -> None:
         self._parent = parent
         self._actions = actions
@@ -304,6 +306,8 @@ class SettingsWindowController:
         self._config = config
         self._application_registry = application_registry
         self._window_outline_supported = window_outline_supported
+        self._login_startup = login_startup
+        self._login_startup_switch: Gtk.Switch | None = None
         self._window: Gtk.Window | None = None
         self._syncing_widgets = False
         self._unsubscribe_search_shortcut_status: Callable[[], None] | None = (
@@ -975,6 +979,19 @@ class SettingsWindowController:
                 ),
             ],
         )
+        startup_rows: list[SettingsRow] = []
+        if self._login_startup is not None:
+            self._login_startup_switch = self._new_switch()
+            self._login_startup_switch.connect(
+                "state-set", self._on_login_startup_changed
+            )
+            startup_rows.append(
+                (
+                    _("Start at Login"),
+                    self._login_startup_switch,
+                    _("Open Docking automatically when you sign in."),
+                )
+            )
         self._append_section(
             outer=outer,
             title=_("Behavior"),
@@ -1014,6 +1031,7 @@ class SettingsWindowController:
                     ),
                 ),
                 (_("Pressure Threshold"), pressure_threshold_box, None),
+                *startup_rows,
                 (
                     _("Show Startup Tips"),
                     self._startup_tips_switch,
@@ -1179,7 +1197,7 @@ class SettingsWindowController:
         try:
             self._config.save_replacement(imported.config)
         except OSError:
-            self._show_import_message(
+            self._show_message(
                 parent, Gtk.MessageType.ERROR, _("Could not save the imported dock.")
             )
             return
@@ -1227,7 +1245,7 @@ class SettingsWindowController:
                 labels.append(
                     _("Could not remove these pins from the saved configuration.")
                 )
-            self._show_import_message(
+            self._show_message(
                 parent,
                 Gtk.MessageType.WARNING,
                 _("Some imported pins could not be loaded."),
@@ -1235,7 +1253,7 @@ class SettingsWindowController:
             )
 
     @staticmethod
-    def _show_import_message(
+    def _show_message(
         parent: Gtk.Window, message_type: Gtk.MessageType, text: str, details: str = ""
     ) -> None:
         dialog = Gtk.MessageDialog(
@@ -1252,6 +1270,25 @@ class SettingsWindowController:
             dialog.run()
         finally:
             dialog.destroy()
+
+    def _on_login_startup_changed(self, switch: Gtk.Switch, enabled: bool) -> bool:
+        if self._syncing_widgets or self._login_startup is None:
+            return False
+        if enabled == switch.get_state():
+            return False
+        try:
+            self._login_startup.set_enabled(enabled)
+        except OSError as exc:
+            log.warning("Could not change login startup: %s", exc)
+            switch.set_active(switch.get_state())
+            if self._window is not None:
+                self._show_message(
+                    self._window,
+                    Gtk.MessageType.ERROR,
+                    _("Could not change whether Docking starts at login."),
+                )
+            return True
+        return False
 
     def _new_info_icon(self, tooltip: str = "") -> _InfoIcon:
         icon = _InfoIcon()
@@ -1840,6 +1877,21 @@ class SettingsWindowController:
         try:
             for binding in self._bindings:
                 binding.write_widget(getattr(self._config, binding.config_attr))
+            if (
+                self._login_startup is not None
+                and self._login_startup_switch is not None
+            ):
+                switch = self._login_startup_switch
+                try:
+                    switch.set_active(self._login_startup.enabled())
+                    switch.set_sensitive(True)
+                    switch.set_tooltip_text(None)
+                except OSError as exc:
+                    log.warning("Could not read login startup: %s", exc)
+                    switch.set_sensitive(False)
+                    switch.set_tooltip_text(
+                        _("Docking could not manage this startup entry.")
+                    )
             active_ids = {
                 item.desktop_id
                 for item in self._model.pinned_items

@@ -309,6 +309,7 @@ def main() -> None:
             application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,
+            login_startup=desktop.login_startup(),
         )
         cleanup.callback(_safe_stop, "UI", ui.stop)
 
