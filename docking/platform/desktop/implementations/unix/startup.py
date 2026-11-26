@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import stat
-from configparser import ConfigParser, Error, SectionProxy
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -13,10 +12,15 @@ gi.require_version("Gio", "2.0")
 gi.require_version("GLib", "2.0")
 from gi.repository import Gio, GLib
 
+from docking.platform.applications.implementations.unix.entries import (
+    desktop_entry_bool,
+    desktop_entry_string,
+)
 from docking.platform.desktop.base import LoginStartup
 
 _GROUP = "Desktop Entry"
 _MANAGED_KEY = "X-Docking-Autostart"
+_GNOME_ENABLED = "X-GNOME-Autostart-enabled"
 
 
 class LinuxLoginStartup(LoginStartup):
@@ -28,7 +32,7 @@ class LinuxLoginStartup(LoginStartup):
         self._try_exec = try_exec
 
     def enabled(self) -> bool:
-        entry = self._read_entry()
+        _, entry = self._user_entry()
         if entry is not None:
             return self._entry_enabled(entry)
 
@@ -43,14 +47,21 @@ class LinuxLoginStartup(LoginStartup):
             app is not None
             and not app.get_is_hidden()
             and app.get_show_in(None)
-            and app.get_string("X-GNOME-Autostart-enabled") != "false"
+            and app.get_string(_GNOME_ENABLED) != "false"
         )
 
     def set_enabled(self, enabled: bool) -> None:
-        entry = self._read_entry()
+        path, entry = self._user_entry()
+        if entry is not None and not desktop_entry_bool(entry, _MANAGED_KEY):
+            if self._entry_enabled(entry) != enabled:
+                entry.set_boolean(_GROUP, "Hidden", not enabled)
+                if desktop_entry_string(entry, _GNOME_ENABLED):
+                    entry.set_boolean(_GROUP, _GNOME_ENABLED, enabled)
+                self._write_entry(path, entry, replace=True)
+            return
         if not enabled and self._system_entry() is None:
             if entry is not None:
-                self._path.unlink(missing_ok=True)
+                path.unlink(missing_ok=True)
             return
         if enabled and entry is not None and self._entry_enabled(entry):
             return
@@ -65,33 +76,59 @@ class LinuxLoginStartup(LoginStartup):
         desktop_entry.set_boolean(_GROUP, _MANAGED_KEY, True)
         if not enabled:
             desktop_entry.set_boolean(_GROUP, "Hidden", True)
+        self._write_entry(path, desktop_entry, replace=entry is not None)
 
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        with TemporaryDirectory(prefix=".docking-", dir=self._path.parent) as work:
-            candidate = Path(work) / self.DESKTOP_ID
+    @staticmethod
+    def _write_entry(path: Path, desktop_entry: GLib.KeyFile, *, replace: bool) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with TemporaryDirectory(prefix=".docking-", dir=path.parent) as work:
+            candidate = Path(work) / path.name
             content, _ = desktop_entry.to_data()
             candidate.write_text(content, encoding="utf-8")
-            if entry is None:
-                # Publish the complete file without overwriting a concurrent entry.
-                self._path.hardlink_to(candidate)
+            if replace:
+                candidate.chmod(stat.S_IMODE(path.lstat().st_mode))
+                candidate.replace(path)
             else:
-                candidate.replace(self._path)
+                # Publish the complete file without overwriting a concurrent entry.
+                path.hardlink_to(candidate)
 
-    def _read_entry(self) -> SectionProxy | None:
+    def _user_entry(self) -> tuple[Path, GLib.KeyFile | None]:
+        entry = self._read_entry(self._path)
+        if entry is not None:
+            if desktop_entry_bool(entry, _MANAGED_KEY) or self._is_docking(entry):
+                return self._path, entry
+            raise FileExistsError(f"Startup entry already exists: {self._path}")
+
+        legacy_path = self._path.with_name("docking.desktop")
+        entry = self._read_entry(legacy_path)
+        if entry is not None and self._is_docking(entry):
+            return legacy_path, entry
+        return self._path, None
+
+    @staticmethod
+    def _read_entry(path: Path) -> GLib.KeyFile | None:
         try:
-            if not stat.S_ISREG(self._path.lstat().st_mode):
-                raise FileExistsError(f"Startup entry already exists: {self._path}")
-            parser = ConfigParser(interpolation=None)
-            with self._path.open(encoding="utf-8") as stream:
-                parser.read_file(stream)
+            if not stat.S_ISREG(path.lstat().st_mode):
+                raise FileExistsError(f"Startup entry already exists: {path}")
         except FileNotFoundError:
             return None
-        except (Error, UnicodeError) as exc:
-            raise OSError(f"Could not read startup entry: {self._path}") from exc
 
-        if parser.get(_GROUP, _MANAGED_KEY, fallback=None) != "true":
-            raise FileExistsError(f"Startup entry already exists: {self._path}")
-        return parser[_GROUP]
+        entry = GLib.KeyFile()
+        try:
+            entry.load_from_file(
+                str(path),
+                GLib.KeyFileFlags.KEEP_COMMENTS | GLib.KeyFileFlags.KEEP_TRANSLATIONS,
+            )
+        except GLib.Error as exc:
+            raise OSError(f"Could not read startup entry: {path}") from exc
+        return entry
+
+    def _is_docking(self, entry: GLib.KeyFile) -> bool:
+        return (
+            desktop_entry_string(entry, "Type") == "Application"
+            and desktop_entry_string(entry, "Name") == "Docking"
+            and desktop_entry_string(entry, "Exec") in {"docking", self._command}
+        )
 
     def _system_entry(self) -> Path | None:
         for directory in GLib.get_system_config_dirs():
@@ -101,8 +138,8 @@ class LinuxLoginStartup(LoginStartup):
         return None
 
     @staticmethod
-    def _entry_enabled(entry: SectionProxy) -> bool:
+    def _entry_enabled(entry: GLib.KeyFile) -> bool:
         return (
-            entry.get("Hidden") != "true"
-            and entry.get("X-GNOME-Autostart-enabled") != "false"
+            not desktop_entry_bool(entry, "Hidden")
+            and desktop_entry_string(entry, _GNOME_ENABLED) != "false"
         )

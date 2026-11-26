@@ -4,7 +4,7 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
-- Added an opt-in **Start at login** switch in Preferences for native Linux
+- Added an opt-in **Start at Login** switch in Preferences for native Linux
   installations.
 - Added a Nix flake for x86_64 and aarch64 Linux and a FreeBSD Ports recipe for
   source builds.

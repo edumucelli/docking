@@ -987,7 +987,7 @@ class SettingsWindowController:
             )
             startup_rows.append(
                 (
-                    _("Start at login"),
+                    _("Start at Login"),
                     self._login_startup_switch,
                     _("Open Docking automatically when you sign in."),
                 )

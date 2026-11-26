@@ -82,6 +82,33 @@ def test_login_startup_overrides_system_entry_without_changing_it(
     assert "\nHidden=true\n" in user_entry.read_text()
 
 
+@pytest.mark.parametrize("name", ["docking.desktop", LinuxLoginStartup.DESKTOP_ID])
+def test_login_startup_reuses_an_existing_docking_entry(tmp_path, name):
+    entry = tmp_path / name
+    contents = (
+        "[Desktop Entry]\nType=Application\nExec=docking\nHidden=false\n"
+        "Name=Docking\nName[en_GB]=Docking\nX-MATE-Autostart-Delay=15\n"
+    )
+    entry.write_text(contents)
+    entry.chmod(0o600)
+    startup = LinuxLoginStartup(tmp_path, command="docking", try_exec="docking")
+
+    assert startup.enabled()
+    startup.set_enabled(True)
+    assert entry.read_text() == contents
+    assert list(tmp_path.iterdir()) == [entry]
+
+    startup.set_enabled(False)
+    assert not startup.enabled()
+    assert entry.read_text() == contents.replace("Hidden=false", "Hidden=true")
+    assert entry.stat().st_mode & 0o777 == 0o600
+
+    startup.set_enabled(True)
+    assert startup.enabled()
+    assert entry.read_text() == contents
+    assert list(tmp_path.iterdir()) == [entry]
+
+
 @pytest.mark.parametrize(
     "disabled_key", ["Hidden=true", "X-GNOME-Autostart-enabled=false"]
 )

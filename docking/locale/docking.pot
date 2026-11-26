@@ -6576,7 +6576,7 @@ msgid "Ignore"
 msgstr ""
 
 #: docking/ui/settings.py:990
-msgid "Start at login"
+msgid "Start at Login"
 msgstr ""
 
 #: docking/ui/settings.py:992
