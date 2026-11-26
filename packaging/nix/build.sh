@@ -10,7 +10,8 @@ bash "${ROOT_DIR}/tools/i18n.sh" --compile
 mkdir -p "${ARTIFACTS_DIR}"
 rm -f "${OUT_LINK}"
 
-nix-build "${ROOT_DIR}/packaging/nix/default.nix" -o "${OUT_LINK}"
+nix --extra-experimental-features 'nix-command flakes' build \
+  "${ROOT_DIR}#docking" --no-update-lock-file --out-link "${OUT_LINK}"
 
 OUT_PATH="$(readlink -f "${OUT_LINK}")"
 if [ -z "${OUT_PATH}" ] || [ ! -d "${OUT_PATH}" ]; then

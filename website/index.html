@@ -621,6 +621,7 @@
                   <h3 class="text-lg font-semibold text-white">FreeBSD 15.1</h3>
                   <p class="mt-2 text-sm text-slate-300">amd64 · .pkg</p>
                   <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#freebsd-and-openbsd" target="_blank" rel="noopener noreferrer" class="mt-3 block text-sm text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white" aria-label="FreeBSD installation and checksum guide">Installation &amp; checksum guide</a>
+                  <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#freebsd-ports" class="mt-3 block text-sm text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">Build with a local FreeBSD Ports tree</a>
                   <a hidden data-bsd-asset="docking-latest-freebsd-15.1-amd64.pkg" target="_blank" rel="noopener noreferrer" class="mt-4 items-center justify-center rounded-xl border border-white/15 bg-skyline/10 px-4 py-2 text-sm font-semibold text-white transition hover:bg-skyline/20">Download FreeBSD package</a>
                 </article>
                 <article class="rounded-xl border border-white/10 bg-midnight/40 p-5">
@@ -689,6 +690,20 @@ Get-FileHash .\docking-latest-windows-x86_64.zip -Algorithm SHA256</code></pre>
                 <pre class="text-sm leading-7 text-slate-200"><code>sudo apt update &amp;&amp; sudo apt install docking</code></pre>
               </div>
             </details>
+            <details id="ppa-install" class="group mt-4 scroll-mt-24 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
+              <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
+                <span>Ubuntu PPA</span>
+                <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+              </summary>
+              <p class="mt-4 text-sm leading-7 text-slate-300">The PPA targets Ubuntu 22.04, 24.04, and 26.04 on amd64 and arm64.</p>
+              <p class="mt-2 text-sm leading-7 text-slate-300">Install once your build is published. <a href="https://launchpad.net/~docking/+archive/ubuntu/docking/+packages" target="_blank" rel="noopener noreferrer" class="text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">View packages on Launchpad</a> or <a href="#apt-setup" class="text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">use the APT installer</a> while you wait.</p>
+              <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+                <pre class="text-sm leading-7 text-slate-200"><code>sudo add-apt-repository ppa:docking/docking
+sudo apt update
+sudo apt install docking</code></pre>
+              </div>
+              <p class="mt-3 text-sm leading-7 text-slate-300">If you also use Cloudsmith, run <code>apt-cache policy docking</code> to check which repository APT will use. <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#launchpad-ppa" class="text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">Select the PPA version</a>.</p>
+            </details>
             <details id="rpm-install" class="group mt-4 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
               <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
                 <span>Fedora &amp; openSUSE: install with DNF or Zypper</span>
@@ -716,6 +731,34 @@ Get-FileHash .\docking-latest-windows-x86_64.zip -Algorithm SHA256</code></pre>
 sudo zypper refresh docking-rpm docking-rpm-noarch &amp;&amp; sudo zypper update docking  # openSUSE</code></pre>
               </div>
               <p class="mt-2 text-xs leading-6 text-slate-400">RPM packages hosted by <a href="https://cloudsmith.com" target="_blank" rel="noopener noreferrer" class="underline decoration-white/30 underline-offset-4 hover:text-white">Cloudsmith</a>.</p>
+              <h3 class="mt-5 text-base font-semibold text-white">Fedora release RPMs</h3>
+              <p class="mt-2 text-sm leading-7 text-slate-300">When a release includes Fedora-specific RPMs, download the main Docking RPM for Fedora 44 or 45 and your architecture. Use the downloaded filename in the command below.</p>
+              <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+                <pre class="text-sm leading-7 text-slate-200"><code id="fedora-release-command">sudo dnf install ./PACKAGE.rpm</code></pre>
+              </div>
+              <p class="mt-2 text-sm leading-7 text-slate-300"><a href="https://github.com/edumucelli/docking/releases" class="text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">GitHub Releases</a> · <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#fedora-release-packages" class="text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">Fedora RPM installation guide</a></p>
+            </details>
+            <details id="arch-install" class="group mt-4 scroll-mt-24 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
+              <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
+                <span>Arch Linux</span>
+                <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+              </summary>
+              <p class="mt-4 text-sm leading-7 text-slate-300">The Arch release package installs as docking. Download the file for your architecture and use its filename in the command below.</p>
+              <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+                <pre class="text-sm leading-7 text-slate-200"><code>sudo pacman -U ./PACKAGE_FILE</code></pre>
+              </div>
+              <p class="mt-3 text-sm leading-7 text-slate-300"><a href="#standalone-packages" class="text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">Arch package downloads</a> · <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#arch-linux" class="text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">Build from source on Arch</a></p>
+            </details>
+            <details id="nix-install" class="group mt-4 scroll-mt-24 rounded-2xl border bg-white/[0.04] p-5 sm:p-6">
+              <summary class="flex cursor-pointer items-center justify-between gap-4 text-lg font-semibold text-white">
+                <span>Nix flake</span>
+                <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+              </summary>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Run Docking with Nix on x86_64 or aarch64 Linux.</p>
+              <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
+                <pre class="whitespace-pre-wrap wrap-anywhere text-sm leading-7 text-slate-200"><code>nix --extra-experimental-features 'nix-command flakes' run github:edumucelli/docking</code></pre>
+              </div>
+              <p class="mt-3 text-sm leading-7 text-slate-300"><a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#nix" class="text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">Install to your Nix profile</a></p>
             </details>
           </section>
         </div>

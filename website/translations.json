@@ -1154,6 +1154,61 @@
     "fr": "Fedora et openSUSE : installer avec DNF ou Zypper",
     "es": "Fedora y openSUSE: instalar con DNF o Zypper"
   },
+  "Fedora release RPMs": {
+    "pt": "Pacotes RPM para Fedora",
+    "fr": "Paquets RPM pour Fedora",
+    "es": "Paquetes RPM para Fedora"
+  },
+  "When a release includes Fedora-specific RPMs, download the main Docking RPM for Fedora 44 or 45 and your architecture. Use the downloaded filename in the command below.": {
+    "pt": "Quando uma versão incluir RPM específicos para Fedora, descarregue o pacote principal do Docking para Fedora 44 ou 45 e para a sua arquitetura. Use o nome do ficheiro descarregado no comando abaixo.",
+    "fr": "Lorsqu’une version inclut des RPM spécifiques à Fedora, téléchargez le RPM principal de Docking pour Fedora 44 ou 45 et votre architecture. Utilisez le nom du fichier téléchargé dans la commande ci-dessous.",
+    "es": "Cuando una versión incluya RPM específicos para Fedora, descarga el RPM principal de Docking para Fedora 44 o 45 y tu arquitectura. Usa el nombre del archivo descargado en el comando siguiente."
+  },
+  "Fedora RPM installation guide": {
+    "pt": "Guia de instalação dos RPM para Fedora",
+    "fr": "Guide d’installation des RPM pour Fedora",
+    "es": "Guía de instalación de RPM para Fedora"
+  },
+  "Arch Linux": {
+    "pt": "Arch Linux",
+    "fr": "Arch Linux",
+    "es": "Arch Linux"
+  },
+  "The Arch release package installs as docking. Download the file for your architecture and use its filename in the command below.": {
+    "pt": "O pacote Arch da versão é instalado como docking. Descarregue o ficheiro para a sua arquitetura e use o nome do ficheiro no comando abaixo.",
+    "fr": "Le paquet Arch de la version s’installe sous le nom docking. Téléchargez le fichier correspondant à votre architecture et utilisez son nom dans la commande ci-dessous.",
+    "es": "El paquete de Arch de la versión se instala como docking. Descarga el archivo para tu arquitectura y usa su nombre en el comando siguiente."
+  },
+  "Arch package downloads": {
+    "pt": "Descarregar os pacotes Arch",
+    "fr": "Télécharger les paquets Arch",
+    "es": "Descargar los paquetes de Arch"
+  },
+  "Build from source on Arch": {
+    "pt": "Compilar a partir do código-fonte no Arch",
+    "fr": "Compiler depuis les sources sur Arch",
+    "es": "Compilar desde el código fuente en Arch"
+  },
+  "Nix flake": {
+    "pt": "Flake do Nix",
+    "fr": "Flake Nix",
+    "es": "Flake de Nix"
+  },
+  "Run Docking with Nix on x86_64 or aarch64 Linux.": {
+    "pt": "Execute o Docking com o Nix em Linux x86_64 ou aarch64.",
+    "fr": "Lancez Docking avec Nix sous Linux sur x86_64 ou aarch64.",
+    "es": "Ejecuta Docking con Nix en Linux x86_64 o aarch64."
+  },
+  "Install to your Nix profile": {
+    "pt": "Instalar no seu perfil do Nix",
+    "fr": "Installer dans votre profil Nix",
+    "es": "Instalar en tu perfil de Nix"
+  },
+  "Build with a local FreeBSD Ports tree": {
+    "pt": "Compilar com uma árvore local do FreeBSD Ports",
+    "fr": "Compiler avec une arborescence locale de FreeBSD Ports",
+    "es": "Compilar con un árbol local de FreeBSD Ports"
+  },
   "or": {
     "pt": "ou",
     "fr": "ou",
@@ -1773,6 +1828,51 @@
     "pt": "Gestores de pacotes",
     "fr": "Gestionnaires de paquets",
     "es": "Gestores de paquetes"
+  },
+  "Ubuntu PPA": {
+    "pt": "PPA para Ubuntu",
+    "fr": "PPA pour Ubuntu",
+    "es": "PPA para Ubuntu"
+  },
+  "The PPA targets Ubuntu 22.04, 24.04, and 26.04 on amd64 and arm64.": {
+    "pt": "O PPA destina-se ao Ubuntu 22.04, 24.04 e 26.04 em amd64 e arm64.",
+    "fr": "Le PPA est prévu pour Ubuntu 22.04, 24.04 et 26.04 sur amd64 et arm64.",
+    "es": "El PPA está destinado a Ubuntu 22.04, 24.04 y 26.04 en amd64 y arm64."
+  },
+  "Install once your build is published.": {
+    "pt": "Instale assim que o pacote para o seu sistema for publicado.",
+    "fr": "Installez Docking dès que le paquet pour votre système est publié.",
+    "es": "Instala Docking cuando se publique el paquete para tu sistema."
+  },
+  "View packages on Launchpad": {
+    "pt": "Ver pacotes no Launchpad",
+    "fr": "Voir les paquets sur Launchpad",
+    "es": "Ver paquetes en Launchpad"
+  },
+  "use the APT installer": {
+    "pt": "utilize o instalador APT",
+    "fr": "utilisez le programme d’installation APT",
+    "es": "usa el instalador de APT"
+  },
+  "while you wait.": {
+    "pt": "enquanto aguarda.",
+    "fr": "en attendant.",
+    "es": "mientras esperas."
+  },
+  "If you also use Cloudsmith, run": {
+    "pt": "Se também utiliza o Cloudsmith, execute",
+    "fr": "Si vous utilisez aussi Cloudsmith, exécutez",
+    "es": "Si también usas Cloudsmith, ejecuta"
+  },
+  "to check which repository APT will use.": {
+    "pt": "para saber que repositório o APT vai utilizar.",
+    "fr": "pour savoir quel dépôt APT utilisera.",
+    "es": "para saber qué repositorio usará APT."
+  },
+  "Select the PPA version": {
+    "pt": "Selecione a versão do PPA",
+    "fr": "Sélectionnez la version du PPA",
+    "es": "Selecciona la versión del PPA"
   },
   ".deb": {
     "pt": ".deb",

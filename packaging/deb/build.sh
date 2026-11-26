@@ -101,8 +101,8 @@ if [ ! -e debian ]; then
     ln -s packaging/deb/debian debian
 fi
 
-# Build (unsigned source + binary)
-dpkg-buildpackage -us -uc -b
+# Build the standalone binary package with bundled Wayland support.
+dpkg-buildpackage -Ppkg.docking.release -us -uc -b
 
 echo ""
 echo "Build complete. Package:"

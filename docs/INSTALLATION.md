@@ -6,8 +6,7 @@ Install a release package using the instructions below. For a source checkout,
 see the [development guide](DEVELOPMENT.md#source-setup). Compositor setup and
 feature coverage are in the [Wayland support](#wayland-support).
 
-The [website](https://docking.cc/#install) also provides expandable APT and RPM
-installation instructions.
+The [website](https://docking.cc/#install) also provides installation instructions.
 
 ## Install with a package manager
 
@@ -55,6 +54,31 @@ lists and update Docking directly, run the following command.
 sudo apt update && sudo apt install docking
 ```
 
+### Launchpad PPA
+
+The [Launchpad PPA](https://launchpad.net/~docking/+archive/ubuntu/docking)
+targets Ubuntu 22.04, 24.04, and 26.04 on amd64 and arm64. After Launchpad
+publishes the build for your Ubuntu version and architecture, run the commands
+below. If you also use Docking's Cloudsmith repository, replace the last command
+with the versioned install below.
+
+```sh
+sudo add-apt-repository ppa:docking/docking
+sudo apt update
+sudo apt install docking
+```
+
+The Cloudsmith package can take priority over the PPA package. Run
+`apt-cache policy docking` and find the version listed above the
+`docking/docking` Launchpad entry. Substitute that exact version for `VERSION`.
+
+```sh
+sudo apt install docking=VERSION
+```
+
+APT prompts for confirmation if this downgrades the installed package. For
+future updates from the PPA, disable Docking's Cloudsmith APT source.
+
 ## Fedora and openSUSE (RPM)
 
 On Fedora 44/45 and openSUSE Tumbleweed/Leap 16.0, add Docking's RPM repository
@@ -76,6 +100,51 @@ sudo dnf --refresh upgrade docking  # Fedora
 sudo zypper refresh docking-rpm docking-rpm-noarch && sudo zypper update docking  # openSUSE
 ```
 
+### Fedora release packages
+
+[GitHub Releases](https://github.com/edumucelli/docking/releases) include native
+Fedora builds starting with the first release containing them. Choose the
+`docking-<version>-1.fc<release>.<arch>.rpm` matching your Fedora release and
+architecture. Run the command below from the download directory and replace
+`PACKAGE.rpm` with the downloaded filename.
+
+```sh
+sudo dnf install ./PACKAGE.rpm
+```
+
+The matching `docking-devel`, `docking-debuginfo`, and `docking-debugsource`
+RPMs are available for applet development and native Wayland debugging.
+
+## Arch Linux
+
+Download the [Arch package](#release-downloads) for x86_64 or aarch64. It
+installs as `docking`. Run the command from the download directory and replace
+`PACKAGE_FILE` with the downloaded filename.
+
+```sh
+sudo pacman -U ./PACKAGE_FILE
+```
+
+Follow the [Arch packaging guide](../packaging/README.md#arch) to build the
+`docking` package from a local checkout.
+
+## Nix
+
+Use Docking's flake on x86_64 or aarch64 Linux.
+
+```sh
+nix --extra-experimental-features 'nix-command flakes' run github:edumucelli/docking
+```
+
+Use the following command to add Docking to your profile.
+
+```sh
+nix --extra-experimental-features 'nix-command flakes' profile install github:edumucelli/docking
+```
+
+The flake also exposes the `docking` package for use in other
+[Nix configurations](../packaging/README.md#nix).
+
 <a id="freebsd-and-openbsd"></a>
 
 ## FreeBSD, OpenBSD, and NetBSD
@@ -87,6 +156,8 @@ release containing BSD support. Current build targets are FreeBSD 15.1/amd64
 (Python 3.12). Use a package matching the OS release and architecture. The
 package includes Docking, translations, icons, and
 its Python runtime dependencies; GTK, Cairo, GI and psutil use native packages.
+
+FreeBSD users can also build the [Docking port](#freebsd-ports) in a local Ports tree.
 
 Run the dependency installation and package-manager commands as root. Downloads
 and checksum verification can run as an ordinary user.
@@ -192,6 +263,19 @@ availability depend on hardware and permissions. Suspend uses NetBSD's ACPI
 sleep control and requires the appropriate system privileges and working
 hardware support. Bluetooth and Cam Shield applets are unavailable on NetBSD
 until their native control integrations are implemented and verified.
+
+### FreeBSD Ports
+
+Copy the contents of [Docking's port recipe](../packaging/bsd/freebsd-port) into
+`x11/docking` in your local FreeBSD Ports tree. Run the following commands as root.
+
+```sh
+cd /usr/ports/x11/docking
+make install clean
+```
+
+Adjust the path if your Ports tree is elsewhere. The port is available as a
+local build until it is accepted into the official FreeBSD Ports collection.
 
 ## Windows preview
 

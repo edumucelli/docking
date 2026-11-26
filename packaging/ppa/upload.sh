@@ -13,8 +13,8 @@ Usage:
   ./packaging/ppa/upload.sh <launchpad-id>/<ppa-name> [changes-file]
 
 Examples:
-  ./packaging/ppa/upload.sh edumucelli/docking
-  ./packaging/ppa/upload.sh edumucelli/docking artifacts/ppa/docking_0.1.40-1~ppa1~noble1_source.changes
+  ./packaging/ppa/upload.sh docking/docking
+  ./packaging/ppa/upload.sh docking/docking artifacts/ppa/docking_2.35.0-1~ppa1~resolute1_source.changes
 EOF
 }
 

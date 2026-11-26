@@ -51,16 +51,23 @@ unsigned; see [Windows coverage](docs/WINDOWS.md) for accepted behavior and limi
 Choose the instructions for your system:
 
 - [Debian and Ubuntu (APT)](docs/INSTALLATION.md#debian-and-ubuntu-apt)
+- [Ubuntu PPA](docs/INSTALLATION.md#launchpad-ppa) for 22.04, 24.04, and 26.04
+  (amd64 and arm64).
 - [Fedora and openSUSE (RPM)](docs/INSTALLATION.md#fedora-and-opensuse-rpm)
+- [Fedora release RPMs](docs/INSTALLATION.md#fedora-release-packages) for Fedora 44
+  and 45 on x86_64 and aarch64.
+- [Arch Linux](docs/INSTALLATION.md#arch-linux) for the `docking` package and
+  local source builds.
+- [Nix flake](docs/INSTALLATION.md#nix) for x86_64 and aarch64 Linux.
 - [Release downloads and local installation](docs/INSTALLATION.md#release-downloads)
   for AppImage, Debian, RPM, Flatpak, Snap, Arch, and Nix packages.
 - [Run from source](docs/DEVELOPMENT.md#source-setup) using pip or uv.
 - [FreeBSD, OpenBSD, and NetBSD](docs/INSTALLATION.md#freebsd-and-openbsd) package installation instructions.
+- [FreeBSD Ports](docs/INSTALLATION.md#freebsd-ports) for a local source build.
 - [Windows 11 x64](docs/INSTALLATION.md#windows-preview), using the installer
   or portable ZIP when included in a release.
 
-The [website](https://docking.cc/#install) also provides APT, RPM, BSD, and Windows
-installation instructions.
+The [website](https://docking.cc/#install) also provides installation instructions.
 
 ## Running
 

@@ -3,6 +3,11 @@
 export PYBUILD_NAME=docking
 export PYBUILD_SYSTEM=pyproject
 
+RELEASE_BUILD := $(filter pkg.docking.release,$(DEB_BUILD_PROFILES))
+ifeq ($(RELEASE_BUILD),)
+WHEEL_BUILD_FLAGS := --no-isolation
+endif
+
 %:
 	dh $@ --with python3 --buildsystem=pybuild
 
@@ -28,15 +33,21 @@ override_dh_auto_install:
 	# Install Docking into a private path so the package depends on generic
 	# python3 (>= 3.10) instead of the builder's default Python minor version.
 	mkdir -p debian/docking/usr/lib/docking/python
+ifneq ($(wildcard debian/ppa-wayland),)
+	# Jammy's setuptools cannot build a wheel from the project's PEP 621 metadata.
+	cp -a docking debian/docking/usr/lib/docking/python/
+else
 	wheel_dir="$$(mktemp -d)" && trap 'rm -rf "$$wheel_dir"' EXIT && \
-		python3 -m build --wheel --outdir "$$wheel_dir" && \
-		python3 -m pip install --no-compile --no-deps \
+		python3 -m build --wheel $(WHEEL_BUILD_FLAGS) --outdir "$$wheel_dir" && \
+		python3 -m pip install --no-index --no-compile --no-deps \
 			--target=debian/docking/usr/lib/docking/python "$$wheel_dir"/docking-*.whl
 	rm -rf debian/docking/usr/lib/docking/python/*.dist-info
 	rm -rf debian/docking/usr/lib/docking/python/bin
+endif
 	mkdir -p debian/docking/usr/bin
 	install -m 0755 packaging/deb/docking debian/docking/usr/bin/docking
 	install -m 0755 packaging/shared/docking-camshield-helper debian/docking/usr/bin/docking-camshield-helper
+ifneq ($(RELEASE_BUILD),)
 	# PyWayland ships CPython-specific native glue. Keep it in a Python-version
 	# scoped vendor path so the package can still run on newer hosts that use
 	# distro python3-pywayland instead of this fallback.
@@ -50,6 +61,35 @@ override_dh_auto_install:
 		cp -a "$(DOCKING_EXTRA_PYWAYLAND)"/. debian/docking/usr/lib/docking/; \
 		find debian/docking/usr/lib/docking -name .complete -delete; \
 	fi
+else
+	# Ubuntu's PyWayland omits the newer protocol modules used by Docking.
+	set -e; \
+		py_minor="$$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"; \
+		vendor="debian/docking/usr/lib/docking/vendor-python$$py_minor"; \
+		mkdir -p "$$vendor"; \
+		if [ -d debian/ppa-wayland ]; then \
+			backport="$(CURDIR)/debian/ppa-wayland"; \
+			ffi_dir="$$(mktemp -d)"; \
+			trap 'rm -rf "$$ffi_dir"' EXIT; \
+			(cd "$$ffi_dir" && python3 "$$backport/pywayland/ffi_build.py"); \
+			cp -a "$$backport/pywayland" "$$vendor/"; \
+			cp "$$ffi_dir"/pywayland/_ffi*.so "$$vendor/pywayland/"; \
+			cp "$$backport/LICENSE" "$$vendor/pywayland-COPYRIGHT"; \
+			protocols="$$backport/protocols"; \
+		else \
+			cp -a /usr/lib/python3/dist-packages/pywayland "$$vendor/"; \
+			cp -L /usr/share/doc/python3-pywayland/copyright "$$vendor/pywayland-COPYRIGHT"; \
+			protocols=/usr/share/wayland-protocols; \
+		fi; \
+		find "$$vendor/pywayland" -type d -name __pycache__ -prune -exec rm -rf {} +; \
+		PYTHONPATH="$$vendor" PYTHONDONTWRITEBYTECODE=1 python3 -m pywayland.scanner \
+			-o "$$vendor/pywayland/protocol" -i \
+			/usr/share/wayland/wayland.xml \
+			"$$protocols"/staging/ext-foreign-toplevel-list/*.xml \
+			"$$protocols"/staging/ext-idle-notify/*.xml \
+			"$$protocols"/staging/ext-image-capture-source/*.xml \
+			"$$protocols"/staging/ext-image-copy-capture/*.xml
+endif
 
 override_dh_python3:
 	# Docking installs into private paths under /usr/lib/docking and uses an

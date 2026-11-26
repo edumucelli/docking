@@ -4,7 +4,7 @@ pkgrel=1
 pkgdesc="A lightweight, feature-rich dock for Linux written in Python with GTK 3 and Cairo"
 arch=('x86_64' 'aarch64')
 url="https://github.com/edumucelli/docking"
-license=('GPL3')
+license=('GPL-3.0-or-later')
 depends=(
   'python'
   'python-gobject'
@@ -30,17 +30,13 @@ makedepends=(
 source=("${pkgname}-${pkgver}.tar.gz")
 sha256sums=('SKIP')
 
-build() {
-  cd "${srcdir}/${pkgname}-${pkgver}"
-}
-
 package() {
   cd "${srcdir}/${pkgname}-${pkgver}"
 
   bash tools/i18n.sh --compile
 
   install -d "${pkgdir}/usr/lib/docking/python"
-  python -m pip install --no-compile --no-deps \
+  python -m pip install --no-build-isolation --no-compile --no-deps \
     --target "${pkgdir}/usr/lib/docking/python" .
   rm -rf "${pkgdir}/usr/lib/docking/python"/*.dist-info
   rm -rf "${pkgdir}/usr/lib/docking/python"/bin
