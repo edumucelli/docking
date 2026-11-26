@@ -2754,7 +2754,9 @@ def test_start_at_login_updates_desktop_entry_from_preferences(
     monkeypatch.setattr(settings_mod, "ShortcutCaptureButton", _fake_shortcut_capture)
     monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
     parent = settings_mod.Gtk.Window()
-    startup = LinuxLoginStartup(tmp_path / "autostart")
+    startup = LinuxLoginStartup(
+        tmp_path / "autostart", command="docking", try_exec="docking"
+    )
     config = _config()
     actions = MagicMock()
     actions.search_shortcut_status.return_value = ""

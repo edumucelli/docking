@@ -130,6 +130,7 @@ class UnixDesktopServices(DesktopServices):
         return install_quit_handlers(quit)
 
     def login_startup(self) -> LoginStartup | None:
+        from docking.platform.commands import desktop_exec_argv
         from docking.platform.environment import is_flatpak, xdg_config_home
         from docking.platform.host.base import HostFamily
         from docking.platform.host.selection import host_services
@@ -155,4 +156,17 @@ class UnixDesktopServices(DesktopServices):
             return None
         if desktop_entry is None:
             return None
-        return LinuxLoginStartup(config_home / "autostart")
+        command = desktop_entry.get_string("Exec")
+        if not command:
+            return None
+        try:
+            argv = desktop_exec_argv(command)
+        except ValueError:
+            return None
+        if not argv or not argv[0]:
+            return None
+        return LinuxLoginStartup(
+            config_home / "autostart",
+            command=command,
+            try_exec=desktop_entry.get_string("TryExec") or argv[0],
+        )
