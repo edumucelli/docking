@@ -165,8 +165,13 @@ class UnixDesktopServices(DesktopServices):
             return None
         if not argv or not argv[0]:
             return None
-        return LinuxLoginStartup(
+        startup = LinuxLoginStartup(
             config_home / "autostart",
             command=command,
             try_exec=desktop_entry.get_string("TryExec") or argv[0],
         )
+        try:
+            startup.refresh_launcher()
+        except OSError as exc:
+            log.warning("Could not refresh the Docking startup entry: %s", exc)
+        return startup

@@ -39,9 +39,25 @@ class LinuxLoginStartup(LoginStartup):
             legacy is not None and self._entry_enabled(legacy)
         )
 
+    def refresh_launcher(self) -> None:
+        entry = self._primary_entry()
+        if (
+            entry is None
+            or not self._entry_unhidden(entry)
+            or not self._stale_managed_launcher(entry)
+        ):
+            return
+        legacy = self._legacy_entry()
+        if legacy is not None and self._entry_enabled(legacy):
+            return
+        self._set_launcher(entry)
+        self._write_entry(self._path, entry, replace=True)
+
     def _primary_enabled(self, entry: GLib.KeyFile | None) -> bool:
         if entry is not None:
-            return self._entry_enabled(entry)
+            return not self._stale_managed_launcher(entry) and self._entry_enabled(
+                entry
+            )
 
         system_entry = self._system_entry()
         if system_entry is None:
@@ -82,17 +98,34 @@ class LinuxLoginStartup(LoginStartup):
         if not enabled and entry is not None and desktop_entry_bool(entry, "Hidden"):
             return
 
-        desktop_entry = GLib.KeyFile()
-        desktop_entry.set_string(_GROUP, "Type", "Application")
-        desktop_entry.set_string(_GROUP, "Name", "Docking")
-        desktop_entry.set_string(_GROUP, "Exec", self._command)
-        desktop_entry.set_string(_GROUP, "TryExec", self._try_exec)
-        desktop_entry.set_string(_GROUP, "Icon", "org.docking.Docking")
-        desktop_entry.set_boolean(_GROUP, "Terminal", False)
-        desktop_entry.set_boolean(_GROUP, _MANAGED_KEY, True)
+        replace = entry is not None
+        if entry is None:
+            entry = GLib.KeyFile()
+            entry.set_string(_GROUP, "Type", "Application")
+            entry.set_string(_GROUP, "Name", "Docking")
+            entry.set_string(_GROUP, "Icon", "org.docking.Docking")
+            entry.set_boolean(_GROUP, "Terminal", False)
+            entry.set_boolean(_GROUP, _MANAGED_KEY, True)
+        self._set_launcher(entry)
         if not enabled:
-            desktop_entry.set_boolean(_GROUP, "Hidden", True)
-        self._write_entry(self._path, desktop_entry, replace=entry is not None)
+            entry.set_boolean(_GROUP, "Hidden", True)
+        elif desktop_entry_bool(entry, "Hidden"):
+            entry.remove_key(_GROUP, "Hidden")
+        if enabled and desktop_entry_string(entry, _GNOME_ENABLED) == "false":
+            entry.set_boolean(_GROUP, _GNOME_ENABLED, True)
+        if enabled and not self._allows_desktop(entry):
+            raise OSError(f"Startup entry excludes the current desktop: {self._path}")
+        self._write_entry(self._path, entry, replace=replace)
+
+    def _set_launcher(self, entry: GLib.KeyFile) -> None:
+        entry.set_string(_GROUP, "Exec", self._command)
+        entry.set_string(_GROUP, "TryExec", self._try_exec)
+
+    def _stale_managed_launcher(self, entry: GLib.KeyFile) -> bool:
+        return desktop_entry_bool(entry, _MANAGED_KEY) and (
+            desktop_entry_string(entry, "Exec") != self._command
+            or desktop_entry_string(entry, "TryExec") != self._try_exec
+        )
 
     def _set_existing(self, path: Path, entry: GLib.KeyFile, enabled: bool) -> None:
         if enabled and not self._allows_desktop(entry):
@@ -164,10 +197,13 @@ class LinuxLoginStartup(LoginStartup):
         return None
 
     def _entry_enabled(self, entry: GLib.KeyFile) -> bool:
+        return self._entry_unhidden(entry) and self._allows_desktop(entry)
+
+    @staticmethod
+    def _entry_unhidden(entry: GLib.KeyFile) -> bool:
         return (
             not desktop_entry_bool(entry, "Hidden")
             and desktop_entry_string(entry, _GNOME_ENABLED) != "false"
-            and self._allows_desktop(entry)
         )
 
     @staticmethod
