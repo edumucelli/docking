@@ -95,30 +95,22 @@ def test_enabling_login_startup_replaces_a_stale_managed_command(tmp_path, stale
     assert "X-MATE-Autostart-Delay=15" in entry.read_text()
 
 
-@pytest.mark.parametrize("was_hidden", [False, True])
-def test_login_startup_refresh_keeps_primary_if_legacy_is_enabled(tmp_path, was_hidden):
+def test_login_startup_refresh_preserves_a_disabled_entry(tmp_path):
     old = str(tmp_path / "old-profile" / "docking")
     LinuxLoginStartup(tmp_path, command=old, try_exec=old).set_enabled(True)
     entry = tmp_path / LinuxLoginStartup.DESKTOP_ID
-    if was_hidden:
-        with entry.open("a", encoding="utf-8") as stream:
-            stream.write("Hidden=true\n")
-    previous = entry.read_text()
-    legacy = tmp_path / "docking.desktop"
-    legacy_contents = "[Desktop Entry]\nType=Application\nName=Docking\nExec=docking\n"
-    legacy.write_text(legacy_contents)
+    previous = entry.read_text() + "Hidden=true\n"
+    entry.write_text(previous)
 
     startup = LinuxLoginStartup(tmp_path, command="/bin/sh", try_exec="/bin/sh")
     startup.refresh_launcher()
 
-    assert startup.enabled()
+    assert not startup.enabled()
     assert entry.read_text() == previous
-    assert legacy.read_text() == legacy_contents
 
 
-@pytest.mark.parametrize("has_legacy_entry", [False, True])
 def test_login_startup_overrides_system_entry_without_changing_it(
-    tmp_path, monkeypatch, has_legacy_entry
+    tmp_path, monkeypatch
 ):
     system_config = tmp_path / "etc"
     system_entry = system_config / "autostart" / LinuxLoginStartup.DESKTOP_ID
@@ -129,10 +121,6 @@ def test_login_startup_overrides_system_entry_without_changing_it(
     directory = tmp_path / "config" / "autostart"
     startup = LinuxLoginStartup(directory, command="/bin/sh", try_exec="/bin/sh")
     user_entry = directory / startup.DESKTOP_ID
-    legacy_entry = directory / "docking.desktop"
-    if has_legacy_entry:
-        directory.mkdir(parents=True)
-        legacy_entry.write_text(contents)
 
     assert startup.enabled()
     startup.set_enabled(False)
@@ -142,43 +130,10 @@ def test_login_startup_overrides_system_entry_without_changing_it(
 
     startup.set_enabled(True)
     assert startup.enabled()
-    if has_legacy_entry:
-        assert "\nHidden=true\n" in user_entry.read_text()
-        assert "\nHidden=false\n" in legacy_entry.read_text()
-    else:
-        assert "\nHidden=" not in user_entry.read_text()
+    assert "\nHidden=" not in user_entry.read_text()
     startup.set_enabled(False)
     assert not startup.enabled()
     assert "\nHidden=true\n" in user_entry.read_text()
-    if has_legacy_entry:
-        assert "\nHidden=true\n" in legacy_entry.read_text()
-
-
-@pytest.mark.parametrize("name", ["docking.desktop", LinuxLoginStartup.DESKTOP_ID])
-def test_login_startup_reuses_an_existing_docking_entry(tmp_path, name):
-    entry = tmp_path / name
-    contents = (
-        "[Desktop Entry]\nType=Application\nExec=docking\nHidden=false\n"
-        "Name=Docking\nName[en_GB]=Docking\nX-MATE-Autostart-Delay=15\n"
-    )
-    entry.write_text(contents)
-    entry.chmod(0o600)
-    startup = LinuxLoginStartup(tmp_path, command="docking", try_exec="docking")
-
-    assert startup.enabled()
-    startup.set_enabled(True)
-    assert entry.read_text() == contents
-    assert list(tmp_path.iterdir()) == [entry]
-
-    startup.set_enabled(False)
-    assert not startup.enabled()
-    assert entry.read_text() == contents.replace("Hidden=false", "Hidden=true")
-    assert entry.stat().st_mode & 0o777 == 0o600
-
-    startup.set_enabled(True)
-    assert startup.enabled()
-    assert entry.read_text() == contents
-    assert list(tmp_path.iterdir()) == [entry]
 
 
 @pytest.mark.parametrize("restriction", ["OnlyShowIn=KDE;", "NotShowIn=GNOME;"])
@@ -189,13 +144,11 @@ def test_login_startup_preserves_excluded_desktop_restrictions(
     monkeypatch.setattr(
         Gio.DesktopAppInfo, "get_show_in", lambda app, _desktop: show_in(app, "GNOME")
     )
-    entry = tmp_path / "docking.desktop"
-    contents = (
-        "[Desktop Entry]\nType=Application\nExec=/bin/sh\nName=Docking\n"
-        f"{restriction}\n"
-    )
-    entry.write_text(contents)
     startup = LinuxLoginStartup(tmp_path, command="/bin/sh", try_exec="/bin/sh")
+    startup.set_enabled(True)
+    entry = tmp_path / startup.DESKTOP_ID
+    contents = entry.read_text() + f"{restriction}\n"
+    entry.write_text(contents)
 
     assert not startup.enabled()
     with pytest.raises(OSError, match="excludes the current desktop"):
@@ -235,12 +188,13 @@ def test_login_startup_preserves_entries_it_did_not_create(tmp_path, symlink):
     startup = LinuxLoginStartup(tmp_path, command="docking", try_exec="docking")
     entry = tmp_path / startup.DESKTOP_ID
     target = tmp_path / "other.desktop" if symlink else entry
-    target.write_text("[Desktop Entry]\nType=Application\nExec=docking\n")
+    contents = "[Desktop Entry]\nType=Application\nName=Docking\nExec=docking\n"
+    target.write_text(contents)
     if symlink:
         entry.symlink_to(target)
 
     for enabled in (True, False):
         with pytest.raises(FileExistsError):
             startup.set_enabled(enabled)
-    assert target.read_text() == "[Desktop Entry]\nType=Application\nExec=docking\n"
+    assert target.read_text() == contents
     assert entry.is_symlink() is symlink
