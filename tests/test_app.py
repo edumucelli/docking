@@ -328,6 +328,7 @@ def _load_app_module(monkeypatch, *, vendor_exists: bool = False):
         desktop=lambda: SimpleNamespace(
             install_quit_handlers=install_quit_handlers,
             create_icon_source=MagicMock(),
+            login_startup=lambda: None,
         ),
     )
 
@@ -716,6 +717,7 @@ class TestAppMain:
             application_launcher=application_launcher,
             icon_loader=icon_loader,
             target_service=target_service,
+            login_startup=None,
         )
         backend.start.assert_called_once()
         backend.stop.assert_called_once()

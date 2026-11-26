@@ -54,6 +54,14 @@ class OpenWithResult(Enum):
     FAILED = "failed"
 
 
+class LoginStartup(ABC):
+    @abstractmethod
+    def enabled(self) -> bool: ...
+
+    @abstractmethod
+    def set_enabled(self, enabled: bool) -> None: ...
+
+
 class DesktopServices(ABC):
     @abstractmethod
     def compositor_active(self, *, display: object | None = None) -> bool | None: ...
@@ -81,6 +89,8 @@ class DesktopServices(ABC):
     def prepare_display(self) -> bool: ...
     @abstractmethod
     def install_quit_handlers(self, quit: Callable[[], bool]) -> Callable[[], None]: ...
+    @abstractmethod
+    def login_startup(self) -> LoginStartup | None: ...
     @abstractmethod
     def text_modifier_active(self) -> bool: ...
     @abstractmethod
