@@ -320,8 +320,19 @@ fresh directory and use its launcher. Update notices do not install packages.
 
 Uninstall Docking from Windows **Installed Apps**. The uninstaller removes
 installed files and Docking's usage-hook entries. It keeps unknown files, so
-some folders may remain. To remove a portable copy, close its processes and
-delete its folder. Both methods keep your saved preferences.
+some folders may remain.
+
+To remove a portable copy, close Docking, its usage-hook processes, and any
+affected CLI tools. If you used AI Usage, back up the CLI configuration files
+below. Remove only entries that run `hook_runner.py` using that portable copy:
+
+- In `%USERPROFILE%\.claude\settings.json`, remove the matching commands from
+  the `Stop` and `SessionStart` hooks. Keep other commands in those lists.
+- In `%USERPROFILE%\.codex\config.toml`, remove the top-level `notify` setting
+  if it points to the same portable copy.
+
+Delete the portable folder after removing those entries. Both removal methods
+keep your saved preferences.
 
 ## Release downloads
 

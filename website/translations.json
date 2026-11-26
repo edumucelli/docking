@@ -1714,10 +1714,10 @@
     "fr": "Pour mettre à jour, téléchargez et vérifiez le nouveau paquet, puis fermez Docking et ses processus de suivi d’utilisation de l’IA. Relancez le programme d’installation ou extrayez le ZIP portable dans un nouveau dossier.",
     "es": "Para actualizar, descarga y verifica el nuevo paquete y cierra Docking y sus procesos de seguimiento del uso de IA. Ejecuta de nuevo el instalador o extrae el ZIP portátil en una carpeta nueva."
   },
-  "Uninstall Docking from Windows Installed Apps. For a portable copy, close Docking and delete its folder. Both methods keep your preferences.": {
-    "pt": "Desinstale o Docking em Aplicações instaladas do Windows. Para remover uma cópia portátil, feche o Docking e apague a pasta. Ambos os métodos mantêm as suas preferências.",
-    "fr": "Désinstallez Docking depuis Applications installées dans Windows. Pour supprimer une copie portable, fermez Docking et supprimez son dossier. Les deux méthodes conservent vos préférences.",
-    "es": "Desinstala Docking desde Aplicaciones instaladas de Windows. Para quitar una copia portátil, cierra Docking y borra su carpeta. Ambos métodos conservan tus preferencias."
+  "Uninstall Docking from Windows Installed Apps. To remove a portable copy, close Docking and remove any AI Usage hooks that point to that copy before deleting its folder. Both methods keep your preferences.": {
+    "pt": "Desinstale o Docking em Aplicações instaladas do Windows. Para remover uma cópia portátil, feche o Docking e remova os hooks do AI Usage que apontam para essa cópia antes de apagar a pasta. Ambos os métodos mantêm as suas preferências.",
+    "fr": "Désinstallez Docking depuis Applications installées dans Windows. Pour supprimer une copie portable, fermez Docking et retirez les hooks d’AI Usage qui pointent vers cette copie avant de supprimer son dossier. Les deux méthodes conservent vos préférences.",
+    "es": "Desinstala Docking desde Aplicaciones instaladas de Windows. Para quitar una copia portátil, cierra Docking y elimina los hooks de AI Usage que apuntan a esa copia antes de borrar su carpeta. Ambos métodos conservan tus preferencias."
   },
   "Add the repository and install or upgrade Docking": {
     "pt": "Adicionar o repositório e instalar ou atualizar o Docking",

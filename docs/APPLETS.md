@@ -431,9 +431,10 @@ Caps Lock and Num Lock indicators for keyboards without physical lights. The ico
 
 ### Cert Watch
 
-Monitor TLS certificates for a list of domains. The icon shows how many days
-remain before the first certificate expires. The shield color reflects that
-certificate's status.
+Monitor TLS certificates for a list of domains. The shield color reflects the
+most severe result. The badge shows `X` for an expired certificate and `!`
+when a connection error is the most severe result. Otherwise it shows the days
+until the earliest known expiry, up to `999`, or `?` if the expiry is unknown.
 
 **Click:** Add domain dialog (accepts `example.com`, `example.com:8443`, or a full URL)
 
