@@ -5,8 +5,16 @@ from gi.repository import Gio, GLib
 
 from docking.platform.desktop.implementations.unix.backend import UnixDesktopServices
 from docking.platform.desktop.implementations.unix.startup import LinuxLoginStartup
+from docking.platform.host import selection as host_selection
+from docking.platform.host.implementations.linux.backend import LinuxHostServices
 
 
+@pytest.fixture
+def native_linux(monkeypatch):
+    monkeypatch.setattr(host_selection, "host_services", LinuxHostServices)
+
+
+@pytest.mark.usefixtures("native_linux")
 def test_source_install_without_desktop_entry_has_no_login_startup(
     tmp_path, monkeypatch
 ):
@@ -19,6 +27,7 @@ def test_source_install_without_desktop_entry_has_no_login_startup(
     assert not (tmp_path / "autostart").exists()
 
 
+@pytest.mark.usefixtures("native_linux")
 def test_login_startup_uses_installed_absolute_launcher(tmp_path, monkeypatch):
     launcher = tmp_path / "profile path" / "docking"
     launcher.parent.mkdir()
@@ -52,11 +61,11 @@ def test_login_startup_overrides_system_entry_without_changing_it(
     system_config = tmp_path / "etc"
     system_entry = system_config / "autostart" / LinuxLoginStartup.DESKTOP_ID
     system_entry.parent.mkdir(parents=True)
-    contents = "[Desktop Entry]\nType=Application\nName=Docking\nExec=/bin/true\n"
+    contents = "[Desktop Entry]\nType=Application\nName=Docking\nExec=/bin/sh\n"
     system_entry.write_text(contents)
     monkeypatch.setattr(GLib, "get_system_config_dirs", lambda: [str(system_config)])
     directory = tmp_path / "config" / "autostart"
-    startup = LinuxLoginStartup(directory, command="/bin/true", try_exec="/bin/true")
+    startup = LinuxLoginStartup(directory, command="/bin/sh", try_exec="/bin/sh")
     user_entry = directory / startup.DESKTOP_ID
 
     assert startup.enabled()
