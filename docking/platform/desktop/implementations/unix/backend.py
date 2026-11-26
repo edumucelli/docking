@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from docking.log import get_logger
-from docking.platform.desktop.base import DesktopServices, OpenWithMode, OpenWithResult
+from docking.platform.desktop.base import (
+    DesktopServices,
+    LoginStartup,
+    OpenWithMode,
+    OpenWithResult,
+)
 
 from ...base import IconLocations
 
@@ -122,3 +128,27 @@ class UnixDesktopServices(DesktopServices):
         from .lifecycle import install_quit_handlers
 
         return install_quit_handlers(quit)
+
+    def login_startup(self) -> LoginStartup | None:
+        from docking.platform.environment import is_flatpak, xdg_config_home
+        from docking.platform.host.base import HostFamily
+        from docking.platform.host.selection import host_services
+
+        if (
+            host_services().family is not HostFamily.LINUX
+            or is_flatpak()
+            or any(os.environ.get(key) for key in ("APPIMAGE", "APPDIR", "SNAP"))
+        ):
+            return None
+
+        from gi.repository import Gio
+
+        from .startup import LinuxLoginStartup
+
+        config_home = xdg_config_home()
+        if (
+            not config_home.is_absolute()
+            or Gio.DesktopAppInfo.new(LinuxLoginStartup.DESKTOP_ID) is None
+        ):
+            return None
+        return LinuxLoginStartup(config_home / "autostart")

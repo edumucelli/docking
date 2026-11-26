@@ -6574,3 +6574,19 @@ msgstr ""
 #: docking/ui/update_popup.py:241
 msgid "Ignore"
 msgstr ""
+
+#: docking/ui/settings.py:990
+msgid "Start at login"
+msgstr ""
+
+#: docking/ui/settings.py:992
+msgid "Open Docking automatically when you sign in."
+msgstr ""
+
+#: docking/ui/settings.py:1288
+msgid "Could not change whether Docking starts at login."
+msgstr ""
+
+#: docking/ui/settings.py:1893
+msgid "Docking could not manage this startup entry."
+msgstr ""

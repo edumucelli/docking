@@ -190,7 +190,7 @@ def test_preferences_import_saves_then_refreshes_live_config(
     monkeypatch.setattr(controller, "_sync_widgets", MagicMock())
     monkeypatch.setattr(controller, "_rebuild_applet_tab", MagicMock())
     show_message = MagicMock()
-    monkeypatch.setattr(controller, "_show_import_message", show_message)
+    monkeypatch.setattr(controller, "_show_message", show_message)
     monkeypatch.setattr(settings, "choose_docking_config_file", lambda _parent: shared)
     monkeypatch.setattr(
         settings,

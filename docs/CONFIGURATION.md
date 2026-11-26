@@ -262,6 +262,11 @@ Some hide modes depend on the current desktop backend's window tracking. Use
 
 ### Startup and Updates
 
+On a native Linux installation, turn on **Start at login** under
+**Preferences → Behavior** to open Docking automatically when you sign in to a
+desktop that supports XDG autostart. The switch is off by default. Turning it
+off leaves Docking open for the current session.
+
 | Setting | Default | Values | Description |
 |---|---:|---|---|
 | `startup_tips_enabled` | `true` | boolean | Allows one usage tip after startup when no higher-priority startup notice is shown. |
