@@ -116,7 +116,7 @@
         "name": "What operating systems and desktops does Docking support?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Docking supports Linux with X11 or Wayland, and FreeBSD, OpenBSD, and NetBSD with X11. Native Windows 11 packages are also available as an unsigned installer and portable ZIP. Linux Wayland integration depends on the desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when compositor integration is unavailable."
+          "text": "Docking runs on Linux with X11 or Wayland, and on FreeBSD, OpenBSD, and NetBSD with X11. Windows 11 x64 has an unsigned installer and portable ZIP."
         }
       },
       {
@@ -124,7 +124,7 @@
         "name": "Can I create my own applets?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes. Docking has an extensible applet system. Each applet is a Python package with a state, render, and applet module. You can add custom widgets and behaviors without modifying the dock's core runtime."
+          "text": "Yes. Create a Python package for your applet. Use separate modules for its state, icon drawing, and dock interactions."
         }
       },
       {
@@ -132,7 +132,7 @@
         "name": "Does Docking support Wayland?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes, on Linux. Wayland support is selected per desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when needed. FreeBSD, OpenBSD, and NetBSD support uses X11."
+          "text": "Yes, on Linux. Window controls and previews depend on the compositor. If Docking has no supported integration, you can still launch apps and use applets. FreeBSD, OpenBSD, and NetBSD use X11."
         }
       },
       {
@@ -140,7 +140,7 @@
         "name": "Are all applets available on BSD?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Applet availability depends on the operating system and installed services. Cam Shield supports FreeBSD and OpenBSD. Classic Bluetooth is supported on FreeBSD; OpenBSD has no Bluetooth stack. Cam Shield and Bluetooth controls are unavailable on NetBSD."
+          "text": "Applet availability depends on the operating system and installed services. Cam Shield works on FreeBSD and OpenBSD. FreeBSD supports Classic Bluetooth. OpenBSD has no Bluetooth stack, and NetBSD has neither Cam Shield nor Bluetooth controls."
         }
       },
       {
@@ -148,7 +148,7 @@
         "name": "Is Docking free and open source?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes. Docking is licensed under GPL-3.0-or-later and fully open source. The code is hosted on GitHub and contributions are welcome."
+          "text": "Yes. Docking uses the GPL-3.0-or-later license. You can read the source and contribute on GitHub."
         }
       }
     ]
@@ -203,7 +203,7 @@
                 <span class="pointer-events-none absolute -bottom-7 rounded bg-slate-950/85 px-2 py-0.5 text-[10px] font-medium text-slate-200 opacity-0 transition duration-150 group-hover:opacity-100">Install</span>
               </a>
 
-              <a href="#source" title="From Source" aria-label="From Source" class="group relative flex h-11 w-11 items-center justify-center transition duration-200 hover:-translate-y-px hover:scale-[1.08]">
+              <a href="#source" title="From source" aria-label="From source" class="group relative flex h-11 w-11 items-center justify-center transition duration-200 hover:-translate-y-px hover:scale-[1.08]">
                 <svg viewBox="0 0 24 24" class="h-5 w-5 text-slate-400 transition group-hover:text-slate-200" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 18 3 12l6-6"></path><path d="m15 6 6 6-6 6"></path></svg>
                 <span class="pointer-events-none absolute -bottom-7 rounded bg-slate-950/85 px-2 py-0.5 text-[10px] font-medium text-slate-200 opacity-0 transition duration-150 group-hover:opacity-100">Source</span>
               </a>
@@ -240,7 +240,7 @@
               <a href="#compatibility" class="rounded-[1rem] border border-white/15 px-3 py-3 text-sm text-white">Compatibility</a>
               <a href="#applets" class="rounded-[1rem] border border-white/15 px-3 py-3 text-sm text-white">Applets</a>
               <a href="#install" class="rounded-[1rem] border border-white/15 px-3 py-3 text-sm text-white">Install</a>
-              <a href="#source" class="col-span-2 rounded-[1rem] border border-white/15 bg-skyline/10 px-3 py-3 text-sm text-white">From Source</a>
+              <a href="#source" class="col-span-2 rounded-[1rem] border border-white/15 bg-skyline/10 px-3 py-3 text-sm text-white">From source</a>
             </div>
           </div>
         </div>
@@ -264,7 +264,7 @@
           <div class="reveal flex flex-col items-center">
             <h1 class="max-w-3xl text-5xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">Docking <span class="mt-5 block text-2xl font-medium tracking-tight text-slate-100 sm:text-3xl">A free desktop dock for Linux, BSD and Windows</span></h1>
 
-            <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">Launch apps quickly and make the dock your own with themes and several built-in applets.</p>
+            <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">Pin apps, files, and folders. Add applets and choose a theme.</p>
             <div class="mt-10 flex flex-col gap-4 sm:flex-row">
               <a href="#install" class="inline-flex items-center justify-center rounded-2xl bg-linear-to-r/srgb from-red-500 via-rose-500 to-amber-400 px-6 py-3.5 text-base font-semibold text-white shadow-[0_18px_48px_rgba(239,68,68,0.28)] transition hover:scale-[1.02]">Install Docking</a>
               <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-6 py-3.5 text-base font-semibold text-white backdrop-blur-xl transition hover:border-white/30 hover:to-skyline/10">View on GitHub</a>
@@ -282,7 +282,7 @@
             <div class="relative w-full max-w-[960px] transition duration-500 hover:scale-[1.008]">
               <picture>
                 <source srcset="/hero-still.webp" media="(prefers-reduced-motion: reduce)">
-                <img src="/hero.gif" fetchpriority="high" alt="Docking dock demonstration with applets and menus" width="960" height="540" class="w-full rounded-[1.4rem] border border-white/[0.06] shadow-[0_24px_68px_rgba(15,23,42,0.28),0_12px_36px_rgba(245,158,11,0.10)]">
+                <img src="/hero.gif" fetchpriority="high" alt="Docking demo with applets and menus" width="960" height="540" class="w-full rounded-[1.4rem] border border-white/[0.06] shadow-[0_24px_68px_rgba(15,23,42,0.28),0_12px_36px_rgba(245,158,11,0.10)]">
               </picture>
             </div>
           </div>
@@ -292,22 +292,22 @@
         <div class="mx-auto max-w-7xl px-6 pb-10 lg:px-8">
           <div class="marquee-mask overflow-hidden rounded-[2rem] border px-4 py-4 shadow-soft backdrop-blur-xl sm:px-6">
             <div class="flex min-w-max animate-marquee gap-4 whitespace-nowrap pr-4 text-sm text-slate-200 sm:pr-6">
-              <span class="rounded-full border to-accent/5 px-4 py-2">Themeable</span>
+              <span class="rounded-full border to-accent/5 px-4 py-2">Themes</span>
               <span class="rounded-full border to-skyline/5 px-4 py-2">Auto-hide</span>
               <span class="rounded-full border to-ember/5 px-4 py-2">Multi-monitor</span>
               <span class="rounded-full border to-skyline/5 px-4 py-2">GTK + Cairo</span>
-              <span class="rounded-full border to-accent/5 px-4 py-2">Applet system</span>
-              <span class="rounded-full border to-skyline/5 px-4 py-2">Cross desktop environments</span>
+              <span class="rounded-full border to-accent/5 px-4 py-2">Custom applets</span>
+              <span class="rounded-full border to-skyline/5 px-4 py-2">Desktop support</span>
               <span class="rounded-full border to-ember/5 px-4 py-2">Open source</span>
-              <span class="rounded-full border bg-linear-to-r/srgb from-ember/10 px-4 py-2">Built-in Applets</span>
-              <span class="rounded-full border to-accent/5 px-4 py-2">Themeable</span>
+              <span class="rounded-full border bg-linear-to-r/srgb from-ember/10 px-4 py-2">Built-in applets</span>
+              <span class="rounded-full border to-accent/5 px-4 py-2">Themes</span>
               <span class="rounded-full border to-skyline/5 px-4 py-2">Auto-hide</span>
               <span class="rounded-full border to-ember/5 px-4 py-2">Multi-monitor</span>
               <span class="rounded-full border to-skyline/5 px-4 py-2">GTK + Cairo</span>
-              <span class="rounded-full border to-accent/5 px-4 py-2">Applet system</span>
-              <span class="rounded-full border to-skyline/5 px-4 py-2">Cross desktop environments</span>
+              <span class="rounded-full border to-accent/5 px-4 py-2">Custom applets</span>
+              <span class="rounded-full border to-skyline/5 px-4 py-2">Desktop support</span>
               <span class="rounded-full border to-ember/5 px-4 py-2">Open source</span>
-              <span class="rounded-full border bg-linear-to-r/srgb from-ember/10 px-4 py-2">Built-in Applets</span>
+              <span class="rounded-full border bg-linear-to-r/srgb from-ember/10 px-4 py-2">Built-in applets</span>
             </div>
           </div>
         </div>
@@ -315,40 +315,39 @@
 
       <section id="features" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal max-w-3xl">
-          <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Docking features</h2>
-          <p class="mt-4 max-w-2xl text-lg leading-8 text-slate-300">Docking combines launcher speed, desktop awareness, and a modular widget system in one polished surface.</p>
+          <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Features</h2>
         </div>
 
         <div class="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           <article class="reveal rounded-[2rem] border p-6 shadow-soft backdrop-blur-2xl">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-rose-200"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 19V5l14 7-14 7Z"></path></svg></div>
-            <h3 class="mt-5 text-xl font-semibold text-white">Fast launcher workflow</h3>
-            <p class="mt-3 text-sm leading-7 text-slate-300">Quick access to your core apps, work surfaces, and utilities without visual noise or startup drag.</p>
+            <h3 class="mt-5 text-xl font-semibold text-white">App launcher</h3>
+            <p class="mt-3 text-sm leading-7 text-slate-300">Launch pinned apps, preview open windows, and switch between them.</p>
           </article>
           <article class="reveal rounded-[2rem] border p-6 shadow-soft backdrop-blur-2xl">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-amber-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1.5"></rect><rect x="14" y="4" width="6" height="6" rx="1.5"></rect><rect x="4" y="14" width="6" height="6" rx="1.5"></rect><rect x="14" y="14" width="6" height="6" rx="1.5"></rect></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Built-in applets</h3>
-            <p class="mt-3 text-sm leading-7 text-slate-300">Ship a dock that already knows how to show system status, weather, media, timers, notes, and more.</p>
+            <p class="mt-3 text-sm leading-7 text-slate-300">Check the weather, control media playback, set timers, and take notes.</p>
           </article>
           <article class="reveal rounded-[2rem] border p-6 shadow-soft backdrop-blur-2xl">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-blue-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 15c2-4 5-6 8-6s6 2 8 6"></path><path d="M4 9c2 4 5 6 8 6s6-2 8-6"></path></svg></div>
-            <h3 class="mt-5 text-xl font-semibold text-white">Fully customizable themes</h3>
-            <p class="mt-3 text-sm leading-7 text-slate-300">Adjust themes, sizing, behavior, and pinned item icons so the dock fits the desktop you already use.</p>
+            <h3 class="mt-5 text-xl font-semibold text-white">Customizable themes</h3>
+            <p class="mt-3 text-sm leading-7 text-slate-300">Choose a theme, change the icon size, or set your own icons for pinned items.</p>
           </article>
           <article class="reveal rounded-[2rem] border p-6 shadow-soft backdrop-blur-2xl">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-rose-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="8" height="14" rx="2"></rect><rect x="13" y="8" width="8" height="8" rx="2"></rect></svg></div>
             <h3 class="mt-5 text-xl font-semibold text-white">Multi-monitor and auto-hide</h3>
-            <p class="mt-3 text-sm leading-7 text-slate-300">Keep the dock where it belongs, visible when needed and out of the way when focus matters.</p>
+            <p class="mt-3 text-sm leading-7 text-slate-300">Choose a monitor and screen edge. Set the dock to hide when the pointer leaves or when a window overlaps it.</p>
           </article>
           <article class="reveal rounded-[2rem] border p-6 shadow-soft backdrop-blur-2xl">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-amber-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14"></path><path d="M12 5v14"></path><path d="M4 4l16 16"></path></svg></div>
-            <h3 class="mt-5 text-xl font-semibold text-white">Cross desktop compatibility</h3>
-            <p class="mt-3 text-sm leading-7 text-slate-300">Built for Linux, BSD and Windows setups that span more than one desktop environment and more than one way of working.</p>
+            <h3 class="mt-5 text-xl font-semibold text-white">Desktop support</h3>
+            <p class="mt-3 text-sm leading-7 text-slate-300">Run Docking on Linux with X11 or Wayland, on BSD with X11, or on Windows 11.</p>
           </article>
           <article class="reveal rounded-[2rem] border p-6 shadow-soft backdrop-blur-2xl">
             <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-blue-100"><svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 7V5a2 2 0 1 1 4 0v2"></path><path d="M12 7V5a2 2 0 1 1 4 0v2"></path><path d="M5 7h14v12H5z"></path><path d="M9 11h6M9 15h4"></path></svg></div>
-            <h3 class="mt-5 text-xl font-semibold text-white">Extensible applet system</h3>
-            <p class="mt-3 text-sm leading-7 text-slate-300">Add your own widgets and behaviors without compromising the dock’s main runtime model.</p>
+            <h3 class="mt-5 text-xl font-semibold text-white">Custom applets</h3>
+            <p class="mt-3 text-sm leading-7 text-slate-300">Write your own applets in Python and add them to the dock.</p>
           </article>
         </div>
       </section>
@@ -356,8 +355,8 @@
       <section id="compatibility" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div class="max-w-3xl">
-            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Compatibility: Linux, BSD and Windows desktops</h2>
-            <p class="mt-4 text-lg leading-8 text-slate-300">Docking selects the best backend for the current session and falls back cleanly when a compositor does not expose every window-management feature.</p>
+            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Desktop compatibility</h2>
+            <p class="mt-4 text-lg leading-8 text-slate-300">Docking chooses a backend for your desktop session. If Docking has no integration for your session, you can still launch apps and use applets.</p>
           </div>
           <div class="rounded-full border border-white/15 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl">Linux X11 and Wayland · BSD X11 · Windows 11</div>
         </div>
@@ -365,7 +364,7 @@
         <div class="mt-10 overflow-hidden rounded-[2rem] border bg-linear-to-br/srgb from-skyline/10 via-white/[0.04] shadow-soft backdrop-blur-2xl">
           <div class="grid border-b border-white/10 bg-white/[0.04] px-5 py-4 text-center text-xs font-semibold uppercase tracking-[0.24em] text-slate-400 md:grid-cols-[1fr_1fr_1.6fr]">
             <div>Environment</div>
-            <div class="hidden md:block">Backend Path</div>
+            <div class="hidden md:block">Backend</div>
             <div class="hidden md:block">Coverage</div>
           </div>
 
@@ -490,7 +489,7 @@
                 <p class="mt-2 text-sm text-slate-400">Niri compositor sessions</p>
               </div>
               <div class="text-sm font-medium text-slate-200">Niri IPC backend</div>
-              <p class="text-sm leading-7 text-slate-300">Layer-shell placement, window tracking with titles, previews, workspace switching, Show Desktop, idle time, and color picker - via native Niri IPC.</p>
+              <p class="text-sm leading-7 text-slate-300">Place the dock with layer-shell. Niri IPC provides window titles and previews, workspace switching, Show Desktop, idle time, and color picking.</p>
             </article>
 
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="wayfire" data-status="native">
@@ -502,7 +501,7 @@
                 <p class="mt-2 text-sm text-slate-400">Wayfire compositor sessions</p>
               </div>
               <div class="text-sm font-medium text-slate-200">Wayfire IPC backend</div>
-              <p class="text-sm leading-7 text-slate-300">Layer-shell placement, window tracking with titles, activate/minimize/close actions, workspace switching, Show Desktop, visibility-based dodge, window picking, and color picker - via native Wayfire IPC.</p>
+              <p class="text-sm leading-7 text-slate-300">Place the dock with layer-shell. Wayfire IPC provides window titles, activation, minimization, and closing. It also supports workspace switching, Show Desktop, hiding on overlap with visible windows, and picking windows and colors.</p>
             </article>
 
             <article class="grid gap-4 px-5 py-5 md:grid-cols-[1fr_1fr_1.6fr] md:items-center" data-environment="protocol-wayland" data-status="partial">
@@ -547,10 +546,10 @@
                   <span class="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">Fallback</span>
                   <h3 class="text-lg font-semibold text-white">Cage, Weston, and unsupported sessions</h3>
                 </div>
-                <p class="mt-2 text-sm text-slate-400">Safe launcher and applet mode</p>
+                <p class="mt-2 text-sm text-slate-400">Launcher and applet mode</p>
               </div>
               <div class="text-sm font-medium text-slate-200">Reduced backend</div>
-              <p class="text-sm leading-7 text-slate-300">Docking remains usable without running indicators, previews, or workspace switching when no supported integration is available.</p>
+              <p class="text-sm leading-7 text-slate-300">Launch apps and use applets. Running indicators, window previews, and workspace switching are unavailable.</p>
             </article>
           </div>
         </div>
@@ -559,11 +558,11 @@
       <section id="applets" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="reveal flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div class="max-w-3xl">
-            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Built-in applets: searchable tools for the dock</h2>
-            <p class="mt-4 text-lg leading-8 text-slate-300">Filter the catalog by workflow and find the applets that make Docking more than a launcher: system controls, command launchers, media, notes, weather, privacy indicators, and folder-friendly utilities.</p>
+            <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Built-in applets</h2>
+            <p class="mt-4 text-lg leading-8 text-slate-300">Search the catalog or filter by category.</p>
           </div>
           <div class="flex items-center gap-3 self-start lg:self-auto">
-            <div class="rounded-full border border-white/15 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl"><span id="applet-total-count"></span> built-in applets plus folder stacks and a separator item</div>
+            <div class="rounded-full border border-white/15 px-5 py-3 text-sm text-slate-200 backdrop-blur-xl"><span id="applet-total-count"></span> built-in applets, plus folder stacks and separators</div>
           </div>
         </div>
 
@@ -615,7 +614,7 @@
                 <span>FreeBSD, OpenBSD &amp; NetBSD: native packages</span>
                 <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
               </summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Use an X11 desktop and a package matching your OS release and architecture. BSD packages are distributed through GitHub Releases, starting with the first release containing BSD support.</p>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Use an X11 desktop. Choose the package that matches your BSD version and architecture.</p>
               <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <article class="rounded-xl border border-white/10 bg-midnight/40 p-5">
                   <h3 class="text-lg font-semibold text-white">FreeBSD 15.1</h3>
@@ -644,7 +643,7 @@
                 <span>Windows 11: installer or portable ZIP</span>
                 <svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
               </summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Windows packages include Python and GTK. They are unsigned; signing is deferred.</p>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Both packages include Python and GTK. Docking's Windows packages are currently unsigned.</p>
               <h3 class="mt-5 text-base font-semibold text-white">1. Download and verify the package</h3>
               <p class="mt-2 text-sm leading-7 text-slate-300">Download the installer or portable ZIP and SHA256SUMS-windows from the same release.</p>
               <a href="https://github.com/edumucelli/docking/releases" target="_blank" rel="noopener noreferrer" class="mt-3 inline-block text-sm text-sky-200 underline decoration-sky-200/30 underline-offset-4 hover:text-white">Windows release downloads</a>
@@ -654,12 +653,12 @@
 Get-FileHash .\docking-latest-windows-x86_64.zip -Algorithm SHA256</code></pre>
               </div>
               <h3 class="mt-5 text-base font-semibold text-white">2. Install Docking</h3>
-              <p class="mt-2 text-sm leading-7 text-slate-300">Installer: run setup as your normal user. It adds a Start menu shortcut and offers launch at login. Administrator access is not required.</p>
-              <p class="mt-3 text-sm leading-7 text-slate-300">Portable ZIP: extract the entire archive to a writable folder, then open Docking.exe inside the Docking folder. Keep the runtime folder beside the launcher.</p>
+              <p class="mt-2 text-sm leading-7 text-slate-300">Run the installer as your normal user. It adds a Start menu shortcut and lets you choose whether Docking starts when you sign in.</p>
+              <p class="mt-3 text-sm leading-7 text-slate-300">For the portable ZIP, extract the entire archive to a folder you can write to. Open Docking.exe inside the Docking folder and keep the runtime folder beside it.</p>
               <p class="mt-3 text-sm leading-7 text-slate-300">Web-based applets also need Microsoft's <a href="https://developer.microsoft.com/en-us/microsoft-edge/webview2/" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">Evergreen WebView2 Runtime</a>.</p>
               <h3 class="mt-5 text-base font-semibold text-white">3. Update or uninstall</h3>
               <p class="mt-2 text-sm leading-7 text-slate-300">To update, download and verify the new package, then close Docking and its AI usage-hook processes. Run the installer again, or extract the portable ZIP into a fresh folder.</p>
-              <p class="mt-3 text-sm leading-7 text-slate-300">Remove an installed copy through Windows Installed Apps. For a portable copy, close Docking and delete its folder. Saved preferences are kept.</p>
+              <p class="mt-3 text-sm leading-7 text-slate-300">Uninstall Docking from Windows Installed Apps. For a portable copy, close Docking and delete its folder. Both methods keep your preferences.</p>
             </details>
           </section>
 
@@ -685,7 +684,7 @@ Get-FileHash .\docking-latest-windows-x86_64.zip -Algorithm SHA256</code></pre>
                 <p class="mt-3 text-sm leading-7 text-slate-300">Without curl, <a href="/install.sh" download class="text-white underline">download install.sh</a> and run <code>sh install.sh</code> from the download folder.</p>
               </div>
               <h3 class="mt-5 text-base font-semibold text-white">Update Docking</h3>
-              <p class="mt-3 text-sm leading-7 text-slate-300">Once setup is complete, regular APT upgrades include Docking. To refresh package lists and update Docking directly, run the following command.</p>
+              <p class="mt-3 text-sm leading-7 text-slate-300">APT includes Docking in regular upgrades. Use this command to update Docking on its own.</p>
               <div class="code-scroll mt-3 overflow-x-auto rounded-xl border border-white/10 bg-midnight/60 p-4">
                 <pre class="text-sm leading-7 text-slate-200"><code>sudo apt update &amp;&amp; sudo apt install docking</code></pre>
               </div>
@@ -767,9 +766,9 @@ sudo zypper refresh docking-rpm docking-rpm-noarch &amp;&amp; sudo zypper update
       <section id="source" class="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div class="grid grid-cols-1 gap-8 lg:grid-cols-[0.9fr_1.1fr]">
           <div class="reveal">
-            <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Build from source: clone it, hack on it, extend it</h2>
-            <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300">Docking is open source and built for people who want control, extensibility, and a clean code path into custom workflows.</p>
-            <p class="mt-4 max-w-xl text-sm leading-7 text-slate-300">For BSD, install the native dependencies from the <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#freebsd-and-openbsd" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">BSD installation guide</a> before setting up the Python environment.</p>
+            <h2 class="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl">Build from source</h2>
+            <p class="mt-4 max-w-xl text-lg leading-8 text-slate-300"><a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#source-requirements" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">Install the system dependencies</a> before creating the Python environment.</p>
+            <p class="mt-4 max-w-xl text-sm leading-7 text-slate-300">For BSD, install the native dependencies from the <a href="https://github.com/edumucelli/docking/blob/master/docs/INSTALLATION.md#freebsd-and-openbsd" target="_blank" rel="noopener noreferrer" class="text-white underline decoration-white/30 underline-offset-4 hover:decoration-white">BSD installation guide</a> before creating the Python environment.</p>
           </div>
 
           <div class="reveal rounded-[2rem] border p-4 shadow-soft backdrop-blur-2xl">
@@ -800,23 +799,23 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
           <div class="mt-10 space-y-6">
             <details class="group rounded-2xl border p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>What operating systems and desktops does Docking support?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Docking supports Linux with X11 or Wayland, and FreeBSD, OpenBSD, and NetBSD with X11. Native Windows 11 packages are also available as an unsigned installer and portable ZIP. Linux Wayland integration depends on the desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when compositor integration is unavailable.</p>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Docking runs on Linux with X11 or Wayland, and on FreeBSD, OpenBSD, and NetBSD with X11. Windows 11 x64 has an unsigned installer and portable ZIP.</p>
             </details>
             <details class="group rounded-2xl border p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Can I create my own applets?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Yes. Docking has an extensible applet system. Each applet is a Python package with a state, render, and applet module. You can add custom widgets and behaviors without modifying the dock's core runtime.</p>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Yes. Create a Python package for your applet. Use separate modules for its state, icon drawing, and dock interactions.</p>
             </details>
             <details class="group rounded-2xl border p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Does Docking support Wayland?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Yes, on Linux. Wayland support is selected per desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when needed. FreeBSD, OpenBSD, and NetBSD support uses X11.</p>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Yes, on Linux. Window controls and previews depend on the compositor. If Docking has no supported integration, you can still launch apps and use applets. FreeBSD, OpenBSD, and NetBSD use X11.</p>
             </details>
             <details class="group rounded-2xl border p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Are all applets available on BSD?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Applet availability depends on the operating system and installed services. Cam Shield supports FreeBSD and OpenBSD. Classic Bluetooth is supported on FreeBSD; OpenBSD has no Bluetooth stack. Cam Shield and Bluetooth controls are unavailable on NetBSD.</p>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Applet availability depends on the operating system and installed services. Cam Shield works on FreeBSD and OpenBSD. FreeBSD supports Classic Bluetooth. OpenBSD has no Bluetooth stack, and NetBSD has neither Cam Shield nor Bluetooth controls.</p>
             </details>
             <details class="group rounded-2xl border p-5 backdrop-blur-xl">
               <summary class="flex cursor-pointer items-center justify-between text-lg font-medium text-white"><span>Is Docking free and open source?</span><svg viewBox="0 0 24 24" class="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg></summary>
-              <p class="mt-4 text-sm leading-7 text-slate-300">Yes. Docking is licensed under GPL-3.0-or-later and fully open source. The code is hosted on GitHub and contributions are welcome.</p>
+              <p class="mt-4 text-sm leading-7 text-slate-300">Yes. Docking uses the GPL-3.0-or-later license. You can read the source and contribute on GitHub.</p>
             </details>
           </div>
         </div>
@@ -827,13 +826,12 @@ PYGOBJECT_STUB_CONFIG=Gtk3,Gdk3 \
           <div class="absolute inset-x-20 bottom-0 h-32 rounded-full blur-3xl"></div>
           <div class="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
             <div class="max-w-2xl">
-              <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Start using Docking today</h2>
-              <p class="mt-4 text-lg leading-8 text-slate-300">Install a build, star the project, and shape a dock that fits the way you actually work.</p>
+              <h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Get Docking</h2>
             </div>
 
             <div class="flex gap-3 text-center sm:gap-4 sm:whitespace-nowrap">
               <a href="#install" class="inline-flex items-center justify-center rounded-2xl bg-linear-to-r/srgb from-red-500 via-rose-500 to-amber-400 px-3 py-3.5 text-base font-semibold text-white shadow-[0_16px_42px_rgba(239,68,68,0.24)] transition hover:scale-[1.01] sm:px-6">Install Docking</a>
-              <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-3 py-3.5 text-base font-semibold text-white transition hover:border-white/30 hover:to-skyline/10 sm:px-6">GitHub Star</a>
+              <a href="https://github.com/edumucelli/docking" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center rounded-2xl border border-white/15 bg-linear-to-r/srgb from-skyline/10 px-3 py-3.5 text-base font-semibold text-white transition hover:border-white/30 hover:to-skyline/10 sm:px-6">Star on GitHub</a>
             </div>
           </div>
         </div>

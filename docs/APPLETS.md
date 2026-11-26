@@ -1,23 +1,22 @@
 # Applets
 
-Docking includes 67 built-in applets that live alongside
-application launchers, files, and folders. Applets can launch workflows,
-show live information, adjust system settings, or provide small tools
-without opening a full application.
+Docking includes 67 built-in applets. They sit next to your apps, files, and
+folders. Use them to check the weather, control playback, or change system
+settings from the dock.
 
-## Add and Manage Applets
+## Add and manage applets
 
-- Right-click the dock background and open **Add Applet**, then choose a
-  category and applet.
-- Open right-click -> **Preferences** -> **Applets** to enable or disable
-  applets from the complete visual catalog.
+- Right-click the dock background and choose **Add Applet**. Pick a category,
+  then choose an applet.
+- To see the full catalog and turn applets on or off, open **Preferences** from
+  the dock menu and select **Applets**.
 - Right-click an applet and choose **Remove from Dock** to remove it.
 - Drag applets to reorder them unless **Lock Positions** is enabled.
 - Use an applet's context menu for its preferences and actions. Many
   applets also respond to clicking, scrolling, or drag-and-drop.
 
-Separators are added through the separate **Add Separator** action because
-multiple independently sized separators can be used at once.
+Choose **Add Separator** from the dock menu. You can add several separators
+and set each one's size.
 
 Some applets need an internet connection, compatible desktop software, or a
 connected device. Features that are unavailable show a status message or stay
@@ -71,15 +70,12 @@ The application icon remains beside the pointer during the drag.
 
 Search for applications, files, open windows, and more from the dock.
 
-**Click:** Open [Global Search](CONFIGURATION.md#global-search) for providers,
-previews, and keyboard controls. Removing the applet leaves your global search
-keyboard shortcut available.
+Click to open [Global Search](CONFIGURATION.md#global-search). Your keyboard
+shortcut also works after you remove the applet.
 
 ### Desktop
 
-Toggle "show desktop" mode -- minimizes or restores all windows.
-
-**Click:** Toggle show/hide all windows
+Click to minimize all windows. Click again to restore them.
 
 ### Run Application
 
@@ -100,13 +96,12 @@ Recent commands remain available to run again.
 
 ### Workspaces
 
-Workspace switcher with a visual grid icon. Active workspace is highlighted in blue.
+The grid icon shows the active workspace in blue.
 
-**Click:** Cycle to next workspace
-**Scroll:** Switch workspace up/down
-**Right-click options:** Radio list of all workspaces
-
-**Tooltip:** Active workspace name
+- Click to switch to the next workspace.
+- Scroll to go to the next or previous workspace.
+- Right-click to choose a workspace from the list.
+- Hover to see the active workspace name.
 
 ### Telegram
 
@@ -165,7 +160,7 @@ Tracks Claude Code, Codex CLI, and OpenCode usage from the dock.
 **Right-click options:**
 
 - **Auto / Claude / Codex / OpenCode** -- filter the displayed provider
-- **Reset Today** -- clear today’s tracked usage
+- **Reset Today** clears today's tracked usage.
 
 **Tooltip:** Today/week cost summary plus per-model usage for the selected provider
 
@@ -231,13 +226,12 @@ Unchecking it moves it back above the completed items.
 
 ### Clippy
 
-Clipboard history for text and images, kept only for the current session. The
-default limit is 15 entries; retained images share a 32 MiB memory budget. Oldest
-entries are evicted when either limit is reached. Images are copied at their
-original size; the history stack shows thumbnails and image dimensions. Hex
-color entries show a color swatch. The stack scrolls through the full retained
-history when it does not fit on screen. Copied file paths show only filenames,
-while copying an entry preserves its original clipboard content.
+Clippy keeps text and images for the current session. By default it keeps up to
+15 entries, with a total of 32 MiB for images. Clippy drops the oldest entries
+when it reaches either limit. The stack shows image thumbnails and dimensions,
+color swatches for hex values, and filenames for file paths. Copying an entry
+restores the original clipboard content, including full-size images and full
+paths. Scroll through the stack when it doesn't fit on screen.
 
 **Click:** Open the newest-first history stack; select an entry to copy it and
 close the stack. Empty history does not open a stack.
@@ -273,9 +267,9 @@ the calendar opens.
 
 ### Color Picker
 
-Eyedropper color picker. Click enters fullscreen pick mode, samples a pixel color, copies hex value to clipboard, and updates the icon swatch.
+Click the applet to start the full-screen eyedropper, then click a pixel.
+The applet updates the icon swatch and copies the hex color to the clipboard.
 
-**Click:** Start pick mode and sample next clicked pixel
 **Right-click options:**
 
 - **Copy #RRGGBB** -- copy current sampled value
@@ -305,7 +299,7 @@ the tomato icon bounces and glows when it is time to switch.
 
 ### Quick Note
 
-Sticky note applet for a single quick text note.
+Keep one text note in the dock.
 
 **Click:** Open the note editor dialog
 **Right-click options:**
@@ -345,7 +339,7 @@ Shorten URLs with one click. Paste a URL, hit Shorten, and copy the result to th
 
 ### Battery
 
-Shows battery charge level using standard icons. The icon changes based on charge level and charging state.
+The battery icon shows the charge level and whether the battery is charging.
 
 **Right-click options:**
 
@@ -437,7 +431,9 @@ Caps Lock and Num Lock indicators for keyboards without physical lights. The ico
 
 ### Cert Watch
 
-Monitor certificate expiry for a list of domains. The shield color highlights the most urgent domain, and the icon shows the lowest days remaining so expiring certificates are easy to spot.
+Monitor TLS certificates for a list of domains. The icon shows how many days
+remain before the first certificate expires. The shield color reflects that
+certificate's status.
 
 **Click:** Add domain dialog (accepts `example.com`, `example.com:8443`, or a full URL)
 
@@ -544,8 +540,8 @@ Control music playback from an icon that shows the current album art.
 - **Play** / **Pause**
 - **Next**
 - **Volume Up** / **Volume Down**
-- **Launch App** — choose a compatible installed app for idle clicks, or select
-  **System Default**
+- Use **Launch App** to choose which app opens when no player is active.
+  Choose **System Default** to use the default player.
 
 Docking remembers the choice. If the chosen app becomes unavailable, idle clicks
 use the system default. The list includes media-file handlers and apps identified
@@ -555,7 +551,8 @@ as music players by the application catalog.
 
 ### Network
 
-Shows WiFi signal strength or wired connection status, with live upload/download speed overlay.
+See Wi-Fi signal strength or wired connection status. The icon can show live
+upload and download speeds.
 
 **Tooltip:**
 ```
@@ -721,7 +718,7 @@ Click the applet, then click any window to force-close it.
 
 ### Ambient
 
-Looping ambient soundscape player with 7 bundled nature sounds plus white and pink noise.
+Play one of seven built-in sounds, white noise, or pink noise on a loop.
 
 **Click:** Toggle play/stop
 **Scroll:** Adjust volume ±10%
@@ -790,7 +787,9 @@ Periodic micro-break reminder applet with offline stretch cards. Reminders stay 
 
 ### Astronomy Picture of the Day
 
-Shows NASA's Astronomy Picture of the Day as a dock thumbnail. The tooltip includes the date, title, credit, and a short explanation, and the applet keeps showing a graceful placeholder if the image is unavailable.
+See NASA's Astronomy Picture of the Day in the dock. Hover for the date,
+title, credit, and a short explanation. The applet shows a placeholder if
+the image is unavailable.
 
 **Click:** Open today's page on apod.nasa.gov in the default browser
 
@@ -811,7 +810,8 @@ Tracks selected cryptocurrency prices with compact dock display and refresh acti
 
 ### Currency FX
 
-Live currency pair monitor with a sparkline icon. Add the pairs you care about, cycle between them from the dock, and choose the chart range that fits your glance.
+Track live exchange rates. Add one or more currency pairs, switch between
+them, and choose the time range for the chart on the icon.
 
 **Click:** Add FX pair
 **Scroll:** Cycle added pairs
@@ -884,7 +884,10 @@ A selection of quotes is also available without an internet connection.
 
 ### Random Trivia
 
-Quick trivia applet with local and online questions. The tooltip shows the current question and answer state, the menu exposes answer choices plus refresh/next actions, and the icon displays a small result pill after you answer: green for correct, red for wrong. The pill clears on the next trivia question.
+Answer trivia questions from local or online sources. Read the question in
+the tooltip and pick an answer from the right-click menu. The icon shows a
+green badge for a correct answer or a red badge for an incorrect one. The
+badge clears when you move to the next question.
 
 **Click:** Show the next trivia question
 **Right-click options:**
@@ -969,12 +972,15 @@ Tue: 28/32°C, Rain
 
 ### Separator
 
-Transparent gap divider between dock items. Supports multiple instances -- each with independent, persistent size.
+Add a transparent gap between dock items. Docking remembers the width of each
+separator.
 
-**Scroll:** Adjust gap width (±2px, range 2–48px)
+Scroll to adjust the width in 2-pixel steps. The width can be 2 to 48 pixels.
+
 **Right-click options:**
 
 - **Increase Gap** / **Decrease Gap**
 - **Remove from Dock**
 
-Added via right-click on dock background -> **Add Separator** (inserts at click position).
+To add a separator, right-click the dock background where you want the gap
+and choose **Add Separator**.
