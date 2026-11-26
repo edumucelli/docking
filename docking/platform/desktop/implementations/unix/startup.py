@@ -17,6 +17,7 @@ from docking.platform.applications.implementations.unix.entries import (
     desktop_entry_string,
 )
 from docking.platform.desktop.base import LoginStartup
+from docking.platform.environment import Desktop, detect_desktop
 
 _GROUP = "Desktop Entry"
 _MANAGED_KEY = "X-Docking-Autostart"
@@ -64,7 +65,7 @@ class LinuxLoginStartup(LoginStartup):
             app is not None
             and not app.get_is_hidden()
             and app.get_show_in(None)
-            and app.get_string(_GNOME_ENABLED) != "false"
+            and not self._disabled_by_gnome_key(app.get_string(_GNOME_ENABLED))
         )
 
     def set_enabled(self, enabled: bool) -> None:
@@ -148,11 +149,17 @@ class LinuxLoginStartup(LoginStartup):
                 return path
         return None
 
+    def _entry_unhidden(self, entry: GLib.KeyFile) -> bool:
+        return not desktop_entry_bool(
+            entry, "Hidden"
+        ) and not self._disabled_by_gnome_key(
+            desktop_entry_string(entry, _GNOME_ENABLED)
+        )
+
     @staticmethod
-    def _entry_unhidden(entry: GLib.KeyFile) -> bool:
-        return (
-            not desktop_entry_bool(entry, "Hidden")
-            and desktop_entry_string(entry, _GNOME_ENABLED) != "false"
+    def _disabled_by_gnome_key(value: str | None) -> bool:
+        return value == "false" and bool(
+            detect_desktop() & (Desktop.GNOME | Desktop.UBUNTU | Desktop.CINNAMON)
         )
 
     @staticmethod

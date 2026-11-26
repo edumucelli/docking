@@ -109,20 +109,32 @@ def test_login_startup_refresh_preserves_a_disabled_entry(tmp_path):
     assert entry.read_text() == previous
 
 
+@pytest.mark.parametrize(
+    ("desktop", "desktop_setting", "starts_at_login"),
+    [
+        ("gnome", "", True),
+        ("gnome", "X-GNOME-Autostart-enabled=false\n", False),
+        ("mate", "X-GNOME-Autostart-enabled=false\n", True),
+    ],
+)
 def test_login_startup_overrides_system_entry_without_changing_it(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, desktop, desktop_setting, starts_at_login
 ):
+    monkeypatch.setenv("XDG_SESSION_DESKTOP", desktop)
     system_config = tmp_path / "etc"
     system_entry = system_config / "autostart" / LinuxLoginStartup.DESKTOP_ID
     system_entry.parent.mkdir(parents=True)
-    contents = "[Desktop Entry]\nType=Application\nName=Docking\nExec=/bin/sh\n"
+    contents = (
+        "[Desktop Entry]\nType=Application\nName=Docking\nExec=/bin/sh\n"
+        + desktop_setting
+    )
     system_entry.write_text(contents)
     monkeypatch.setattr(GLib, "get_system_config_dirs", lambda: [str(system_config)])
     directory = tmp_path / "config" / "autostart"
     startup = LinuxLoginStartup(directory, command="/bin/sh", try_exec="/bin/sh")
     user_entry = directory / startup.DESKTOP_ID
 
-    assert startup.enabled()
+    assert startup.enabled() is starts_at_login
     startup.set_enabled(False)
     assert not startup.enabled()
     assert "\nHidden=true\n" in user_entry.read_text()
@@ -159,9 +171,18 @@ def test_login_startup_preserves_excluded_desktop_restrictions(
 
 
 @pytest.mark.parametrize(
-    "disabled_key", ["Hidden=true", "X-GNOME-Autostart-enabled=false"]
+    ("desktop", "desktop_setting", "starts_at_login"),
+    [
+        ("mate", "Hidden=true", False),
+        ("gnome", "X-GNOME-Autostart-enabled=false", False),
+        ("cinnamon", "X-GNOME-Autostart-enabled=false", False),
+        ("mate", "X-GNOME-Autostart-enabled=false", True),
+    ],
 )
-def test_login_startup_can_reenable_entry_disabled_by_desktop(tmp_path, disabled_key):
+def test_login_startup_respects_the_current_session(
+    tmp_path, monkeypatch, desktop, desktop_setting, starts_at_login
+):
+    monkeypatch.setenv("XDG_SESSION_DESKTOP", desktop)
     directory = tmp_path / "autostart"
     startup = LinuxLoginStartup(directory, command="docking", try_exec="docking")
     entry = directory / startup.DESKTOP_ID
@@ -173,8 +194,8 @@ def test_login_startup_can_reenable_entry_disabled_by_desktop(tmp_path, disabled
     assert "\nExec=docking\nTryExec=docking\n" in entry.read_text()
 
     with entry.open("a", encoding="utf-8") as stream:
-        stream.write(f"{disabled_key}\n")
-    assert not startup.enabled()
+        stream.write(f"{desktop_setting}\n")
+    assert startup.enabled() is starts_at_login
     startup.set_enabled(True)
     assert startup.enabled()
 

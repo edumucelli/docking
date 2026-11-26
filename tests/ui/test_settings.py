@@ -2748,8 +2748,11 @@ class TestSettingsRuntimeCallbacks:
 def test_start_at_login_updates_desktop_entry_from_preferences(
     tmp_path, monkeypatch, _fake_info_icon, _fake_shortcut_capture
 ):
+    from gi.repository import GLib
+
     from docking.platform.desktop.implementations.unix.startup import LinuxLoginStartup
 
+    monkeypatch.setattr(GLib, "get_system_config_dirs", list)
     monkeypatch.setattr(settings_mod, "_InfoIcon", _fake_info_icon)
     monkeypatch.setattr(settings_mod, "ShortcutCaptureButton", _fake_shortcut_capture)
     monkeypatch.setattr(settings_mod, "get_applet_catalog", dict)
