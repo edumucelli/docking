@@ -141,6 +141,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, TypeVar
 
+from docking.core.math import MAX_SIGNED_INT32
 from docking.core.paths import ensure_dir
 from docking.core.theme.migration import migrate_loaded_theme_data
 from docking.log import get_logger
@@ -151,8 +152,6 @@ _BUILTIN_THEMES_DIR = (
     Path(__file__).resolve().parent.parent.parent / "assets" / "themes"
 )
 _USER_THEME_TEMPLATE_NAME = "template"
-# GDK exposes display scale and window dimensions as signed 32-bit integers.
-_MAX_GDK_INT = (1 << 31) - 1
 log = get_logger("theme")
 
 # Color types as Cairo-compatible floats (0.0-1.0)
@@ -340,12 +339,12 @@ def _validate_theme_geometry(theme: Theme, icon_size: int) -> None:
             isinstance(part, float) and not math.isfinite(part) for part in value
         ):
             raise ValueError(f"non-finite value for {field.name}")
-    if not math.isfinite(theme.roundness * _MAX_GDK_INT):
+    if not math.isfinite(theme.roundness * MAX_SIGNED_INT32):
         raise ValueError("corner radius overflows display scaling")
     bounce_extent = icon_size * (
         abs(theme.launch_bounce_height) + abs(theme.urgent_bounce_height)
     )
-    if bounce_extent + icon_size > _MAX_GDK_INT:
+    if bounce_extent + icon_size > MAX_SIGNED_INT32:
         raise ValueError("bounce height exceeds the native window dimension range")
 
 

@@ -220,7 +220,7 @@ from docking.ui.geometry import (
 )
 from docking.ui.hover import HoverManager
 from docking.ui.interaction import DockInteractionCoordinator
-from docking.ui.placement import DockPlacementController
+from docking.ui.placement import DockPlacementController, measure_dock_surface
 from docking.ui.preview import PreviewPopup
 from docking.ui.tooltip import TooltipManager
 from docking.ui.window_outline import WindowOutline
@@ -433,6 +433,9 @@ class DockWindow(Gtk.Window):
 
     def set_theme(self, theme: Theme) -> None:
         """Replace the runtime theme and notify collaborators that cache it."""
+        theme, _, _ = measure_dock_surface(
+            config=self.config, theme=theme, items=self.model.visible_items()
+        )
         self.theme = theme
         self.tooltip.set_theme(theme)
         self.hover.set_theme(theme)

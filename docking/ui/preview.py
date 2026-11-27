@@ -297,11 +297,9 @@ class PreviewPopup(Gtk.Window):
         The popup is centered on the icon along the main axis and offset
         away from the screen edge along the cross axis.
         """
-        self._show_windows(
-            desktop_id,
-            self._tracker.list_preview_windows(desktop_id),
-            (anchor_x, icon_w, anchor_y, position),
-        )
+        windows = self._tracker.list_preview_windows(desktop_id)
+        self._cancel_hide_timer()
+        self._show_windows(desktop_id, windows, (anchor_x, icon_w, anchor_y, position))
 
     def reconcile_windows(self) -> None:
         """Keep an open preview in sync with eligible windows."""
@@ -325,7 +323,6 @@ class PreviewPopup(Gtk.Window):
         icon_name = self._tracker.icon_name_for_desktop(desktop_id)
 
         self._current_desktop_id = desktop_id
-        self._cancel_hide_timer()
         self._stop_preview_updates()
 
         # Replace and resize off-screen, including when switching apps while

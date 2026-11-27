@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -16,6 +17,14 @@ from docking.ui.preview import POPUP_PADDING
 from tests.ui.preview_support import PreviewHarness, settle_gtk
 
 pytestmark = pytest.mark.visual
+
+
+def _wait_for_gtk(condition: Callable[[], bool]) -> None:
+    for _ in range(25):
+        if condition():
+            return
+        settle_gtk()
+    assert condition(), "GTK condition did not converge"
 
 
 @pytest.fixture
@@ -278,9 +287,11 @@ def test_same_icon_handback_keeps_real_popup_and_scroll_position(
 def test_model_change_updates_window_cards_and_restores_tooltip(preview, preview_hover):
     hover, _config = preview_hover
     preview.show(8)
-    preview.scroll_to(last=True, position=Position.BOTTOM)
     scroller = preview.scroller
-    scroll = scroller.get_hadjustment().get_value()
+    adjustment = scroller.get_hadjustment()
+    _wait_for_gtk(lambda: adjustment.get_upper() > adjustment.get_page_size() > 0)
+    adjustment.set_value(adjustment.get_upper() - adjustment.get_page_size())
+    scroll = adjustment.get_value()
     assert scroll > 0
 
     hover.on_model_changed()
@@ -300,6 +311,25 @@ def test_model_change_updates_window_cards_and_restores_tooltip(preview, preview
     hover.update(600)
     assert not preview.popup.get_visible()
     hover._tooltip.update.assert_called_once()
+
+
+def test_window_reconciliation_keeps_pending_preview_hide(preview):
+    # Leave the Xvfb pointer outside the popup while the hide is pending.
+    preview.show(2, Position.TOP)
+    autohide = MagicMock()
+    preview.popup.set_autohide(autohide)
+    preview.popup.schedule_hide()
+    source_id = preview.popup._hide_timer_id
+    assert source_id != 0
+
+    windows = preview.tracker.list_preview_windows.return_value
+    preview.tracker.list_preview_windows.return_value = windows[:1]
+    preview.popup.reconcile_windows()
+
+    assert len(preview.cards) == 1
+    assert preview.popup._hide_timer_id == source_id
+    _wait_for_gtk(lambda: not preview.popup.get_visible())
+    autohide.on_mouse_leave.assert_called_once_with()
 
 
 @pytest.mark.parametrize("position", list(Position))
