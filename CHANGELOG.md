@@ -15,7 +15,6 @@ Docking versions are listed in descending version order. Dates are in UTC.
 - Recovered from unusable theme geometry and invalid saved update timestamps,
   and handled executable drops with filenames that cannot be written to a
   desktop entry.
-- Clarified the legacy `zoom_range` setting.
 - Removed the extra sentence below the website homepage heading.
 - Simplified website copy in all four languages, the README, and the user and
   developer guides.

@@ -102,7 +102,7 @@ def test_docking_file_accepts_legacy_pins_and_preference_names(tmp_path):
     path = tmp_path / "shared.json"
     path.write_text(
         '{"pinned": ["editor.desktop"], "folder_stack_unfold": "hover",'
-        ' "previews_enabled": false}',
+        ' "previews_enabled": false, "zoom_range": {"invalid": true}}',
         encoding="utf-8",
     )
     (source,) = dock_import.read_dock_import_sources(file_path=path)
@@ -114,6 +114,7 @@ def test_docking_file_accepts_legacy_pins_and_preference_names(tmp_path):
     assert result.added == ["editor.desktop"]
     assert result.changes["stack_unfold"] == "hover"
     assert result.changes["window_preview_thumbnails_enabled"] is False
+    assert "zoom_range" not in result.config.to_dict()
 
 
 def test_plank_selects_primary_and_preserves_pins_and_placement(tmp_path, monkeypatch):

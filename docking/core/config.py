@@ -265,7 +265,6 @@ DEFAULT_PINNED: list[PinnedEntry] = []
 DEFAULT_ICON_SIZE = 48
 DEFAULT_ZOOM_ENABLED = True
 DEFAULT_ZOOM_PERCENT = 1.5
-DEFAULT_ZOOM_RANGE = 3
 DEFAULT_POSITION = Position.BOTTOM.value
 DEFAULT_DOCK_ALIGNMENT = 0.5
 DEFAULT_MONITOR_INDEX = -1
@@ -739,8 +738,6 @@ class Config:
     zoom_enabled: bool = DEFAULT_ZOOM_ENABLED
     # Max zoom multiplier (1.0-4.0, default 1.5 = 150%)
     zoom_percent: float = DEFAULT_ZOOM_PERCENT
-    # Legacy setting retained for configuration file compatibility.
-    zoom_range: int = DEFAULT_ZOOM_RANGE
     # Screen edge where the dock is placed
     position: str = DEFAULT_POSITION
     # Relative position along the edge: left/top (0), center (0.5), right/bottom (1)
@@ -880,11 +877,6 @@ class Config:
             default=DEFAULT_ZOOM_PERCENT,
             minimum=MIN_ZOOM_PERCENT,
             maximum=MAX_ZOOM_PERCENT,
-        )
-        self.zoom_range = _normalize_int(
-            self.zoom_range,
-            default=DEFAULT_ZOOM_RANGE,
-            minimum=0,
         )
         self.position = _normalize_enum(
             self.position, Position.BOTTOM, setting="dock position"
@@ -1279,7 +1271,8 @@ class Config:
 
 
 def migrate_config_fields(data: dict[str, Any]) -> None:
-    """Fill renamed settings from older Docking configurations."""
+    """Migrate settings from older Docking configurations."""
+    data.pop("zoom_range", None)
     for old_key, new_key in {
         "folder_stack_unfold": "stack_unfold",
         "previews_enabled": "window_preview_thumbnails_enabled",
