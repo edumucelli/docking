@@ -9,14 +9,14 @@
 | Windows 11 ARM runner | AMD64 UCRT64 emulation and independent x86 input fixtures; this is not a native ARM64 distribution. |
 | Other Windows versions/builds | Additional acceptance is required. Some shell capabilities are build-gated. |
 
-The portable ZIP and per-user installer contain Python, GTK, GStreamer and the
-WebView2 loader. They do not require an MSYS2 installation on the user's machine.
-WebView2 applets additionally require Microsoft's Evergreen WebView2 Runtime.
-The experimental Qt browser is not bundled. Packages are unsigned previews.
+The portable ZIP and per-user installer are unsigned previews. Both include
+Python, GTK, GStreamer, and the WebView2 loader, so you can run Docking without
+MSYS2. WebView2 applets also need Microsoft's Evergreen WebView2 Runtime.
+Install the experimental Qt browser separately if you want to try it.
 
-See [installation and updates](INSTALLATION.md#windows-preview) and
-[Windows packaging](../packaging/windows/README.md) for installation, bundle,
-installer and release commands.
+See [installation and updates](INSTALLATION.md#windows-preview) to install
+Docking or [Windows packaging](../packaging/windows/README.md) to build the
+installer and portable ZIP.
 
 ### Source development
 
@@ -36,10 +36,10 @@ python -m tools.windows.ci --stage preflight
 python run.py
 ```
 
-Native extensions come from pacman because MSYS2 Python's ABI differs from
-standard Windows CPython. Source/editable builds compile both AMD64 and x86
-input-thread helpers using UCRT64 GCC/binutils. Installed wheels contain those
-helpers; generated DLLs do not belong in source control.
+Install native extensions with pacman because MSYS2 Python uses a different
+ABI from standard Windows CPython. Source and editable builds use UCRT64
+GCC and binutils to compile the AMD64 and x86 input-thread helpers. Wheels
+include those DLLs. Keep generated DLLs out of source control.
 
 For WebView2 applets, install the runtime and run:
 
@@ -47,9 +47,9 @@ For WebView2 applets, install the runtime and run:
 python -m tools.windows.webview2_setup
 ```
 
-This verifies the pinned SDK archive and installs its loader and license.
-`--package` accepts a downloaded SDK archive. Applets do not download missing
-dependencies; an absent loader/runtime produces an unavailable state.
+The setup command verifies the pinned SDK archive and installs the loader and
+license. Pass `--package` to use an archive you already downloaded. Applets
+show as unavailable if the loader or runtime is missing.
 
 The optional Qt companion uses a separate standard CPython x64 environment:
 
@@ -63,9 +63,9 @@ Windows applets select WebView2 by default. The Qt companion is experimental.
 
 ## Current capabilities
 
-“Implemented” describes the available backend and controls. Hardware fixtures,
-native API tests and real-device acceptance provide different evidence; a
-rendering fixture does not establish physical device operation.
+"Implemented" describes the backend and controls that are available. The
+limits column lists known limitations and cases that still need testing on
+real hardware or in a Windows session.
 
 ### Dock, applications and shell
 

@@ -8,12 +8,11 @@ the development environment. For native Wayland protocol clients, also install
 the `[wayland]` extra described there. On Windows, follow the
 [UCRT64 setup instructions](WINDOWS.md#source-development).
 
-Shared development scripts live directly in `tools/`; platform-specific scripts
-live in `tools/linux/` and `tools/bsd/`. Visual suites live together in
-[`tests/visual/`](../tests/visual/README.md), grouped by backend and desktop.
-See the [tools guide](../tools/README.md) for general setup and VM utilities.
+Find shared scripts in `tools/` and platform scripts in `tools/linux/` and
+`tools/bsd/`. The [tools guide](../tools/README.md) covers setup and VM utilities.
+The [visual test suites](../tests/visual/README.md) are grouped by backend and desktop.
 
-## Source Setup
+## Source setup
 
 ```bash
 # Clone
@@ -70,34 +69,21 @@ pytest tests/applets/test_clock.py -v
 pytest tests/ -v --cov=docking --cov-report=term-missing
 ```
 
-Run the smoke command separately: imports cached during full-suite collection
-can hide incomplete smoke fixtures.
+Run the smoke command in its own process. Imports cached during full-suite
+collection can hide missing no-GI fixtures.
 
 CI also checks pull requests targeting prerequisite branches, so stacked changes
 receive the same checks before their base reaches master. Release jobs remain
 restricted to master.
 
-For the GUI/integration-oriented slice under a headless X11 session:
+To run GUI integration tests in a headless X11 session, use:
 
 ```bash
 bash tools/test_gui_headless.sh
 ```
 
-Requirements for that mode:
-
-- `xvfb-run`
-- `dbus-run-session`
-
-By default it runs the dock interaction/UI slice:
-
-- pointer scenarios
-- edges
-- menu integration
-- preview popup integration
-- dock window integration
-- interaction
-- DnD integration
-- renderer integration
+The script needs `xvfb-run` and `dbus-run-session`. It tests pointer and edge
+behavior, menus, preview popups, the dock window, drag and drop, and rendering.
 
 You can also pass explicit pytest targets:
 
@@ -170,9 +156,7 @@ xvfb-run -a dbus-run-session -- .venv/bin/python -m pytest tests/ -q
 xvfb-run -a dbus-run-session -- .venv/bin/behave -q
 ```
 
-Run the smoke file in its own process. Full-suite import caches can hide
-incomplete no-GI fixtures. The type-checker configuration explicitly prioritizes
-this checkout over system-installed Docking releases.
+The type checker looks in this checkout before system-installed Docking releases.
 
 Missing-import checks remain enabled, with an explicit allowlist for system
 Cairo, BSD-only psutil, native GI namespaces, and optional PyWayland modules
@@ -195,16 +179,15 @@ as well as pytest fixtures. The shared test factories deliberately construct
 Linux adapters for deterministic filesystem/command fixtures; tests reading the
 real host must explicitly use the native backend from composition.
 
-## Writing Custom Applets
+## Writing custom applets
 
 See the [built-in applets](APPLETS.md) for examples.
 
-Applets are discovered from `AppletMeta` metadata and loaded lazily when
-enabled. They inherit the common lifecycle and UI hooks from
-`docking/applets/base.py`, including `create_icon()`, click, scroll, and menu
-handling, plus optional `start()` and `stop()` methods. Keep package imports
-cheap and separate GTK wiring from pure state and rendering helpers so most
-logic remains testable without a live desktop session.
+Docking discovers applets through `AppletMeta` and loads each one when you enable
+it. Applets inherit `create_icon()` and click, scroll, and menu hooks from
+`docking/applets/base.py`. They can also implement `start()` and `stop()`.
+Keep package imports lightweight. Use separate modules for GTK code, state,
+and icon drawing so tests can run without a desktop session.
 
 ```text
 docking/applets/myapplet/
@@ -330,12 +313,12 @@ apply the stricter completeness check:
 ./tools/i18n.sh --check-catalogs --require-complete
 ```
 
-## Building Packages
+## Building packages
 
 Build dependencies, commands, output paths, and local installation steps for
 every package format live in the [packaging guide](../packaging/README.md).
 
-## D-Bus Remote Control
+## D-Bus remote control
 
 Scripts can inspect and control dock items through the `org.docking.Docking.Items1`
 interface on the session bus. The bus name is `org.docking.Docking` and the
@@ -351,7 +334,7 @@ gdbus call --session --dest org.docking.Docking --object-path /org/docking/Docki
 ```
 
 Use exact IDs from the list methods, such as `firefox.desktop` or `applet://clock`.
-Mutations return `false` when the requested operation cannot be applied.
+Commands that change items return `false` if Docking cannot apply the change.
 
 | Method | Result |
 | --- | --- |
@@ -375,11 +358,10 @@ npm --prefix website ci
 npm --prefix website run dev
 ```
 
-Open `http://127.0.0.1:8000`. The development command builds all language pages
-and serves them using Python 3. Restart it after editing website sources to
-rebuild. From the `website` directory, use `npm run dev` directly. Run
-`npm --prefix website test` to check the generated pages. Both `npm test` and
-`npm run test:browser` rebuild the site automatically before running checks.
+Open `http://127.0.0.1:8000`. The development command builds every language page
+and serves the site with Python 3. Restart the command after editing to rebuild.
+In `website/`, use `npm run dev`. Run `npm --prefix website test` to check the
+generated pages. The static and browser tests both rebuild the site.
 
 Hetzner hosts `website/dist` through a dedicated native Komodo Stack. The website
 workflow promotes tested website inputs to `deploy/docking-cc`; unrelated desktop
@@ -392,12 +374,13 @@ original `website/hero.gif` is copied without recompression.
 
 Edit the English template in `website/index.html`, applet cards in
 `website/applets.mjs`, and corresponding strings in `website/translations.json`.
-Translation keys are the exact English text;
-builds fail on missing translations. Keep shell commands and technical names
-unchanged. The build generates `/`, `/pt/`, `/fr/` and `/es/`, with reciprocal
-`hreflang` links and a self-canonical URL for each language. All content remains
-readable without JavaScript. Browser-language detection suggests a version;
-explicit language links and remembered choices take precedence over detection.
+Use the exact English text as the key in the translation catalog. The build
+requires Portuguese, French, and Spanish translations for each key it uses.
+Keep shell commands and technical names the same in every language. The build
+generates `/`, `/pt/`, `/fr/` and `/es/`. Each page links to the other languages
+with `hreflang` and uses its own URL as the canonical URL. All content is
+readable without JavaScript. The site can suggest a language based on the browser
+settings. A language link or a saved choice takes precedence.
 
 Keep `website/sitemap.xml` synchronized with published pages. Update each
 `lastmod` only when that page's content changes, not on every build. The public

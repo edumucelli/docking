@@ -49,7 +49,7 @@
     "fr": "Installer",
     "es": "Instalar"
   },
-  "From Source": {
+  "From source": {
     "pt": "A partir do código-fonte",
     "fr": "Depuis les sources",
     "es": "Desde el código fuente"
@@ -84,25 +84,25 @@
     "fr": "Un dock gratuit pour Linux, BSD et Windows",
     "es": "Un dock gratuito para Linux, BSD y Windows"
   },
-  "Launch apps quickly and make the dock your own with themes and several built-in applets.": {
-    "pt": "Abra aplicações rapidamente e personalize o dock com temas e vários applets integrados.",
-    "fr": "Lancez rapidement vos applications et personnalisez votre dock avec des thèmes et plusieurs applets intégrés.",
-    "es": "Abre aplicaciones rápidamente y personaliza tu dock con temas y varios applets integrados."
+  "Pin apps, files, and folders. Add applets and choose a theme.": {
+    "pt": "Fixe aplicações, ficheiros e pastas. Adicione applets e escolha um tema.",
+    "fr": "Épinglez des applications, des fichiers et des dossiers. Ajoutez des applets et choisissez un thème.",
+    "es": "Fija aplicaciones, archivos y carpetas. Añade applets y elige un tema."
   },
   "View on GitHub": {
     "pt": "Ver no GitHub",
     "fr": "Voir sur GitHub",
     "es": "Ver en GitHub"
   },
-  "Docking dock demonstration with applets and menus": {
-    "pt": "Demonstração do dock Docking com applets e menus",
-    "fr": "Démonstration du dock Docking avec des applets et des menus",
-    "es": "Demostración del dock Docking con applets y menús"
+  "Docking demo with applets and menus": {
+    "pt": "Demonstração do Docking com applets e menus",
+    "fr": "Démonstration de Docking avec des applets et des menus",
+    "es": "Demostración de Docking con applets y menús"
   },
-  "Themeable": {
-    "pt": "Temas personalizáveis",
-    "fr": "Thèmes personnalisables",
-    "es": "Temas personalizables"
+  "Themes": {
+    "pt": "Temas",
+    "fr": "Thèmes",
+    "es": "Temas"
   },
   "Auto-hide": {
     "pt": "Ocultação automática",
@@ -114,105 +114,75 @@
     "fr": "Multi-écrans",
     "es": "Varios monitores"
   },
-  "Applet system": {
-    "pt": "Sistema de applets",
-    "fr": "Système d’applets",
-    "es": "Sistema de applets"
+  "Custom applets": {
+    "pt": "Applets personalizados",
+    "fr": "Applets personnalisés",
+    "es": "Applets personalizados"
   },
-  "Cross desktop environments": {
-    "pt": "Vários ambientes de trabalho",
-    "fr": "Plusieurs environnements de bureau",
-    "es": "Varios entornos de escritorio"
+  "Desktop support": {
+    "pt": "Suporte a ambientes de trabalho",
+    "fr": "Bureaux pris en charge",
+    "es": "Compatibilidad con escritorios"
   },
   "Open source": {
     "pt": "Código aberto",
     "fr": "Open source",
     "es": "Código abierto"
   },
-  "Built-in Applets": {
-    "pt": "Applets integrados",
-    "fr": "Applets intégrés",
-    "es": "Applets integrados"
+  "App launcher": {
+    "pt": "Lançador de aplicações",
+    "fr": "Lanceur d’applications",
+    "es": "Lanzador de aplicaciones"
   },
-  "Docking features": {
-    "pt": "Funcionalidades do Docking",
-    "fr": "Fonctionnalités de Docking",
-    "es": "Funciones de Docking"
-  },
-  "Docking combines launcher speed, desktop awareness, and a modular widget system in one polished surface.": {
-    "pt": "O Docking combina o arranque rápido de aplicações, a integração com o ambiente de trabalho e um sistema modular de widgets numa interface cuidada.",
-    "fr": "Docking réunit un lanceur rapide, une intégration au bureau et un système modulaire de widgets dans une interface soignée.",
-    "es": "Docking combina un lanzador rápido, integración con el escritorio y un sistema modular de widgets en una interfaz cuidada."
-  },
-  "Fast launcher workflow": {
-    "pt": "Acesso rápido às aplicações",
-    "fr": "Lancement rapide des applications",
-    "es": "Acceso rápido a las aplicaciones"
-  },
-  "Quick access to your core apps, work surfaces, and utilities without visual noise or startup drag.": {
-    "pt": "Acesso rápido às suas aplicações, áreas de trabalho e utilitários, sem distrações visuais nem demoras no arranque.",
-    "fr": "Accédez rapidement à vos applications, espaces de travail et utilitaires, sans surcharge visuelle ni lenteur au démarrage.",
-    "es": "Accede rápidamente a tus aplicaciones, espacios de trabajo y utilidades, sin distracciones visuales ni demoras al iniciar."
+  "Launch pinned apps, preview open windows, and switch between them.": {
+    "pt": "Abra aplicações fixadas, pré-visualize janelas abertas e alterne entre elas.",
+    "fr": "Lancez les applications épinglées, prévisualisez les fenêtres ouvertes et passez de l’une à l’autre.",
+    "es": "Abre aplicaciones fijadas, previsualiza las ventanas abiertas y cambia entre ellas."
   },
   "Built-in applets": {
     "pt": "Applets integrados",
     "fr": "Applets intégrés",
     "es": "Applets integrados"
   },
-  "Ship a dock that already knows how to show system status, weather, media, timers, notes, and more.": {
-    "pt": "Um dock que já inclui o estado do sistema, meteorologia, multimédia, temporizadores, notas e muito mais.",
-    "fr": "Un dock qui affiche déjà l’état du système, la météo, les médias, les minuteurs, les notes et bien plus encore.",
-    "es": "Un dock que ya incluye el estado del sistema, el tiempo, contenido multimedia, temporizadores, notas y mucho más."
+  "Check the weather, control media playback, set timers, and take notes.": {
+    "pt": "Consulte a previsão do tempo, controle a reprodução de multimédia, defina temporizadores e tome notas.",
+    "fr": "Consultez la météo, contrôlez la lecture, réglez des minuteurs et prenez des notes.",
+    "es": "Consulta el tiempo, controla la reproducción, configura temporizadores y toma notas."
   },
-  "Fully customizable themes": {
-    "pt": "Temas totalmente personalizáveis",
-    "fr": "Thèmes entièrement personnalisables",
-    "es": "Temas totalmente personalizables"
-  },
-  "Adjust themes, sizing, behavior, and pinned item icons so the dock fits the desktop you already use.": {
-    "pt": "Ajuste os temas, o tamanho, o comportamento e os ícones dos itens fixados para adaptar o dock ao seu ambiente de trabalho.",
-    "fr": "Réglez les thèmes, la taille, le comportement et les icônes des éléments épinglés pour adapter le dock à votre bureau.",
-    "es": "Ajusta los temas, el tamaño, el comportamiento y los iconos de los elementos fijados para adaptar el dock a tu escritorio."
+  "Choose a theme, change the icon size, or set your own icons for pinned items.": {
+    "pt": "Escolha um tema, altere o tamanho dos ícones ou defina ícones para os itens fixados.",
+    "fr": "Choisissez un thème, changez la taille des icônes ou personnalisez celles des éléments épinglés.",
+    "es": "Elige un tema, cambia el tamaño de los iconos o personaliza los de los elementos fijados."
   },
   "Multi-monitor and auto-hide": {
     "pt": "Vários monitores e ocultação automática",
     "fr": "Multi-écrans et masquage automatique",
     "es": "Varios monitores y ocultación automática"
   },
-  "Keep the dock where it belongs, visible when needed and out of the way when focus matters.": {
-    "pt": "Mantenha o dock no lugar certo, visível quando precisa e oculto quando se quer concentrar.",
-    "fr": "Gardez le dock à sa place : visible quand vous en avez besoin, discret quand vous devez vous concentrer.",
-    "es": "Mantén el dock en su sitio: visible cuando lo necesitas y oculto cuando quieres concentrarte."
+  "Choose a monitor and screen edge. Set the dock to hide when the pointer leaves or when a window overlaps it.": {
+    "pt": "Escolha um monitor e uma margem do ecrã. Configure o dock para se ocultar quando o ponteiro sai ou quando uma janela o cobre.",
+    "fr": "Choisissez un écran et un bord. Masquez le dock quand le pointeur le quitte ou quand une fenêtre le recouvre.",
+    "es": "Elige un monitor y un borde de la pantalla. Oculta el dock cuando el puntero salga de él o cuando una ventana lo cubra."
   },
-  "Cross desktop compatibility": {
-    "pt": "Compatibilidade entre ambientes de trabalho",
-    "fr": "Compatibilité entre environnements de bureau",
-    "es": "Compatibilidad entre entornos de escritorio"
+  "Run Docking on Linux with X11 or Wayland, on BSD with X11, or on Windows 11.": {
+    "pt": "Execute o Docking em Linux com X11 ou Wayland, em BSD com X11 ou em Windows 11.",
+    "fr": "Utilisez Docking sous Linux avec X11 ou Wayland, sous BSD avec X11 ou sous Windows 11.",
+    "es": "Usa Docking en Linux con X11 o Wayland, en BSD con X11 o en Windows 11."
   },
-  "Built for Linux, BSD and Windows setups that span more than one desktop environment and more than one way of working.": {
-    "pt": "Concebido para configurações Linux, BSD e Windows que abrangem vários ambientes de trabalho e formas de trabalhar.",
-    "fr": "Conçu pour les configurations Linux, BSD et Windows qui utilisent plusieurs environnements de bureau et différentes façons de travailler.",
-    "es": "Diseñado para configuraciones Linux, BSD y Windows que utilizan varios entornos de escritorio y distintas formas de trabajar."
+  "Write your own applets in Python and add them to the dock.": {
+    "pt": "Escreva os seus applets em Python e adicione-os ao dock.",
+    "fr": "Écrivez vos propres applets en Python et ajoutez-les au dock.",
+    "es": "Escribe tus propios applets en Python y añádelos al dock."
   },
-  "Extensible applet system": {
-    "pt": "Sistema de applets extensível",
-    "fr": "Système d’applets extensible",
-    "es": "Sistema de applets extensible"
+  "Desktop compatibility": {
+    "pt": "Compatibilidade com ambientes de trabalho",
+    "fr": "Compatibilité avec les environnements de bureau",
+    "es": "Compatibilidad con entornos de escritorio"
   },
-  "Add your own widgets and behaviors without compromising the dock’s main runtime model.": {
-    "pt": "Adicione os seus próprios widgets e comportamentos sem comprometer o funcionamento principal do dock.",
-    "fr": "Ajoutez vos propres widgets et comportements sans compromettre le fonctionnement du dock.",
-    "es": "Añade tus propios widgets y comportamientos sin comprometer el funcionamiento del dock."
-  },
-  "Compatibility: Linux, BSD and Windows desktops": {
-    "pt": "Compatibilidade: ambientes de trabalho Linux, BSD e Windows",
-    "fr": "Compatibilité : bureaux Linux, BSD et Windows",
-    "es": "Compatibilidad: escritorios Linux, BSD y Windows"
-  },
-  "Docking selects the best backend for the current session and falls back cleanly when a compositor does not expose every window-management feature.": {
-    "pt": "O Docking seleciona a melhor integração para a sessão atual e adapta-se quando o compositor não disponibiliza todas as funcionalidades de gestão de janelas.",
-    "fr": "Docking choisit la meilleure intégration pour la session en cours et s’adapte lorsque le compositeur n’expose pas toutes les fonctions de gestion des fenêtres.",
-    "es": "Docking selecciona la mejor integración para la sesión actual y se adapta cuando el compositor no ofrece todas las funciones de gestión de ventanas."
+  "Docking chooses a backend for your desktop session. If Docking has no integration for your session, you can still launch apps and use applets.": {
+    "pt": "O Docking escolhe um backend para a sua sessão. Se não houver uma integração compatível, pode continuar a abrir aplicações e a usar applets.",
+    "fr": "Docking choisit un backend adapté à votre session. En l’absence d’une intégration compatible, vous pouvez toujours lancer des applications et utiliser des applets.",
+    "es": "Docking elige un backend para tu sesión. Si no hay una integración compatible, aún puedes abrir aplicaciones y usar applets."
   },
   "Linux X11 and Wayland · BSD X11 · Windows 11": {
     "pt": "Linux com X11 e Wayland · BSD com X11 · Windows 11",
@@ -224,10 +194,10 @@
     "fr": "Environnement",
     "es": "Entorno"
   },
-  "Backend Path": {
-    "pt": "Integração utilizada",
-    "fr": "Intégration utilisée",
-    "es": "Integración utilizada"
+  "Backend": {
+    "pt": "Backend",
+    "fr": "Backend",
+    "es": "Backend"
   },
   "Coverage": {
     "pt": "Funcionalidades disponíveis",
@@ -339,10 +309,10 @@
     "fr": "Intégration IPC de Niri",
     "es": "Integración IPC de Niri"
   },
-  "Layer-shell placement, window tracking with titles, previews, workspace switching, Show Desktop, idle time, and color picker - via native Niri IPC.": {
-    "pt": "Posicionamento via layer-shell, acompanhamento de janelas com títulos, pré-visualizações, mudança de área de trabalho, mostrar o ambiente de trabalho, tempo de inatividade e seletor de cores, via IPC nativo do Niri.",
-    "fr": "Positionnement via layer-shell, suivi des fenêtres avec leurs titres, aperçus, changement d’espace de travail, affichage du bureau, temps d’inactivité et pipette de couleurs, via l’IPC natif de Niri.",
-    "es": "Posición mediante layer-shell, seguimiento de ventanas con títulos, vistas previas, cambio de espacio de trabajo, mostrar escritorio, tiempo de inactividad y selector de colores, mediante IPC nativo de Niri."
+  "Place the dock with layer-shell. Niri IPC provides window titles and previews, workspace switching, Show Desktop, idle time, and color picking.": {
+    "pt": "O dock usa layer-shell para o posicionamento. O IPC do Niri fornece títulos e pré-visualizações de janelas, mudança de espaço de trabalho, Mostrar Área de Trabalho, tempo de inatividade e seleção de cores.",
+    "fr": "Le dock se place via layer-shell. L’IPC de Niri fournit les titres et aperçus des fenêtres, le changement d’espace de travail, l’affichage du bureau, la détection de l’inactivité et la sélection de couleurs.",
+    "es": "El dock se coloca mediante layer-shell. El IPC de Niri proporciona títulos y vistas previas de ventanas, cambio de espacio de trabajo, Mostrar escritorio, tiempo de inactividad y selección de colores."
   },
   "Wayfire compositor sessions": {
     "pt": "Sessões do compositor Wayfire",
@@ -354,10 +324,10 @@
     "fr": "Intégration IPC de Wayfire",
     "es": "Integración IPC de Wayfire"
   },
-  "Layer-shell placement, window tracking with titles, activate/minimize/close actions, workspace switching, Show Desktop, visibility-based dodge, window picking, and color picker - via native Wayfire IPC.": {
-    "pt": "Posicionamento via layer-shell, acompanhamento de janelas com títulos, ações de ativar, minimizar e fechar, mudança de área de trabalho, mostrar o ambiente de trabalho, desvio conforme a visibilidade, seleção de janelas e seletor de cores, via IPC nativo do Wayfire.",
-    "fr": "Positionnement via layer-shell, suivi des fenêtres avec leurs titres, activation, réduction et fermeture, changement d’espace de travail, affichage du bureau, esquive selon la visibilité, sélection de fenêtres et pipette de couleurs, via l’IPC natif de Wayfire.",
-    "es": "Posición mediante layer-shell, seguimiento de ventanas con títulos, acciones de activar, minimizar y cerrar, cambio de espacio de trabajo, mostrar escritorio, esquiva según la visibilidad, selección de ventanas y selector de colores, mediante IPC nativo de Wayfire."
+  "Place the dock with layer-shell. Wayfire IPC provides window titles, activation, minimization, and closing. It also supports workspace switching, Show Desktop, hiding on overlap with visible windows, and picking windows and colors.": {
+    "pt": "O dock usa layer-shell para o posicionamento. O IPC do Wayfire fornece títulos de janelas e permite ativá-las, minimizá-las e fechá-las. Também permite mudar de espaço de trabalho, mostrar a área de trabalho, ocultar o dock quando janelas visíveis o cobrem e selecionar janelas e cores.",
+    "fr": "Le dock se place via layer-shell. L’IPC de Wayfire fournit les titres des fenêtres et permet de les activer, de les réduire et de les fermer. Il permet aussi de changer d’espace de travail, d’afficher le bureau, de masquer le dock si une fenêtre visible le recouvre et de sélectionner des fenêtres et des couleurs.",
+    "es": "El dock se coloca mediante layer-shell. El IPC de Wayfire proporciona los títulos de las ventanas y permite activarlas, minimizarlas y cerrarlas. También permite cambiar de espacio de trabajo, mostrar el escritorio, ocultar el dock si una ventana visible lo cubre y seleccionar ventanas y colores."
   },
   "Varies": {
     "pt": "Variável",
@@ -429,35 +399,30 @@
     "fr": "Cage, Weston et sessions non prises en charge",
     "es": "Cage, Weston y sesiones no compatibles"
   },
-  "Safe launcher and applet mode": {
-    "pt": "Modo seguro de lançador e applets",
-    "fr": "Mode lanceur et applets sécurisé",
-    "es": "Modo seguro de lanzador y applets"
+  "Launcher and applet mode": {
+    "pt": "Modo de aplicações e applets",
+    "fr": "Mode lanceur et applets",
+    "es": "Modo de lanzador y applets"
   },
   "Reduced backend": {
     "pt": "Integração reduzida",
     "fr": "Intégration réduite",
     "es": "Integración reducida"
   },
-  "Docking remains usable without running indicators, previews, or workspace switching when no supported integration is available.": {
-    "pt": "O Docking continua utilizável sem indicadores de execução, pré-visualizações ou mudança de área de trabalho quando não existe uma integração compatível.",
-    "fr": "Docking reste utilisable sans indicateurs d’exécution, aperçus ni changement d’espace de travail lorsqu’aucune intégration compatible n’est disponible.",
-    "es": "Docking sigue siendo utilizable sin indicadores de ejecución, vistas previas ni cambio de espacio de trabajo cuando no hay una integración compatible."
+  "Launch apps and use applets. Running indicators, window previews, and workspace switching are unavailable.": {
+    "pt": "Abra aplicações e use applets. Os indicadores de aplicações em execução, as pré-visualizações de janelas e a mudança de espaço de trabalho não estão disponíveis.",
+    "fr": "Lancez des applications et utilisez des applets. Les indicateurs d’applications ouvertes, les aperçus de fenêtres et le changement d’espace de travail sont indisponibles.",
+    "es": "Abre aplicaciones y usa applets. Los indicadores de aplicaciones abiertas, las vistas previas de ventanas y el cambio de espacio de trabajo no están disponibles."
   },
-  "Built-in applets: searchable tools for the dock": {
-    "pt": "Applets integrados: ferramentas pesquisáveis para o dock",
-    "fr": "Applets intégrés : des outils à retrouver pour votre dock",
-    "es": "Applets integrados: herramientas para buscar en tu dock"
+  "Search the catalog or filter by category.": {
+    "pt": "Pesquise no catálogo ou filtre por categoria.",
+    "fr": "Recherchez dans le catalogue ou filtrez par catégorie.",
+    "es": "Busca en el catálogo o filtra por categoría."
   },
-  "Filter the catalog by workflow and find the applets that make Docking more than a launcher: system controls, command launchers, media, notes, weather, privacy indicators, and folder-friendly utilities.": {
-    "pt": "Filtre o catálogo por atividade e descubra os applets que tornam o Docking mais do que um lançador: controlos do sistema, lançadores de comandos, multimédia, notas, meteorologia, indicadores de privacidade e utilitários para pastas.",
-    "fr": "Filtrez le catalogue selon vos besoins et découvrez les applets qui font de Docking plus qu’un lanceur : commandes système, lanceurs de commandes, médias, notes, météo, indicateurs de confidentialité et outils pour les dossiers.",
-    "es": "Filtra el catálogo por actividad y descubre los applets que hacen de Docking algo más que un lanzador: controles del sistema, lanzadores de comandos, contenido multimedia, notas, tiempo, indicadores de privacidad y utilidades para carpetas."
-  },
-  "built-in applets plus folder stacks and a separator item": {
-    "pt": "applets integrados, além de pilhas de pastas e um separador",
-    "fr": "applets intégrés, ainsi que des piles de dossiers et un séparateur",
-    "es": "applets integrados, además de pilas de carpetas y un separador"
+  "built-in applets, plus folder stacks and separators": {
+    "pt": "applets integrados, além de pilhas de pastas e separadores",
+    "fr": "applets intégrés, avec en plus des piles de dossiers et des séparateurs",
+    "es": "applets integrados, además de pilas de carpetas y separadores"
   },
   "Search applets": {
     "pt": "Pesquisar applets",
@@ -539,10 +504,10 @@
     "fr": "Ambiance",
     "es": "Ambiente"
   },
-  "Calming ambient controls for focus, atmosphere, and quieter desktop sessions.": {
-    "pt": "Controlos de ambiente relaxante para concentração e sessões de trabalho mais tranquilas.",
-    "fr": "Des commandes d’ambiance apaisante pour la concentration et des sessions de travail plus calmes.",
-    "es": "Controles de ambiente relajante para concentrarte y trabajar con más tranquilidad."
+  "Play nature sounds, white noise, or pink noise on a loop.": {
+    "pt": "Reproduza sons da natureza, ruído branco ou ruído rosa em repetição.",
+    "fr": "Écoutez en boucle des sons de la nature, du bruit blanc ou du bruit rose.",
+    "es": "Reproduce en bucle sonidos de la naturaleza, ruido blanco o ruido rosa."
   },
   "Applications": {
     "pt": "Aplicações",
@@ -569,15 +534,15 @@
     "fr": "Batterie",
     "es": "Batería"
   },
-  "Battery level, charging state, and power context at a glance.": {
-    "pt": "Nível da bateria, estado de carregamento e informações de energia num relance.",
-    "fr": "Niveau de batterie, état de charge et informations d’alimentation en un coup d’œil.",
-    "es": "Nivel de batería, estado de carga e información de energía de un vistazo."
+  "Check the battery level, charging status, and estimated time remaining.": {
+    "pt": "Veja o nível da bateria, o estado de carregamento e o tempo restante estimado.",
+    "fr": "Consultez le niveau de batterie, l’état de charge et l’autonomie estimée.",
+    "es": "Consulta el nivel de batería, el estado de carga y el tiempo restante estimado."
   },
-  "Bluetooth adapter and device awareness with quick access from the dock.": {
-    "pt": "Estado do adaptador e dos dispositivos Bluetooth com acesso rápido pelo dock.",
-    "fr": "État de l’adaptateur et des appareils Bluetooth avec accès rapide depuis le dock.",
-    "es": "Estado del adaptador y de los dispositivos Bluetooth con acceso rápido desde el dock."
+  "Turn Bluetooth on or off and manage paired devices.": {
+    "pt": "Ligue ou desligue o Bluetooth e faça a gestão dos dispositivos emparelhados.",
+    "fr": "Activez ou désactivez le Bluetooth et gérez les appareils associés.",
+    "es": "Activa o desactiva Bluetooth y gestiona los dispositivos emparejados."
   },
   "Bookmarks": {
     "pt": "Marcadores",
@@ -624,10 +589,10 @@
     "fr": "Calendrier",
     "es": "Calendario"
   },
-  "Compact date browsing and schedule context.": {
-    "pt": "Consulte datas e informações de agenda numa vista compacta.",
-    "fr": "Consultez les dates et votre calendrier dans une vue compacte.",
-    "es": "Consulta fechas e información de agenda en una vista compacta."
+  "Open a pop-up calendar and browse dates.": {
+    "pt": "Abra um calendário e consulte datas.",
+    "fr": "Ouvrez un calendrier et parcourez les dates.",
+    "es": "Abre un calendario emergente y consulta fechas."
   },
   "Cam Shield": {
     "pt": "Proteção da câmara",
@@ -719,10 +684,10 @@
     "fr": "Bureau",
     "es": "Escritorio"
   },
-  "Desktop actions and surface shortcuts in one place.": {
-    "pt": "Ações e atalhos do ambiente de trabalho num só lugar.",
-    "fr": "Actions et raccourcis du bureau au même endroit.",
-    "es": "Acciones y accesos directos del escritorio en un solo lugar."
+  "Hide or restore all windows.": {
+    "pt": "Oculte ou restaure todas as janelas.",
+    "fr": "Masquez ou restaurez toutes les fenêtres.",
+    "es": "Oculta o restaura todas las ventanas."
   },
   "Devices": {
     "pt": "Dispositivos",
@@ -749,20 +714,20 @@
     "fr": "Déposez un fichier pour l’envoyer sur tmpfiles.org et copier son lien de partage temporaire.",
     "es": "Arrastra un archivo para subirlo a tmpfiles.org y copiar su enlace temporal para compartir."
   },
-  "Top headlines with manual navigation and next batches loaded up to 100 items.": {
-    "pt": "Principais notícias com navegação manual e carregamento de novos lotes até 100 itens.",
-    "fr": "Principaux titres avec navigation manuelle et chargement par lots jusqu’à 100 articles.",
-    "es": "Titulares principales con navegación manual y carga de nuevos lotes hasta 100 artículos."
+  "Browse up to 100 top Hacker News stories.": {
+    "pt": "Percorra até 100 das principais notícias do Hacker News.",
+    "fr": "Parcourez jusqu’à 100 articles populaires sur Hacker News.",
+    "es": "Explora hasta 100 historias destacadas de Hacker News."
   },
   "Hydration": {
     "pt": "Hidratação",
     "fr": "Hydratation",
     "es": "Hidratación"
   },
-  "A lightweight reminder to keep healthy breaks in view.": {
-    "pt": "Um lembrete discreto para manter as pausas saudáveis à vista.",
-    "fr": "Un rappel discret pour garder les pauses saines à l’esprit.",
-    "es": "Un recordatorio discreto para tener presentes las pausas saludables."
+  "Set a timer to remind you to drink water.": {
+    "pt": "Defina um temporizador que o lembre de beber água.",
+    "fr": "Programmez un rappel pour boire de l’eau.",
+    "es": "Programa un recordatorio para beber agua."
   },
   "KDE Connect": {
     "pt": "KDE Connect",
@@ -814,20 +779,20 @@
     "fr": "Musique",
     "es": "Música"
   },
-  "Media playback status, album-art rendering, and transport controls.": {
-    "pt": "Estado de reprodução, capas de álbuns e controlos multimédia.",
-    "fr": "État de lecture, pochettes d’album et commandes multimédias.",
-    "es": "Estado de reproducción, portadas de álbum y controles multimedia."
+  "See the current album cover and control playback.": {
+    "pt": "Veja a capa do álbum atual e controle a reprodução.",
+    "fr": "Affichez la pochette de l’album en cours et contrôlez la lecture.",
+    "es": "Ve la portada del álbum actual y controla la reproducción."
   },
   "Network": {
     "pt": "Rede",
     "fr": "Réseau",
     "es": "Red"
   },
-  "Connection state and quick network awareness.": {
-    "pt": "Estado da ligação e informações rápidas da rede.",
-    "fr": "État de la connexion et aperçu rapide du réseau.",
-    "es": "Estado de la conexión e información rápida de la red."
+  "Check your connection status and upload and download speeds.": {
+    "pt": "Veja o estado da ligação e as velocidades de envio e receção.",
+    "fr": "Consultez l’état de la connexion et les débits d’envoi et de réception.",
+    "es": "Consulta el estado de la conexión y las velocidades de subida y bajada."
   },
   "News": {
     "pt": "Notícias",
@@ -869,20 +834,20 @@
     "fr": "Rappels récurrents hors ligne pour plusieurs plantes, avec les soins à effectuer et en retard.",
     "es": "Recordatorios recurrentes sin conexión para varias plantas, con tareas previstas y atrasadas."
   },
-  "Focused work sessions with a built-in timer rhythm.": {
-    "pt": "Sessões de concentração com um temporizador integrado.",
-    "fr": "Sessions de concentration avec un minuteur intégré.",
-    "es": "Sesiones de concentración con un temporizador integrado."
+  "Set a timer for work sessions and breaks.": {
+    "pt": "Defina um temporizador para períodos de trabalho e pausas.",
+    "fr": "Réglez un minuteur pour les périodes de travail et les pauses.",
+    "es": "Configura un temporizador para los periodos de trabajo y las pausas."
   },
   "Power Profiles": {
     "pt": "Perfis de energia",
     "fr": "Profils d’alimentation",
     "es": "Perfiles de energía"
   },
-  "Switch laptop and handheld performance modes based on how you work.": {
-    "pt": "Altere os modos de desempenho de portáteis e dispositivos de mão conforme a sua atividade.",
-    "fr": "Changez les modes de performance des ordinateurs portables et appareils de poche selon votre activité.",
-    "es": "Cambia los modos de rendimiento de portátiles y dispositivos de mano según tu actividad."
+  "Switch between available power and performance modes.": {
+    "pt": "Alterne entre os modos de energia e desempenho disponíveis.",
+    "fr": "Passez d’un mode d’alimentation et de performances à l’autre.",
+    "es": "Cambia entre los modos de energía y rendimiento disponibles."
   },
   "Quick Note": {
     "pt": "Nota rápida",
@@ -919,10 +884,10 @@
     "fr": "Fichiers récents",
     "es": "Archivos recientes"
   },
-  "Jump back into documents you touched most recently.": {
-    "pt": "Regresse rapidamente aos documentos utilizados recentemente.",
-    "fr": "Retrouvez rapidement les documents utilisés récemment.",
-    "es": "Vuelve rápidamente a los documentos utilizados recientemente."
+  "Reopen recently used files.": {
+    "pt": "Volte a abrir ficheiros recentes.",
+    "fr": "Rouvrez des fichiers récents.",
+    "es": "Vuelve a abrir archivos recientes."
   },
   "Browse posts from your favorite subreddits and open them in your browser.": {
     "pt": "Explore publicações dos seus subreddits favoritos e abra-as no navegador.",
@@ -964,10 +929,10 @@
     "fr": "Session",
     "es": "Sesión"
   },
-  "Lock, logout, shutdown, and session actions close at hand.": {
-    "pt": "Bloqueio, fim de sessão, encerramento e outras ações sempre à mão.",
-    "fr": "Verrouillage, déconnexion, arrêt et actions de session à portée de main.",
-    "es": "Bloqueo, cierre de sesión, apagado y otras acciones siempre a mano."
+  "Lock the screen, log out, suspend, restart, or shut down.": {
+    "pt": "Bloqueie o ecrã, termine sessão, suspenda, reinicie ou desligue.",
+    "fr": "Verrouillez l’écran, déconnectez-vous, mettez en veille, redémarrez ou éteignez l’ordinateur.",
+    "es": "Bloquea la pantalla, cierra la sesión, suspende, reinicia o apaga el equipo."
   },
   "Speedtest": {
     "pt": "Teste de velocidade",
@@ -984,10 +949,10 @@
     "fr": "Coach d’étirements",
     "es": "Estiramientos"
   },
-  "Healthy movement reminders during long sessions.": {
-    "pt": "Lembretes de movimento saudável durante sessões longas.",
-    "fr": "Rappels de mouvement pour les longues sessions.",
-    "es": "Recordatorios de movimiento saludable durante sesiones largas."
+  "Set stretch reminders and view stretch cards offline.": {
+    "pt": "Defina lembretes para fazer alongamentos e veja os exercícios sem ligação à internet.",
+    "fr": "Programmez des rappels pour vous étirer et consultez les fiches d’exercices hors ligne.",
+    "es": "Programa recordatorios para estirarte y consulta las fichas de ejercicios sin conexión."
   },
   "Sunrise": {
     "pt": "Nascer do sol",
@@ -1049,10 +1014,10 @@
     "fr": "Corbeille",
     "es": "Papelera"
   },
-  "Trash state and cleanup access without opening a file manager.": {
-    "pt": "Estado do lixo e acesso à limpeza sem abrir um gestor de ficheiros.",
-    "fr": "État de la corbeille et accès au nettoyage sans ouvrir de gestionnaire de fichiers.",
-    "es": "Estado de la papelera y acceso a la limpieza sin abrir un gestor de archivos."
+  "See whether the trash is full, open it, or empty it.": {
+    "pt": "Veja se o lixo contém ficheiros, abra-o ou esvazie-o.",
+    "fr": "Vérifiez si la corbeille contient des fichiers, ouvrez-la ou videz-la.",
+    "es": "Comprueba si hay archivos en la papelera, ábrela o vacíala."
   },
   "Unit Converter": {
     "pt": "Conversor de unidades",
@@ -1079,15 +1044,15 @@
     "fr": "Suivi USB",
     "es": "Monitor USB"
   },
-  "Safe-remove access for mounted removable USB storage devices.": {
-    "pt": "Remova em segurança dispositivos de armazenamento USB amovíveis montados.",
-    "fr": "Retirez en toute sécurité les périphériques de stockage USB amovibles montés.",
-    "es": "Retira de forma segura los dispositivos de almacenamiento USB extraíbles montados."
+  "See mounted USB drives and safely eject them.": {
+    "pt": "Veja as unidades USB montadas e ejete-as com segurança.",
+    "fr": "Affichez les clés et disques USB montés et éjectez-les en toute sécurité.",
+    "es": "Ve las unidades USB montadas y expúlsalas de forma segura."
   },
-  "Playback and audio control integrated into the same dock surface.": {
-    "pt": "Reprodução e controlo de áudio integrados no dock.",
-    "fr": "Lecture et commandes audio intégrées au dock.",
-    "es": "Reproducción y control de audio integrados en el dock."
+  "Adjust system volume or mute audio.": {
+    "pt": "Ajuste o volume do sistema ou silencie o áudio.",
+    "fr": "Réglez le volume du système ou coupez le son.",
+    "es": "Ajusta el volumen del sistema o silencia el sonido."
   },
   "Weather": {
     "pt": "Meteorologia",
@@ -1224,10 +1189,10 @@
     "fr": "FreeBSD, OpenBSD et NetBSD : paquets natifs",
     "es": "FreeBSD, OpenBSD y NetBSD: paquetes nativos"
   },
-  "Use an X11 desktop and a package matching your OS release and architecture. BSD packages are distributed through GitHub Releases, starting with the first release containing BSD support.": {
-    "pt": "Utilize um ambiente X11 e um pacote correspondente à versão e arquitetura do seu sistema. Os pacotes BSD são distribuídos pelo GitHub Releases, a partir da primeira versão com suporte para BSD.",
-    "fr": "Utilisez un bureau X11 et un paquet adapté à la version et à l’architecture de votre système. Les paquets BSD sont distribués via GitHub Releases, à partir de la première version prenant en charge BSD.",
-    "es": "Utiliza un escritorio X11 y un paquete que corresponda a la versión y arquitectura de tu sistema. Los paquetes BSD se distribuyen mediante GitHub Releases, a partir de la primera versión compatible con BSD."
+  "Use an X11 desktop. Choose the package that matches your BSD version and architecture.": {
+    "pt": "Use um ambiente de trabalho X11. Escolha o pacote que corresponde à versão e à arquitetura do seu BSD.",
+    "fr": "Utilisez un bureau X11. Choisissez le paquet qui correspond à votre version de BSD et à votre architecture.",
+    "es": "Usa un escritorio X11. Elige el paquete que corresponda a tu versión de BSD y a tu arquitectura."
   },
   "FreeBSD installation and checksum guide": {
     "pt": "Guia de instalação e verificação de integridade para FreeBSD",
@@ -1269,15 +1234,15 @@
     "fr": "pour connaître les paquets actuellement disponibles.",
     "es": "para conocer los paquetes disponibles."
   },
-  "Build from source: clone it, hack on it, extend it": {
-    "pt": "Compilar a partir do código-fonte: clonar, modificar e expandir",
-    "fr": "Compiler depuis les sources : cloner, modifier et étendre",
-    "es": "Compilar desde el código fuente: clonar, modificar y ampliar"
+  "Build from source": {
+    "pt": "Compilar a partir do código-fonte",
+    "fr": "Compiler depuis les sources",
+    "es": "Compilar desde el código fuente"
   },
-  "Docking is open source and built for people who want control, extensibility, and a clean code path into custom workflows.": {
-    "pt": "O Docking é de código aberto e foi criado para quem procura controlo, extensibilidade e uma base de código clara para adaptar o seu modo de trabalhar.",
-    "fr": "Docking est open source et conçu pour celles et ceux qui souhaitent du contrôle, de l’extensibilité et un code clair à adapter à leur façon de travailler.",
-    "es": "Docking es de código abierto y está diseñado para quienes buscan control, extensibilidad y una base de código clara para adaptar su forma de trabajar."
+  "Install the system dependencies": {
+    "pt": "Instale as dependências do sistema",
+    "fr": "Installez les dépendances système",
+    "es": "Instala las dependencias del sistema"
   },
   "For BSD, install the native dependencies from the": {
     "pt": "No BSD, instale as dependências nativas indicadas no",
@@ -1289,10 +1254,10 @@
     "fr": "guide d’installation BSD",
     "es": "guía de instalación de BSD"
   },
-  "before setting up the Python environment.": {
-    "pt": "antes de configurar o ambiente Python.",
-    "fr": "avant de configurer l’environnement Python.",
-    "es": "antes de configurar el entorno Python."
+  "before creating the Python environment.": {
+    "pt": "antes de criar o ambiente Python.",
+    "fr": "avant de créer l’environnement Python.",
+    "es": "antes de crear el entorno de Python."
   },
   "Frequently asked questions": {
     "pt": "Perguntas frequentes",
@@ -1304,63 +1269,58 @@
     "fr": "Quels systèmes et environnements de bureau Docking prend-il en charge ?",
     "es": "¿Qué sistemas operativos y escritorios son compatibles con Docking?"
   },
-  "Docking supports Linux with X11 or Wayland, and FreeBSD, OpenBSD, and NetBSD with X11. Native Windows 11 packages are also available as an unsigned installer and portable ZIP. Linux Wayland integration depends on the desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when compositor integration is unavailable.": {
-    "pt": "O Docking é compatível com Linux em X11 ou Wayland, e com FreeBSD, OpenBSD e NetBSD em X11. Estão também disponíveis pacotes nativos para Windows 11 com instalador e ZIP portátil não assinados. No Linux, a integração Wayland depende do ambiente: ponte GNOME Shell, KWin, protocolos COSMIC, layer-shell e protocolos disponibilizados pelo wlroots, ou modo reduzido quando não há integração com o compositor.",
-    "fr": "Docking prend en charge Linux sous X11 ou Wayland, ainsi que FreeBSD, OpenBSD et NetBSD sous X11. Des paquets natifs pour Windows 11 sont également disponibles sous forme de programme d’installation et d’archive ZIP portable non signés. Sous Linux, l’intégration Wayland dépend du bureau : passerelle GNOME Shell, KWin, protocoles COSMIC, layer-shell et protocoles exposés par wlroots, ou mode réduit si l’intégration au compositeur n’est pas disponible.",
-    "es": "Docking es compatible con Linux en X11 o Wayland, y con FreeBSD, OpenBSD y NetBSD en X11. También hay paquetes nativos para Windows 11 con instalador y ZIP portátil sin firmar. En Linux, la integración Wayland depende del escritorio: puente de GNOME Shell, KWin, protocolos COSMIC, layer-shell y protocolos disponibles de wlroots, o modo reducido cuando no hay integración con el compositor."
+  "Docking runs on Linux with X11 or Wayland, and on FreeBSD, OpenBSD, and NetBSD with X11. Windows 11 x64 has an unsigned installer and portable ZIP.": {
+    "pt": "O Docking funciona em Linux com X11 ou Wayland e em FreeBSD, OpenBSD e NetBSD com X11. Para Windows 11 x64, há um instalador e um ZIP portátil sem assinatura.",
+    "fr": "Docking fonctionne sous Linux avec X11 ou Wayland, et sous FreeBSD, OpenBSD et NetBSD avec X11. Pour Windows 11 x64, un programme d’installation et un ZIP portable non signés sont disponibles.",
+    "es": "Docking funciona en Linux con X11 o Wayland y en FreeBSD, OpenBSD y NetBSD con X11. Para Windows 11 x64 hay un instalador y un ZIP portátil sin firmar."
   },
   "Can I create my own applets?": {
     "pt": "Posso criar os meus próprios applets?",
     "fr": "Puis-je créer mes propres applets ?",
     "es": "¿Puedo crear mis propios applets?"
   },
-  "Yes. Docking has an extensible applet system. Each applet is a Python package with a state, render, and applet module. You can add custom widgets and behaviors without modifying the dock's core runtime.": {
-    "pt": "Sim. O Docking tem um sistema de applets extensível. Cada applet é um pacote Python com módulos de estado, desenho e integração. Pode adicionar widgets e comportamentos personalizados sem modificar o núcleo do dock.",
-    "fr": "Oui. Docking dispose d’un système d’applets extensible. Chaque applet est un paquet Python avec des modules d’état, de rendu et d’intégration. Vous pouvez ajouter des widgets et des comportements personnalisés sans modifier le cœur du dock.",
-    "es": "Sí. Docking tiene un sistema de applets extensible. Cada applet es un paquete Python con módulos de estado, renderizado e integración. Puedes añadir widgets y comportamientos personalizados sin modificar el núcleo del dock."
+  "Yes. Create a Python package for your applet. Use separate modules for its state, icon drawing, and dock interactions.": {
+    "pt": "Sim. Crie um pacote Python para o seu applet. Use módulos separados para o estado, o desenho do ícone e a interação com o dock.",
+    "fr": "Oui. Créez un paquet Python pour votre applet. Utilisez des modules distincts pour son état, le dessin de l’icône et les interactions avec le dock.",
+    "es": "Sí. Crea un paquete de Python para tu applet. Usa módulos separados para el estado, el dibujo del icono y la interacción con el dock."
   },
   "Does Docking support Wayland?": {
     "pt": "O Docking é compatível com Wayland?",
     "fr": "Docking prend-il en charge Wayland ?",
     "es": "¿Docking es compatible con Wayland?"
   },
-  "Yes, on Linux. Wayland support is selected per desktop: GNOME Shell bridge, KWin, COSMIC protocols, wlroots layer-shell and advertised protocols, or reduced mode when needed. FreeBSD, OpenBSD, and NetBSD support uses X11.": {
-    "pt": "Sim, no Linux. O suporte Wayland é selecionado conforme o ambiente: ponte GNOME Shell, KWin, protocolos COSMIC, layer-shell e protocolos disponibilizados pelo wlroots, ou modo reduzido quando necessário. No FreeBSD, OpenBSD e NetBSD, o suporte utiliza X11.",
-    "fr": "Oui, sous Linux. La prise en charge de Wayland est choisie selon le bureau : passerelle GNOME Shell, KWin, protocoles COSMIC, layer-shell et protocoles exposés par wlroots, ou mode réduit si nécessaire. FreeBSD, OpenBSD et NetBSD utilisent X11.",
-    "es": "Sí, en Linux. La compatibilidad con Wayland se selecciona según el escritorio: puente de GNOME Shell, KWin, protocolos COSMIC, layer-shell y protocolos disponibles de wlroots, o modo reducido cuando es necesario. FreeBSD, OpenBSD y NetBSD utilizan X11."
+  "Yes, on Linux. Window controls and previews depend on the compositor. If Docking has no supported integration, you can still launch apps and use applets. FreeBSD, OpenBSD, and NetBSD use X11.": {
+    "pt": "Sim, em Linux. Os controlos e as pré-visualizações de janelas dependem do compositor. Sem uma integração compatível, pode continuar a abrir aplicações e a usar applets. FreeBSD, OpenBSD e NetBSD usam X11.",
+    "fr": "Oui, sous Linux. Les commandes et les aperçus de fenêtres dépendent du compositeur. Quand aucune intégration compatible n’est disponible, vous pouvez toujours lancer des applications et utiliser des applets. FreeBSD, OpenBSD et NetBSD utilisent X11.",
+    "es": "Sí, en Linux. Los controles y las vistas previas de ventanas dependen del compositor. Si no hay una integración compatible, aún puedes abrir aplicaciones y usar applets. FreeBSD, OpenBSD y NetBSD usan X11."
   },
   "Are all applets available on BSD?": {
     "pt": "Todos os applets estão disponíveis no BSD?",
     "fr": "Tous les applets sont-ils disponibles sur BSD ?",
     "es": "¿Están todos los applets disponibles en BSD?"
   },
-  "Applet availability depends on the operating system and installed services. Cam Shield supports FreeBSD and OpenBSD. Classic Bluetooth is supported on FreeBSD; OpenBSD has no Bluetooth stack. Cam Shield and Bluetooth controls are unavailable on NetBSD.": {
-    "pt": "A disponibilidade dos applets depende do sistema operativo e dos serviços instalados. O Cam Shield é compatível com FreeBSD e OpenBSD. O Bluetooth clássico é compatível com FreeBSD; o OpenBSD não tem uma pilha Bluetooth. Os controlos do Cam Shield e do Bluetooth não estão disponíveis no NetBSD.",
-    "fr": "La disponibilité des applets dépend du système et des services installés. Cam Shield prend en charge FreeBSD et OpenBSD. Le Bluetooth classique est pris en charge sur FreeBSD ; OpenBSD ne possède pas de pile Bluetooth. Les commandes de Cam Shield et de Bluetooth ne sont pas disponibles sur NetBSD.",
-    "es": "La disponibilidad de los applets depende del sistema operativo y de los servicios instalados. Cam Shield es compatible con FreeBSD y OpenBSD. Bluetooth clásico es compatible con FreeBSD; OpenBSD no tiene una pila Bluetooth. Los controles de Cam Shield y Bluetooth no están disponibles en NetBSD."
+  "Applet availability depends on the operating system and installed services. Cam Shield works on FreeBSD and OpenBSD. FreeBSD supports Classic Bluetooth. OpenBSD has no Bluetooth stack, and NetBSD has neither Cam Shield nor Bluetooth controls.": {
+    "pt": "A disponibilidade dos applets depende do sistema operativo e dos serviços instalados. O Cam Shield funciona em FreeBSD e OpenBSD. O FreeBSD suporta Bluetooth clássico. O OpenBSD não tem suporte para Bluetooth e o NetBSD não tem Cam Shield nem controlos de Bluetooth.",
+    "fr": "La disponibilité des applets dépend du système et des services installés. Cam Shield fonctionne sous FreeBSD et OpenBSD. FreeBSD prend en charge le Bluetooth classique. OpenBSD n’a pas de pile Bluetooth, et NetBSD ne propose ni Cam Shield ni commandes Bluetooth.",
+    "es": "La disponibilidad de los applets depende del sistema operativo y los servicios instalados. Cam Shield funciona en FreeBSD y OpenBSD. FreeBSD admite Bluetooth clásico. OpenBSD no tiene pila Bluetooth y NetBSD carece de Cam Shield y de controles de Bluetooth."
   },
   "Is Docking free and open source?": {
     "pt": "O Docking é gratuito e de código aberto?",
     "fr": "Docking est-il gratuit et open source ?",
     "es": "¿Docking es gratuito y de código abierto?"
   },
-  "Yes. Docking is licensed under GPL-3.0-or-later and fully open source. The code is hosted on GitHub and contributions are welcome.": {
-    "pt": "Sim. O Docking utiliza a licença GPL-3.0-or-later e é totalmente de código aberto. O código está alojado no GitHub e as contribuições são bem-vindas.",
-    "fr": "Oui. Docking est distribué sous licence GPL-3.0-or-later et son code est entièrement ouvert. Le code est hébergé sur GitHub et les contributions sont les bienvenues.",
-    "es": "Sí. Docking utiliza la licencia GPL-3.0-or-later y es completamente de código abierto. El código está alojado en GitHub y las contribuciones son bienvenidas."
+  "Yes. Docking uses the GPL-3.0-or-later license. You can read the source and contribute on GitHub.": {
+    "pt": "Sim. O Docking usa a licença GPL-3.0-or-later. Pode consultar o código-fonte e contribuir no GitHub.",
+    "fr": "Oui. Docking utilise la licence GPL-3.0-or-later. Vous pouvez consulter le code source et contribuer sur GitHub.",
+    "es": "Sí. Docking usa la licencia GPL-3.0-or-later. Puedes consultar el código fuente y contribuir en GitHub."
   },
-  "Start using Docking today": {
-    "pt": "Comece a utilizar o Docking hoje",
-    "fr": "Commencez à utiliser Docking dès aujourd’hui",
-    "es": "Empieza a utilizar Docking hoy"
+  "Get Docking": {
+    "pt": "Obter o Docking",
+    "fr": "Obtenir Docking",
+    "es": "Obtener Docking"
   },
-  "Install a build, star the project, and shape a dock that fits the way you actually work.": {
-    "pt": "Instale uma versão, dê uma estrela ao projeto e adapte o dock à sua forma de trabalhar.",
-    "fr": "Installez une version, ajoutez une étoile au projet et adaptez le dock à votre façon de travailler.",
-    "es": "Instala una versión, dale una estrella al proyecto y adapta el dock a tu forma de trabajar."
-  },
-  "GitHub Star": {
-    "pt": "Dar estrela no GitHub",
+  "Star on GitHub": {
+    "pt": "Dar uma estrela no GitHub",
     "fr": "Ajouter une étoile sur GitHub",
     "es": "Dar una estrella en GitHub"
   },
@@ -1699,10 +1659,10 @@
     "fr": "Windows 11 : programme d’installation ou ZIP portable",
     "es": "Windows 11: instalador o ZIP portátil"
   },
-  "Windows packages include Python and GTK. They are unsigned; signing is deferred.": {
-    "pt": "Os pacotes para Windows incluem Python e GTK. Não são assinados; a assinatura fica para uma fase posterior.",
-    "fr": "Les paquets pour Windows incluent Python et GTK. Ils ne sont pas signés ; la signature est prévue ultérieurement.",
-    "es": "Los paquetes para Windows incluyen Python y GTK. No están firmados; la firma se ha aplazado."
+  "Both packages include Python and GTK. Docking's Windows packages are currently unsigned.": {
+    "pt": "Ambos os pacotes incluem Python e GTK. Os pacotes do Docking para Windows ainda não têm assinatura.",
+    "fr": "Les deux paquets incluent Python et GTK. Les paquets Windows de Docking sont actuellement non signés.",
+    "es": "Ambos paquetes incluyen Python y GTK. Los paquetes de Docking para Windows aún no están firmados."
   },
   "1. Download and verify the package": {
     "pt": "1. Transfira e verifique o pacote",
@@ -1724,15 +1684,15 @@
     "fr": "2. Installez Docking",
     "es": "2. Instala Docking"
   },
-  "Installer: run setup as your normal user. It adds a Start menu shortcut and offers launch at login. Administrator access is not required.": {
-    "pt": "Instalador: execute a instalação com o seu utilizador normal. Adiciona um atalho ao menu Iniciar e permite iniciar com a sessão. Não é necessário acesso de administrador.",
-    "fr": "Programme d’installation : lancez-le avec votre compte habituel. Il ajoute un raccourci au menu Démarrer et propose le lancement à l’ouverture de session. Les droits administrateur ne sont pas nécessaires.",
-    "es": "Instalador: ejecuta la instalación con tu usuario habitual. Añade un acceso directo al menú Inicio y ofrece el inicio al abrir sesión. No se requiere acceso de administrador."
+  "Run the installer as your normal user. It adds a Start menu shortcut and lets you choose whether Docking starts when you sign in.": {
+    "pt": "Execute o instalador como utilizador normal. O instalador adiciona um atalho ao menu Iniciar e permite escolher se o Docking abre ao iniciar sessão.",
+    "fr": "Lancez le programme d’installation avec votre compte habituel. Il ajoute un raccourci au menu Démarrer et vous laisse choisir si Docking se lance à l’ouverture de session.",
+    "es": "Ejecuta el instalador con tu cuenta habitual. Añade un acceso directo al menú Inicio y te permite elegir si Docking se abre al iniciar sesión."
   },
-  "Portable ZIP: extract the entire archive to a writable folder, then open Docking.exe inside the Docking folder. Keep the runtime folder beside the launcher.": {
-    "pt": "ZIP portátil: extraia todo o arquivo para uma pasta com permissão de escrita e abra Docking.exe dentro da pasta Docking. Mantenha a pasta runtime junto do executável.",
-    "fr": "ZIP portable : extrayez toute l’archive dans un dossier accessible en écriture, puis ouvrez Docking.exe dans le dossier Docking. Gardez le dossier runtime à côté du lanceur.",
-    "es": "ZIP portátil: extrae todo el archivo en una carpeta con permisos de escritura y abre Docking.exe dentro de la carpeta Docking. Mantén la carpeta runtime junto al lanzador."
+  "For the portable ZIP, extract the entire archive to a folder you can write to. Open Docking.exe inside the Docking folder and keep the runtime folder beside it.": {
+    "pt": "Para usar o ZIP portátil, extraia todo o arquivo para uma pasta onde possa escrever. Abra Docking.exe na pasta Docking e deixe a pasta runtime ao lado.",
+    "fr": "Pour utiliser le ZIP portable, extrayez toute l’archive dans un dossier où vous pouvez écrire. Ouvrez Docking.exe dans le dossier Docking et laissez le dossier runtime à côté.",
+    "es": "Para usar el ZIP portátil, extrae todo el archivo en una carpeta donde puedas escribir. Abre Docking.exe en la carpeta Docking y deja la carpeta runtime junto al ejecutable."
   },
   "Web-based applets also need Microsoft's": {
     "pt": "Os applets Web também precisam do",
@@ -1754,10 +1714,10 @@
     "fr": "Pour mettre à jour, téléchargez et vérifiez le nouveau paquet, puis fermez Docking et ses processus de suivi d’utilisation de l’IA. Relancez le programme d’installation ou extrayez le ZIP portable dans un nouveau dossier.",
     "es": "Para actualizar, descarga y verifica el nuevo paquete y cierra Docking y sus procesos de seguimiento del uso de IA. Ejecuta de nuevo el instalador o extrae el ZIP portátil en una carpeta nueva."
   },
-  "Remove an installed copy through Windows Installed Apps. For a portable copy, close Docking and delete its folder. Saved preferences are kept.": {
-    "pt": "Remova uma cópia instalada através de Aplicações instaladas no Windows. Para uma cópia portátil, feche o Docking e elimine a pasta. As preferências guardadas são mantidas.",
-    "fr": "Supprimez une copie installée depuis Applications installées dans Windows. Pour une copie portable, fermez Docking et supprimez son dossier. Les préférences enregistrées sont conservées.",
-    "es": "Elimina una copia instalada desde Aplicaciones instaladas de Windows. Para una copia portátil, cierra Docking y elimina su carpeta. Se conservan las preferencias guardadas."
+  "Uninstall Docking from Windows Installed Apps. To remove a portable copy, close Docking and remove any AI Usage hooks that point to that copy before deleting its folder. Both methods keep your preferences.": {
+    "pt": "Desinstale o Docking em Aplicações instaladas do Windows. Para remover uma cópia portátil, feche o Docking e remova os hooks do AI Usage que apontam para essa cópia antes de apagar a pasta. Ambos os métodos mantêm as suas preferências.",
+    "fr": "Désinstallez Docking depuis Applications installées dans Windows. Pour supprimer une copie portable, fermez Docking et retirez les hooks d’AI Usage qui pointent vers cette copie avant de supprimer son dossier. Les deux méthodes conservent vos préférences.",
+    "es": "Desinstala Docking desde Aplicaciones instaladas de Windows. Para quitar una copia portátil, cierra Docking y elimina los hooks de AI Usage que apuntan a esa copia antes de borrar su carpeta. Ambos métodos conservan tus preferencias."
   },
   "Add the repository and install or upgrade Docking": {
     "pt": "Adicionar o repositório e instalar ou atualizar o Docking",
@@ -1779,10 +1739,10 @@
     "fr": "Mettre à jour Docking",
     "es": "Actualizar Docking"
   },
-  "Once setup is complete, regular APT upgrades include Docking. To refresh package lists and update Docking directly, run the following command.": {
-    "pt": "Depois da configuração, as atualizações normais do APT incluem o Docking. Para atualizar as listas de pacotes e o Docking diretamente, execute o comando abaixo.",
-    "fr": "Une fois la configuration terminée, les mises à jour habituelles via APT incluent Docking. Pour actualiser les listes de paquets et mettre à jour Docking directement, exécutez la commande suivante.",
-    "es": "Después de configurar el repositorio, las actualizaciones habituales de APT incluyen Docking. Para actualizar las listas de paquetes y Docking directamente, ejecuta el siguiente comando."
+  "APT includes Docking in regular upgrades. Use this command to update Docking on its own.": {
+    "pt": "O APT inclui o Docking nas atualizações regulares. Use este comando para atualizar apenas o Docking.",
+    "fr": "APT inclut Docking dans les mises à jour habituelles. Utilisez cette commande pour mettre Docking à jour séparément.",
+    "es": "APT incluye Docking en las actualizaciones habituales. Usa este comando para actualizar Docking por separado."
   },
   "Run repository setup once, including if you already installed a standalone RPM.": {
     "pt": "Configure o repositório uma vez, mesmo que já tenha instalado um RPM autónomo.",

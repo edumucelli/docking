@@ -1,54 +1,38 @@
 # Configuration
 
-Docking can be configured from its right-click menu or by editing its JSON
-configuration file. The preferences window is the recommended way to change
-normal settings because it validates values and applies most changes
-immediately.
+Use **Preferences** to change dock settings. Docking checks the values and
+applies most changes immediately. You can also edit the JSON settings file by hand.
 
-## First Use
+## First use
 
-Start by opening the dock menu: right-click the shelf background between icons.
-If the dock is full or the background is hard to hit, hold **Ctrl** while
-right-clicking anywhere on the shelf to show the same dock menu.
+Right-click between icons to open the dock menu. If there is no room between
+icons, hold **Ctrl** and right-click anywhere on the dock.
 
-The first things to explore are:
+- Choose **Preferences** to change how the dock looks and behaves. Choose
+  **Display** from the dock menu to move the dock to another monitor.
+- Choose **Add Applet** and pick an applet from the menu.
+- To insert a separator, right-click where you want it and choose **Add Separator**.
+- To pin a running app, right-click it and choose **Keep in Dock**. You can also
+  drag applications, `.desktop` files, other files, folders, and AppImages onto
+  the dock.
+- To remove a pin, right-click it and choose **Remove from Dock**. You can also
+  drag an unlocked item off the dock.
+- To set a custom icon, right-click a pinned app, file, or folder, open **Icon**,
+  and choose **Choose From File...**. The same menu can restore the default icon.
+- Open a pinned folder to browse its contents as a stack. Right-click the folder
+  to change its display options.
 
-- **Preferences**: open right-click -> **Preferences** to choose position,
-  monitor behavior, icon size, zoom, hiding, click actions, themes, tooltips,
-  previews, and update checks.
-- **Add Applet**: right-click the shelf background -> **Add Applet** to add
-  launchers, system status, media, productivity, and utility applets.
-- **Add Separator**: right-click the shelf background where the separator
-  should appear -> **Add Separator**.
-- **Pin and remove items**: right-click a running app -> **Keep in Dock**,
-  right-click a pinned item -> **Remove from Dock**, or drag an unlocked item
-  off the dock to remove it.
-- **Drag items in**: drop applications, `.desktop` files, files, folders, and
-  AppImages onto the dock to pin them.
-- **Customize icons**: right-click a pinned app, file, or folder -> **Icon** ->
-  **Choose From File...** to use an image from disk, or reset it back to the
-  automatically detected icon.
-- **Folder stacks**: pin a folder and open it from the dock for quick access to
-  its contents.
-- **Diagnostics**: open right-click -> **Diagnostics** when checking backend
-  support or preparing a support report. **Copy Report** or **Save Report...**
-  includes dock placement settings, monitor geometry and GDK-reported workareas,
-  architecture, and kernel version. Feature support is reported by the backend;
-  the report does not verify that each feature is working. Refresh after changing
-  settings before sharing a report with a bug report.
+Choose **Diagnostics** from the dock menu to see what your desktop session
+supports. **Copy Report** and **Save Report...** include dock placement settings,
+monitor geometry, work areas reported by GDK, architecture, and kernel version.
+The report lists the features the backend advertises without running feature
+tests. Refresh it after changing settings and before attaching it to a bug report.
 
-## Configuration Surfaces
+<a id="configuration-surfaces"></a>
 
-- **Preferences** controls appearance, placement, monitor behavior, layout,
-  mouse actions, hiding, stacks, recent items, applets, and update checks.
-- **Display** moves the dock to another monitor without opening Preferences.
-- **Add Applet** and **Add Separator** add dock items.
-- Item context menus pin or remove entries, choose custom icons, and configure
-  folder-stack display options.
-- **Diagnostics** reports backend and desktop capabilities. It does not change
-  configuration.
+## Settings file
 
-All normal preferences are stored in:
+Docking saves preferences in:
 
 ```text
 ~/.config/docking/dock.json
@@ -59,9 +43,8 @@ applet, launchers for common applications found on the system, and the Clock,
 Calendar, Weather, System Monitor, Hydration, Notifications, and Session
 applets.
 
-A configuration file has this basic shape. Docking writes all supported
-top-level settings when it saves the file; shortened examples can omit settings
-that should use their defaults.
+Docking writes all supported top-level settings when it saves the file. If you
+omit a setting, Docking uses its default.
 
 ```json
 {
@@ -110,7 +93,7 @@ immediately. Docking keeps the previous configuration in its regular
 `dock.json.bak` backup and reads the source configuration in place. Theme files
 and plug-in-specific preferences need separate setup.
 
-## Settings Reference
+## Settings reference
 
 Boolean defaults are shown as `true` or `false`, matching their JSON values.
 Fields described as internal state are maintained by Docking and generally
@@ -143,7 +126,7 @@ both names are present, and subsequent saves use only the new names.
 See [Themes](#themes) for theme locations, the built-in gallery, and the
 custom theme format.
 
-### Placement and Monitors
+### Placement and monitors
 
 | Setting | Default | Values | Description |
 |---|---:|---|---|
@@ -155,17 +138,16 @@ custom theme format.
 | `monitor_index` | `-1` | `-1` or non-negative integer | Monitor fallback. `-1` selects the primary monitor. |
 | `monitor_connector` | `null` | output name or `null` | Stable monitor connector selected by Docking when the backend exposes one. It is preferred over the numeric index so monitor selection survives display reordering. |
 
-Enabling `active_display` makes the saved monitor selection a fallback because
-the dock follows the pointer at runtime.
+When `active_display` is on, Docking follows the pointer and uses the saved
+monitor as a fallback.
 
-**Preferences → Appearance → Placement** provides the Alignment slider.
-The displayed position is clamped to the actual available surface, which
-can vary with monitors, panels, compositor allocations, dock length, and zoom.
-The saved alignment is retained when clamped or when switching
-screen edges or monitors. Hover zoom grows the shelf evenly around its resting
-center until it reaches an edge of the available surface. A fully aligned shelf
-grows inward. Oversized docks fit within the surface, and zoom near a boundary
-is limited when needed to keep the hovered item clickable.
+To find the **Alignment** slider, open **Preferences** and go to **Placement**
+in the **Appearance** tab. Docking keeps the shelf within the space the
+compositor gives it, accounting for monitors, panels, dock length, and zoom.
+Your saved alignment stays the same when Docking adjusts the position or when
+you switch edges or monitors. On hover, the shelf grows evenly from the center
+until it reaches a boundary. At either end of the slider, it grows inward.
+Docking limits the shelf size and hover zoom near a boundary to keep items clickable.
 
 ### Layout
 
@@ -188,7 +170,7 @@ move items. **Apply** saves the order and applies any additions and removals.
 **Cancel** restores the saved order and discards pending edits. Unavailable pins
 stay in the editor so you can remove them or keep them for later.
 
-### Mouse, Menus, and Stacks
+### Mouse, menus, and stacks
 
 | Setting | Default | Values | Description |
 |---|---:|---|---|
@@ -213,7 +195,7 @@ Middle-click actions behave as follows:
 - `minimize` minimizes all open windows belonging to the application.
 - `close-focused` closes the application's focused window.
 
-### Hiding and Revealing
+### Hiding and revealing
 
 | Setting | Default | Values | Description |
 |---|---:|---|---|
@@ -260,7 +242,7 @@ Hide modes:
 Some hide modes depend on the current desktop backend's window tracking. Use
 **Diagnostics** to see which integration is active in the current session.
 
-### Startup and Updates
+### Startup and updates
 
 On a native Linux installation, turn on **Start at Login** under
 **Preferences → Behavior** to open Docking automatically when you sign in to a
@@ -296,7 +278,7 @@ the captured sequence directly when the portal is unavailable.
 Relevance privacy, previews, and provider behavior are documented in
 [Global Search](#global-search).
 
-### Recent Applications and Documents
+### Recent applications and documents
 
 | Setting | Default | Values | Description |
 |---|---:|---|---|
@@ -307,7 +289,7 @@ Relevance privacy, previews, and provider behavior are documented in
 | `show_recent_docs_in_menu` | `true` | boolean | Adds a Recent Documents submenu to application context menus. |
 | `recent_docs_max` | `10` | `1` to `25` | Maximum recent documents shown for each application. |
 
-## Pinned Items
+## Pinned items
 
 `pinned` is the ordered list of permanent dock entries. Docking normally
 updates it through pin, remove, add-applet, and drag-and-drop actions.
@@ -333,8 +315,7 @@ Each entry has two fields:
 | `file` | absolute `file://` URI | Pinned file. |
 | `folder` | absolute `file://` URI | Pinned folder displayed as a stack. |
 
-Older configuration files that store pinned entries as plain strings are still
-accepted and converted to typed entries when loaded.
+Docking converts plain strings in older files to this format when it loads them.
 
 Right-click a folder to browse its contents. **Open Folder**, **Open in Terminal**,
 **Open With…**, sorting, and hidden-file controls appear before the contents,
@@ -349,7 +330,7 @@ files. The Windows chooser can remain open after Docking exits. Press Escape to
 dismiss it. Terminal opening uses the selected folder as its
 working directory; Windows opens Windows PowerShell in a new console.
 
-## Per-Applet and Per-Item Preferences
+## Per-applet and per-item preferences
 
 `applet_prefs` is a map keyed by applet ID or applet instance. Its contents are
 owned by each applet and can include locations, units, timers, display modes,
@@ -366,18 +347,17 @@ settings such as custom icon source/path and folder-stack sorting or hidden-file
 visibility. These maps are intentionally open-ended so new applet or item
 preferences do not require a new top-level configuration field.
 
-## Manual Editing and Recovery
+## Manual editing and recovery
 
-Quit Docking before manually editing `dock.json`; otherwise a setting change or
-runtime update can overwrite the file while the application is running. Keep
-the file as valid JSON and restart Docking after saving it.
+Quit Docking before editing `dock.json`. Docking can overwrite the file while
+it runs. Save it as valid JSON, then restart Docking.
 
-Docking normalizes known values when loading:
+When Docking loads the file, it checks the settings:
 
-- out-of-range numeric settings are clamped where limits exist;
-- invalid choices fall back to their defaults;
-- malformed pinned and recent-app entries are discarded;
-- unknown top-level keys are ignored.
+- It limits numeric settings to their allowed range.
+- It uses defaults for invalid choices.
+- It discards malformed pinned and recent-app entries.
+- It ignores unknown top-level keys.
 
 Configuration saves are atomic. Before replacing an existing valid file,
 Docking keeps the previous version at:
@@ -386,10 +366,9 @@ Docking keeps the previous version at:
 ~/.config/docking/dock.json.bak
 ```
 
-If the main file cannot be loaded, Docking attempts to recover from that backup
-and falls back to defaults only when neither file is usable. The legacy
-`folder_stack_unfold` key is also recognized when `stack_unfold` is absent, so
-older configuration files keep their stack behavior.
+If Docking cannot load the main file, it tries the backup. It uses defaults
+only if both files are unusable. Docking also reads the older
+`folder_stack_unfold` key when `stack_unfold` is absent.
 
 ## Global Search
 
@@ -401,9 +380,9 @@ controls](#keyboard-controls) to open, preview, or act on results.
 Calculations support scientific notation, exponentiation (`2^8`), modulo,
 constants such as `pi`, and common functions such as `sqrt`, `sin`, and `log`.
 
-Currency expressions lazily fetch a generic EUR-based rate table from
-Frankfurter. The typed amount and currency pair are not sent. Successful rates
-are cached for one hour and refreshed in the background.
+For currency conversions, Docking uses a table of EUR-based rates from
+Frankfurter. The request omits your amount and currency pair. Docking caches
+the rates for one hour and refreshes them in the background.
 
 Time-zone queries accept every IANA zone installed on the system. Use a full
 identifier such as `time in America/New_York`, or an unambiguous location name
@@ -418,8 +397,8 @@ matter, for example `2026-12-01 10:00 Paris to Tokyo`.
 
 ### Provider examples
 
-Applications, dock items, windows, and recent files search discovered desktop
-state together. Utility providers activate when their syntax is recognized.
+Search checks applications, dock items, windows, and recent files together.
+It runs calculators and other utilities when it recognizes the query format.
 
 | Provider | Example queries | What the result can do |
 |---|---|---|
@@ -444,11 +423,10 @@ state together. Utility providers activate when their syntax is recognized.
 
 ### Relevance learning and privacy
 
-Docking learns from activated results and actions. Frequency, query-specific
-selection, and recency provide a small bounded ranking boost that cannot
-override stronger text-match tiers. The state file stores SHA-256 identifiers;
-raw queries, result titles, file paths, and document names are not persisted.
-These hashes are pseudonymous rather than encrypted.
+Search gives a small boost to results and actions you choose often, recently,
+or for that query. Stronger text matches still rank higher. Docking stores
+SHA-256 hashes as pseudonymous identifiers and omits the original queries,
+result titles, file paths, and document names.
 
 ```text
 ~/.local/state/docking/search-usage.json
@@ -471,7 +449,7 @@ Large, binary, unsupported, or failed previews fall back to safe metadata.
 
 Docking includes thirteen themes and supports custom themes stored as JSON files.
 
-### Built-in Themes
+### Built-in themes
 
 | Candy | Default |
 |---|---|
@@ -489,7 +467,7 @@ Docking includes thirteen themes and supports custom themes stored as JSON files
 | Transparent | |
 | ![Transparent theme](../images/themes/transparent.png) | |
 
-### Theme Files
+### Theme files
 
 Docking loads user themes from:
 
@@ -517,14 +495,12 @@ Boolean, enum/string-choice, and count fields are exceptions and stay semantic
 without a type suffix, for example `shelf.round_bottom`, `indicators.style`,
 and `indicators.max_dots`.
 
-Theme layout also controls edge spacing through
-`layout.distance_from_edge_px`, which is how floating themes such as `slate`
-keep the dock visually separated from the screen edge.
+Use `layout.distance_from_edge_px` to set the gap between the dock and the
+screen edge. Floating themes such as `slate` use this setting.
 
-Older flat theme fields such as `h_padding` are migrated automatically when a
-user theme is loaded.
+Docking converts older flat fields such as `h_padding` when it loads a user theme.
 
-### Theme Fields
+### Theme fields
 
 #### Shelf
 
@@ -566,7 +542,7 @@ unless suffixed:
 | `indicators.size_px` | `5` | px | Indicator diameter (radius = `size_px / 2`). |
 | `indicators.max_dots` | `4` | int | Maximum number of dots shown when an app has multiple windows. Above this, a count badge is drawn. |
 
-#### Hover Effects
+#### Hover effects
 
 `items.hover.*` controls the hover lighten effect:
 
@@ -575,7 +551,7 @@ unless suffixed:
 | `items.hover.lighten_amount` | `0.2` | 0.0-1.0 | Additive brightness applied to the hovered icon. |
 | `items.hover.fade_ms` | `150` | ms | Fade in/out duration for the hover lighten. |
 
-#### Bounce Animations
+#### Bounce animations
 
 `items.bounce.*` controls icon bounce animations:
 
@@ -587,7 +563,7 @@ unless suffixed:
 | `items.bounce.launch_time_ms` | `600` | ms | Duration of one launch bounce. |
 | `items.bounce.click_time_ms` | `300` | ms | Duration of the click feedback bounce. |
 
-#### Glow Effects
+#### Glow effects
 
 `items.glow.*` controls the active-app shelf glow and urgent halo:
 
@@ -601,7 +577,7 @@ unless suffixed:
 | `items.glow.urgent_pulse_ms` | `2000` | ms | One pulse cycle period for the urgent halo. |
 | `items.glow.urgent_size_ratio` | `0.6` | fraction of `icon_size` | Radius of the urgent halo. |
 
-### Creating a Custom Theme
+### Creating a custom theme
 
 - Docking creates `~/.config/docking/themes/template.json` on startup.
 - Copy `template.json` to a new name, such as `my-theme.json`, then edit it.

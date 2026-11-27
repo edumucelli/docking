@@ -2,11 +2,9 @@
 
 [Back to Docking](../README.md)
 
-Install a release package using the instructions below. For a source checkout,
-see the [development guide](DEVELOPMENT.md#source-setup). Compositor setup and
-feature coverage are in the [Wayland support](#wayland-support).
-
-The [website](https://docking.cc/#install) also provides installation instructions.
+Choose a package for your system below. To run Docking from source, see the
+[development guide](DEVELOPMENT.md#source-setup). For compositor setup and
+feature coverage, see [Wayland support](#wayland-support).
 
 ## Install with a package manager
 
@@ -47,8 +45,8 @@ Open Docking from your application menu.
 
 ### Update Docking
 
-Once setup is complete, regular APT upgrades include Docking. To refresh package
-lists and update Docking directly, run the following command.
+APT includes Docking in regular upgrades. To refresh the package lists and
+update Docking directly, run:
 
 ```sh
 sudo apt update && sudo apt install docking
@@ -102,11 +100,11 @@ sudo zypper refresh docking-rpm docking-rpm-noarch && sudo zypper update docking
 
 ### Fedora release packages
 
-[GitHub Releases](https://github.com/edumucelli/docking/releases) include native
-Fedora builds starting with the first release containing them. Choose the
-`docking-<version>-1.fc<release>.<arch>.rpm` matching your Fedora release and
-architecture. Run the command below from the download directory and replace
-`PACKAGE.rpm` with the downloaded filename.
+When a release has native Fedora builds, choose the
+`docking-<version>-1.fc<release>.<arch>.rpm` that matches your Fedora version
+and architecture. Download it from
+[GitHub Releases](https://github.com/edumucelli/docking/releases). Run the
+command from the download directory and replace `PACKAGE.rpm` with the filename.
 
 ```sh
 sudo dnf install ./PACKAGE.rpm
@@ -149,18 +147,21 @@ The flake also exposes the `docking` package for use in other
 
 ## FreeBSD, OpenBSD, and NetBSD
 
+Download the package that matches your system from GitHub Releases.
 
-BSD packages are published as GitHub Release assets, starting with the first
-release containing BSD support. Current build targets are FreeBSD 15.1/amd64
-(Python 3.12), OpenBSD 7.9/amd64 (Python 3.13), and NetBSD 11.0/amd64
-(Python 3.12). Use a package matching the OS release and architecture. The
-package includes Docking, translations, icons, and
-its Python runtime dependencies; GTK, Cairo, GI and psutil use native packages.
+| System | Architecture | Python |
+|---|---|---|
+| FreeBSD 15.1 | amd64 | 3.12 |
+| OpenBSD 7.9 | amd64 | 3.13 |
+| NetBSD 11.0 | amd64 | 3.12 |
+
+The package includes Docking, translations, icons, and its Python dependencies.
+Install GTK, Cairo, GI, and psutil using your system's package manager.
 
 FreeBSD users can also build the [Docking port](#freebsd-ports) in a local Ports tree.
 
-Run the dependency installation and package-manager commands as root. Downloads
-and checksum verification can run as an ordinary user.
+Run package-manager commands as root. You can download files and verify
+checksums as an ordinary user.
 
 On FreeBSD 15.1/amd64:
 
@@ -232,8 +233,8 @@ pkg_add "./docking-${VERSION}.tgz"
 Start `docking` inside the desktop session. For updates, download and verify the
 new release, then use `pkg add -f` on FreeBSD or `pkg_add -u -D unsigned` on
 OpenBSD, or `pkg_add -u` on NetBSD. NetBSD installs Docking under `/usr/pkg`;
-FreeBSD and OpenBSD use `/usr/local`. These are direct release downloads; no third-party package repository
-is configured. The release also includes versioned filenames and
+FreeBSD and OpenBSD use `/usr/local`. You can install these downloads without
+adding a package repository. The release also includes versioned filenames and
 `SHA256SUMS-bsd`.
 
 Cam Shield uses BSD kernel file tables to identify camera holders. Its packaged
@@ -283,7 +284,7 @@ Windows-enabled releases include an **unsigned Windows 11 x64 preview** installe
 and portable ZIP on [GitHub Releases](https://github.com/edumucelli/docking/releases).
 Both contain Python, GTK and their dependencies. You do not need MSYS2, a source
 checkout, a separate Python installation or administrator access. Web-based
-applets additionally need Microsoft's
+applets also need Microsoft's
 [Evergreen WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
 The [Windows coverage notes](WINDOWS.md) describe tested behavior and limitations.
 
@@ -298,17 +299,17 @@ Get-FileHash .\docking-latest-windows-x86_64-setup.exe -Algorithm SHA256
 Get-FileHash .\docking-latest-windows-x86_64.zip -Algorithm SHA256
 ```
 
-Checksums verify that the download matches the release; they are not a publisher
-signature. Signing is deferred, so Windows may display an unknown-publisher or
-SmartScreen prompt. Use the project release source and verify the checksum
-before deciding whether to run an unsigned preview.
+A matching checksum verifies the downloaded file against the release manifest.
+The packages are unsigned, so Windows may show an unknown-publisher or
+SmartScreen prompt. Download from GitHub Releases and verify the checksum
+before deciding whether to run the installer.
 
 Run setup as your normal user. It defaults to
 `%LOCALAPPDATA%\Programs\Docking`, adds a Start menu shortcut and an Installed Apps
 entry, and offers optional launch at login. Windows Startup Apps policy can
 override that choice. For the portable package, extract the **entire** ZIP to a
-writable directory and open `Docking\Docking.exe`; keep its `runtime` directory
-beside the launcher.
+folder you can write to. Open `Docking\Docking.exe` and keep the `runtime`
+folder beside it.
 
 Docking's update notice offers **View Release**, which opens the release page.
 Download and verify the new package, close Docking and its AI usage-hook processes,
@@ -317,10 +318,21 @@ existing startup choice unless you change it, and refuses an upgrade while an
 owned process is still running. For a portable update, extract the new ZIP into a
 fresh directory and use its launcher. Update notices do not install packages.
 
-Remove an installed copy through Windows **Installed Apps**. Uninstall removes
-Docking's installed files and owned usage-hook entries while keeping preferences
-and unknown files; those files can leave folders behind. Portable copies can be
-deleted after their processes close. Neither method removes your saved preferences.
+Uninstall Docking from Windows **Installed Apps**. The uninstaller removes
+installed files and Docking's usage-hook entries. It keeps unknown files, so
+some folders may remain.
+
+To remove a portable copy, close Docking, its usage-hook processes, and any
+affected CLI tools. If you used AI Usage, back up the CLI configuration files
+below. Remove only entries that run `hook_runner.py` using that portable copy:
+
+- In `%USERPROFILE%\.claude\settings.json`, remove the matching commands from
+  the `Stop` and `SessionStart` hooks. Keep other commands in those lists.
+- In `%USERPROFILE%\.codex\config.toml`, remove the top-level `notify` setting
+  if it points to the same portable copy.
+
+Delete the portable folder after removing those entries. Both removal methods
+keep your saved preferences.
 
 ## Release downloads
 
@@ -366,7 +378,7 @@ tar -C docking-nix-output -xf "docking-latest-linux-${ARCH}-nix-output.tar.gz"
 ./docking-nix-output/bin/docking
 ```
 
-## Source Requirements
+## Source requirements
 
 - Linux desktop with X11 or Wayland, or FreeBSD/OpenBSD/NetBSD with composited X11.
 - BSD native packages: [FreeBSD, OpenBSD, and NetBSD](#freebsd-and-openbsd).
@@ -389,7 +401,7 @@ sudo apt install \
   libcairo2-dev libgirepository1.0-dev pkg-config
 ```
 
-The WhatsApp applet additionally needs WebKitGTK. Install
+The WhatsApp applet also needs WebKitGTK. Install
 `gir1.2-webkit2-4.1`, or `gir1.2-webkit2-4.0` on systems such as Ubuntu 22.04.
 
 Native Wayland layer-shell source installs also need the system
@@ -443,7 +455,7 @@ one with `DOCKING_BACKEND`.
 | **Treeland** | Deepin Wayland | Standard layer-shell window tracking and previews, plus Treeland Show Desktop and overlap-driven hiding. Left-edge overlap falls back until Treeland fixes its current left-anchor checker |
 | **Reduced** | Cage, Weston, and Wayland compositors without a supported integration | Launcher-only mode with no running indicators, previews, or workspace switching. Cage is a single-application kiosk without a suitable layer-shell surface; Weston reserves its shell protocols for its configured shell or IVI controller |
 
-### GNOME Shell Bridge
+### GNOME Shell bridge
 
 On GNOME, Docking uses a companion GNOME Shell extension
 (`docking-bridge@docking.org`) that provides window management, previews,

@@ -4,6 +4,8 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
+- Simplified website copy in all four languages, the README, and the user and
+  developer guides.
 - Added an opt-in **Start at Login** switch in Preferences for native Linux
   installations.
 - Added a Nix flake for x86_64 and aarch64 Linux and a FreeBSD Ports recipe for
@@ -24,11 +26,15 @@ Docking versions are listed in descending version order. Dates are in UTC.
   refreshed APT package lists before resolving dependencies.
 - Clarified how to preserve other repositories when resolving setup conflicts.
 - Added APT release checks for Linux Mint 22.3 with Cinnamon, MATE, and Xfce.
+- Added **Previous Headline** to the Hacker News applet's right-click menu.
+- Completed the gettext catalogs for all 74 supported locales and repaired plural rules.
+
+## [2.35.0](https://github.com/edumucelli/docking/releases/tag/v2.35.0) (2026-11-24)
+
 - Added a SignPath test-signing workflow for the Windows installer.
 - Added Music setup tips for Rhythmbox track details and mpv playback controls.
 - Fixed the Music play/pause badge when pausing Rhythmbox.
 - Added a Music applet menu for choosing which installed app to open when playback is idle.
-- Added **Previous Headline** to the Hacker News applet's right-click menu.
 - Temporarily disabled the Reddit applet while its RSS feeds are unreliable.
   Existing Reddit pins and preferences are retained.
 - Added contributor guidance, a code of conduct, and a security reporting policy.
@@ -51,7 +57,6 @@ Docking versions are listed in descending version order. Dates are in UTC.
 - Fixed stale dock tooltips when opening or using a context menu.
 - Added Checklist with inline editing, struck-through completed items, and an unchecked count in the dock.
 - Fixed the applet count on the website.
-- Completed the gettext catalogs for all 74 supported locales and repaired plural rules.
 
 ## [2.34.0](https://github.com/edumucelli/docking/releases/tag/v2.34.0) (2026-11-21)
 

@@ -12,25 +12,28 @@
 
 [Website](https://docking.cc/) · Watch: [overview tour](https://docking.cc/tours/overview.mp4), [applets tour](https://docking.cc/tours/applets.mp4), [search tour](https://docking.cc/tours/search.mp4), [preferences tour](https://docking.cc/tours/preferences.mp4) · [Install](#installation) · [Features](#highlights) · [Changelog](CHANGELOG.md)
 
-A lightweight, feature-rich dock for Linux (X11 and Wayland), FreeBSD, OpenBSD, NetBSD, and Windows 11 x64. Written in Python with GTK 3 and Cairo, inspired by [Plank](https://launchpad.net/plank) and [Cairo-Dock](https://github.com/Cairo-Dock), with an extensible applet system for custom widgets.
+Docking is a desktop dock for Linux (X11 and Wayland), FreeBSD, OpenBSD,
+NetBSD, and Windows 11 x64. It uses Python, GTK 3, and Cairo and takes
+inspiration from [Plank](https://launchpad.net/plank) and
+[Cairo-Dock](https://github.com/Cairo-Dock).
 
 ![Docking in action](images/all.gif)
 
 ## Highlights
 
-- Fast launcher workflow with running indicators, previews, app actions, and
-  drag-and-drop organization, including pinned files and folder stacks.
-- Linux desktop integration across X11 and Wayland, with backend-specific
-  capabilities and reduced fallback mode.
-- Unified search for applications, windows, recent files, calculations, and paths.
-- 67 built-in applets for messaging, media, productivity, system controls, and more.
-- Flexible placement across monitors, auto-hide, separators, scalable icons,
-  custom icons, and 13 built-in themes.
+- Drag apps, files, and folders onto the dock to pin them. See which apps are
+  running, preview and switch windows, and open app actions from the dock.
+- Use the dock on Linux with X11 or Wayland. Window controls and previews
+  depend on your desktop session.
+- Find apps, windows, recent files, and paths with Global Search. It also
+  handles calculations.
+- Use 67 built-in applets or write your own in Python.
+- Choose a monitor and screen edge, set when the dock hides, and customize it
+  with 13 built-in themes, separators, or custom icons.
 - AppImage, Debian, RPM, Flatpak, Snap, Arch, and Nix release packages, native BSD
   packages, and a Windows installer and portable ZIP.
-- Unity LauncherEntry badges/progress, X11 blur regions, and 74 locale catalogs
-  plus English fallback.
-- Extensible Python applet system for adding custom dock-resident tools.
+- Docking shows badges and progress from Unity LauncherEntry and supports blur
+  on X11. It includes 74 locale catalogs and uses English as a fallback.
 
 ## Requirements
 
@@ -71,7 +74,8 @@ The [website](https://docking.cc/#install) also provides installation instructio
 
 ## Running
 
-After installing a system package, launch Docking from your application menu or:
+After installing a system package, open Docking from your application menu or
+run:
 
 ```bash
 docking
@@ -79,31 +83,32 @@ docking
 
 For other package formats, follow the
 [package-specific commands](docs/INSTALLATION.md#release-downloads).
-Docking selects a backend from the desktop session. GNOME Wayland uses the
-companion Shell extension; see the [GNOME Shell bridge setup](docs/INSTALLATION.md#gnome-shell-bridge).
-Source launches and debug logging are covered in the
+Docking selects a backend for your desktop session. On GNOME Wayland, follow the
+[GNOME Shell bridge setup](docs/INSTALLATION.md#gnome-shell-bridge).
+For source launches and debug logging, see the
 [development guide](docs/DEVELOPMENT.md#running).
 
-## First Use
+## First use
 
-Right-click the shelf background between icons to open the dock menu. Hold
-**Ctrl** while right-clicking anywhere on the shelf if the background is hard to hit.
+Right-click between icons to open the dock menu. If there is no room between
+icons, hold **Ctrl** and right-click anywhere on the dock.
 
 - Open **Preferences** to choose position, monitor behavior, icon size, themes,
   and hiding behavior.
-- Choose **Add Applet** or **Add Separator** to extend the dock.
-- Right-click a running app -> **Keep in Dock** to pin it, or drop applications,
-  files, folders, and AppImages onto the dock.
-- Open **Diagnostics** to inspect the capabilities available in your session.
+- Choose **Add Applet** or **Add Separator** to add items to the dock.
+- To pin a running app, right-click it and choose **Keep in Dock**. You can
+  also drag apps, files, folders, and AppImages onto the dock.
+- Open **Diagnostics** to see what your desktop session supports.
 
-See [First Use](docs/CONFIGURATION.md#first-use) for removing items, custom icons,
+See [First use](docs/CONFIGURATION.md#first-use) for removing items, custom icons,
 folder stacks, and diagnostic reports.
 
 ## Global Search
 
-Open **Search...** from the dock menu or add the **Search** applet. Configure a
-system-wide shortcut under **Preferences -> Behavior -> Global Search**.
-Search applications, windows, files, calculations, conversions, dates, and the web.
+Open **Search...** from the dock menu or add the **Search** applet. To set a
+system-wide shortcut, open **Preferences**, then **Behavior**, and find
+**Global Search**. Search for apps, windows, files, and web results, or enter
+a calculation, conversion, or date.
 
 Try `Firefox`, `Time in Sao Paulo`, `10 USD to EUR`, or `10 + pi`.
 Press **Enter** to open a result, **Ctrl+P** to preview it, or **Ctrl+J** for actions.
@@ -111,16 +116,17 @@ See [Global Search](docs/CONFIGURATION.md#global-search) for providers and short
 
 ## Configuration
 
-Open right-click -> **Preferences** to configure appearance, placement, behavior,
-applets, and update checks. **Display** moves the dock between monitors.
-Settings are saved automatically in `~/.config/docking/dock.json`.
+Right-click the dock background and choose **Preferences** to change settings.
+Choose **Display** from the dock menu to move the dock to another monitor.
+Docking saves settings automatically in `~/.config/docking/dock.json`.
 
 See the [Configuration guide](docs/CONFIGURATION.md) for every setting, pinned
 entry formats, per-applet preferences, backups, and safe manual editing.
 
 ## Theming
 
-Docking includes thirteen built-in themes and supports custom JSON themes. A few examples:
+Docking includes 13 built-in themes. You can also create your own theme as a
+JSON file.
 
 | Default | Glass | Olive |
 |---|---|---|
@@ -131,11 +137,7 @@ instructions, and theme field reference.
 
 ## Applets
 
-Docking includes 67 built-in applets, ranging from application
-launchers and system controls to productivity tools, wellness reminders, and
-live information.
-
-![Docking applet showcase](images/all.png)
+![Docking with built-in applets](images/all.png)
 
 | Category | Examples |
 |---|---|
@@ -145,9 +147,9 @@ live information.
 | Wellness & Ambient | Hydration, Plant Care, Stretch Coach, Ambient, Pet |
 | Information and Environment | Weather, Sunrise, Moon, News, Hacker News |
 
-Add one from right-click -> **Add Applet**, then choose a category. See the
-[Applets guide](docs/APPLETS.md) for the complete catalog, interactions,
-preferences, update intervals, and integration requirements.
+Right-click the dock background, choose **Add Applet**, then pick a category.
+The [Applets guide](docs/APPLETS.md) lists each applet's controls, settings,
+update intervals, and requirements.
 
 ## Documentation
 
@@ -163,8 +165,8 @@ preferences, update intervals, and integration requirements.
 
 ## Contributing
 
-Contributions are welcome. See the [development guide](docs/DEVELOPMENT.md#contributing)
-for the pull request workflow and required checks.
+See the [development guide](docs/DEVELOPMENT.md#contributing) for the checks
+to run before opening a pull request.
 
 See the [changelog](CHANGELOG.md) for release history and the
 [code of conduct](CODE_OF_CONDUCT.md) for community expectations. Report
@@ -174,5 +176,4 @@ vulnerabilities privately as described in the [security policy](SECURITY.md).
 
 [GPL-3.0-or-later](LICENSE)
 
-APT repository hosting is provided free for this open-source project by
-[Cloudsmith](https://cloudsmith.com).
+[Cloudsmith](https://cloudsmith.com) hosts the APT repository free of charge.
