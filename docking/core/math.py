@@ -15,6 +15,8 @@
 
 from __future__ import annotations
 
+MAX_SIGNED_INT32 = (1 << 31) - 1
+
 
 def clamp(value: float, minimum: float, maximum: float) -> float:
     """Return value constrained to the inclusive minimum..maximum range."""

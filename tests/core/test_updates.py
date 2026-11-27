@@ -287,6 +287,17 @@ class TestTimestampParsing:
     def test_invalid_iso_returns_none(self):
         assert parse_timestamp("not-a-date") is None
 
+    @pytest.mark.parametrize(
+        "timestamp", ["0001-01-01T00:00:00+01:00", "9999-12-31T23:59:59-01:00"]
+    )
+    def test_offset_outside_utc_calendar_returns_none(self, timestamp):
+        assert parse_timestamp(timestamp) is None
+
+    def test_representable_offset_is_converted_to_utc(self):
+        assert parse_timestamp("2026-05-01T10:00:00+02:00") == datetime(
+            2026, 5, 1, 8, tzinfo=timezone.utc
+        )
+
     def test_utc_now_iso_with_explicit_datetime(self):
         dt = datetime(2026, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
         iso = utc_now_iso(now=dt)

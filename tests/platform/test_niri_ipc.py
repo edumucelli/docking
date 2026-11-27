@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from docking.core.config import Config
 from docking.platform.backends.base import (
     ActionResult,
     DisplayServer,
@@ -232,6 +233,57 @@ def test_niri_window_service_publishes_snapshot_and_actions():
 
     assert service.close(windows[0].id) is ActionResult.OK
     assert client.actions[-1] == {"CloseWindow": {"id": 5}}
+
+
+def test_niri_scope_republishes_on_workspace_events_and_cycle_wraps():
+    windows = [
+        {
+            "id": identifier,
+            "app_id": "Alacritty",
+            "workspace_id": workspace,
+            "is_focused": identifier == 1,
+        }
+        for identifier, workspace in ((3, 1), (1, 1), (2, 2))
+    ]
+    workspaces = [{"id": 1, "is_active": True}, {"id": 2, "is_active": False}]
+    client = KeyedFakeIpcClient({"Windows": windows, "Workspaces": workspaces})
+    config = Config(current_workspace_only=True)
+    model = _model()
+    service = NiriWindowService(
+        model=model,
+        config=config,
+        client=client,
+        event_stream_factory=lambda _callback: None,
+        **identity_services(),
+    )
+    service.start()
+    desktop_id = "Alacritty.desktop"
+    assert {row.id.value for row in service.list_windows(desktop_id)} == {"1", "3"}
+    assert len(service.list_all_windows()) == 3
+    assert service.cycle(desktop_id) is ActionResult.OK
+    assert client.actions[-1] == {"FocusWindow": {"id": 3}}
+
+    service._on_event(
+        NiriEvent(
+            "WorkspacesChanged",
+            {
+                "workspaces": [
+                    {"id": 1, "is_active": False},
+                    {"id": 2, "is_active": True},
+                ]
+            },
+        )
+    )
+    assert model.update_running.call_args.kwargs["running"][desktop_id].count == 1
+    assert [row.id.value for row in service.list_windows(desktop_id)] == ["2"]
+
+    config.current_workspace_only = False
+    service._on_event(NiriEvent("WindowFocusChanged", {"id": 3}))
+    assert service.cycle(desktop_id) is ActionResult.OK
+    assert client.actions[-1] == {"FocusWindow": {"id": 1}}
+    service._on_event(NiriEvent("WindowFocusChanged", {"id": 1}))
+    assert service.cycle(desktop_id) is ActionResult.OK
+    assert client.actions[-1] == {"FocusWindow": {"id": 2}}
 
 
 def test_niri_window_service_minimize_unsupported():

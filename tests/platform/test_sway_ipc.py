@@ -16,8 +16,9 @@ from docking.platform.backends.wayland.sway_ipc import (
     SwayWorkspaceService,
     windows_from_tree,
 )
-from tests.platform.application_fakes import identity_services
+from tests.platform.application_fakes import application, identity_services
 from tests.platform.test_hyprland_ipc import _model
+from tests.platform.test_model import _make_model
 
 
 def tree():
@@ -128,6 +129,64 @@ def test_workspace_numbers_are_positions_not_sway_numbers():
     assert [workspace.id for workspace in workspaces] == ["1", "3"]
     assert [workspace.number for workspace in workspaces] == [0, 1]
     assert service.active_workspace() == workspaces[1]
+
+
+def test_recent_history_uses_successful_all_workspace_inventory(tmp_path):
+    desktop_id = "Alacritty.desktop"
+    path = tmp_path / "dock.json"
+    config = Config(pinned=[], current_workspace_only=True, show_recent_apps=True)
+    config._path = path
+    config.save()
+    identity = identity_services(application(desktop_id))
+    model = _make_model(
+        config,
+        application_registry=identity["application_registry"],
+        application_launcher=MagicMock(),
+        icon_loader=MagicMock(),
+        target_service=MagicMock(),
+    )
+    workspaces = [{"id": 1, "visible": True}, {"id": 2, "visible": False}]
+    window = {"id": 11, "app_id": "Alacritty"}
+    workspace = {"type": "workspace", "id": 1, "nodes": [window]}
+    client = MagicMock()
+
+    def query(kind):
+        return workspaces if kind == 1 else {"type": "root", "nodes": [workspace]}
+
+    client.query.side_effect = query
+    service = SwayWindowService(client=client, model=model, config=config, **identity)
+    service.refresh()
+    assert model.find_by_desktop_id(desktop_id).is_running
+
+    workspaces[0]["visible"] = False
+    workspaces[1]["visible"] = True
+    service.refresh()
+    assert model.find_by_desktop_id(desktop_id) is None
+    assert service.list_all_windows()[0].desktop_id == desktop_id
+    assert Config.load(path).recent_apps == []
+
+    client.query.side_effect = TimeoutError("query failed")
+    service.refresh()
+    assert service.list_all_windows()[0].desktop_id == desktop_id
+    assert Config.load(path).recent_apps == []
+
+    client.query.side_effect = query
+    service.refresh()
+    workspace["nodes"].clear()
+    service.refresh()
+    assert Config.load(path).recent_apps[0]["desktop_id"] == desktop_id
+
+    workspaces[0]["visible"] = True
+    workspaces[1]["visible"] = False
+    workspace["nodes"].append(window)
+    service.refresh()
+    assert config.recent_apps == []
+    config.save()
+    service.stop()
+    assert Config.load(path).recent_apps == []
+    workspace["nodes"].clear()
+    service.refresh()
+    assert Config.load(path).recent_apps == []
 
 
 @pytest.mark.parametrize("invalid", [False, True])

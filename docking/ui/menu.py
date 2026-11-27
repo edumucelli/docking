@@ -1123,6 +1123,10 @@ class MenuHandler:
         self, menu: Gtk.Menu, folder_item: DockItem, target: str, is_root: bool
     ) -> None:
         menu_id = id(menu)
+        if menu_id not in self._folder_menu_context:
+            self._folder_stack.invalidate_target(target, retain_icons=True)
+            if not is_root:
+                self._clear_menu_children(menu)
         self._folder_menu_context[menu_id] = (menu, folder_item, target, is_root)
         if menu_id not in self._folder_menu_signal_connected:
             menu.connect("hide", self._on_folder_menu_hidden)

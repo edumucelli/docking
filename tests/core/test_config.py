@@ -40,7 +40,6 @@ class TestConfigDefaults:
         assert c.icon_size == 48
         assert c.zoom_enabled is True
         assert c.zoom_percent == 1.5
-        assert c.zoom_range == 3
         assert c.position == "bottom"
         assert c.dock_alignment == 0.5
         assert c.monitor_index == -1
@@ -170,7 +169,6 @@ class TestConfigDefaults:
         c = Config(
             icon_size="bad",
             zoom_percent="bad",
-            zoom_range="bad",
             position=object(),
             monitor_index="bad",
             hide_delay_ms="bad",
@@ -191,7 +189,6 @@ class TestConfigDefaults:
 
         assert c.icon_size == 48
         assert c.zoom_percent == 1.5
-        assert c.zoom_range == 3
         assert c.position == "bottom"
         assert c.monitor_index == -1
         assert c.hide_delay_ms == 0
@@ -520,7 +517,6 @@ class TestConfigLoad:
                 {
                     "icon_size": 999,
                     "zoom_percent": 0.1,
-                    "zoom_range": -4,
                     "hide_delay_ms": -50,
                     "unhide_delay_ms": "-10",
                     "hide_time_ms": -1,
@@ -533,11 +529,31 @@ class TestConfigLoad:
 
         assert config.icon_size == 128
         assert config.zoom_percent == 1.0
-        assert config.zoom_range == 0
         assert config.hide_delay_ms == 0
         assert config.unhide_delay_ms == 0
         assert config.hide_time_ms == 0
         assert config.transparency == 1.0
+
+    @pytest.mark.parametrize("legacy_range", [8, -4, "bad", {"nested": []}, None])
+    def test_legacy_zoom_range_is_discarded_from_saves_and_backup_loads(
+        self, tmp_path, legacy_range
+    ):
+        path = tmp_path / "dock.json"
+        backup = tmp_path / "dock.json.bak"
+        original = {"zoom_range": legacy_range, "icon_size": 64, "zoom_percent": 2.0}
+        path.write_text(json.dumps(original), encoding="utf-8")
+
+        config = Config.load(path)
+        config.save()
+
+        saved = json.loads(path.read_text(encoding="utf-8"))
+        assert saved["icon_size"] == 64
+        assert saved["zoom_percent"] == 2.0
+        assert "zoom_range" not in saved
+        assert json.loads(backup.read_text(encoding="utf-8")) == original
+
+        path.write_text("{", encoding="utf-8")
+        assert Config.load(path).to_dict() == saved
 
     def test_load_normalizes_bool_like_values(self, tmp_path):
         path = tmp_path / "dock.json"

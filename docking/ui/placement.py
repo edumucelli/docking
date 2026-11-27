@@ -174,7 +174,9 @@ from gi.repository import Gdk, GLib, Gtk
 
 from docking.core.config import effective_edge_gap
 from docking.core.layout import resting_content_extent
+from docking.core.math import MAX_SIGNED_INT32
 from docking.core.position import Position, aligned_main_axis_start, is_horizontal
+from docking.core.theme import Theme
 from docking.i18n import _
 from docking.log import get_logger
 from docking.platform.backends.base import (
@@ -187,14 +189,47 @@ from docking.platform.backends.base import (
 )
 from docking.ui.display import get_pointer_position, monitor_connector
 from docking.ui.geometry import (
+    DockCrossMetrics,
     compute_dock_cross_metrics,
     resting_dock_cross_extent,
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from docking.core.config import Config
+    from docking.core.items import DockItem
     from docking.ui.dock_window import DockWindow
 
 log = get_logger(name="placement")
+
+
+def measure_dock_surface(
+    *, config: Config, theme: Theme, items: Sequence[DockItem]
+) -> tuple[Theme, DockCrossMetrics, int]:
+    """Measure the native surface and replace a theme that cannot fit it."""
+    zoom = config.zoom_percent if config.zoom_enabled else 1.0
+
+    def measure(candidate: Theme) -> tuple[DockCrossMetrics, int]:
+        metrics = compute_dock_cross_metrics(
+            icon_size=config.icon_size, zoom=zoom, theme=candidate, items=items
+        )
+        gap = effective_edge_gap(candidate, config)
+        if metrics.surface_extent + gap > MAX_SIGNED_INT32:
+            raise OverflowError("dock surface exceeds native window dimensions")
+        return metrics, gap
+
+    try:
+        return theme, *measure(theme)
+    except OverflowError as exc:
+        log.warning("Invalid dock surface for theme %r: %s", config.theme, exc)
+    fallback = Theme.load(icon_size=config.icon_size).with_opacity(config.transparency)
+    try:
+        return fallback, *measure(fallback)
+    except OverflowError:
+        # A user-provided default theme may fail placement as well.
+        fallback = Theme().with_opacity(config.transparency)
+        return fallback, *measure(fallback)
 
 
 @dataclass(frozen=True)
@@ -380,18 +415,15 @@ class DockPlacementController:
         external = self._external_workarea(snapshot)
 
         config = self._window.config
-        theme = self._window.theme
-        icon_size = config.icon_size
-        zoom = config.zoom_percent if config.zoom_enabled else 1.0
-        cross_metrics = compute_dock_cross_metrics(
-            icon_size=icon_size,
-            zoom=zoom,
-            theme=theme,
+        theme, cross_metrics, gap = measure_dock_surface(
+            config=config,
+            theme=self._window.theme,
             items=self._window.model.visible_items(),
         )
+        if theme is not self._window.theme:
+            self._window.set_theme(theme)
         cross = cross_metrics.surface_extent
         pos = config.pos
-        gap = effective_edge_gap(theme, config)
         if external is not None:
             if is_horizontal(pos=pos):
                 win_w, win_h = external.width, cross + gap

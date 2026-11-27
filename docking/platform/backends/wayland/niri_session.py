@@ -105,6 +105,7 @@ class NiriSessionBackend(SessionBackend):
             model=model,
             application_registry=application_registry,
             process_identity_service=process_identity_service,
+            config=config,
         )
         if windows is None:
             windows = ReducedWindowService()

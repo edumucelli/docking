@@ -231,6 +231,7 @@ class HoverManager:
         self.hovered_item: DockItem | None = None
         self._preview_timer_id: int = 0
         self._anim_timer_id: int = 0
+        self._anim_frames_left: int = 0
         self._last_animated_urgent_us: int = 0
 
     def set_preview(self, preview: PreviewPopup) -> None:
@@ -343,17 +344,17 @@ class HoverManager:
         if self._anim_timer_id:
             GLib.source_remove(self._anim_timer_id)
 
-        frames_left = max(
+        self._anim_frames_left = max(
             1,
+            self._anim_frames_left,
             (duration_ms + ANIM_PUMP_FRAME_INTERVAL_MS - 1)
             // ANIM_PUMP_FRAME_INTERVAL_MS,
         )
 
         def tick() -> bool:
-            nonlocal frames_left
-            frames_left -= 1
+            self._anim_frames_left -= 1
             self._window.drawing_area.queue_draw()
-            if frames_left <= 0:
+            if self._anim_frames_left == 0:
                 self._anim_timer_id = 0
                 return False
             return True
@@ -361,7 +362,9 @@ class HoverManager:
         self._anim_timer_id = GLib.timeout_add(ANIM_PUMP_FRAME_INTERVAL_MS, tick)
 
     def on_model_changed(self) -> None:
-        """Start anim pump if any item became urgent (needs bounce animation)."""
+        """Refresh the open preview and animate newly urgent items."""
+        if self._preview is not None:
+            self._preview.reconcile_windows()
         urgent_us = max(
             (
                 item.last_urgent
@@ -372,7 +375,11 @@ class HoverManager:
         )
         if urgent_us > self._last_animated_urgent_us:
             self._last_animated_urgent_us = urgent_us
-            self.start_anim_pump(duration_ms=ANIM_PUMP_DEFAULT_DURATION_MS)
+            self.start_anim_pump(
+                duration_ms=max(
+                    ANIM_PUMP_DEFAULT_DURATION_MS, self._theme.urgent_bounce_time_ms
+                )
+            )
         elif urgent_us == 0:
             self._last_animated_urgent_us = 0
 

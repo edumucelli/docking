@@ -214,7 +214,7 @@ class TestWindowActions:
 
         assert activated == [3]
 
-    def test_activate_most_recent_minimizes_when_app_active(self, monkeypatch):
+    def test_activate_most_recent_keeps_the_active_app_focused(self, monkeypatch):
         first = _FakeWindow(1)
         second = _FakeWindow(2)
         tracker = self._make_mru_tracker(
@@ -222,17 +222,18 @@ class TestWindowActions:
             stacked=[first, second],
             active=second,
         )
-        minimize_calls: list[str] = []
+        activated: list[int] = []
         monkeypatch.setattr(
             tracker_mod.WindowTracker,
             "activate_window",
-            staticmethod(lambda window: (_ for _ in ()).throw(AssertionError())),
+            staticmethod(lambda window: activated.append(window.xid)),
         )
-        tracker._minimize_windows = lambda desktop_id: minimize_calls.append(desktop_id)
+        tracker._minimize_windows = MagicMock()
 
         tracker_mod.WindowTracker.activate_most_recent(tracker, "firefox.desktop")
 
-        assert minimize_calls == ["firefox.desktop"]
+        assert activated == [2]
+        tracker._minimize_windows.assert_not_called()
 
     def test_activate_most_recent_noop_when_no_windows(self, monkeypatch):
         tracker = self._make_mru_tracker(windows=[], stacked=[], active=None)

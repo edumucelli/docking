@@ -88,6 +88,7 @@ class _FolderEntry:
     row: FolderRow
     gicon: Gio.Icon | None
     content_type: str
+    modified_usec: int
     icon_loaded: bool = False
 
 
@@ -101,15 +102,19 @@ class FolderBrowser:
     ) -> None:
         self._target_service = target_service
         self._directory_rows: OrderedDict[
-            tuple[str, int, bool, int], list[_FolderEntry]
+            tuple[str, bool, int], tuple[int | None, list[_FolderEntry]]
         ] = OrderedDict()
 
-    def invalidate_target(self, target: str) -> None:
+    def invalidate_target(self, target: str, *, retain_icons: bool = False) -> None:
         uri = self._target_service.normalize_file_target(target)
         if uri is None:
             return
         for key in [key for key in self._directory_rows if key[0] == uri]:
-            self._directory_rows.pop(key, None)
+            if retain_icons:
+                _, entries = self._directory_rows[key]
+                self._directory_rows[key] = (None, entries)
+            else:
+                self._directory_rows.pop(key)
 
     def target_state(self, target: str) -> str:
         uri = self._target_service.normalize_file_target(target)
@@ -156,24 +161,22 @@ class FolderBrowser:
         if uri is None:
             return []
         resolved_icon_px = FOLDER_SMALL_ICON_PX if icon_px is None else max(icon_px, 1)
-        cache_key = (
-            uri,
-            self.cache_stamp(target),
-            bool(prefs.show_hidden),
-            resolved_icon_px,
-        )
+        cache_key = (uri, bool(prefs.show_hidden), resolved_icon_px)
+        stamp = self.cache_stamp(target)
         cached = self._directory_rows.get(cache_key)
-        if cached is None:
-            cached = self._read_directory(uri=uri, show_hidden=prefs.show_hidden)
-            if cached is None:
+        if cached is None or cached[0] != stamp:
+            found = self._read_directory(uri=uri, show_hidden=prefs.show_hidden)
+            if found is None:
                 return []
+            if cached is not None:
+                self._reuse_icons(previous=cached[1], current=found)
+            cached = (stamp, found)
             self._directory_rows[cache_key] = cached
             while len(self._directory_rows) > FOLDER_DIRECTORY_CACHE_MAX_ENTRIES:
                 self._directory_rows.popitem(last=False)
-        else:
-            self._directory_rows.move_to_end(cache_key)
+        self._directory_rows.move_to_end(cache_key)
         entries = sorted(
-            cached, key=lambda entry: self.sort_key(row=entry.row, mode=prefs.sort)
+            cached[1], key=lambda entry: self.sort_key(row=entry.row, mode=prefs.sort)
         )
         limit = len(entries) if icon_limit is None else max(icon_limit, 0)
         for entry in entries[:limit]:
@@ -192,6 +195,33 @@ class FolderBrowser:
                 entry.icon_loaded = True
         return [entry.row for entry in entries]
 
+    @staticmethod
+    def _reuse_icons(
+        *, previous: list[_FolderEntry], current: list[_FolderEntry]
+    ) -> None:
+        hydrated = {entry.row.target: entry for entry in previous if entry.icon_loaded}
+        for entry in current:
+            old = hydrated.get(entry.row.target)
+            if old is None:
+                continue
+            if (
+                entry.row.is_dir == old.row.is_dir
+                and entry.row.size == old.row.size
+                and entry.row.modified == old.row.modified
+                and entry.modified_usec == old.modified_usec
+                and entry.content_type == old.content_type
+                and (
+                    entry.gicon is old.gicon
+                    or (
+                        entry.gicon is not None
+                        and old.gicon is not None
+                        and entry.gicon.equal(old.gicon)
+                    )
+                )
+            ):
+                entry.row = replace(entry.row, icon=old.row.icon)
+                entry.icon_loaded = True
+
     def _read_directory(
         self, *, uri: str, show_hidden: bool
     ) -> list[_FolderEntry] | None:
@@ -209,6 +239,7 @@ class FolderBrowser:
                         "standard::size",
                         "time::created",
                         "time::modified",
+                        "time::modified-usec",
                     )
                 ),
                 Gio.FileQueryInfoFlags.NONE,
@@ -251,6 +282,7 @@ class FolderBrowser:
                     ),
                     gicon=icon,
                     content_type=info.get_content_type() or "",
+                    modified_usec=info.get_attribute_uint32("time::modified-usec"),
                 )
             )
         return entries

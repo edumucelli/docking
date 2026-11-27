@@ -503,7 +503,11 @@ class DockInputController:
                 window.window_tracker.cycle(item.desktop_id)
                 window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
             elif action == LeftClickAction.MOST_RECENT.value:
-                window.window_tracker.activate_most_recent(item.desktop_id)
+                rows = window.window_tracker.list_windows(item.desktop_id)
+                if any(row.active and row.can_minimize for row in rows):
+                    window.window_tracker.minimize_all(item.desktop_id)
+                else:
+                    window.window_tracker.activate_most_recent(item.desktop_id)
                 window.hover.start_anim_pump(SHORT_ANIMATION_PUMP_MS)
             elif action == MiddleClickAction.MINIMIZE.value:
                 window.window_tracker.minimize_all(item.desktop_id)

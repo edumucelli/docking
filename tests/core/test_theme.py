@@ -167,6 +167,32 @@ class TestThemeLoad:
 
         assert theme == Theme.load("default", 128)
 
+    @pytest.mark.parametrize(
+        ("launch", "urgent"),
+        [(0.625, 1e308), (1e308, 1.66), (0.625, 1e8), (25e6, 25e6)],
+    )
+    def test_excessive_scaled_bounce_heights_fall_back(
+        self, tmp_path, monkeypatch, launch, urgent
+    ):
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+        directory = user_themes_dir()
+        directory.mkdir(parents=True)
+        (directory / "broken.json").write_text(
+            json.dumps(
+                {
+                    "items": {
+                        "bounce": {
+                            "launch_height_ratio": launch,
+                            "urgent_height_ratio": urgent,
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        assert Theme.load("broken", 48) == Theme.load("default", 48)
+
     @pytest.mark.parametrize("radius", [1e308, -1e308, "1e308", 1e300])
     def test_finite_radius_that_overflows_display_scaling_falls_back(
         self, tmp_path, monkeypatch, radius

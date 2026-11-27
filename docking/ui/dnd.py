@@ -246,6 +246,8 @@ class DnDHandler:
             ""  # launcher desktop_id under cursor during external drag
         )
         self._drop_committed: bool = False  # True after drag-drop fires
+        self._drop_gap_clear_source = 0
+        self._drag_result: Gtk.DragResult | None = None
         # True only when GTK reports drag-leave for an internal dock item drag.
         # This is an input-event fact, separate from screen-coordinate math.
         # Drag-off removal uses it as the "the drag actually left the dock"
@@ -285,6 +287,7 @@ class DnDHandler:
         da.connect("drag-begin", self._on_drag_begin)
         da.connect("drag-motion", self._on_drag_motion)
         da.connect("drag-drop", self._on_drag_drop)
+        da.connect("drag-failed", self._on_drag_failed)
         da.connect("drag-end", self._on_drag_end)
         da.connect("drag-data-received", self._on_drag_data_received)
         da.connect("drag-leave", self._on_drag_leave)
@@ -325,6 +328,7 @@ class DnDHandler:
         frame = self._geometry_builder.build_frame()
         self._drag_from = self.drag_index = -1
         self._dragged_item = None
+        self._drag_result = None
         # A preceding external applet drop has no source drag-end callback.
         # Its successful drop must not suppress this new drag-off gesture.
         self._drop_committed = False
@@ -400,6 +404,7 @@ class DnDHandler:
         #
         # To fix this, we explicitly call autohide.on_mouse_enter() from
         # the drag-motion handler, which IS delivered during DnD.
+        self._cancel_drop_gap_clear()
         self._on_drag_motion_enter()
         main_coord = x if is_horizontal(pos=self._config.pos) else y
 
@@ -494,6 +499,7 @@ class DnDHandler:
         time: int,
     ) -> bool:
         """Handle the drop event -- request URI data for external drops."""
+        self._cancel_drop_gap_clear()
         self._drop_committed = True
         target = widget.drag_dest_find_target(context, None)
         log.debug(
@@ -507,6 +513,9 @@ class DnDHandler:
             return True
         # No matching target (e.g. applet URI) -- clear the gap
         self.drop_insert_index = -1
+        if self._drag_from < 0:
+            self._drop_committed = False
+            self._reconcile_autohide_after_drag(reason="drag-drop-rejected")
         widget.queue_draw()
         return False
 
@@ -582,6 +591,7 @@ class DnDHandler:
         if applet_drop is not None:
             self.drop_insert_index = -1
             self.drop_target_id = ""
+            self._drop_committed = False
             self._reconcile_autohide_after_drag(reason="drag-data-received")
             Gtk.drag_finish(context, applet_drop, False, time)
             return
@@ -729,8 +739,13 @@ class DnDHandler:
         its own; _on_drag_end also requires the drop not to have committed and
         the final distance check to say the pointer ended outside.
         """
-        if self._drag_from < 0 and self.drop_insert_index >= 0:
-            GLib.timeout_add(
+        if (
+            self._drag_from < 0
+            and self.drop_insert_index >= 0
+            and not self._drop_committed
+            and not self._drop_gap_clear_source
+        ):
+            self._drop_gap_clear_source = GLib.timeout_add(
                 DROP_GAP_CLEAR_DELAY_MS,
                 self._deferred_clear_drop_gap,
                 widget,
@@ -742,10 +757,25 @@ class DnDHandler:
 
     def _deferred_clear_drop_gap(self, widget: Gtk.DrawingArea) -> bool:
         """Clear stale drop gap if it wasn't consumed by a drop."""
+        self._drop_gap_clear_source = 0
         if self.drop_insert_index >= 0 and self._drag_from < 0:
             self.drop_insert_index = -1
             self._reconcile_autohide_after_drag(reason="drag-leave")
             widget.queue_draw()
+        return False
+
+    def _cancel_drop_gap_clear(self) -> None:
+        if self._drop_gap_clear_source:
+            GLib.source_remove(self._drop_gap_clear_source)
+            self._drop_gap_clear_source = 0
+
+    def _on_drag_failed(
+        self,
+        _widget: Gtk.DrawingArea,
+        _context: Gdk.DragContext,
+        result: Gtk.DragResult,
+    ) -> bool:
+        self._drag_result = result
         return False
 
     def _on_drag_end(self, widget: Gtk.DrawingArea, _context: Gdk.DragContext) -> None:
@@ -754,12 +784,13 @@ class DnDHandler:
         Internal reorder is finalized live during drag-motion. Drag-end is
         responsible for cleanup and for the separate drag-off removal gesture.
 
-        Removal is intentionally gated by four current-state conditions:
+        Removal is intentionally gated by these conditions:
 
         1. this drag started as an internal dock item drag (_drag_from >= 0),
         2. GTK reported that the internal drag left the dock destination,
         3. no valid same-widget drop was committed,
-        4. the final pointer distance check says the pointer ended outside.
+        4. GTK reported a release with no destination,
+        5. the final pointer distance check says the pointer ended outside.
 
         The distance check is kept as the geometric threshold for the existing
         drag-off gesture, but it is no longer the only signal. Native Wayland
@@ -768,7 +799,7 @@ class DnDHandler:
         evidence only after the drag event sequence also says the drag left the
         dock.
         """
-        if self._drag_from >= 0:
+        if self._drag_from >= 0 and self._drag_result == Gtk.DragResult.NO_TARGET:
             # Get absolute cursor position and dock window position
             display = self._window.get_display()
             pointer_pos = get_pointer_position(display)
@@ -832,8 +863,10 @@ class DnDHandler:
                 self._renderer.prev_positions.clear()
                 self._model.unpin_item(item.desktop_id)
 
+        self._cancel_drop_gap_clear()
         self.drag_index = -1
         self._dragged_item = None
+        self._drag_result = None
         self.drop_insert_index = -1
         self.drop_target_id = ""
         self._drop_committed = False

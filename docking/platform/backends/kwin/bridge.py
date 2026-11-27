@@ -203,13 +203,15 @@ class KWinBridgeClient:
 
     def _owner_changed(self, _proxy, _property) -> None:
         if self._proxy.get_name_owner() != self._owner:
-            self._windows = ()
-            for callback in tuple(self._callbacks.values()):
-                callback()
+            callbacks = tuple(self._callbacks.values())
             # Never re-use UUIDs or trust publications from a new compositor.
             self.stop()
+            for callback in callbacks:
+                callback()
 
-    def list_windows(self) -> Sequence[WindowSnapshot]:
+    def list_windows(self) -> Sequence[WindowSnapshot] | None:
+        if self._stopped:
+            return None
         if self._showing_desktop:
             return tuple(replace(window, visible=False) for window in self._windows)
         return self._windows
@@ -380,7 +382,8 @@ class KWinWindowService(SnapshotWindowService):
         self.refresh()
 
     def refresh(self) -> None:
-        self.replace_windows(self._bridge.list_windows())
+        rows = self._bridge.list_windows()
+        self.replace_windows(rows or (), tracking_stopped=rows is None)
 
     def stop(self) -> None:
         if self._watch is not None:

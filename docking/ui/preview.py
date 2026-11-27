@@ -110,7 +110,7 @@ instead of pushing those concerns into the main renderer.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from functools import lru_cache, partial
 from typing import TYPE_CHECKING, cast
 
@@ -221,6 +221,7 @@ class PreviewPopup(Gtk.Window):
         self._pointer_inside_dock: Callable[[], bool] | None = None
         self._hide_timer_id: int = 0
         self._preview_refresh_timer_id: int = 0
+        self._anchor: tuple[float, float, float, Position] | None = None
         self._relayout: Callable[[], None] | None = None
         self._thumbnail_images: dict[
             WindowId, tuple[Gtk.Image, int, int, PreviewImage | None]
@@ -296,21 +297,39 @@ class PreviewPopup(Gtk.Window):
         The popup is centered on the icon along the main axis and offset
         away from the screen edge along the cross axis.
         """
-        windows = list(self._tracker.list_preview_windows(desktop_id))
+        windows = self._tracker.list_preview_windows(desktop_id)
+        self._cancel_hide_timer()
+        self._show_windows(desktop_id, windows, (anchor_x, icon_w, anchor_y, position))
+
+    def reconcile_windows(self) -> None:
+        """Keep an open preview in sync with eligible windows."""
+        if not self.get_visible() or self._anchor is None:
+            return
+        windows = self._tracker.list_preview_windows(self._current_desktop_id)
+        if {window.id for window in windows} != self._thumbnail_images.keys():
+            self._show_windows(self._current_desktop_id, windows, self._anchor)
+
+    def _show_windows(
+        self,
+        desktop_id: str,
+        windows: Sequence[WindowSnapshot],
+        anchor: tuple[float, float, float, Position],
+    ) -> None:
         if not windows:
             self._cancel_hide_timer()
             self._do_hide()
             return
+        anchor_x, icon_w, anchor_y, position = anchor
         icon_name = self._tracker.icon_name_for_desktop(desktop_id)
 
         self._current_desktop_id = desktop_id
-        self._cancel_hide_timer()
         self._stop_preview_updates()
 
         # Replace and resize off-screen, including when switching apps while
         # this long-lived popup is already visible.
         self._hide_outline()
         self.hide()
+        self._anchor = anchor
         if self._application_icons is not None:
             self._unsubscribe_icons = self._application_icons.subscribe(
                 self._fallback_icons_changed
@@ -620,6 +639,7 @@ class PreviewPopup(Gtk.Window):
         log.debug("preview: hiding")
         self._hide_timer_id = 0
         self._current_desktop_id = ""
+        self._anchor = None
         self._stop_preview_updates()
         self._hide_outline()
         self.hide()

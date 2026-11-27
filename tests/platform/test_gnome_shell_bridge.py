@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import docking.platform.backends.gnome.bridge as bridge_mod
+from docking.core.config import Config
 from docking.core.items import DockItem
 from docking.platform.backends.base import (
     ActionResult,
@@ -146,12 +147,64 @@ def test_gnome_shell_bridge_window_service_returns_not_found_for_unknown_window(
         **identity_services(),
         bridge=_bridge(),
     )
-
     assert service.activate_most_recent("missing.desktop") is ActionResult.NOT_FOUND
     assert (
         service.activate(SimpleNamespace(backend=DisplayServer.X11, value=1))
         is ActionResult.NOT_FOUND
     )
+
+
+def test_gnome_window_scope_keeps_minimized_sticky_and_unknown_workspace_windows():
+    bridge = _bridge()
+    base = bridge.list_windows.return_value[0]
+    bridge.list_windows.return_value = [
+        {**base, "id": 1, "minimized": True, "active": False},
+        {**base, "id": 2, "workspace": 0, "active": False},
+        {**base, "id": 3, "workspace": 0, "sticky": True, "active": False},
+        {**base, "id": 4, "workspace": None, "active": False},
+    ]
+    model = _model(_item("org.gnome.Nautilus.desktop"))
+    config = Config(current_workspace_only=True)
+    service = GnomeShellBridgeWindowService(
+        model=model, bridge=bridge, config=config, **identity_services()
+    )
+    service.refresh()
+    desktop_id = "org.gnome.Nautilus.desktop"
+    assert [row.id.value for row in service.list_windows(desktop_id)] == [
+        "gnome:1",
+        "gnome:3",
+        "gnome:4",
+    ]
+    assert len(service.list_all_windows()) == 4
+    assert model.update_running.call_args.kwargs["running"][desktop_id].count == 3
+    assert model.update_running.call_args.kwargs["all_running_ids"] == {desktop_id}
+    bridge.list_workspaces.return_value = []
+    service.refresh()
+    assert len(service.list_windows(desktop_id)) == 4
+
+
+def test_gnome_cycles_with_stable_order_and_closes_only_current_focus():
+    bridge = _bridge()
+    base = bridge.list_windows.return_value[0]
+    desktop_id = "org.gnome.Nautilus.desktop"
+    service = GnomeShellBridgeWindowService(
+        model=_model(_item(desktop_id)), bridge=bridge, **identity_services()
+    )
+    for active, expected in [(None, 7), (7, 8), (8, 9), (9, 7)]:
+        bridge.list_windows.return_value = [
+            {**base, "id": index, "active": index == active} for index in (9, 7, 8)
+        ]
+        service.refresh()
+        assert service.cycle(desktop_id) is ActionResult.OK
+        bridge.activate.assert_called_with(expected)
+
+    bridge.list_windows.return_value = None
+    assert service.close_focused(desktop_id) is ActionResult.FAILED
+    bridge.close.assert_not_called()
+
+    bridge.list_windows.return_value = [{**base, "active": False}]
+    assert service.close_focused(desktop_id) is ActionResult.NOT_FOUND
+    bridge.close.assert_not_called()
 
 
 def test_gnome_shell_bridge_workspace_service_lists_and_activates_workspaces():

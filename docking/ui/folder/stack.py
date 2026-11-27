@@ -165,6 +165,9 @@ class FolderStackController(StackPopupController):
     ) -> None:
         """Show the selected folder through the reusable stack controller."""
         was_open_for_item = self.open_owner_id() == item.desktop_id
+        if not was_open_for_item:
+            # The directory monitor only runs while the stack is open.
+            self.invalidate_target(item.target, retain_icons=True)
         pos = Position(position)
         centered_anchor = PopupAnchor(
             x=(
@@ -253,11 +256,12 @@ class FolderStackController(StackPopupController):
         for item in items:
             self.schedule_prewarm(item)
 
-    def invalidate_target(self, target: str) -> None:
-        self._browser.invalidate_target(target)
+    def invalidate_target(self, target: str, *, retain_icons: bool = False) -> None:
+        self._browser.invalidate_target(target, retain_icons=retain_icons)
         uri = self._target_service.normalize_file_target(target)
         if uri is not None:
-            self._folder_stack_cache.invalidate_target(uri=uri)
+            if not retain_icons:
+                self._folder_stack_cache.invalidate_target(uri=uri)
             for key in [key for key in self._folder_content_cache if key[0] == uri]:
                 self._folder_content_cache.pop(key, None)
 

@@ -186,23 +186,17 @@ class SwayWindowService(SnapshotWindowService):
         try:
             workspaces = self._client.query(1)
             tree = self._client.query(4)
-            visible = (
-                {
-                    str(row.get("id"))
-                    for row in workspaces
-                    if isinstance(row, Mapping) and row.get("visible") is True
-                }
-                if isinstance(workspaces, list)
-                else set()
-            )
-            self.replace_windows(
-                windows_from_tree(tree_object, visible)
-                if (tree_object := as_json_object(tree)) is not None
-                else ()
-            )
+            tree_object = as_json_object(tree)
+            if not isinstance(workspaces, list) or tree_object is None:
+                return
+            visible = {
+                str(row.get("id"))
+                for row in workspaces
+                if isinstance(row, Mapping) and row.get("visible") is True
+            }
+            self.replace_windows(windows_from_tree(tree_object, visible))
         except (OSError, ValueError) as exc:
             log.debug("Sway snapshot unavailable: %s", exc)
-            self.replace_windows(())
 
     def list_all_windows(self) -> Sequence[WindowSnapshot]:
         rows = super().list_all_windows()
@@ -250,7 +244,7 @@ class SwayWindowService(SnapshotWindowService):
             self._source = 0
             self._socket.close()
             self._socket = None
-            self.replace_windows(())
+            self.replace_windows((), tracking_stopped=True)
             return False
         return True
 

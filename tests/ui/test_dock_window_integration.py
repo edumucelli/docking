@@ -10,8 +10,10 @@ import pytest
 import docking.ui.dock_window as dock_window_mod
 import docking.ui.input_controller as input_controller_mod
 import docking.ui.renderer as renderer_mod
+from docking.core.config import Config
 from docking.core.items import FILE_KIND, FOLDER_KIND
 from docking.core.position import Position
+from docking.core.theme import Theme
 from docking.platform.model import AnimationTickResult, DockItem
 from docking.ui.autohide import HideState
 from docking.ui.geometry import Rect, build_geometry_frame
@@ -534,6 +536,23 @@ class TestButtonReleaseFlow:
         )
         stub.window_tracker.toggle_focus.assert_not_called()
         assert item.last_launched == 0
+
+    def test_left_click_most_recent_minimizes_the_active_app(self):
+        item = DockItem(desktop_id="firefox.desktop", is_running=True)
+        stub, _ = _make_stub(item=item)
+        stub.config.left_click_action = "most-recent"
+        stub.window_tracker.list_windows.return_value = [
+            SimpleNamespace(active=True, can_minimize=True)
+        ]
+        event = SimpleNamespace(
+            x=12.0, y=6.0, button=dock_window_mod.MOUSE_LEFT, state=0
+        )
+
+        assert input_controller_mod.DockInputController._on_button_release(
+            _controller(stub), MagicMock(), event
+        )
+        stub.window_tracker.minimize_all.assert_called_once_with("firefox.desktop")
+        stub.window_tracker.activate_most_recent.assert_not_called()
 
     def test_middle_click_minimizes_when_configured(self, monkeypatch):
         item = DockItem(desktop_id="firefox.desktop", is_running=True)
@@ -1340,11 +1359,23 @@ class TestDockWindowSetupAndGeometry:
         dodge_monitor.stop.assert_called_once_with()
         assert stub.dodge_monitor is None
 
-    def test_set_theme_propagates_to_theme_holders_and_invalidates_geometry(self):
+    @pytest.mark.parametrize("bounce_ratio", [0.625, 44739241.5])
+    def test_set_theme_propagates_to_theme_holders_and_invalidates_geometry(
+        self, bounce_ratio
+    ):
         old_theme = object()
-        new_theme = object()
+        new_theme = Theme(
+            bottom_padding=4.8,
+            launch_bounce_height=bounce_ratio,
+            urgent_bounce_height=0,
+        )
+        config = Config(
+            icon_size=48, zoom_percent=1.5, theme="custom", transparency=0.5
+        )
         frame = SimpleNamespace()
         stub = SimpleNamespace(
+            config=config,
+            model=SimpleNamespace(visible_items=list),
             theme=old_theme,
             tooltip=SimpleNamespace(set_theme=MagicMock()),
             hover=SimpleNamespace(set_theme=MagicMock()),
@@ -1361,9 +1392,16 @@ class TestDockWindowSetupAndGeometry:
 
         dock_window_mod.DockWindow.set_theme(stub, new_theme)
 
-        assert stub.theme is new_theme
-        stub.tooltip.set_theme.assert_called_once_with(new_theme)
-        stub.hover.set_theme.assert_called_once_with(new_theme)
+        expected = (
+            new_theme
+            if bounce_ratio == 0.625
+            else Theme.load("default", config.icon_size).with_opacity(
+                config.transparency
+            )
+        )
+        assert stub.theme == expected
+        stub.tooltip.set_theme.assert_called_once_with(expected)
+        stub.hover.set_theme.assert_called_once_with(expected)
         assert stub._cache.geometry_frame is None
 
 

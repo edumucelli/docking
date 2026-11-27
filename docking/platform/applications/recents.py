@@ -212,9 +212,13 @@ class RecentApplications:
             return False
         return self._record(desktop_id)
 
+    def reset_running(self) -> None:
+        """Forget the comparison baseline when window tracking ends."""
+        self._previous_running_ids.clear()
+
     def record_unpinned(self, desktop_id: str) -> bool:
         """Record one non-running application removed from the pinned section."""
-        return self._record(desktop_id)
+        return desktop_id not in self._previous_running_ids and self._record(desktop_id)
 
     def discard(self, desktop_id: str) -> bool:
         """Remove one record and memory-sync config without saving."""

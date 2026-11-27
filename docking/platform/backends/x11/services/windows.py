@@ -54,6 +54,7 @@ class X11WindowService(WindowTracker, WindowService):
         self._tracking_diagnostic = WindowTrackingDiagnostic(
             status="stopped", detail="Window tracking has stopped."
         )
+        self._model.update_running(running={}, tracking_stopped=True)
 
     def cycle(self, desktop_id: str) -> ActionResult:
         """Cycle windows for a desktop ID using the existing X11 policy."""

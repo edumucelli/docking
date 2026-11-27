@@ -51,13 +51,16 @@ class SnapshotWindowService(WindowService):
         self.refresh()
 
     def stop(self) -> None:
-        self.replace_windows(())
+        self.replace_windows((), tracking_stopped=True)
         self._changes.clear()
 
-    def replace_windows(self, windows: Sequence[WindowSnapshot]) -> None:
+    def replace_windows(
+        self, windows: Sequence[WindowSnapshot], *, tracking_stopped: bool = False
+    ) -> None:
         self._matcher.sync_visible_items(self._model.tracked_items())
         snapshots: dict[WindowId, WindowSnapshot] = {}
         running: dict[str, list[RunningWindowInfo]] = {}
+        all_running_ids: set[str] = set()
         for window in windows:
             match = self._matcher.match_result(
                 window.app_id or window.wm_class or "", process_id=window.pid
@@ -65,6 +68,8 @@ class SnapshotWindowService(WindowService):
             desktop_id = match.desktop_id if match is not None else ""
             window = replace(window, desktop_id=desktop_id)
             snapshots[window.id] = window
+            if desktop_id and not window.skip_taskbar:
+                all_running_ids.add(desktop_id)
             if desktop_id and self._taskbar_window(window):
                 running.setdefault(desktop_id, []).append(
                     RunningWindowInfo(
@@ -81,7 +86,9 @@ class SnapshotWindowService(WindowService):
         self._model.update_running(
             running={
                 key: RunningAppInfo.from_windows(rows) for key, rows in running.items()
-            }
+            },
+            all_running_ids=all_running_ids,
+            tracking_stopped=tracking_stopped,
         )
         self._changes.notify()
 
@@ -173,7 +180,7 @@ class SnapshotWindowService(WindowService):
         return self._all(desktop_id, "close")
 
     def close_focused(self, desktop_id: str) -> ActionResult:
-        row = self._first(desktop_id)
+        row = next((row for row in self.list_windows(desktop_id) if row.active), None)
         return self.close(row.id) if row else ActionResult.NOT_FOUND
 
     def toggle_focus(self, desktop_id: str) -> ActionResult:

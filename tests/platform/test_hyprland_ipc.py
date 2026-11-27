@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from docking.core.config import Config
 from docking.platform.backends.base import ActionResult, DisplayServer, WindowId
 from docking.platform.backends.wayland.hyprland_ipc import (
     HyprlandEvent,
@@ -323,6 +324,40 @@ def test_hyprland_window_service_publishes_snapshot_and_actions():
         "focuswindow address:0xabc",
         "closewindow address:0xabc",
     ]
+
+
+def test_hyprland_scope_and_cycle_use_workspace_and_stable_window_ids():
+    windows = [
+        {"address": address, "class": "Alacritty", "workspace": {"id": workspace}}
+        for address, workspace in (("0x3", 1), ("0x1", 1), ("0x2", 2))
+    ]
+    client = FakeIpcClient(
+        [(windows, {"address": active}) for active in ("0x1", "0x3", "0x2")]
+    )
+    config = Config(current_workspace_only=True)
+    model = _model()
+    service = HyprlandWindowService(
+        model=model,
+        config=config,
+        client=client,
+        event_stream_factory=lambda _callback: None,
+        **identity_services(),
+    )
+    service.start()
+    desktop_id = "Alacritty.desktop"
+    assert {row.id.value for row in service.list_windows(desktop_id)} == {"0x1", "0x3"}
+    assert len(service.list_all_windows()) == 3
+    assert model.update_running.call_args.kwargs["running"][desktop_id].count == 2
+    assert service.cycle(desktop_id) is ActionResult.OK
+    assert client.dispatched[-1] == "focuswindow address:0x3"
+
+    config.current_workspace_only = False
+    service.refresh()
+    assert service.cycle(desktop_id) is ActionResult.OK
+    assert client.dispatched[-1] == "focuswindow address:0x1"
+    service.refresh()
+    assert service.cycle(desktop_id) is ActionResult.OK
+    assert client.dispatched[-1] == "focuswindow address:0x3"
 
 
 def test_hyprland_window_service_resolves_preview_handle_from_companion_source():

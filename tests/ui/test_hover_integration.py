@@ -48,7 +48,12 @@ def _make_hover():
         icon_size=48,
         pos=Position.BOTTOM,
     )
-    theme = SimpleNamespace(item_padding=8, horizontal_padding=10, bottom_padding=12)
+    theme = SimpleNamespace(
+        item_padding=8,
+        horizontal_padding=10,
+        bottom_padding=12,
+        urgent_bounce_time_ms=600,
+    )
     tooltip = MagicMock()
     hover = hover_mod.HoverManager(
         window,
@@ -415,6 +420,28 @@ class TestHoverTimers:
         hover.on_model_changed()
         # Then
         hover.start_anim_pump.assert_called_once_with(duration_ms=700)
+
+    def test_long_urgent_animation_finishes_after_a_shorter_redraw_request(
+        self, monkeypatch
+    ):
+        hover, window, model, _config, _tooltip, _frame = _make_hover()
+        hover._theme.urgent_bounce_time_ms = 2000
+        model.visible_items.return_value = [
+            DockItem(desktop_id="u.desktop", is_urgent=True, last_urgent=123)
+        ]
+        callbacks = []
+        monkeypatch.setattr(
+            hover_mod.GLib, "timeout_add", lambda _ms, cb: callbacks.append(cb) or 1
+        )
+        monkeypatch.setattr(hover_mod.GLib, "source_remove", lambda _sid: True)
+
+        hover.on_model_changed()
+        assert callbacks[0]() is True
+        hover.start_anim_pump(duration_ms=350)
+
+        for frame in range(2, 126):
+            assert callbacks[1]() is (frame < 125)
+        assert window.drawing_area.queue_draw.call_count == 125
 
     def test_on_model_changed_does_not_restart_same_urgent_pump(self):
         hover, _window, model, _config, _tooltip, _frame = _make_hover()

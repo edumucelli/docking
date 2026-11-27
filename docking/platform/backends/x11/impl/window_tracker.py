@@ -493,22 +493,25 @@ class WindowTracker:
         self._reconcile_window_state_signals(windows=windows)
 
         snapshots_by_desktop: dict[str, list[RunningWindowInfo]] = {}
+        all_running_ids: set[str] = set()
         for window in windows:
-            if active_workspace is not None and not self._window_on_workspace(
-                window=window,
-                workspace=active_workspace,
-            ):
+            on_workspace = active_workspace is None or self._window_on_workspace(
+                window=window, workspace=active_workspace
+            )
+            try:
+                hints = self._identity_hint_reader.read(int(window.get_xid()))
+            except _GEOMETRY_ERRORS:
+                hints = ()
+            match = self._matcher.match_result(window=window, identity_hints=hints)
+            if match is not None:
+                all_running_ids.add(match.desktop_id)
+            if not on_workspace:
                 records.append(
                     self._diagnostic_record(
                         window, outcome="excluded", reason=WindowReason.WORKSPACE
                     )
                 )
                 continue
-            try:
-                hints = self._identity_hint_reader.read(int(window.get_xid()))
-            except _GEOMETRY_ERRORS:
-                hints = ()
-            match = self._matcher.match_result(window=window, identity_hints=hints)
             record = replace(
                 self._matcher.last_diagnostic,
                 window_id=self._diagnostic_record(window).window_id,
@@ -556,7 +559,7 @@ class WindowTracker:
             windows=tuple(records),
             detail="Last completed window tracking scan.",
         )
-        self._model.update_running(running=running)
+        self._model.update_running(running=running, all_running_ids=all_running_ids)
 
     def diagnostic_snapshot(self) -> WindowTrackingDiagnostic:
         return self._tracking_diagnostic
@@ -987,7 +990,7 @@ class WindowTracker:
         return ActionResult.OK
 
     def activate_most_recent(self, desktop_id: str) -> ActionResult:
-        """Focus the MRU window for desktop_id, or minimize if already active."""
+        """Focus the most recent window for desktop_id."""
         if self._screen is None:
             return ActionResult.UNSUPPORTED
 
@@ -996,11 +999,11 @@ class WindowTracker:
             return ActionResult.NOT_FOUND
 
         active_window = self._screen.get_active_window()
-        if active_window and active_window in windows:
-            self._minimize_windows(desktop_id=desktop_id)
-            return ActionResult.OK
-
-        target = self._most_recent_window(windows=windows)
+        target = (
+            active_window
+            if active_window is not None and active_window in windows
+            else self._most_recent_window(windows=windows)
+        )
         self.activate_window(window=target)
         return ActionResult.OK
 

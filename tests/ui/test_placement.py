@@ -8,8 +8,10 @@ from unittest.mock import MagicMock
 import pytest
 
 import docking.ui.placement as placement_mod
+from docking.core.config import Config
 from docking.core.items import DockItem
 from docking.core.position import Position
+from docking.core.theme import Theme
 from tests.platform_factories import make_windows_surface
 
 
@@ -84,6 +86,63 @@ def _make_controller(window):
         window,
         surface_service=window.surface_service,
     )
+
+
+@pytest.mark.parametrize(
+    ("additional_gap", "invalid_default"), [(8, False), (9, False), (9, True)]
+)
+def test_position_dock_checks_the_whole_surface_at_the_native_limit(
+    monkeypatch, additional_gap, invalid_default
+):
+    max_dimension = (1 << 31) - 1
+    config = Config(
+        icon_size=32,
+        zoom_percent=1.5,
+        theme="near-limit",
+        additional_distance_from_edge=additional_gap,
+        transparency=0.65,
+    )
+    item = DockItem("applet://separator", main_size=48)
+    theme = Theme(
+        bottom_padding=3.2,
+        distance_from_edge=7,
+        # 72 px zoomed item, 3.2 px padding and 15 px effective edge gap.
+        launch_bounce_height=(max_dimension - 76 - 15) / config.icon_size,
+        urgent_bounce_height=0,
+    )
+    if invalid_default:
+        monkeypatch.setattr(Theme, "load", lambda **_kwargs: theme)
+    geom = SimpleNamespace(x=0, y=0, width=1920, height=1080)
+    monitor = _fake_monitor(geometry=geom, workarea=geom)
+    display = FakeDisplay(
+        get_n_monitors=lambda: 1,
+        get_primary_monitor=lambda: monitor,
+        get_monitor=lambda _index: monitor,
+    )
+    window = _make_window(
+        config=config,
+        theme=theme,
+        model=SimpleNamespace(visible_items=lambda: [item]),
+        get_display=lambda: display,
+        set_theme=MagicMock(),
+    )
+
+    _make_controller(window).position_dock()
+
+    request = window.surface_service.position_or_anchor.call_args.args[0]
+    if additional_gap == 8:
+        assert request.size.height == max_dimension
+        window.set_theme.assert_not_called()
+    else:
+        assert 0 < request.size.height < max_dimension
+        assert request.gap == additional_gap
+        expected = (
+            Theme() if invalid_default else Theme.load("default", config.icon_size)
+        )
+        window.set_theme.assert_called_once_with(
+            expected.with_opacity(config.transparency)
+        )
+    assert config.theme == "near-limit"
 
 
 @pytest.mark.parametrize("position", list(Position))

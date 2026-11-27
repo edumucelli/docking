@@ -170,6 +170,38 @@ def test_cycle_does_not_activate_windows_closed_since_the_previous_poll():
     native.perform.assert_not_called()
 
 
+def test_close_focused_requires_a_fresh_matching_foreground(native_focus):
+    native, state = native_focus
+    service = WindowsWindowService(
+        config=Config(),
+        workspaces=make_unsupported_windows_workspaces(),
+        model=SimpleNamespace(tracked_items=list, update_running=MagicMock()),
+        native=native,
+        **identity_services(application("Fixture.App")),
+    )
+    state.rows[100] = replace(state.rows[100], can_close=True)
+    service.refresh()
+    state.foreground = 0
+    assert service.close_focused("Fixture.App") is ActionResult.NOT_FOUND
+    native.perform.assert_not_called()
+
+    state.foreground = 999
+
+    assert service.close_focused("Fixture.App") is ActionResult.NOT_FOUND
+    native.perform.assert_not_called()
+
+    state.foreground = 100
+    assert service.close_focused("Fixture.App") is ActionResult.OK
+    target, action = native.perform.call_args.args
+    assert target.id.value == 100
+    assert action == "close"
+
+    native.perform.reset_mock()
+    native.windows = MagicMock(side_effect=OSError("native scan failed"))
+    assert service.close_focused("Fixture.App") is ActionResult.FAILED
+    native.perform.assert_not_called()
+
+
 def test_reused_native_handle_cannot_act_on_another_process():
     from docking.platform.backends.windows.windows import Win32WindowAPI
 

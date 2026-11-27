@@ -167,7 +167,7 @@ class MuffinWindowService(WindowService):
         self._tracking_diagnostic = WindowTrackingDiagnostic(
             status="stopped", detail="Window tracking has stopped."
         )
-        self._model.update_running(running={})
+        self._model.update_running(running={}, tracking_stopped=True)
 
     def refresh(self) -> None:
         self._matcher.sync_visible_items(self._model.tracked_items())
@@ -368,7 +368,12 @@ class MuffinWindowService(WindowService):
             running={
                 desktop_id: RunningAppInfo.from_windows(items)
                 for desktop_id, items in grouped.items()
-            }
+            },
+            all_running_ids={
+                window.desktop_id
+                for window in self._windows.values()
+                if window.desktop_id is not None
+            },
         )
 
     @staticmethod

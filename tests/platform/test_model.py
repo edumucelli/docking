@@ -952,6 +952,30 @@ class TestCustomIcons:
         assert config.pinned == [PinnedEntry(kind=APP_KIND, target="tool.desktop")]
         config.save.assert_called_once()
 
+    @pytest.mark.parametrize("recent", [False, True], ids=["running", "recent"])
+    def test_insert_pinned_application_promotes_an_existing_temporary_item(
+        self, tmp_path, recent
+    ):
+        path = tmp_path / "dock.json"
+        other, tool = "other.desktop", "tool.desktop"
+        Config(pinned=[PinnedEntry(APP_KIND, other)], show_recent_apps=True).save(path)
+        config = Config.load(path)
+        model = _make_model(config, _make_dependencies(other, tool))
+        model.update_running({tool: _running(count=2)})
+        if recent:
+            model.update_running({})
+        existing = model.find_by_desktop_id(tool)
+        assert existing is not None and not existing.is_pinned
+
+        assert model.insert_pinned_application(desktop_id=tool, index=0)
+        assert [entry.id for entry in Config.load(path).pinned] == [tool, other]
+        assert model.pinned_items[0] is existing
+        assert sum(item.desktop_id == tool for item in model.visible_items()) == 1
+        assert existing.instance_count == (0 if recent else 2)
+
+        assert not model.insert_pinned_application(desktop_id=tool, index=1)
+        assert [entry.id for entry in Config.load(path).pinned] == [tool, other]
+
 
 class TestPinnedOnly:
     def test_hides_running_and_overlay_apps_without_losing_live_state(self):

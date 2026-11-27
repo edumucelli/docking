@@ -138,7 +138,7 @@ class WaylandForeignToplevelWindowService(WindowService):
         self._state_by_handle.clear()
         self._state_by_id.clear()
         self._last_running = {}
-        self._model.update_running(running={})
+        self._model.update_running(running={}, tracking_stopped=True)
         self._changes.clear()
 
     def refresh(self) -> None:
@@ -225,12 +225,13 @@ class WaylandForeignToplevelWindowService(WindowService):
         return result
 
     def close_focused(self, desktop_id: str) -> ActionResult:
-        """Close the active window for an app, or the first known window."""
         states = self._states_for_desktop(desktop_id)
-        if not states:
-            return ActionResult.NOT_FOUND
-        state = next((item for item in states if item.active), states[0])
-        return self._call_action(state=state, action="close")
+        state = next((item for item in states if item.active), None)
+        return (
+            self._call_action(state=state, action="close")
+            if state is not None
+            else ActionResult.NOT_FOUND
+        )
 
     def toggle_focus(self, desktop_id: str) -> ActionResult:
         """Activate inactive apps; minimize the active app when possible."""
@@ -331,12 +332,16 @@ class WaylandForeignToplevelWindowService(WindowService):
     def _publish_running(self) -> None:
         self._matcher.sync_visible_items(self._model.tracked_items())
         windows_by_desktop: dict[str, list[RunningWindowInfo]] = {}
+        all_running_ids: set[str] = set()
         for state in self._state_by_id.values():
-            if state.closed or not self._taskbar_state(state):
+            if state.closed:
                 continue
             if state.desktop_id is None:
                 self._refresh_match(state=state)
             if state.desktop_id is None:
+                continue
+            all_running_ids.add(state.desktop_id)
+            if not self._taskbar_state(state):
                 continue
             windows_by_desktop.setdefault(state.desktop_id, []).append(
                 RunningWindowInfo(
@@ -353,7 +358,7 @@ class WaylandForeignToplevelWindowService(WindowService):
             for desktop_id, items in windows_by_desktop.items()
         }
         self._last_running = dict(running)
-        self._model.update_running(running=running)
+        self._model.update_running(running=running, all_running_ids=all_running_ids)
         self._changes.notify()
 
     def _taskbar_state(self, state: ToplevelState) -> bool:

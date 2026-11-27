@@ -263,8 +263,11 @@ class TestAutoHideUtilityBranches:
 
 
 class TestAutoHideTimersAndDelays:
-    def test_repeated_reconcile_does_not_leave_an_unhide_timer(self, monkeypatch):
-        ctrl = self._make_controller(unhide_delay=200)
+    @pytest.mark.parametrize("entering", [True, False], ids=["reveal", "hide"])
+    def test_repeated_reconcile_does_not_leave_an_old_timer(
+        self, monkeypatch, entering
+    ):
+        ctrl = self._make_controller(hide_delay=200, unhide_delay=200)
         pending = {}
         next_id = 0
 
@@ -280,16 +283,22 @@ class TestAutoHideTimersAndDelays:
 
         monkeypatch.setattr(autohide_mod.GLib, "timeout_add", schedule)
         monkeypatch.setattr(autohide_mod, "_clear_source", clear)
-        ctrl.state = HideState.HIDDEN
-        ctrl.hide_offset = 1.0
-
-        ctrl.on_mouse_enter()
+        if entering:
+            ctrl.state = HideState.HIDDEN
+            ctrl.hide_offset = 1.0
+            ctrl.on_mouse_enter()
+        else:
+            ctrl.on_mouse_enter()
+            ctrl.on_mouse_leave()
         ctrl.reconcile()
         ctrl.reconcile()
-        ctrl.on_mouse_leave()
+        if entering:
+            ctrl.on_mouse_leave()
+        else:
+            ctrl.on_mouse_enter()
 
         assert pending == {}
-        assert ctrl.state == HideState.HIDDEN
+        assert ctrl.state == (HideState.HIDDEN if entering else HideState.VISIBLE)
 
     @pytest.mark.parametrize("mode", ["none", "always-on-top", "always-behind"])
     def test_window_hide_request_cannot_hide_disabled_dock(self, monkeypatch, mode):

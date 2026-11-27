@@ -1503,16 +1503,21 @@ class DockModel:
     def _can_edit_custom_icon(item: DockItem) -> bool:
         return item.is_pinned and item.kind in {APP_KIND, FILE_KIND, FOLDER_KIND}
 
-    def update_running(self, running: dict[str, RunningAppInfo]) -> None:
-        """Update running state from WindowTracker data.
-
-        Args:
-            running: Desktop ID to latest running-app aggregate.
-        """
-        self._recent_applications.reconcile_running(
-            running.keys(),
-            pinned_ids=self._pinned_ids(),
-        )
+    def update_running(
+        self,
+        running: dict[str, RunningAppInfo],
+        *,
+        all_running_ids: set[str] | None = None,
+        tracking_stopped: bool = False,
+    ) -> None:
+        """Publish taskbar state and reconcile history against unfiltered IDs."""
+        if tracking_stopped:
+            self._recent_applications.reset_running()
+        else:
+            self._recent_applications.reconcile_running(
+                running.keys() if all_running_ids is None else all_running_ids,
+                pinned_ids=self._pinned_ids(),
+            )
 
         # Keep the old transient objects available while rebuilding the list.
         # Reusing them preserves icon pixbufs, LauncherEntry overlays, and any
@@ -1733,7 +1738,7 @@ class DockModel:
             self._materialize_recent_apps()
             self.notify()
 
-    def _promote_to_pinned(self, item: DockItem) -> None:
+    def _promote_to_pinned(self, item: DockItem, index: int | None = None) -> None:
         """Move an app item into pinned ownership without persisting order."""
         if item in self._transient:
             self._transient.remove(item)
@@ -1741,7 +1746,12 @@ class DockModel:
         item.is_recent = False
         item.is_pinned = True
         if item not in self.pinned_items:
-            self.pinned_items.append(item)
+            insert_at = (
+                len(self.pinned_items)
+                if index is None
+                else max(0, min(index, len(self.pinned_items)))
+            )
+            self.pinned_items.insert(insert_at, item)
 
     def _prepare_runtime_item_for_pinning(self, item: DockItem) -> bool:
         """Persist a safe launcher before a runtime-only item becomes pinned."""
@@ -1793,8 +1803,19 @@ class DockModel:
 
     def insert_pinned_application(self, *, desktop_id: str, index: int) -> bool:
         """Resolve and insert an application at an explicit pinned position."""
-        if self.find_by_desktop_id(desktop_id=desktop_id) is not None:
-            return False
+        existing = self.find_by_desktop_id(desktop_id=desktop_id)
+        if existing is not None:
+            if (
+                existing.kind != APP_KIND
+                or existing.is_pinned
+                or not self._prepare_runtime_item_for_pinning(existing)
+            ):
+                return False
+            self._promote_to_pinned(existing, index)
+            self._persist_pinned_changes()
+            self._materialize_recent_apps()
+            self.notify()
+            return True
         if self._application_registry.get(desktop_id) is None:
             return False
         item = self._make_app_item(

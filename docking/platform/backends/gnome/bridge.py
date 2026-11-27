@@ -55,6 +55,7 @@ from docking.platform.backends.base import (
 from docking.platform.backends.visibility import WindowChanges
 
 if TYPE_CHECKING:
+    from docking.core.config import Config
     from docking.platform.applications.identity import ProcessIdentityService
     from docking.platform.applications.registry import ApplicationRegistry
     from docking.platform.model import DockModel
@@ -101,11 +102,11 @@ class GnomeShellBridgeClient:
             return None
         return cls(proxy=proxy)
 
-    def list_windows(self) -> Sequence[Mapping[str, Any]]:
+    def list_windows(self) -> Sequence[Mapping[str, Any]] | None:
         """Return raw window rows exported by the Shell extension."""
         result = self._call("ListWindows")
         if result is None:
-            return ()
+            return None
         return _json_rows(result.unpack()[0])
 
     def list_workspaces(self) -> Sequence[Mapping[str, Any]]:
@@ -113,7 +114,7 @@ class GnomeShellBridgeClient:
         result = self._call("ListWorkspaces")
         if result is None:
             return ()
-        return _json_rows(result.unpack()[0])
+        return _json_rows(result.unpack()[0]) or ()
 
     def activate(self, bridge_id: int) -> bool:
         return self._call_window_action("Activate", bridge_id)
@@ -279,6 +280,7 @@ class GnomeShellBridgeWindowService(WindowService):
         application_registry: ApplicationRegistry,
         process_identity_service: ProcessIdentityService,
         bridge: GnomeShellBridgeClient,
+        config: Config | None = None,
     ) -> None:
         self._model = model
         self._matcher = AppIdMatcher(
@@ -286,6 +288,8 @@ class GnomeShellBridgeWindowService(WindowService):
             process_identity_service=process_identity_service,
         )
         self._bridge = bridge
+        self._config = config
+        self._active_workspace: str | None = None
         self._windows_by_id: dict[int, _BridgeWindow] = {}
         self._changed_handle: object | None = None
         self._poll_source_id = 0
@@ -308,12 +312,28 @@ class GnomeShellBridgeWindowService(WindowService):
         self._changed_handle = None
         self._windows_by_id.clear()
         self._changes.clear()
-        self._model.update_running(running={})
+        self._model.update_running(running={}, tracking_stopped=True)
 
     def refresh(self) -> None:
         """Refresh cached bridge state and publish running app state."""
-        self._matcher.sync_visible_items(self._model.tracked_items())
+        self._refresh()
+
+    def _refresh(self) -> bool:
         rows = self._bridge.list_windows()
+        if rows is None:
+            return False
+        self._matcher.sync_visible_items(self._model.tracked_items())
+        self._active_workspace = None
+        if self._config is not None and self._config.current_workspace_only:
+            self._active_workspace = next(
+                (
+                    workspace.id
+                    for row in self._bridge.list_workspaces()
+                    if (workspace := _workspace_from_row(row)) is not None
+                    and workspace.active
+                ),
+                None,
+            )
         windows: dict[int, _BridgeWindow] = {}
         for row in rows:
             window = self._window_from_row(row)
@@ -322,6 +342,7 @@ class GnomeShellBridgeWindowService(WindowService):
         self._windows_by_id = windows
         self._publish_running()
         self._changes.notify()
+        return True
 
     def watch(self, on_change: Callable[[], None]) -> object:
         return self._changes.watch(on_change)
@@ -337,8 +358,7 @@ class GnomeShellBridgeWindowService(WindowService):
     def list_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
         return tuple(
             self._snapshot_for(window)
-            for window in self._windows_by_id.values()
-            if window.desktop_id == desktop_id and not window.skip_taskbar
+            for window in self._windows_for_desktop(desktop_id)
         )
 
     def list_preview_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
@@ -360,7 +380,13 @@ class GnomeShellBridgeWindowService(WindowService):
         return _action_result(self._bridge.activate(window.bridge_id))
 
     def cycle(self, desktop_id: str) -> ActionResult:
-        return self.activate_most_recent(desktop_id=desktop_id)
+        windows = sorted(
+            self._windows_for_desktop(desktop_id), key=lambda window: window.bridge_id
+        )
+        if not windows:
+            return ActionResult.NOT_FOUND
+        index = next((i for i, window in enumerate(windows) if window.active), -1)
+        return self.activate(windows[(index + 1) % len(windows)].window_id)
 
     def minimize_all(self, desktop_id: str) -> ActionResult:
         windows = self._windows_for_desktop(desktop_id)
@@ -389,11 +415,13 @@ class GnomeShellBridgeWindowService(WindowService):
         return result
 
     def close_focused(self, desktop_id: str) -> ActionResult:
-        windows = self._windows_for_desktop(desktop_id)
-        if not windows:
-            return ActionResult.NOT_FOUND
-        window = next((item for item in windows if item.active), windows[0])
-        return _action_result(self._bridge.close(window.bridge_id))
+        if not self._refresh():
+            return ActionResult.FAILED
+        window = next(
+            (item for item in self._windows_for_desktop(desktop_id) if item.active),
+            None,
+        )
+        return self.close(window.window_id) if window else ActionResult.NOT_FOUND
 
     def toggle_focus(self, desktop_id: str) -> ActionResult:
         window = self._first_window_for_desktop(desktop_id)
@@ -438,8 +466,12 @@ class GnomeShellBridgeWindowService(WindowService):
 
     def _publish_running(self) -> None:
         windows_by_desktop: dict[str, list[RunningWindowInfo]] = {}
+        all_running_ids: set[str] = set()
         for window in self._windows_by_id.values():
             if window.desktop_id is None or window.skip_taskbar:
+                continue
+            all_running_ids.add(window.desktop_id)
+            if not self._in_scope(window):
                 continue
             windows_by_desktop.setdefault(window.desktop_id, []).append(
                 RunningWindowInfo(
@@ -460,7 +492,8 @@ class GnomeShellBridgeWindowService(WindowService):
             running={
                 desktop_id: RunningAppInfo.from_windows(items)
                 for desktop_id, items in windows_by_desktop.items()
-            }
+            },
+            all_running_ids=all_running_ids,
         )
 
     def _snapshot_for(self, window: _BridgeWindow) -> WindowSnapshot:
@@ -475,6 +508,7 @@ class GnomeShellBridgeWindowService(WindowService):
             fullscreen=window.fullscreen,
             geometry=window.geometry,
             workspace_id=window.workspace_id,
+            on_current_workspace=self._on_current_workspace(window),
             can_activate=True,
             can_minimize=True,
             can_close=True,
@@ -490,8 +524,24 @@ class GnomeShellBridgeWindowService(WindowService):
         return [
             window
             for window in self._windows_by_id.values()
-            if window.desktop_id == desktop_id and not window.skip_taskbar
+            if window.desktop_id == desktop_id
+            and not window.skip_taskbar
+            and self._in_scope(window)
         ]
+
+    def _on_current_workspace(self, window: _BridgeWindow) -> bool | None:
+        if window.sticky:
+            return True
+        if self._active_workspace is None or window.workspace_id is None:
+            return None
+        return window.workspace_id == self._active_workspace
+
+    def _in_scope(self, window: _BridgeWindow) -> bool:
+        return (
+            self._config is None
+            or not self._config.current_workspace_only
+            or self._on_current_workspace(window) is not False
+        )
 
     def _first_window_for_desktop(self, desktop_id: str) -> _BridgeWindow | None:
         windows = self._windows_for_desktop(desktop_id)
@@ -624,14 +674,14 @@ def _variant_value(value: Any) -> Any:
     return value.unpack() if hasattr(value, "unpack") else value
 
 
-def _json_rows(value: object) -> tuple[Mapping[str, Any], ...]:
+def _json_rows(value: object) -> tuple[Mapping[str, Any], ...] | None:
     try:
         decoded = json.loads(str(value))
     except json.JSONDecodeError as exc:
         log.warning("GNOME Shell bridge returned invalid JSON: %s", exc)
-        return ()
+        return None
     if not isinstance(decoded, list):
-        return ()
+        return None
     return tuple(row for row in decoded if isinstance(row, dict))
 
 
@@ -660,7 +710,7 @@ def _int_from_row(row: Mapping[str, Any], key: str) -> int | None:
 
 def _workspace_id_from_row(row: Mapping[str, Any]) -> str | None:
     value = _int_from_row(row, "workspace")
-    return str(value) if value is not None else None
+    return str(value) if value is not None and value >= 0 else None
 
 
 def _rect_from_row(row: Mapping[str, Any]) -> Rect | None:

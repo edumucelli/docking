@@ -4,6 +4,17 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
+- Fixed pin removal after a cancelled drag, incorrect insertion after drag
+  re-entry, and pinning apps that already have a running or recent dock item.
+- Fixed duplicate auto-hide timers, stale folder contents and window previews,
+  and incomplete urgent bounces in custom themes.
+- Fixed **Close Focused** closing inactive windows and **Most Recent Window**
+  leaving a focused Windows app active.
+- Fixed **Current Workspace Only** and **Cycle Windows** on GNOME, Hyprland,
+  and Niri, and kept open apps out of recent history when tracking changes.
+- Recovered from unusable theme geometry and invalid saved update timestamps,
+  and handled executable drops with filenames that cannot be written to a
+  desktop entry.
 - Removed the extra sentence below the website homepage heading.
 - Simplified website copy in all four languages, the README, and the user and
   developer guides.

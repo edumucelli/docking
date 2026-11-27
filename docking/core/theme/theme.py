@@ -141,6 +141,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, TypeVar
 
+from docking.core.math import MAX_SIGNED_INT32
 from docking.core.paths import ensure_dir
 from docking.core.theme.migration import migrate_loaded_theme_data
 from docking.log import get_logger
@@ -151,8 +152,6 @@ _BUILTIN_THEMES_DIR = (
     Path(__file__).resolve().parent.parent.parent / "assets" / "themes"
 )
 _USER_THEME_TEMPLATE_NAME = "template"
-# GDK exposes display scale as a positive signed 32-bit integer.
-_MAX_DISPLAY_SCALE = (1 << 31) - 1
 log = get_logger("theme")
 
 # Color types as Cairo-compatible floats (0.0-1.0)
@@ -324,8 +323,8 @@ class ActiveTint(str, enum.Enum):
     THEME = "theme"
 
 
-def reject_non_finite_theme(theme: Theme) -> None:
-    """Raise if a loaded value or display-scaled radius is infinite or NaN.
+def _validate_theme_geometry(theme: Theme, icon_size: int) -> None:
+    """Reject non-finite values and bounce heights too large to draw.
 
     Checked on the built Theme rather than on the parsed document: JSON has no
     literal for either, but the string "Infinity" converts to one, and a finite
@@ -340,8 +339,13 @@ def reject_non_finite_theme(theme: Theme) -> None:
             isinstance(part, float) and not math.isfinite(part) for part in value
         ):
             raise ValueError(f"non-finite value for {field.name}")
-    if not math.isfinite(theme.roundness * _MAX_DISPLAY_SCALE):
+    if not math.isfinite(theme.roundness * MAX_SIGNED_INT32):
         raise ValueError("corner radius overflows display scaling")
+    bounce_extent = icon_size * (
+        abs(theme.launch_bounce_height) + abs(theme.urgent_bounce_height)
+    )
+    if bounce_extent + icon_size > MAX_SIGNED_INT32:
+        raise ValueError("bounce height exceeds the native window dimension range")
 
 
 def _rgba(values: list[int]) -> RGBA:
@@ -706,5 +710,5 @@ class Theme:
             active_tint=active_tint,
             active_color=active_color,
         )
-        reject_non_finite_theme(theme)
+        _validate_theme_geometry(theme, icon_size)
         return theme
