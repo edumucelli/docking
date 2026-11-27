@@ -4,6 +4,7 @@ Docking versions are listed in descending version order. Dates are in UTC.
 
 ## Unreleased
 
+- Removed the extra sentence below the website homepage heading.
 - Simplified website copy in all four languages, the README, and the user and
   developer guides.
 - Added an opt-in **Start at Login** switch in Preferences for native Linux
