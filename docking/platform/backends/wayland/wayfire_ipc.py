@@ -410,7 +410,7 @@ class WayfireWindowService(WindowService):
         self._watcher_retry_after = 0.0
         self._records.clear()
         self._outputs.clear()
-        self._model.update_running(running={})
+        self._model.update_running(running={}, tracking_stopped=True)
 
     def list_all_windows(self) -> Sequence[WindowSnapshot]:
         return tuple(self._snapshot_for(record) for record in self._records.values())
@@ -547,8 +547,12 @@ class WayfireWindowService(WindowService):
 
     def _publish_running(self) -> None:
         windows_by_desktop: dict[str, list[RunningWindowInfo]] = {}
+        all_running_ids: set[str] = set()
         for record in self._records.values():
-            if record.desktop_id is None or not self._in_scope(record):
+            if record.desktop_id is None:
+                continue
+            all_running_ids.add(record.desktop_id)
+            if not self._in_scope(record):
                 continue
             windows_by_desktop.setdefault(record.desktop_id, []).append(
                 RunningWindowInfo(
@@ -569,7 +573,8 @@ class WayfireWindowService(WindowService):
             running={
                 desktop_id: RunningAppInfo.from_windows(items)
                 for desktop_id, items in windows_by_desktop.items()
-            }
+            },
+            all_running_ids=all_running_ids,
         )
 
     def _poll(self) -> bool:

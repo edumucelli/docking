@@ -1073,6 +1073,11 @@ class DockHarness:
         self._drag_pointer.get_position.return_value = (None, 200, 50)
         self._drag_window.get_position.return_value = (100, 200)
         self._drag_window.get_size.return_value = (400, 60)
+        self._drag_handler._on_drag_failed(
+            self._drag_handler._drawing_area,
+            MagicMock(),
+            dnd_mod.Gtk.DragResult.NO_TARGET,
+        )
         self._drag_handler._on_drag_end(self._drag_handler._drawing_area, MagicMock())
 
     @property

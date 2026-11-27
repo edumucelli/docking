@@ -507,6 +507,8 @@ class AutoHideController:
         return False
 
     def _schedule_hide(self) -> None:
+        if self._hide_timer_id:
+            return
         delay = self._config.hide_delay_ms
         if delay <= 0 and self.state == HideState.VISIBLE:
             delay = MIN_HIDE_GRACE_MS

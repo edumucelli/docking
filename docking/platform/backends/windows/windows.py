@@ -151,7 +151,9 @@ class Win32WindowAPI(WindowObservation):
         path = metadata.executable_path
         return metadata.aumid, path.stem.lower() if path is not None else ""
 
-    def windows(self) -> tuple[WindowSnapshot, ...]:
+    def windows(
+        self, *, preserve_focus_during_handoff: bool = True
+    ) -> tuple[WindowSnapshot, ...]:
         foreground = self._foreground()
         covered = self._desktop.covered_windows() or frozenset()
         rows: dict[WindowId, WindowSnapshot] = {}
@@ -208,7 +210,7 @@ class Win32WindowAPI(WindowObservation):
         if not self._enumerate(callback, 0):
             raise windows_ctypes.WinError(windows_ctypes.get_last_error())
         previous = self._last_foreground_window
-        if not foreground and previous is not None:
+        if not foreground and previous is not None and preserve_focus_during_handoff:
             # GetForegroundWindow can return NULL during mouse activation.
             # Keep the last observed focus only while that window is current.
             current = rows.get(previous.id)
@@ -220,9 +222,10 @@ class Win32WindowAPI(WindowObservation):
                 and current.on_current_workspace is not False
             ):
                 rows[current.id] = replace(current, active=True)
-        self._last_foreground_window = next(
-            (row for row in rows.values() if row.active), None
-        )
+        if foreground or preserve_focus_during_handoff:
+            self._last_foreground_window = next(
+                (row for row in rows.values() if row.active), None
+            )
         return tuple(rows.values())
 
     def original_window(self, ghost: int) -> int | None:
@@ -497,17 +500,29 @@ class WindowsWindowService(SnapshotWindowService):
         return True
 
     def refresh(self) -> None:
+        self._refresh_snapshot()
+
+    def _refresh_snapshot(self, *, preserve_focus_during_handoff: bool = True) -> bool:
         if self._native is None:
-            return
+            return False
         try:
             self.replace_windows(
                 tuple(
                     replace(window, can_preview=self._previews_available)
-                    for window in self._native.windows()
+                    for window in self._native.windows(
+                        preserve_focus_during_handoff=preserve_focus_during_handoff
+                    )
                 )
             )
         except OSError:
             log.exception("Could not refresh native Windows application windows")
+            return False
+        return True
+
+    def close_focused(self, desktop_id: str) -> ActionResult:
+        if not self._refresh_snapshot(preserve_focus_during_handoff=False):
+            return ActionResult.FAILED
+        return super().close_focused(desktop_id)
 
     def cycle(self, desktop_id: str) -> ActionResult:
         # Focus can change between the 500 ms polls and the user's click.

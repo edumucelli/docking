@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import stat
 import sys
 from pathlib import Path
@@ -44,6 +45,7 @@ from docking.platform.applications.types import (
     ApplicationOrigin,
 )
 from docking.platform.model import DockItem
+from docking.platform.targets import TargetService
 from docking.ui.geometry import Rect, build_geometry_frame
 from tests.platform.application_fakes import ApplicationRegistryStub
 
@@ -452,6 +454,9 @@ class TestDragBeginMotion:
         pointer.get_position.return_value = (None, 20, 100)
         handler._on_drag_begin(handler._drawing_area, context)
         handler._on_drag_leave(handler._drawing_area, context, 2)
+        handler._on_drag_failed(
+            handler._drawing_area, context, dnd_mod.Gtk.DragResult.NO_TARGET
+        )
         handler._on_drag_end(handler._drawing_area, context)
         handler._model.unpin_item.assert_called_once_with("applet://clock")
 
@@ -1169,6 +1174,46 @@ class TestDropAndReceive:
         handler._model.notify.assert_called_once()
         finish.assert_called_once_with(ANY, True, False, 77)
 
+    @pytest.mark.skipif(os.name != "posix", reason="requires POSIX byte filenames")
+    def test_drag_data_received_pins_non_utf8_executable_as_file(
+        self, monkeypatch, tmp_path
+    ):
+        filename = os.fsdecode(b"tool-\xff")
+        if not filename.endswith("\udcff"):
+            pytest.skip("requires an undecodable filename byte")
+        executable = tmp_path / filename
+        executable.touch(mode=0o700)
+        monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "data"))
+        registry = make_application_registry(
+            application_source=lambda: (),
+            desktop_directories_source=lambda: (
+                native_entries.user_applications_dir(),
+            ),
+        )
+        handler = _make_handler(
+            monkeypatch,
+            application_registry=registry,
+            target_service=TargetService(
+                icon_loader=MagicMock(), application_registry=registry
+            ),
+        )
+        handler.drop_insert_index = 0
+        handler._model.pinned_items = []
+        selection = MagicMock()
+        uri = executable.as_uri()
+        selection.get_uris.return_value = [uri]
+        finish = MagicMock()
+        monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", finish)
+
+        handler._on_drag_data_received(
+            handler._drawing_area, MagicMock(), 0, 0, selection, 1, 77
+        )
+
+        assert handler._config.pinned == [PinnedEntry(kind=FILE_KIND, target=uri)]
+        assert not native_entries.user_applications_dir().exists()
+        assert handler.drop_insert_index == -1
+        finish.assert_called_once_with(ANY, True, False, 77)
+
     def test_drag_data_received_does_not_duplicate_generated_launcher(
         self, monkeypatch, tmp_path
     ):
@@ -1256,7 +1301,8 @@ class TestDragLeaveEnd:
         handler._window.autohide.on_mouse_leave.assert_called_once()
         widget.queue_draw.assert_called_once()
 
-    def test_drag_end_unpins_when_dropped_outside(self, monkeypatch):
+    @pytest.mark.parametrize("released", [True, False], ids=["release", "escape"])
+    def test_drag_end_only_unpins_on_release_outside(self, monkeypatch, released):
         # Given
         handler = _make_handler(monkeypatch)
         handler._drag_from = 0
@@ -1272,9 +1318,26 @@ class TestDragLeaveEnd:
         widget = handler._drawing_area
 
         # When
-        handler._on_drag_end(widget, MagicMock())
+        context = MagicMock()
+        failure = next(
+            call.args[1]
+            for call in widget.connect.call_args_list
+            if call.args[0] == "drag-failed"
+        )
+        failure(
+            widget,
+            context,
+            dnd_mod.Gtk.DragResult.NO_TARGET
+            if released
+            else dnd_mod.Gtk.DragResult.USER_CANCELLED,
+        )
+        handler._on_drag_end(widget, context)
         # Then
-        handler._model.unpin_item.assert_called_once_with("firefox.desktop")
+        if released:
+            handler._model.unpin_item.assert_called_once_with("firefox.desktop")
+        else:
+            handler._model.unpin_item.assert_not_called()
+            dnd_mod.show_poof.assert_not_called()
         assert handler._renderer.slide_offsets == {}
         assert handler._renderer.prev_positions == {}
         handler._config.save.assert_called()
@@ -1296,6 +1359,9 @@ class TestDragLeaveEnd:
         handler._window.get_size.return_value = (400, 60)
         monkeypatch.setattr(dnd_mod, "get_pointer_position", lambda _display: None)
 
+        handler._on_drag_failed(
+            handler._drawing_area, MagicMock(), dnd_mod.Gtk.DragResult.NO_TARGET
+        )
         handler._on_drag_end(handler._drawing_area, MagicMock())
 
         handler._model.unpin_item.assert_not_called()
@@ -1319,6 +1385,9 @@ class TestDragLeaveEnd:
         handler._window.get_position.return_value = (100, 200)
         handler._window.get_size.return_value = (400, 60)
 
+        handler._on_drag_failed(
+            handler._drawing_area, MagicMock(), dnd_mod.Gtk.DragResult.NO_TARGET
+        )
         handler._on_drag_end(handler._drawing_area, MagicMock())
 
         if source_still_visible:
@@ -1384,7 +1453,44 @@ class TestDragLeaveEnd:
         handler._window.get_size.return_value = (400, 60)
         handler._test_folder_stack.open_item_id.return_value = folder.desktop_id
 
+        handler._on_drag_failed(
+            handler._drawing_area, MagicMock(), dnd_mod.Gtk.DragResult.NO_TARGET
+        )
         handler._on_drag_end(handler._drawing_area, MagicMock())
 
         handler._test_folder_stack.close.assert_called_once_with()
         handler._model.unpin_item.assert_called_once_with(folder.desktop_id)
+
+    @pytest.mark.parametrize("reenter", [True, False])
+    def test_external_drop_retains_slot_after_leaving(self, monkeypatch, reenter):
+        handler = _make_handler(monkeypatch)
+        handler._geometry_builder.build_frame().insertion_index_for_main.return_value = 2
+        widget, context = handler._drawing_area, MagicMock()
+        pending = {}
+        monkeypatch.setattr(dnd_mod.Gdk, "drag_status", MagicMock())
+        monkeypatch.setattr(dnd_mod.Gtk, "drag_finish", MagicMock())
+        monkeypatch.setattr(
+            dnd_mod.GLib,
+            "timeout_add",
+            lambda _ms, cb, *args: pending.update({1: (cb, args)}) or 1,
+        )
+        monkeypatch.setattr(dnd_mod.GLib, "source_remove", pending.pop)
+        handler._application_registry.get.return_value = _application("tool.desktop")
+        selection = MagicMock()
+        selection.get_data.return_value = b"tool.desktop"
+
+        handler._on_drag_motion(widget, context, 180, 8, 1)
+        handler._on_drag_leave(widget, context, 2)
+        assert pending
+        if reenter:
+            handler._on_drag_motion(widget, context, 180, 8, 3)
+            assert not pending
+        handler._on_drag_drop(widget, context, 180, 8, 4)
+        handler._on_drag_leave(widget, context, 5)
+        assert not pending
+        handler._on_drag_data_received(
+            widget, context, 180, 8, selection, APPLICATION_DRAG_INFO, 6
+        )
+        handler._model.insert_pinned_application.assert_called_once_with(
+            desktop_id="tool.desktop", index=2
+        )

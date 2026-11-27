@@ -129,6 +129,36 @@ def test_failed_icons_stay_cached_until_invalidation(folder, browser):
     assert loader.resolve_file_icon.call_count == 18
 
 
+def test_refreshing_folder_metadata_reuses_unchanged_icons(tmp_path, browser):
+    subject, loader = browser
+    nested = tmp_path / "nested"
+    nested.mkdir()
+    unchanged = tmp_path / "unchanged.txt"
+    unchanged.write_text("original")
+    edited = tmp_path / "edited.txt"
+    edited.write_text("x")
+    options = {"target": str(tmp_path), "prefs": FolderPrefs(sort="size")}
+    initial = {row.target: row for row in subject.list_directory(**options)}
+    assert not initial[nested.as_uri()].has_children
+    parent_stamp = tmp_path.stat().st_mtime_ns
+    edited.write_text("updated contents")
+    (nested / "child.txt").write_text("first child")
+    assert tmp_path.stat().st_mtime_ns == parent_stamp
+
+    loader.resolve_file_icon.reset_mock()
+    subject.invalidate_target(str(tmp_path), retain_icons=True)
+    updated = {row.target: row for row in subject.list_directory(**options)}
+
+    assert updated[edited.as_uri()].size == len("updated contents")
+    assert updated[nested.as_uri()].has_children
+    assert updated[unchanged.as_uri()].icon == initial[unchanged.as_uri()].icon
+    refreshed = {
+        call.kwargs["target"] for call in loader.resolve_file_icon.call_args_list
+    }
+    assert edited.as_uri() in refreshed
+    assert unchanged.as_uri() not in refreshed
+
+
 def test_missing_empty_negative_limit_and_child_visibility(tmp_path, browser):
     subject, loader = browser
     options = {"prefs": FolderPrefs(), "icon_limit": -1}

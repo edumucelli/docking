@@ -46,6 +46,7 @@ from docking.platform.backends.base import (
 from docking.platform.backends.visibility import WindowChanges
 
 if TYPE_CHECKING:
+    from docking.core.config import Config
     from docking.platform.applications.identity import ProcessIdentityService
     from docking.platform.applications.registry import ApplicationRegistry
 
@@ -254,8 +255,10 @@ class HyprlandWindowService(WindowService):
             [Callable[[HyprlandEvent], None]], HyprlandEventStream | None
         ],
         preview_handle_source: object | None = None,
+        config: Config | None = None,
     ) -> None:
         self._model = model
+        self._config = config
         self._matcher = AppIdMatcher(
             registry=application_registry,
             process_identity_service=process_identity_service,
@@ -306,7 +309,7 @@ class HyprlandWindowService(WindowService):
         self._visible_workspaces.clear()
         self._changes.notify()
         self._changes.clear()
-        self._model.update_running(running={})
+        self._model.update_running(running={}, tracking_stopped=True)
 
     def list_all_windows(self) -> Sequence[WindowSnapshot]:
         """Return every known Hyprland window."""
@@ -318,8 +321,7 @@ class HyprlandWindowService(WindowService):
         """Return known Hyprland windows for one desktop ID."""
         return tuple(
             self._snapshot_for(record)
-            for record in self._records_by_address.values()
-            if record.desktop_id == desktop_id
+            for record in self._records_for_desktop(desktop_id)
         )
 
     def list_preview_windows(self, desktop_id: str) -> Sequence[WindowSnapshot]:
@@ -357,8 +359,13 @@ class HyprlandWindowService(WindowService):
         return self.activate(record.window_id)
 
     def cycle(self, desktop_id: str) -> ActionResult:
-        """Cycle policy starts as activating a known app window."""
-        return self.activate_most_recent(desktop_id=desktop_id)
+        records = sorted(
+            self._records_for_desktop(desktop_id), key=lambda record: record.address
+        )
+        if not records:
+            return ActionResult.NOT_FOUND
+        index = next((i for i, record in enumerate(records) if record.active), -1)
+        return self.activate(records[(index + 1) % len(records)].window_id)
 
     def minimize_all(self, desktop_id: str) -> ActionResult:
         """Hyprland has no public minimize dispatcher or client state."""
@@ -390,8 +397,9 @@ class HyprlandWindowService(WindowService):
         return result
 
     def close_focused(self, desktop_id: str) -> ActionResult:
-        """Close the active window for an app, falling back to the first one."""
-        record = self._first_record_for_desktop(desktop_id)
+        record = next(
+            (row for row in self._records_for_desktop(desktop_id) if row.active), None
+        )
         if record is None:
             return ActionResult.NOT_FOUND
         return self.close(record.window_id)
@@ -420,10 +428,8 @@ class HyprlandWindowService(WindowService):
             monitors = self._client.query_json("monitors")
         except (OSError, json.JSONDecodeError) as exc:
             log.info("Hyprland IPC snapshot unavailable: %s", exc)
-            self._records_by_address.clear()
-            self._visible_workspaces.clear()
-            self._publish_running()
-            self._changes.notify()
+            return
+        if not isinstance(clients, list):
             return
         visible: set[str] = set()
         if isinstance(monitors, list):
@@ -440,8 +446,6 @@ class HyprlandWindowService(WindowService):
             if isinstance(active, Mapping)
             else ""
         )
-        if not isinstance(clients, list):
-            clients = []
         self._matcher.sync_visible_items(self._model.tracked_items())
         records: dict[str, HyprlandWindowRecord] = {}
         for item in clients:
@@ -460,8 +464,12 @@ class HyprlandWindowService(WindowService):
 
     def _publish_running(self) -> None:
         windows_by_desktop: dict[str, list[RunningWindowInfo]] = {}
+        all_running_ids: set[str] = set()
         for record in self._records_by_address.values():
             if record.desktop_id is None:
+                continue
+            all_running_ids.add(record.desktop_id)
+            if not self._in_scope(record):
                 continue
             windows_by_desktop.setdefault(record.desktop_id, []).append(
                 RunningWindowInfo(
@@ -482,7 +490,8 @@ class HyprlandWindowService(WindowService):
             running={
                 desktop_id: RunningAppInfo.from_windows(items)
                 for desktop_id, items in windows_by_desktop.items()
-            }
+            },
+            all_running_ids=all_running_ids,
         )
 
     def _snapshot_for(self, record: HyprlandWindowRecord) -> WindowSnapshot:
@@ -498,6 +507,7 @@ class HyprlandWindowService(WindowService):
             fullscreen=record.fullscreen,
             geometry=record.geometry,
             workspace_id=record.workspace_id,
+            on_current_workspace=self._on_current_workspace(record),
             can_activate=True,
             can_minimize=False,
             can_close=True,
@@ -515,8 +525,22 @@ class HyprlandWindowService(WindowService):
         return [
             record
             for record in self._records_by_address.values()
-            if record.desktop_id == desktop_id
+            if record.desktop_id == desktop_id and self._in_scope(record)
         ]
+
+    def _on_current_workspace(self, record: HyprlandWindowRecord) -> bool | None:
+        if record.pinned is True:
+            return True
+        if not self._visible_workspaces or record.workspace_id is None:
+            return None
+        return record.workspace_id in self._visible_workspaces
+
+    def _in_scope(self, record: HyprlandWindowRecord) -> bool:
+        return (
+            self._config is None
+            or not self._config.current_workspace_only
+            or self._on_current_workspace(record) is not False
+        )
 
     def _first_record_for_desktop(self, desktop_id: str) -> HyprlandWindowRecord | None:
         records = self._records_for_desktop(desktop_id)
@@ -552,6 +576,7 @@ def load_hyprland_window_service(
     application_registry: ApplicationRegistry,
     process_identity_service: ProcessIdentityService,
     preview_handle_source: object | None,
+    config: Config,
 ) -> HyprlandWindowService | None:
     """Return a Hyprland WindowService when IPC sockets are detectable."""
     paths = hyprland_socket_paths()
@@ -568,6 +593,7 @@ def load_hyprland_window_service(
             callback=callback,
         ),
         preview_handle_source=preview_handle_source,
+        config=config,
     )
 
 

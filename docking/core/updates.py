@@ -231,10 +231,9 @@ def parse_timestamp(value: str | None) -> datetime | None:
     if not text:
         return None
     try:
-        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
-    except ValueError:
+        return _aware_utc(datetime.fromisoformat(text.replace("Z", "+00:00")))
+    except (ValueError, OverflowError):
         return None
-    return _aware_utc(parsed)
 
 
 def utc_now_iso(now: datetime) -> str:

@@ -225,15 +225,16 @@ def create_desktop_entry_for_executable(
     desktop_id = generated_desktop_id_for_path(path)
     desktop_file = user_applications_dir() / desktop_id
     icon_name = _icon_name_for_generated_entry(path)
-    content = _generated_desktop_entry_content(
-        name=name,
-        exec_path=path,
-        icon_name=icon_name,
-        startup_wm_class=startup_wm_class,
-    )
-
     try:
+        content = _generated_desktop_entry_content(
+            name=name,
+            exec_path=path,
+            icon_name=icon_name,
+            startup_wm_class=startup_wm_class,
+        ).encode("utf-8")
         _write_desktop_file_atomically(path=desktop_file, content=content)
+    except UnicodeEncodeError:
+        return None
     except OSError as exc:
         log.bind(
             action="write_generated_desktop_entry", path=str(desktop_file)
@@ -257,7 +258,8 @@ def generated_desktop_id_for_path(path: Path) -> str:
     resolved = path.expanduser().resolve()
     # Leave room for the digest, suffix and atomic-write temporary filename.
     slug = _slugify_desktop_name(_display_name_from_path(resolved))[:128]
-    digest = hashlib.sha256(str(resolved).encode("utf-8")).hexdigest()[:12]
+    path_bytes = str(resolved).encode("utf-8", "surrogateescape")
+    digest = hashlib.sha256(path_bytes).hexdigest()[:12]
     return f"{GENERATED_DESKTOP_PREFIX}{slug}-{digest}{DESKTOP_SUFFIX}"
 
 
@@ -370,17 +372,16 @@ def _quote_exec_arg(value: str) -> str:
     return f'"{_escape_desktop_value(escaped)}"'
 
 
-def _write_desktop_file_atomically(*, path: Path, content: str) -> None:
+def _write_desktop_file_atomically(*, path: Path, content: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_name = tempfile.mkstemp(
         prefix=f".{path.name}.",
         suffix=".tmp",
         dir=str(path.parent),
-        text=True,
     )
     tmp_path = Path(tmp_name)
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        with os.fdopen(fd, "wb") as handle:
             handle.write(content)
         tmp_path.chmod(0o644)
         tmp_path.replace(path)

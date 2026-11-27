@@ -81,6 +81,7 @@ class GnomeShellBridgeSessionBackend(SessionBackend):
             application_registry=application_registry,
             process_identity_service=process_identity_service,
             bridge=bridge,
+            config=config,
         )
         self._services = GnomeShellBridgeRuntimeServices(
             windows=windows,

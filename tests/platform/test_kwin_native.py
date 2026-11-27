@@ -102,7 +102,9 @@ def test_skip_taskbar_dialog_retains_geometry_without_a_running_icon():
         assert service.list_all_windows()[0].skip_taskbar
         assert service.list_all_windows()[0].geometry is not None
         assert not service.list_windows("Alacritty.desktop")
-        model.update_running.assert_called_with(running={})
+        model.update_running.assert_called_with(
+            running={}, all_running_ids=set(), tracking_stopped=False
+        )
     finally:
         service.stop()
 

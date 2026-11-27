@@ -478,7 +478,9 @@ def test_cosmic_workspace_switch_updates_filter_and_visibility_on_second_output(
         assert backend.windows.list_windows("foot.desktop") == ()
         assert len(backend.windows.list_all_windows()) == 1
         assert backend.windows.list_all_windows()[0].visible is False
-        model.update_running.assert_called_once_with(running={})
+        model.update_running.assert_called_once_with(
+            running={}, all_running_ids={"foot.desktop"}
+        )
         # Multi-workspace membership and sticky windows remain present.
         runtime.cosmic_toplevel._on_cosmic_workspace_enter(handle, workspaces[2])
         runtime.cosmic_toplevel._on_info_done(None)

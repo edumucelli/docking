@@ -739,7 +739,7 @@ class Config:
     zoom_enabled: bool = DEFAULT_ZOOM_ENABLED
     # Max zoom multiplier (1.0-4.0, default 1.5 = 150%)
     zoom_percent: float = DEFAULT_ZOOM_PERCENT
-    # Number of icon widths over which the zoom tapers off
+    # Legacy setting retained for configuration file compatibility.
     zoom_range: int = DEFAULT_ZOOM_RANGE
     # Screen edge where the dock is placed
     position: str = DEFAULT_POSITION

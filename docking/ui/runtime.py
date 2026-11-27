@@ -82,6 +82,7 @@ class DockRuntime:
 
     def set_current_workspace_only(self, enabled: bool) -> None:
         self._window.surface_service.set_workspace_scope(current_workspace_only=enabled)
+        self._window.window_tracker.refresh()
         self._window.queue_redraw()
 
     def hide_tooltip(self) -> None:

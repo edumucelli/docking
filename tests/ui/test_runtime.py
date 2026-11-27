@@ -49,6 +49,7 @@ def _make_window():
         surface_service=SimpleNamespace(
             set_workspace_scope=MagicMock(), prepare_menu_popup=MagicMock()
         ),
+        window_tracker=SimpleNamespace(refresh=MagicMock()),
         tooltip=SimpleNamespace(hide=MagicMock()),
         preview=SimpleNamespace(hide=MagicMock()),
         theme="old-theme",
@@ -126,6 +127,7 @@ class TestDockRuntime:
         window.surface_service.set_workspace_scope.assert_called_once_with(
             current_workspace_only=True
         )
+        window.window_tracker.refresh.assert_called_once_with()
         assert window.tooltip.hide.call_count == 2
         window.preview.hide.assert_called_once()
         update_checker.check_now.assert_called_once()

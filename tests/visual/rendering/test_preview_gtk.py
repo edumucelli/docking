@@ -275,6 +275,33 @@ def test_same_icon_handback_keeps_real_popup_and_scroll_position(
     assert adjustment.get_value() == previous
 
 
+def test_model_change_updates_window_cards_and_restores_tooltip(preview, preview_hover):
+    hover, _config = preview_hover
+    preview.show(8)
+    preview.scroll_to(last=True, position=Position.BOTTOM)
+    scroller = preview.scroller
+    scroll = scroller.get_hadjustment().get_value()
+    assert scroll > 0
+
+    hover.on_model_changed()
+    assert preview.scroller is scroller
+    assert scroller.get_hadjustment().get_value() == scroll
+
+    preview.tracker.list_preview_windows.return_value = (
+        preview.tracker.list_preview_windows.return_value[:1]
+    )
+    hover.on_model_changed()
+    assert len(preview.cards) == 1
+
+    preview.tracker.list_preview_windows.return_value = []
+    hover.hovered_item.is_running = False
+    hover.hovered_item.instance_count = 0
+    hover.on_model_changed()
+    hover.update(600)
+    assert not preview.popup.get_visible()
+    hover._tooltip.update.assert_called_once()
+
+
 @pytest.mark.parametrize("position", list(Position))
 @pytest.mark.parametrize("count", [1, 2, 8])
 def test_actual_popup_fits_and_only_overflowing_axis_scrolls(preview, position, count):

@@ -108,7 +108,7 @@ should not be edited by hand.
 | `transparency` | `1.0` | `0.15` to `1.0` | Multiplier applied to the theme's dock-background alpha. |
 | `zoom_enabled` | `true` | boolean | Enlarges icons near the pointer. |
 | `zoom_percent` | `1.5` | `1.0` to `4.0` | Maximum zoom multiplier. `1.5` is 150 percent. |
-| `zoom_range` | `3` | integer, minimum `0` | Number of icon widths over which parabolic zoom tapers off. This is currently file-only. |
+| `zoom_range` | `3` | integer, minimum `0` | Legacy setting retained for file compatibility. Hover zoom derives its range from the icon size and zoom multiplier. |
 | `tooltips_enabled` | `true` | boolean | Shows item names and dynamic details on hover. |
 | `window_preview_thumbnails_enabled` | `true` | boolean | Shows window thumbnails when hovering over running applications. |
 | `window_preview_highlight_thumbnails_on_hover` | `false` | boolean | Draws a blue border around the preview thumbnail under the pointer. Off by default to keep the popup minimal. Works on every session type. |

@@ -116,6 +116,7 @@ class HyprlandSessionBackend(SessionBackend):
             application_registry=application_registry,
             process_identity_service=process_identity_service,
             preview_handle_source=preview_handles,
+            config=config,
         )
         if windows is None:
             windows = ReducedWindowService()
